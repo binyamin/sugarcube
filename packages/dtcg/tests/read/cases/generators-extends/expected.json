@@ -10,13 +10,15 @@
         {
           "path": "space.2",
           "generated": {
-            "from": "space"
+            "from": "space",
+            "extension": ["com.example", "steps"]
           }
         },
         {
           "path": "space.1",
           "generated": {
-            "from": "space"
+            "from": "space",
+            "extension": ["com.example", "steps"]
           }
         },
         {
@@ -26,7 +28,8 @@
             "unit": "px"
           },
           "generated": {
-            "from": "inset"
+            "from": "inset",
+            "extension": ["com.example", "steps"]
           },
           "inherited": null
         },
@@ -45,7 +48,8 @@
             }
           },
           "generated": {
-            "from": "inset"
+            "from": "inset",
+            "extension": ["com.example", "steps"]
           },
           "inherited": null
         }

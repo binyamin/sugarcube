@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
     type Document,
+    acrossPermutations,
     byToken,
+    completeInput,
     defaultPermutation,
     errors,
     group,
@@ -110,6 +112,78 @@ describe("permutation", () => {
         });
         expect(permutation(noDefault)).toBeUndefined();
         expect(permutation(noDefault, { theme: "dark" })?.input).toStrictEqual({ theme: "dark" });
+    });
+});
+
+describe("completeInput", () => {
+    it("gives every modifier, defaults filled in and names as the resolver writes them", () => {
+        expect(completeInput(doc, { Theme: "DARK" })).toStrictEqual({
+            ok: true,
+            input: { theme: "dark", density: "comfy" },
+        });
+    });
+
+    it("says which modifier or context the resolver does not declare", () => {
+        expect(completeInput(doc, { mood: "calm" })).toStrictEqual({
+            ok: false,
+            reason: "unknown-modifier",
+            modifier: "mood",
+        });
+        expect(completeInput(doc, { theme: "sepia" })).toStrictEqual({
+            ok: false,
+            reason: "unknown-context",
+            modifier: "theme",
+            context: "sepia",
+        });
+    });
+
+    it("says which modifier with no default was left out", () => {
+        const noDefault = readFromMemory({
+            files: {
+                ...files,
+                "tokens.resolver.json": JSON.stringify({
+                    ...resolver,
+                    modifiers: { theme: { contexts: resolver.modifiers.theme.contexts } },
+                    resolutionOrder: resolver.resolutionOrder.slice(0, 2),
+                }),
+            },
+            entry: "tokens.resolver.json",
+        });
+
+        expect(completeInput(noDefault, {})).toStrictEqual({
+            ok: false,
+            reason: "no-default",
+            modifier: "theme",
+        });
+    });
+});
+
+describe("acrossPermutations", () => {
+    it("gives the token in each permutation that has it, saying where its value comes from", () => {
+        const across = acrossPermutations(doc, "2");
+
+        expect(
+            across.map(({ label, overrides, from }) => ({ label, overrides, from })),
+        ).toStrictEqual([
+            { label: "default", overrides: false, from: { set: "base" } },
+            { label: "compact", overrides: false, from: { set: "base" } },
+            { label: "dark", overrides: true, from: { modifier: "theme", context: "dark" } },
+            {
+                label: "dark + compact",
+                overrides: true,
+                from: { modifier: "theme", context: "dark" },
+            },
+        ]);
+        expect(across[2]?.token).toStrictEqual(token(doc, "2", { theme: "dark" }));
+        expect(across[2]?.input).toStrictEqual({ theme: "dark", density: "comfy" });
+    });
+
+    it("leaves out permutations that don't have the token", () => {
+        expect(acrossPermutations(doc, "glow").map(({ label }) => label)).toStrictEqual([
+            "dark",
+            "dark + compact",
+        ]);
+        expect(acrossPermutations(doc, "nope")).toStrictEqual([]);
     });
 });
 

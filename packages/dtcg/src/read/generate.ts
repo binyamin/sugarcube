@@ -124,7 +124,7 @@ export function fillGenerated(
                 report(result.errors);
                 continue;
             }
-            const from = { from: group.path };
+            const from = { from: group.path, extension: generator.extension };
             for (const made of result.value) {
                 const path = group.path === "" ? made.name : `${group.path}.${made.name}`;
                 const written = merged.tokens.get(path);
@@ -158,7 +158,7 @@ function extensionOf(
 function addedToken(
     path: string,
     { $type, $value, $description, $extensions }: GeneratedToken,
-    generated: { from: string },
+    generated: { from: string; extension: Generator["extension"] },
     { json, node, piece }: Extension,
 ): MergedToken {
     return {

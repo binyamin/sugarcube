@@ -17,7 +17,8 @@
             }
           },
           "generated": {
-            "from": "space"
+            "from": "space",
+            "extension": ["com.example", "steps"]
           }
         }
       ]

@@ -18,8 +18,9 @@ export interface Piece {
 
 export interface MergedToken extends SourceToken {
     piece: Piece;
+    replaces?: Span[];
     inherited?: { from: string };
-    generated?: { from: string };
+    generated?: { from: string; extension: [string, ...string[]] };
     added?: true;
 }
 
@@ -93,7 +94,9 @@ export function merge(
                 conflict(token.at, group.declaredIn, "group");
                 removeGroup(merged, token.path);
             }
-            merged.tokens.set(token.path, { ...token, piece });
+            const earlier = merged.tokens.get(token.path);
+            const replaces = earlier && [...(earlier.replaces ?? []), earlier.at];
+            merged.tokens.set(token.path, { ...token, piece, ...(replaces && { replaces }) });
         }
     }
     return merged;

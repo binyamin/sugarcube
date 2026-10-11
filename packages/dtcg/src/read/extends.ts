@@ -127,7 +127,8 @@ function inherit(merged: Merged, group: MergedGroup, from: string): void {
         const path = moved(token.path);
         if (path === undefined) continue;
         if (merged.tokens.has(path) || merged.groups.has(path) || underLocalToken(path)) continue;
-        merged.tokens.set(path, { ...token, path, inherited: { from } });
+        const { replaces: _replaces, ...copied } = token;
+        merged.tokens.set(path, { ...copied, path, inherited: { from } });
     }
 }
 

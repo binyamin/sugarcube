@@ -1,4 +1,4 @@
-import type { Document, Input, Permutation } from "../index.js";
+import type { CompleteInput, Document, Input, Permutation } from "../index.js";
 import { findByName } from "../read/permutations.js";
 
 /**
@@ -12,10 +12,12 @@ import { findByName } from "../read/permutations.js";
  * permutation(doc, { theme: "dark" })   // the dark theme, every other modifier at its default
  */
 export function permutation(doc: Document, input: Input = {}): Permutation | undefined {
-    const full = fullInput(doc, input);
-    if (full === undefined) return undefined;
+    const complete = completeInput(doc, input);
+    if (!complete.ok) return undefined;
     const names = Object.keys(doc.modifiers);
-    return doc.permutations.find((each) => names.every((name) => each.input[name] === full[name]));
+    return doc.permutations.find((each) =>
+        names.every((name) => each.input[name] === complete.input[name]),
+    );
 }
 
 /**
@@ -35,20 +37,31 @@ export function chosenPermutation(
     return defaultPermutation(doc) ?? doc.permutations[0];
 }
 
-function fullInput(doc: Document, input: Input): Input | undefined {
+/**
+ * An input with every modifier given, defaults filled in, and each name as the resolver writes
+ * it, or why there is none. Names match whatever their case, as the resolver spec asks.
+ *
+ * @example
+ * completeInput(doc, { Theme: "DARK" })   // { ok: true, input: { theme: "dark", density: "comfy" } }
+ * completeInput(doc, { theme: "sepia" })  // { ok: false, reason: "unknown-context", modifier: "theme", context: "sepia" }
+ */
+export function completeInput(doc: Document, input: Input): CompleteInput {
     const names = Object.keys(doc.modifiers);
     const full: Input = {};
     for (const [key, value] of Object.entries(input)) {
         const name = findByName(names, key, (each) => each);
-        const contexts = name === undefined ? [] : (doc.modifiers[name]?.contexts ?? []);
+        if (name === undefined) return { ok: false, reason: "unknown-modifier", modifier: key };
+        const contexts = doc.modifiers[name]?.contexts ?? [];
         const context = findByName(contexts, value, (each) => each);
-        if (name === undefined || context === undefined) return undefined;
+        if (context === undefined) {
+            return { ok: false, reason: "unknown-context", modifier: name, context: value };
+        }
         full[name] = context;
     }
     for (const name of names) {
         const context = full[name] ?? doc.modifiers[name]?.default;
-        if (context === undefined) return undefined;
+        if (context === undefined) return { ok: false, reason: "no-default", modifier: name };
         full[name] = context;
     }
-    return full;
+    return { ok: true, input: full };
 }

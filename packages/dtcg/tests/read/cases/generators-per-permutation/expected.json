@@ -17,7 +17,8 @@
             }
           },
           "generated": {
-            "from": "space"
+            "from": "space",
+            "extension": ["com.example", "steps"]
           }
         }
       ]
@@ -27,7 +28,8 @@
         {
           "path": "space.2",
           "generated": {
-            "from": "space"
+            "from": "space",
+            "extension": ["com.example", "steps"]
           }
         },
         {
@@ -40,7 +42,8 @@
             }
           },
           "generated": {
-            "from": "space"
+            "from": "space",
+            "extension": ["com.example", "steps"]
           }
         }
       ]

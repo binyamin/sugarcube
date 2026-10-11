@@ -452,6 +452,12 @@ export interface TokenBase<T extends TokenType> {
      */
     source: { index: number; at: Span };
     /**
+     * The places earlier sources of the permutation write the token, in the order they are read,
+     * which {@link TokenBase.source | source.at} replaces: a later source writes a token whole.
+     * Absent when no earlier source writes it.
+     */
+    replaces?: Span[];
+    /**
      * The value exactly as the file wrote it, and whether the file declared `$type` on this token.
      * Absent when no file writes the token: one a {@link Generator} added.
      */
@@ -459,10 +465,11 @@ export interface TokenBase<T extends TokenType> {
     /**
      * Set when a {@link Generator} makes the token from an extension on the group at `from`, whether
      * a file writes the token or it was added. `from` is `""` for an extension on the top level of a
-     * file. An added token has no {@link TokenBase.authored | authored}, and its
+     * file, and `extension` is where the extension sits in the group's `$extensions`, as the
+     * generator names it. An added token has no {@link TokenBase.authored | authored}, and its
      * {@link TokenBase.source | source} is the extension.
      */
-    generated?: { from: string };
+    generated?: { from: string; extension: [string, ...string[]] };
     /** Set when the token is here only because of `$extends`, or a `$ref` to another group, at `from`. */
     inherited?: { from: string };
 }
@@ -1034,8 +1041,9 @@ export type ExtensionError<M extends ExtensionMessages = ExtensionMessages> = st
       }[keyof M & string];
 
 /**
- * Makes tokens from an extension on a group, such as a scale recipe. The extension owns every token
- * it makes: each is marked {@link TokenBase.generated | generated}, whether a file writes it or not.
+ * Makes tokens from an extension on a group, such as the steps of a spacing scale. The extension
+ * owns every token it makes: each is marked {@link TokenBase.generated | generated}, whether a file
+ * writes it or not.
  * A token a file writes keeps its written value. A token no file writes is added, after the group's
  * files are merged and its `$extends` followed, and read like any written token, so references to
  * it resolve.
@@ -1109,7 +1117,7 @@ export interface ReadOptions extends ParseOptions {
     /** Checks for your own `$extensions` keys, run in each permutation once types are known. */
     extensionValidators?: ExtensionValidator[];
     /**
-     * Generators that add tokens from extensions on groups, such as recipes. Run in order, in
+     * Generators that add tokens from extensions on groups. Run in order, in
      * each permutation, before values are read.
      */
     generators?: Generator[];
@@ -1180,24 +1188,17 @@ export interface TokenView {
 
 export { byToken } from "./lookup/by-token.js";
 export { pathBelow, withoutRoot } from "./path.js";
-export { defaultPermutation, permutation } from "./lookup/permutation.js";
+export { completeInput, defaultPermutation, permutation } from "./lookup/permutation.js";
+
+/** What {@link completeInput} gives: the full input, or the modifier or context it could not match. */
+export type CompleteInput =
+    | { ok: true; input: Input }
+    | { ok: false; reason: "unknown-modifier"; modifier: string }
+    | { ok: false; reason: "unknown-context"; modifier: string; context: string }
+    | { ok: false; reason: "no-default"; modifier: string };
 export { group, token, tokensIn } from "./lookup/token.js";
 
-/** A token as it is in each permutation, in order. */
-export function acrossPermutations(
-    doc: Document,
-    path: string,
-): {
-    input: Input;
-    label: string;
-    token: Token;
-    /** Whether this permutation's value comes from a context's own file rather than the base. */
-    overrides: boolean;
-    /** How the value arrived: straight from a set, or through a modifier's context. */
-    from: Source["from"];
-}[] {
-    throw new Error("not implemented yet");
-}
+export { acrossPermutations } from "./lookup/across-permutations.js";
 
 /** A token or group whose path changed, such as after a rename. */
 export interface Move {

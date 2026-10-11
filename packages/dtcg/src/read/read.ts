@@ -95,7 +95,7 @@ export function readFromMemory(
          * The file to start from.
          * @default the first resolver among the files, or else every file, in order
          */
-        entry?: string;
+        entry?: string | undefined;
     },
     options: ReadOptions = {},
 ): Document {
@@ -114,7 +114,7 @@ export function openFromMemory(
     sources: {
         files: Record<string, string>;
         /** @default the first resolver among the files, or else every file, in order */
-        entry?: string;
+        entry?: string | undefined;
     },
     options: ReadOptions = {},
 ): Project {

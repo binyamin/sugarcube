@@ -30,14 +30,16 @@
             }
           },
           "generated": {
-            "from": ""
+            "from": "",
+            "extension": ["com.example", "steps"]
           },
           "authored": null
         },
         {
           "path": "1",
           "generated": {
-            "from": ""
+            "from": "",
+            "extension": ["com.example", "steps"]
           }
         }
       ]

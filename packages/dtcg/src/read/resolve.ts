@@ -257,6 +257,7 @@ function toToken<T extends TokenType>(
         ...(deprecated !== undefined && { deprecated }),
         ...(token.extensions && { extensions: token.extensions }),
         source: { index: token.piece.source, at: token.at },
+        ...(token.replaces && { replaces: token.replaces }),
         ...(!token.added && {
             authored: { value: token.authored, typeDeclared: token.type !== undefined },
         }),
