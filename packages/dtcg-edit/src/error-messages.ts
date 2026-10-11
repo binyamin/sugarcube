@@ -27,6 +27,14 @@ const refusalReasons: {
         const where = from === "" ? "at the top of its file" : `on \`${from}\``;
         return `\`${path}\` is generated from \`${extension.join(".")}\` ${where}; change the extension instead`;
     },
+    "not-a-group": ({ path }) => `\`${path}\` is a token, so nothing can be made inside it`,
+    "taken": ({ path }) => `\`${path}\` already exists`,
+    "override-instead": ({ path, context }) =>
+        `\`${path}\` already exists for every context; to give ${named(context)} its own value, change it for that context`,
+    "invalid-name": ({ name, character }) =>
+        character === undefined
+            ? "a name can't be empty: no path reaches it"
+            : `\`${name}\` can't be a name: ${character === "$" ? "a leading `$` marks a property" : `\`${character}\` is used by references`}`,
     "inherited": ({ path, from }) =>
         `\`${path}\` comes from \`${from}\` through \`$extends\`; change it there`,
     "no-permutation": ({ context, why }) =>
@@ -34,7 +42,9 @@ const refusalReasons: {
     "several-contexts": ({ context }) =>
         `an override for ${named(context)} at once can't be written: no file is read by that combination alone`,
     "no-file-for-context": ({ path, context }) =>
-        `\`${path}\` can't be overridden for ${named(context)}: it reads no whole file of its own to write the override in`,
+        `\`${path}\` can't be written for ${named(context)}: it reads no whole file of its own to hold it`,
+    "no-shared-file": ({ path }) =>
+        `\`${path}\` can't be written for every permutation: no whole file they all read can hold it`,
     "hidden-by-later-file": ({ path, context, file }) =>
         `\`${path}\` can't be overridden for ${named(context)}: \`${file}\` is read after its files, so it would still win`,
     "no-shared-value": ({ path }) =>

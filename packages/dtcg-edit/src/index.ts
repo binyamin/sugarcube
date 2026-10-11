@@ -93,6 +93,12 @@ export type OpResult =
  * them, so a tool can show the reason or word its own from the facts.
  *
  * - `not-found`: no token or group at `path`.
+ * - `not-a-group`: `path` is a token, so nothing can be made inside it.
+ * - `taken`: a token or group is already at `path`.
+ * - `override-instead`: the token at `path` is shared, so `context` gets its own value by
+ *   changing it for that context ({@link setValue}), not by making it again.
+ * - `invalid-name`: `name` can't be a name: `character` is the one the spec forbids (Format
+ *   5.1.1), and an empty name has none, since no path reaches it.
  * - `generated`: a generator makes the token, from the extension at `extension` on the group at
  *   `from` (`""` for the top level of a file).
  * - `inherited`: the token or group comes from the group at `from`, through `$extends`.
@@ -100,12 +106,17 @@ export type OpResult =
  *   context isn't declared, a modifier with no default was left out, or the read didn't build it.
  * - `several-contexts`: `context` names more than one context away from its default; no file is
  *   read by that combination alone.
- * - `no-file-for-context`: `context` reads no whole file of its own to hold an override.
+ * - `no-file-for-context`: `context` reads no whole file of its own to hold the edit.
+ * - `no-shared-file`: no whole file every permutation reads can hold the edit.
  * - `hidden-by-later-file`: an override for `context` would be hidden by `file`, read after it.
  * - `no-shared-value`: no file every permutation reads writes the token; only contexts do.
  */
 export type Refusal = { reason: string } & (
     | { kind: "not-found"; path: string }
+    | { kind: "not-a-group"; path: string }
+    | { kind: "taken"; path: string }
+    | { kind: "override-instead"; path: string; context: Input }
+    | { kind: "invalid-name"; name: string; character?: "$" | "." | "{" | "}" }
     | { kind: "generated"; path: string; from: string; extension: [string, ...string[]] }
     | { kind: "inherited"; path: string; from: string }
     | {
@@ -115,6 +126,7 @@ export type Refusal = { reason: string } & (
       }
     | { kind: "several-contexts"; context: Input }
     | { kind: "no-file-for-context"; path: string; context: Input }
+    | { kind: "no-shared-file"; path: string }
     | { kind: "hidden-by-later-file"; path: string; context: Input; file: string }
     | { kind: "no-shared-value"; path: string }
 );
@@ -136,7 +148,8 @@ export interface Where {
 export interface NewToken {
     /**
      * Its type. Leave it out when the group declares one, or when the value is a reference: the
-     * token then takes its type from there, as the spec allows. Refused if no type can be worked out.
+     * token then takes its type from there, as the spec allows. Written as given either way: when
+     * no type can be worked out, the read reports it.
      */
     $type?: TokenType;
     /** Written exactly as given. */
@@ -180,22 +193,7 @@ export function setValues(
     throw new Error("not implemented yet");
 }
 
-/** Creates a token or a group. */
-export function create(
-    project: Project,
-    parent: string,
-    name: string,
-    token: NewToken | { group: true },
-    options?: Where & {
-        /**
-         * The sibling to place it after.
-         * @default the end of the group
-         */
-        after?: string;
-    },
-): OpResult {
-    throw new Error("not implemented yet");
-}
+export { create } from "./create.js";
 
 /** Moves a token or group among its siblings. */
 export function reorder(
@@ -222,10 +220,7 @@ export function move(
     throw new Error("not implemented yet");
 }
 
-/** Removes a token or group, and reports the references it leaves pointing at nothing. */
-export function remove(project: Project, path: string): OpResult {
-    throw new Error("not implemented yet");
-}
+export { remove } from "./remove.js";
 
 /**
  * Marks a token or group as deprecated, with a message saying what to use instead, or `true` for

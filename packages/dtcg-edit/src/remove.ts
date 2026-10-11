@@ -1,0 +1,80 @@
+import {
+    type Document,
+    type Project,
+    type Span,
+    group,
+    referrers,
+    token,
+    tokensIn,
+} from "@sugarcube-sh/dtcg";
+import { refused } from "./error-messages.js";
+import type { FileOp, OpResult, Refusal } from "./index.js";
+import { placeOf, refusalFor } from "./placement.js";
+import { valueAt } from "./text-edits.js";
+
+/**
+ * Removes a token or group from every file that writes it: the copy that wins, any copy an earlier
+ * file writes that it replaces, and each context's own. Never refused for what refers to it: the
+ * tokens left pointing at nothing are listed in `broken`.
+ *
+ * Refused, with the reason: a path that is neither a token nor a group, a token a generator makes,
+ * or a token or group inherited through `$extends`.
+ *
+ * @example
+ * const result = remove(project, "color.legacy");
+ * if ("ops" in result && result.broken?.length) warn(result.broken);
+ */
+export function remove(project: Project, path: string): OpResult {
+    const { doc } = project;
+    const copies = tokenCopies(doc, path) ?? groupCopies(doc, path);
+    if ("refused" in copies) return copies;
+
+    const ops = unique(copies.spans).flatMap((span): FileOp[] => {
+        const place = placeOf(project, span);
+        const was = place && valueAt(project.files[span.file] ?? "", place.path);
+        if (!place || was === undefined) return [];
+        return [{ kind: "remove", file: span.file, path: place.path, was }];
+    });
+    const broken = referrers(doc, copies.inside).map((each) => each.path);
+    const alsoAffects = doc.permutations
+        .filter((perm) => Object.keys(perm.input).length > 0)
+        .filter((perm) => token(perm, path) ?? group(perm, path))
+        .map((perm) => perm.input);
+    return { ops, alsoAffects, broken, moved: [] };
+}
+
+type Copies = { spans: Span[]; inside: string[] } | { refused: Refusal };
+
+function tokenCopies(doc: Document, path: string): Copies | undefined {
+    const found = doc.permutations.flatMap((perm) => token(perm, path) ?? []);
+    const [first] = found;
+    if (!first) return undefined;
+    const refusal = refusalFor(first);
+    if (refusal) return refusal;
+    const spans = found.flatMap((each) => (each.replaces ?? []).concat(each.source.at));
+    return { spans, inside: [path] };
+}
+
+function groupCopies(doc: Document, path: string): Copies {
+    const found = doc.permutations.flatMap((perm) => {
+        const declared = group(perm, path);
+        return declared ? [{ perm, declared }] : [];
+    });
+    const [first] = found;
+    if (!first) return refused({ kind: "not-found", path });
+    const { inherited } = first.declared;
+    if (inherited) return refused({ kind: "inherited", path, from: inherited.from });
+    const spans = found.flatMap(({ declared }) => declared.declaredIn);
+    const inside = found.flatMap(({ perm }) => tokensIn(perm, path).map((each) => each.path));
+    return { spans, inside: [...new Set(inside)] };
+}
+
+function unique(spans: Span[]): Span[] {
+    const seen = new Set<string>();
+    return spans.filter(({ file, offset }) => {
+        const key = `${file}:${offset}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
