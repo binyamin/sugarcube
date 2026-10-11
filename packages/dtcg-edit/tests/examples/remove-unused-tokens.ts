@@ -1,6 +1,6 @@
 // A cleanup script that removes every token nothing references, in any theme.
-import { byToken, referrers } from "@sugarcube-sh/dtcg";
-import { remove, commit, type Project } from "@sugarcube-sh/dtcg-edit";
+import { byToken, referrers, type Project } from "@sugarcube-sh/dtcg";
+import { remove, commit } from "@sugarcube-sh/dtcg-edit";
 
 declare let project: Project;
 

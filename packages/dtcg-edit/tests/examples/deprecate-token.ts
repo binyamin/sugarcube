@@ -1,7 +1,7 @@
 // Deprecates a token with a message pointing at its replacement, then lists deprecated tokens still
 // in use.
-import { byToken, referrers } from "@sugarcube-sh/dtcg";
-import { deprecate, commit, type Project } from "@sugarcube-sh/dtcg-edit";
+import { byToken, referrers, type Project } from "@sugarcube-sh/dtcg";
+import { deprecate, commit } from "@sugarcube-sh/dtcg-edit";
 
 declare let project: Project;
 

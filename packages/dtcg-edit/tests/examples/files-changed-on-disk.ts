@@ -2,7 +2,8 @@
 // pulled new commits or edited a file in their code editor. The unsaved changes are put back on
 // top of the new files. One that touches something which also changed is reported as a conflict,
 // not written over the other change.
-import { open, type Session } from "@sugarcube-sh/dtcg-edit";
+import { open } from "@sugarcube-sh/dtcg";
+import { type Session } from "@sugarcube-sh/dtcg-edit";
 
 declare const session: Session;
 declare function readText(path: string): Promise<string>;

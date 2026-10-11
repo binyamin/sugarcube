@@ -1,6 +1,6 @@
 // Shows a token whose value can't be read, with what's wrong, then fixes it.
-import { diagnosticsFor, token } from "@sugarcube-sh/dtcg";
-import { setValue, commit, type Project } from "@sugarcube-sh/dtcg-edit";
+import { diagnosticsFor, token, type Project } from "@sugarcube-sh/dtcg";
+import { setValue, commit } from "@sugarcube-sh/dtcg-edit";
 
 declare let project: Project;
 

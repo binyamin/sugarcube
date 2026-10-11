@@ -1,13 +1,5 @@
-import type { ReadOptions } from "@sugarcube-sh/dtcg";
-import type { Conflict, FileOp, Project } from "./index.js";
-
-/**
- * Opens a design system from disk for editing. Paths in the result are relative to the entry's
- * folder: join them with it to reach a file on disk.
- */
-export function open(entry: string, options?: ReadOptions): Promise<Project> {
-    throw new Error("not implemented yet");
-}
+import type { Project } from "@sugarcube-sh/dtcg";
+import type { Conflict, FileOp } from "./index.js";
 
 /**
  * Applies edits to the files on disk. Each file is read as it is now, so edits made elsewhere

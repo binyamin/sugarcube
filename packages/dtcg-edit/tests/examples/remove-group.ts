@@ -1,5 +1,6 @@
 // Removes a whole group, after first showing which references that would break.
-import { remove, commit, type Project } from "@sugarcube-sh/dtcg-edit";
+import { type Project } from "@sugarcube-sh/dtcg";
+import { remove, commit } from "@sugarcube-sh/dtcg-edit";
 
 declare let project: Project;
 

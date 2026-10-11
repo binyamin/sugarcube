@@ -1,6 +1,6 @@
 // Applies the safe fixes by itself, and asks a person before applying each of the rest.
-import { errors } from "@sugarcube-sh/dtcg";
-import { commit, fix, fixesFor, type Project } from "@sugarcube-sh/dtcg-edit";
+import { errors, type Project } from "@sugarcube-sh/dtcg";
+import { commit, fix, fixesFor } from "@sugarcube-sh/dtcg-edit";
 
 declare let project: Project;
 declare function confirm(question: string): Promise<boolean>;

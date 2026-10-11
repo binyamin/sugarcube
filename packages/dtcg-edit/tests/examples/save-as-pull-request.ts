@@ -1,6 +1,7 @@
 // A server that turns saved edits into a pull request. It reads the files from GitHub as they are
 // now, applies the edits, and opens the pull request.
-import { open, apply, changedFiles, decodeEdits } from "@sugarcube-sh/dtcg-edit";
+import { open } from "@sugarcube-sh/dtcg";
+import { apply, changedFiles, decodeEdits } from "@sugarcube-sh/dtcg-edit";
 
 declare const body: { edits: string; title: string };
 declare function readFromGitHub(path: string): Promise<string>;

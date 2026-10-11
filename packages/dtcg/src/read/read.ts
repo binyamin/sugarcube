@@ -80,6 +80,14 @@ export function readFromMemory(
     },
     options: ReadOptions = {},
 ): Document {
+    return readFromMemoryKeeping(sources, options);
+}
+
+export function readFromMemoryKeeping(
+    sources: { files: Record<string, string>; entry?: string },
+    options: ReadOptions,
+    keep?: (file: string, text: string) => void,
+): Document {
     const started = performance.now();
     const texts = new Map(
         Object.entries(sources.files).map(([path, text]) => [normalise(path), text]),
@@ -96,6 +104,7 @@ export function readFromMemory(
         const answer: Answer = {};
         for (const path of step.value) {
             const text = texts.get(filePath(folder, path));
+            if (text !== undefined) keep?.(path, text);
             answer[path] = text === undefined ? { missing: true } : { text };
         }
         step = run.next(answer);

@@ -1,5 +1,6 @@
 // Changes only the color of a shadow, leaving the rest of it as written.
-import { setValue, type Project } from "@sugarcube-sh/dtcg-edit";
+import { type Project } from "@sugarcube-sh/dtcg";
+import { setValue } from "@sugarcube-sh/dtcg-edit";
 
 declare const project: Project;
 

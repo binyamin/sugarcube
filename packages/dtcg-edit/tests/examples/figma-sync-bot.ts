@@ -1,7 +1,7 @@
 // A bot that syncs one changed variable from Figma. It opens a pull request with just that change,
 // and lists the other themes it also shows in.
-import { setValue, apply, changedFiles, type Project } from "@sugarcube-sh/dtcg-edit";
-import { permutation } from "@sugarcube-sh/dtcg";
+import { setValue, apply, changedFiles } from "@sugarcube-sh/dtcg-edit";
+import { permutation, type Project } from "@sugarcube-sh/dtcg";
 
 declare const project: Project;
 

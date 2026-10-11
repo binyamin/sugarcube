@@ -1,32 +1,11 @@
 import type {
     Change,
-    Document,
     Input,
     JsonPath,
     Move,
-    ReadOptions,
+    Project,
     TokenType,
 } from "@sugarcube-sh/dtcg";
-
-/**
- * A design system and the text of its files, ready to edit.
- *
- * A project never changes: {@link apply} returns a new one and leaves this one as it was, so
- * undo is keeping the previous project.
- *
- * A project remembers the options it was read with, functions included, so it cannot be sent to
- * another process as it is. Send its `files`, and open it there with {@link openFromMemory} and
- * the same options.
- */
-export interface Project {
-    readonly doc: Document;
-    /** The text of every file, keyed by path, as described at `ReadText` in `@sugarcube-sh/dtcg`. */
-    readonly files: Readonly<Record<string, string>>;
-    /** The options it was read with, for reading it again after an edit. */
-    readonly options: ReadOptions;
-}
-
-export { open } from "./open.js";
 
 /**
  * A replacement of some text in a file. The offset and length count UTF-16 code units, as a
@@ -53,24 +32,6 @@ export interface Fix {
 }
 
 export { fixesFor } from "./fixes.js";
-
-/**
- * Opens a design system for editing from text already in memory, by the rules of
- * `readFromMemory` in `@sugarcube-sh/dtcg`.
- *
- * @example
- * const project = openFromMemory({ files, entry: "tokens.resolver.json" });
- */
-export function openFromMemory(
-    sources: {
-        files: Record<string, string>;
-        /** @default the only file, when there is one */
-        entry?: string;
-    },
-    options?: ReadOptions,
-): Project {
-    throw new Error("not implemented yet");
-}
 
 /** Any JSON value. */
 export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };

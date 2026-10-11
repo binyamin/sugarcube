@@ -2,9 +2,10 @@
 // sends their text. The browser opens the same design system from that text and edits it. A save
 // sends back only the edits, and the server writes them, refusing any file that isn't one of the
 // token files. If a file breaks mid-edit, the browser keeps the last version that read cleanly.
-import { errors } from "@sugarcube-sh/dtcg";
-import { openFromMemory, type FileOp, type Project } from "@sugarcube-sh/dtcg-edit";
-import { applyToDisk, open } from "@sugarcube-sh/dtcg-edit/node";
+import { errors, openFromMemory, type Project } from "@sugarcube-sh/dtcg";
+import { open } from "@sugarcube-sh/dtcg/node";
+import { type FileOp } from "@sugarcube-sh/dtcg-edit";
+import { applyToDisk } from "@sugarcube-sh/dtcg-edit/node";
 
 declare function sendToBrowser(entry: string, files: Readonly<Record<string, string>>): void;
 

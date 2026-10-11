@@ -1,12 +1,7 @@
 // An editor's undo history. Every edit is kept so it can be undone, and the kept edits are what
 // gets saved.
-import {
-    createSession,
-    encodeEdits,
-    rename,
-    setValue,
-    type Project,
-} from "@sugarcube-sh/dtcg-edit";
+import { type Project } from "@sugarcube-sh/dtcg";
+import { createSession, encodeEdits, rename, setValue } from "@sugarcube-sh/dtcg-edit";
 
 declare const opened: Project;
 declare function sendSave(encoded: string): Promise<boolean>;
