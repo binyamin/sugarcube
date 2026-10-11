@@ -1,5 +1,11 @@
 import type { JsonPath, Span } from "@sugarcube-sh/dtcg";
-import { type Node, findNodeAtLocation, findNodeAtOffset, parseTree } from "jsonc-parser";
+import {
+    type Node,
+    findNodeAtLocation,
+    findNodeAtOffset,
+    getNodePath,
+    parseTree,
+} from "jsonc-parser";
 import type { Json } from "./index.js";
 
 export interface Splice {
@@ -15,8 +21,9 @@ export function nodeAt(text: string, { offset, length }: Span): Node | undefined
     return node;
 }
 
-export function nodeAtPath(root: Node, path: JsonPath): Node | undefined {
-    return findNodeAtLocation(root, path);
+export function pathAt(text: string, span: Span): JsonPath | undefined {
+    const node = nodeAt(text, span);
+    return node && getNodePath(node);
 }
 
 export function refString(node: Node): Node | undefined {

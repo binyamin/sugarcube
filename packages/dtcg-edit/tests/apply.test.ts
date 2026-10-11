@@ -67,13 +67,16 @@ describe("apply, set", () => {
 
         const result = apply(theirs, [op]);
 
-        expect(result).toEqual({ conflicts: [{ op, reason: expect.any(String) }] });
+        expect(result).toEqual({
+            conflicts: [{ op, kind: "changed", reason: expect.any(String) }],
+        });
     });
 
     it("still applies when someone wrote the same value with its keys in another order", () => {
         const op = setBrand500(demo);
         const written = at(demo, "color.json", brand500) as Record<string, Json>;
-        const reordered = Object.fromEntries(Object.entries(written).reverse());
+        const { hex, ...rest } = written;
+        const reordered = { hex, ...rest } as Json;
         const theirs = changed(demo, "color.json", brand500, reordered);
 
         expect(at(applied(theirs, [op]), "color.json", brand500)).toEqual(red);
@@ -90,7 +93,9 @@ describe("apply, set", () => {
         const op = setBrand500(demo);
         const theirs = changed(demo, "color.json", ["color", "brand"], {});
 
-        expect(apply(theirs, [op])).toEqual({ conflicts: [{ op, reason: expect.any(String) }] });
+        expect(apply(theirs, [op])).toEqual({
+            conflicts: [{ op, kind: "gone", reason: expect.any(String) }],
+        });
     });
 });
 
@@ -118,7 +123,9 @@ describe("apply, add", () => {
         };
         const theirs = changed(demo, "color.json", ["color", "brand", "950"], { $value: "#000" });
 
-        expect(apply(theirs, [op])).toEqual({ conflicts: [{ op, reason: expect.any(String) }] });
+        expect(apply(theirs, [op])).toEqual({
+            conflicts: [{ op, kind: "taken", reason: expect.any(String) }],
+        });
     });
 
     it("does nothing when someone already made the same token", () => {
@@ -133,10 +140,25 @@ describe("apply, add", () => {
         expect(applied(theirs, [op]).files).toEqual(theirs.files);
     });
 
+    it("is a conflict when the path runs through a value that isn't a group", () => {
+        const op: FileOp = {
+            kind: "add",
+            file: "color.json",
+            path: ["color", "text", "brand", "$value", "hex"],
+            value: "#ff0000",
+        };
+
+        expect(apply(demo, [op])).toEqual({
+            conflicts: [{ op, kind: "not-a-group", reason: expect.any(String) }],
+        });
+    });
+
     it("is a conflict in a file the project doesn't hold", () => {
         const op: FileOp = { kind: "add", file: "nope.json", path: ["a"], value: { $value: 1 } };
 
-        expect(apply(demo, [op])).toEqual({ conflicts: [{ op, reason: expect.any(String) }] });
+        expect(apply(demo, [op])).toEqual({
+            conflicts: [{ op, kind: "not-in-project", reason: expect.any(String) }],
+        });
     });
 });
 
@@ -166,7 +188,9 @@ describe("apply, remove", () => {
         const op = removeSm();
         const theirs = changed(demo, "radius.json", [...sm, "$value", "value"], 0.2);
 
-        expect(apply(theirs, [op])).toEqual({ conflicts: [{ op, reason: expect.any(String) }] });
+        expect(apply(theirs, [op])).toEqual({
+            conflicts: [{ op, kind: "changed", reason: expect.any(String) }],
+        });
     });
 });
 
@@ -182,14 +206,18 @@ describe("apply, renameKey", () => {
     it("is a conflict when a sibling has taken the name since", () => {
         const op = rename("md");
 
-        expect(apply(demo, [op])).toEqual({ conflicts: [{ op, reason: expect.any(String) }] });
+        expect(apply(demo, [op])).toEqual({
+            conflicts: [{ op, kind: "taken", reason: expect.any(String) }],
+        });
     });
 
     it("is a conflict when the key has gone", () => {
         const op = rename("small");
         const theirs = applied(demo, [removeSm()]);
 
-        expect(apply(theirs, [op])).toEqual({ conflicts: [{ op, reason: expect.any(String) }] });
+        expect(apply(theirs, [op])).toEqual({
+            conflicts: [{ op, kind: "gone", reason: expect.any(String) }],
+        });
     });
 
     it("does nothing when someone already made the same rename", () => {
@@ -211,7 +239,9 @@ describe("apply, renameKey", () => {
             },
         ]);
 
-        expect(apply(theirs, [op])).toEqual({ conflicts: [{ op, reason: expect.any(String) }] });
+        expect(apply(theirs, [op])).toEqual({
+            conflicts: [{ op, kind: "gone", reason: expect.any(String) }],
+        });
     });
 
     it("still renames when someone changed the value since", () => {
@@ -298,8 +328,8 @@ describe("apply, several edits", () => {
 
         expect(result).toEqual({
             conflicts: [
-                { op: takenName, reason: expect.any(String) },
-                { op: gone, reason: expect.any(String) },
+                { op: takenName, kind: "taken", reason: expect.any(String) },
+                { op: gone, kind: "gone", reason: expect.any(String) },
             ],
         });
     });
@@ -332,14 +362,16 @@ describe("apply, files", () => {
             { ...created, value: { c: { $type: "number", $value: 3 } } },
         ]);
         expect(apply(other, [created])).toEqual({
-            conflicts: [{ op: created, reason: expect.any(String) }],
+            conflicts: [{ op: created, kind: "taken", reason: expect.any(String) }],
         });
     });
 
     it("is a conflict when nothing in the project would read the new file", () => {
         const op: FileOp = { kind: "createFile", file: "unread.json", value: {} };
 
-        expect(apply(demo, [op])).toEqual({ conflicts: [{ op, reason: expect.any(String) }] });
+        expect(apply(demo, [op])).toEqual({
+            conflicts: [{ op, kind: "unread", reason: expect.any(String) }],
+        });
     });
 
     it("deletes a file only as it was, and does nothing when it is already gone", () => {
@@ -357,7 +389,7 @@ describe("apply, files", () => {
 
         const edited = { ...deleted, was: "{}" };
         expect(apply(both, [edited])).toEqual({
-            conflicts: [{ op: edited, reason: expect.any(String) }],
+            conflicts: [{ op: edited, kind: "changed", reason: expect.any(String) }],
         });
     });
 });
@@ -376,7 +408,9 @@ describe("commit", () => {
         const decision = { kind: "placement" as const, path: "a", candidates: ["x.json"] };
 
         expect(commit(demo, { decision })).toEqual({ decision });
-        expect(commit(demo, { refused: { reason: "no" } })).toEqual({ refused: { reason: "no" } });
+        expect(commit(demo, { refused: { kind: "not-found", path: "a", reason: "no" } })).toEqual({
+            refused: { kind: "not-found", path: "a", reason: "no" },
+        });
     });
 
     it("hands back the conflicts when the edits no longer apply", () => {
@@ -384,7 +418,7 @@ describe("commit", () => {
         const theirs = changed(demo, "color.json", brand500, "#000");
 
         expect(commit(theirs, { ops: [op], alsoAffects: [], moved: [] })).toEqual({
-            conflicts: [{ op, reason: expect.any(String) }],
+            conflicts: [{ op, kind: "changed", reason: expect.any(String) }],
         });
     });
 });

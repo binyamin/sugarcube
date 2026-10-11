@@ -1,9 +1,10 @@
-import { type Diagnostic, type Project, type Span, readFromMemory } from "@sugarcube-sh/dtcg";
+import type { Diagnostic, Project, Span } from "@sugarcube-sh/dtcg";
 import { readReference } from "@sugarcube-sh/dtcg/values";
 import type { Node } from "jsonc-parser";
 import { fixTitles } from "./error-messages.js";
 import type { Fix, TextEdit } from "./index.js";
 import { inline, nodeAt, refString, removal, spliced } from "./json-text.js";
+import { reread } from "./reread.js";
 
 /**
  * The changes that would mend a diagnostic of this project, made from the facts the diagnostic
@@ -62,7 +63,7 @@ function fixFor(project: Project, diagnostic: Diagnostic): Fix | undefined {
         case "hex-string-color": {
             const { value, asObject } = diagnostic.detail;
             if (written(at)?.value !== value) return undefined;
-            return safe(fixTitles.hexToObject, { ...place(at), text: inline(asObject) });
+            return safe(fixTitles.hexToObject, { ...range(at), text: inline(asObject) });
         }
         case "invalid-value":
             return valueFix(project, diagnostic.detail, at, written(at)?.value);
@@ -104,7 +105,7 @@ function valueFix(
         case "string-with-unit": {
             const { value, asObject, type } = detail;
             if (written !== value || !asObject) return undefined;
-            return safe(fixTitles.measureAsObject(type), { ...place(at), text: inline(asObject) });
+            return safe(fixTitles.measureAsObject(type), { ...range(at), text: inline(asObject) });
         }
         case "hex-not-six-digits": {
             const { value, sixDigits } = detail;
@@ -122,7 +123,7 @@ function valueFix(
                 return undefined;
             }
             const pointer = pointerTo(reference.alias);
-            const change = { ...place(at), text: inline({ $ref: pointer }) };
+            const change = { ...range(at), text: inline({ $ref: pointer }) };
             if (!readsClean(project, [change])) return undefined;
             return safe(fixTitles.referenceAsPointer(pointer), change);
         }
@@ -142,8 +143,7 @@ function readsClean(project: Project, edits: TextEdit[]): boolean {
     if (!first) return true;
     const { file } = first;
     const files = { ...project.files, [file]: spliced(project.files[file] ?? "", edits) };
-    const { entry } = project;
-    const doc = readFromMemory({ files, ...(entry !== undefined && { entry }) }, project.options);
+    const { doc } = reread(project, files);
     const start = Math.min(...edits.map(({ offset }) => offset));
     const grown = edits.reduce((acc, { length, text }) => acc + text.length - length, 0);
     const end = Math.max(...edits.map(({ offset, length }) => offset + length)) + grown;
@@ -178,12 +178,12 @@ function deletion(
     return edits.length > 0 ? edits : undefined;
 }
 
-function place({ file, offset, length }: Span): Omit<TextEdit, "text"> {
+function range({ file, offset, length }: Span): Omit<TextEdit, "text"> {
     return { file, offset, length };
 }
 
 function replacing(at: Span, value: string): TextEdit {
-    return { ...place(at), text: JSON.stringify(value) };
+    return { ...range(at), text: JSON.stringify(value) };
 }
 
 function safe(title: string, change: TextEdit): Fix {

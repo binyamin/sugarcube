@@ -2,9 +2,9 @@
 
 Change design token files written in the [DTCG format](https://www.designtokens.org/) without reformatting them.
 
-The API is types and stubs only. Every function throws "not implemented yet".
+Some of the API is still stubs, which throw "not implemented yet".
 
-Every edit is checked by reading the result with [`@sugarcube-sh/dtcg`](../dtcg). An edit that would break the design system is refused, with the reason. Every edit also records what it expected to find, so replaying edits onto files that changed since, after a `git pull` or from a saved link, reports a conflict instead of overwriting someone else's change.
+Every edit is followed by reading the result with [`@sugarcube-sh/dtcg`](../dtcg), so the new project reports any problem the edit leaves, as it would for a change made in a code editor. An edit that can't be written at all is refused, with the reason. Every edit also records what it expected to find, so replaying edits onto files that changed since, after a `git pull` or from a saved link, reports a conflict instead of overwriting someone else's change.
 
 ## Possible entries
 
@@ -36,7 +36,7 @@ const done = commit(project, rename(project, "color.brand", "primary"));
 if ("ops" in done) await applyToDisk(project, done.ops);
 ```
 
-Set a value for the dark theme only. If more than one file could hold it, ask:
+Set a value for one context only, here `dark` of a modifier called `theme`. If more than one file could hold it, ask:
 
 ```ts
 import { setValue, commit } from "@sugarcube-sh/dtcg-edit";

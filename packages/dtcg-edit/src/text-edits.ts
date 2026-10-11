@@ -1,7 +1,7 @@
 import type { JsonPath } from "@sugarcube-sh/dtcg";
-import { type Node, getNodeValue, parseTree } from "jsonc-parser";
+import { type Node, findNodeAtLocation, getNodeValue, parseTree } from "jsonc-parser";
 import type { Json } from "./index.js";
-import { insertion, nodeAtPath, removal, replacement, spliced } from "./json-text.js";
+import { insertion, removal, replacement, spliced } from "./json-text.js";
 
 /**
  * Sets a value in JSON text, changing nothing else: every other line is left as written. Groups
@@ -18,7 +18,7 @@ export function setAt(text: string, path: JsonPath, value: Json): string | undef
 
     let node = root;
     for (const [index, step] of path.entries()) {
-        const child = nodeAtPath(node, [step]);
+        const child = findNodeAtLocation(node, [step]);
         if (child) {
             node = child;
             continue;
@@ -69,5 +69,5 @@ export function valueAt(text: string, path: JsonPath): Json | undefined {
 
 function find(text: string, path: JsonPath): Node | undefined {
     const root = parseTree(text);
-    return root === undefined ? undefined : nodeAtPath(root, path);
+    return root === undefined ? undefined : findNodeAtLocation(root, path);
 }

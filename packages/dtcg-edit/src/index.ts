@@ -59,7 +59,7 @@ export type FileOp =
  * operation again with the answer.
  *
  * - `placement`: several files could hold the change. Answer with `{ place }`.
- * - `generated`: the token is made by a generator, from the setting on the group at `by`. Answer
+ * - `generated`: the token is made by a generator, from the setting on the group at `from`. Answer
  *   with {@link detach}.
  * - `inherited`: the token comes from another group. Answer with `{ inherited: "here" | "original" }`.
  *
@@ -67,14 +67,18 @@ export type FileOp =
  */
 export type Decision =
     | { kind: "placement"; path: string; candidates: string[] }
-    | { kind: "generated"; path: string; by: string }
+    | { kind: "generated"; path: string; from: string }
     | { kind: "inherited"; path: string; from: string; alsoAffects: string[] };
 
 /** What an operation returns: the edits, a question, or a refusal with its reason. */
 export type OpResult =
     | {
           ops: FileOp[];
-          /** Other contexts where the change also shows, because they read the same file. */
+          /**
+           * The permutations, other than the one edited, where the change shows, by their input.
+           * Only permutations the read built are listed, so a read limited by `inputs` lists only
+           * those.
+           */
           alsoAffects: Input[];
           /** References left pointing at nothing, after a {@link remove}. */
           broken?: string[];
@@ -82,7 +86,38 @@ export type OpResult =
           moved: Move[];
       }
     | { decision: Decision }
-    | { refused: { reason: string } };
+    | { refused: Refusal };
+
+/**
+ * Why an operation can't be done: a `kind`, the facts it is about, and a `reason` worded from
+ * them, so a tool can show the reason or word its own from the facts.
+ *
+ * - `not-found`: no token or group at `path`.
+ * - `generated`: a generator makes the token, from the extension at `extension` on the group at
+ *   `from` (`""` for the top level of a file).
+ * - `inherited`: the token or group comes from the group at `from`, through `$extends`.
+ * - `no-permutation`: there is no permutation for `context`; `why` says whether a modifier or
+ *   context isn't declared, a modifier with no default was left out, or the read didn't build it.
+ * - `several-contexts`: `context` names more than one context away from its default; no file is
+ *   read by that combination alone.
+ * - `no-file-for-context`: `context` reads no whole file of its own to hold an override.
+ * - `hidden-by-later-file`: an override for `context` would be hidden by `file`, read after it.
+ * - `no-shared-value`: no file every permutation reads writes the token; only contexts do.
+ */
+export type Refusal = { reason: string } & (
+    | { kind: "not-found"; path: string }
+    | { kind: "generated"; path: string; from: string; extension: [string, ...string[]] }
+    | { kind: "inherited"; path: string; from: string }
+    | {
+          kind: "no-permutation";
+          context: Input;
+          why: "unknown-modifier" | "unknown-context" | "no-default" | "not-read";
+      }
+    | { kind: "several-contexts"; context: Input }
+    | { kind: "no-file-for-context"; path: string; context: Input }
+    | { kind: "hidden-by-later-file"; path: string; context: Input; file: string }
+    | { kind: "no-shared-value"; path: string }
+);
 
 /** Where an edit goes. */
 export interface Where {
@@ -117,26 +152,7 @@ export function rename(project: Project, path: string, newName: string): OpResul
     throw new Error("not implemented yet");
 }
 
-/**
- * Changes a token's value.
- *
- * The value is written exactly as given, keeping the file's own spelling; use `toDTCGValue`
- * from `@sugarcube-sh/dtcg` to write a value taken from the model. The change is checked by
- * reading the result: a value wrong for the token's type, a reference to the wrong type, or a
- * reference that makes a loop is refused.
- *
- * @example
- * setValue(project, "color.danger", "{color.red.600}", { context: { theme: "dark" } })
- * setValue(project, "shadow.card", "{color.shadow}", { part: ["color"] })
- */
-export function setValue(
-    project: Project,
-    path: string,
-    value: Json,
-    options?: ValueOptions,
-): OpResult {
-    throw new Error("not implemented yet");
-}
+export { setDescription, setValue } from "./set-value.js";
 
 /** How a value change is made: where it goes, and which part of the value it changes. */
 export interface ValueOptions extends Where {
@@ -208,15 +224,6 @@ export function move(
 
 /** Removes a token or group, and reports the references it leaves pointing at nothing. */
 export function remove(project: Project, path: string): OpResult {
-    throw new Error("not implemented yet");
-}
-
-/** Changes a token's or group's description. `null` removes it. */
-export function setDescription(
-    project: Project,
-    path: string,
-    description: string | null,
-): OpResult {
     throw new Error("not implemented yet");
 }
 
@@ -347,9 +354,21 @@ export function setDefault(project: Project, modifier: string, context: string):
     throw new Error("not implemented yet");
 }
 
-/** An edit that could no longer be made, such as a change to a token someone has since deleted. */
+/**
+ * An edit that could no longer be made, such as a change to a token someone has since deleted,
+ * with a `reason` worded from its `kind` and the edit.
+ *
+ * - `not-in-project`: the project doesn't hold the edit's file.
+ * - `gone`: the place the edit changes is no longer there.
+ * - `changed`: what is there is no longer what the edit expected (`was`).
+ * - `taken`: something different is already where the edit would write, or a sibling already
+ *   has the new name.
+ * - `not-a-group`: the path runs through something that isn't a group, or past the end of a list.
+ * - `unread`: nothing in the project would read the new file, so it would be lost.
+ */
 export interface Conflict {
     op: FileOp;
+    kind: "not-in-project" | "gone" | "changed" | "taken" | "not-a-group" | "unread";
     reason: string;
 }
 
@@ -365,7 +384,7 @@ export type Committed =
           moved: Move[];
       }
     | { decision: Decision }
-    | { refused: { reason: string } }
+    | { refused: Refusal }
     | { conflicts: Conflict[] };
 
 /** Edits, with the moves they made, as they are kept for undo and saved for later. */
