@@ -1,6 +1,7 @@
 // Editing a token made by a generator, and a token inherited from another group. Each asks a question
 // first: turn the step into an ordinary token, or override it here rather than in the original.
-import { setValue, detach, commit, type Project } from "@sugarcube-sh/dtcg-edit";
+import { type Project } from "@sugarcube-sh/dtcg";
+import { setValue, detach, commit } from "@sugarcube-sh/dtcg-edit";
 
 declare let project: Project;
 

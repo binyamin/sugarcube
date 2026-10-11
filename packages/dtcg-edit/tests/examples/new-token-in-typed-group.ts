@@ -1,6 +1,6 @@
 // Adds a token to a group that already declares a type, so the new token doesn't repeat it.
-import { group } from "@sugarcube-sh/dtcg";
-import { create, commit, type Project } from "@sugarcube-sh/dtcg-edit";
+import { group, type Project } from "@sugarcube-sh/dtcg";
+import { create, commit } from "@sugarcube-sh/dtcg-edit";
 
 declare let project: Project;
 

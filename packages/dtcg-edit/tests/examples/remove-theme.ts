@@ -1,7 +1,8 @@
 // Removes the dim theme, and deletes its file too if the person says yes. Only a file that no other
 // theme uses can be deleted this way.
+import { open } from "@sugarcube-sh/dtcg/node";
 import { removeContext } from "@sugarcube-sh/dtcg-edit";
-import { applyToDisk, open } from "@sugarcube-sh/dtcg-edit/node";
+import { applyToDisk } from "@sugarcube-sh/dtcg-edit/node";
 
 declare function confirm(question: string): Promise<boolean>;
 

@@ -1,5 +1,6 @@
 // Changes only the font weight of a typography token, leaving its other four properties as written.
-import { setValue, commit, type Project } from "@sugarcube-sh/dtcg-edit";
+import { type Project } from "@sugarcube-sh/dtcg";
+import { setValue, commit } from "@sugarcube-sh/dtcg-edit";
 
 declare let project: Project;
 

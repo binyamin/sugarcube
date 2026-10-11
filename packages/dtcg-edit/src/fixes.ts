@@ -1,8 +1,8 @@
-import { type Diagnostic, type Span, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type Diagnostic, type Project, type Span, readFromMemory } from "@sugarcube-sh/dtcg";
 import { readReference } from "@sugarcube-sh/dtcg/values";
 import type { Node } from "jsonc-parser";
 import { fixTitles } from "./error-messages.js";
-import type { Fix, Project, TextEdit } from "./index.js";
+import type { Fix, TextEdit } from "./index.js";
 import { inline, memberRemoval, nodeAt, refString } from "./json-text.js";
 
 /**
@@ -137,7 +137,7 @@ function readsClean(project: Project, { file, offset, length, text }: TextEdit):
         ...project.files,
         [file]: before.slice(0, offset) + text + before.slice(offset + length),
     };
-    const [entry] = project.doc.files;
+    const { entry } = project;
     const doc = readFromMemory({ files, ...(entry !== undefined && { entry }) }, project.options);
     const end = offset + text.length;
     return !doc.diagnostics.some(

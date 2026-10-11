@@ -1142,8 +1142,30 @@ export interface ReadOptions extends ParseOptions {
  */
 export type ReadText = (path: string, file: string) => Promise<string>;
 
-export { read, readFromMemory } from "./read/read.js";
+export { open, openFromMemory, read, readFromMemory } from "./read/read.js";
 export { filePath } from "./read/paths.js";
+
+/**
+ * A design system and the text of its files: what {@link open} and {@link openFromMemory} give,
+ * for a tool that changes the files. The Document holds no text; the text sits beside it.
+ *
+ * A project never changes. It remembers the options it was read with, functions included, so it
+ * cannot be sent to another process as it is: send its `files` and `entry`, and open it there with
+ * {@link openFromMemory} and the same options, which gives the same Document.
+ */
+export interface Project {
+    readonly doc: Document;
+    /**
+     * The file the read started from, by the Document's name for it, so `files[entry]` is its
+     * text: the entry given, or the resolver found among loose files. Absent when loose token
+     * files were read as one set.
+     */
+    readonly entry?: string;
+    /** The text of every file the Document read, by the name the Document gives it, as at {@link ReadText}. */
+    readonly files: Readonly<Record<string, string>>;
+    /** The options it was read with, for reading it again. */
+    readonly options: ReadOptions;
+}
 
 /** One token across every permutation. */
 export interface TokenView {

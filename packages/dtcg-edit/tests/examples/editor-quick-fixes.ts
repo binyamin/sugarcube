@@ -1,7 +1,7 @@
 // A code editor offering quick fixes for a token problem under the cursor, as Language Server
 // Protocol code actions.
-import type { Diagnostic } from "@sugarcube-sh/dtcg";
-import { fixesFor, type Project } from "@sugarcube-sh/dtcg-edit";
+import { type Diagnostic, type Project } from "@sugarcube-sh/dtcg";
+import { fixesFor } from "@sugarcube-sh/dtcg-edit";
 
 declare const project: Project;
 declare const problem: Diagnostic;

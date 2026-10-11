@@ -2,7 +2,7 @@ import type { Stats } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import { createChangeQueue } from "@sugarcube-sh/core";
 import type { Document } from "@sugarcube-sh/dtcg";
-import { type LiveDocument, type ReadEvent, onFileChanged } from "@sugarcube-sh/dtcg/node";
+import { type LiveProject, type ReadEvent, onFileChanged } from "@sugarcube-sh/dtcg/node";
 import { type FSWatcher, watch as chokidarWatch } from "chokidar";
 import { normalize } from "pathe";
 import { IGNORED_DIR_NAMES, MARKUP_EXTENSIONS } from "../constants/markup.js";
@@ -66,7 +66,7 @@ function ready(watcher: FSWatcher): Promise<void> {
 }
 
 export async function startWatcher(
-    live: LiveDocument,
+    live: LiveProject,
     configFile: string | undefined,
     first: Watched,
     callbacks: WatchCallbacks,
@@ -125,7 +125,7 @@ export async function startWatcher(
     files.on("unlink", onFile);
     files.on("error", callbacks.onError);
     live.watch(files);
-    const stopReading = live.onRead((doc, read) => queue({ kind: "token", doc, read }));
+    const stopReading = live.onRead(({ doc }, read) => queue({ kind: "token", doc, read }));
     let markup = markupFor(watched);
 
     await Promise.all([markup, filesReady]);

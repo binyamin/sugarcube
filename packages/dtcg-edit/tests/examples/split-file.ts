@@ -1,6 +1,7 @@
 // Moves the semantic colors out of `colors.json` into a new `semantic.json`. Their names don't
 // change.
-import { addFile, move, commit, type Project } from "@sugarcube-sh/dtcg-edit";
+import { type Project } from "@sugarcube-sh/dtcg";
+import { addFile, move, commit } from "@sugarcube-sh/dtcg-edit";
 
 declare let project: Project;
 

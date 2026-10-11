@@ -358,13 +358,26 @@ export default {
         expect(await css("text-ink")).toContain(".text-ink{color:var(--new-color-ink);}");
     });
 
-    it("hands the config, the Document and its problems to other plugins", async () => {
+    it("hands the config, the Document with its files' text, and its problems to other plugins", async () => {
         await project();
         const { context } = await serve();
 
         expect(context.config.resolver).toContain("tokens.resolver.json");
-        expect(context.doc.files).toEqual(["tokens.resolver.json", "base.json"]);
+        expect(context.project.doc.files).toEqual(["tokens.resolver.json", "base.json"]);
+        expect(context.project.files["base.json"]).toContain("#111111");
         expect(context.problems).toEqual([]);
+    });
+
+    it("hands other plugins the files' text a save wrote, with the Document read from it", async () => {
+        await project();
+        const { context, css } = await serve();
+
+        const reload = reloaded(context);
+        await tokens({ color: { ink: color("#222222") } });
+        await reload;
+
+        expect(context.project.files["base.json"]).toContain("#222222");
+        expect(await css("text-ink")).toContain("--color-ink: #222222");
     });
 });
 

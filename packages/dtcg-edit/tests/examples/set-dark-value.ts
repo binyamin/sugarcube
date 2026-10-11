@@ -1,6 +1,7 @@
 // Setting a color for the dark theme only. If more than one file could hold it, the person is asked
 // which.
-import { setValue, commit, type Project } from "@sugarcube-sh/dtcg-edit";
+import { type Project } from "@sugarcube-sh/dtcg";
+import { setValue, commit } from "@sugarcube-sh/dtcg-edit";
 
 declare let project: Project;
 const dark = { theme: "dark" };

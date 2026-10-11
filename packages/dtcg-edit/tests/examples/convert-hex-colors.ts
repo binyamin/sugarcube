@@ -1,6 +1,7 @@
 // A script that rewrites every color written as a hex string into the spec's object form, as one
 // step, using the fix offered for each one.
-import { commit, fix, fixesFor, type Project } from "@sugarcube-sh/dtcg-edit";
+import { type Project } from "@sugarcube-sh/dtcg";
+import { commit, fix, fixesFor } from "@sugarcube-sh/dtcg-edit";
 
 declare let project: Project;
 

@@ -1,6 +1,7 @@
 // Changes a spacing scale's ratio. The steps are remade from the new ratio when the tokens are read
 // again.
-import { setExtension, commit, type Project } from "@sugarcube-sh/dtcg-edit";
+import { type Project } from "@sugarcube-sh/dtcg";
+import { setExtension, commit } from "@sugarcube-sh/dtcg-edit";
 
 declare let project: Project;
 

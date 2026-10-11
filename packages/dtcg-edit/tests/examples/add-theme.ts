@@ -1,5 +1,6 @@
 // Adds a theme built on dark, then gives it one color of its own.
-import { addContext, setValue, commit, type Project } from "@sugarcube-sh/dtcg-edit";
+import { type Project } from "@sugarcube-sh/dtcg";
+import { addContext, setValue, commit } from "@sugarcube-sh/dtcg-edit";
 
 declare let project: Project;
 
