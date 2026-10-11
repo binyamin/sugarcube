@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pathBelow, withoutRoot } from "../src/index.js";
+import { forbiddenInName, pathBelow, withoutRoot } from "../src/index.js";
 
 describe("withoutRoot", () => {
     it.for([
@@ -22,5 +22,19 @@ describe("pathBelow", () => {
         { path: "color", group: "color.brand", expected: undefined },
     ])("$path below $group is $expected", ({ path, group, expected }) => {
         expect(pathBelow(path, group)).toBe(expected);
+    });
+});
+
+describe("forbiddenInName", () => {
+    it.for([
+        { name: "a.b", expected: "." },
+        { name: "{x", expected: "{" },
+        { name: "x}", expected: "}" },
+        { name: "$x", expected: "$" },
+        { name: "a$b", expected: undefined },
+        { name: "$root", expected: undefined },
+        { name: "brand", expected: undefined },
+    ])("$name gives $expected (Format 5.1.1)", ({ name, expected }) => {
+        expect(forbiddenInName(name)).toBe(expected);
     });
 });

@@ -106,3 +106,36 @@ describe("openFromMemory", () => {
         expect(openFromMemory({ files: loose, entry }).doc.files).toStrictEqual(["tokens.json"]);
     });
 });
+
+describe("a source written in the resolver", () => {
+    it("is part of the resolver, so it has a pointer to where its tokens sit", () => {
+        const inline = readFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    resolutionOrder: [
+                        {
+                            type: "set",
+                            name: "base",
+                            sources: [
+                                { $ref: "./base.json" },
+                                { bg: { $type: "color", $value: "#fff" } },
+                            ],
+                        },
+                    ],
+                }),
+                "base.json": "{}",
+            },
+            entry: "tokens.resolver.json",
+        });
+
+        expect(inline.permutations[0]?.sources).toStrictEqual([
+            { file: "base.json", from: { set: "base" } },
+            {
+                file: "tokens.resolver.json",
+                pointer: "#/resolutionOrder/0/sources/1",
+                from: { set: "base" },
+            },
+        ]);
+    });
+});

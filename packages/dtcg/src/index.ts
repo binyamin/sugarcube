@@ -508,7 +508,11 @@ export interface Group {
 export interface Source {
     /** The file its tokens are written in, or the resolver for tokens written there. */
     file: string;
-    /** Set when the source is only part of the file, such as `"#/color"`. */
+    /**
+     * Set when the source is only part of the file, such as `"#/color"`. Tokens written in the
+     * resolver are part of it too, so theirs says where they sit, such as
+     * `"#/resolutionOrder/0/sources/1"`. Absent when the source is a whole file.
+     */
     pointer?: string;
     /**
      * How the resolver reached it: straight from a set, or through a modifier's context, possibly
@@ -1187,7 +1191,7 @@ export interface TokenView {
 }
 
 export { byToken } from "./lookup/by-token.js";
-export { pathBelow, withoutRoot } from "./path.js";
+export { forbiddenInName, pathBelow, withoutRoot } from "./path.js";
 export { completeInput, defaultPermutation, permutation } from "./lookup/permutation.js";
 
 /** What {@link completeInput} gives: the full input, or the modifier or context it could not match. */

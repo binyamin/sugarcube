@@ -26,6 +26,22 @@ export function pathBelow(path: string, group: string): string | undefined {
     return path.startsWith(`${group}.`) ? path.slice(group.length + 1) : undefined;
 }
 
+const FORBIDDEN = [".", "{", "}"] as const;
+
+/**
+ * The character that stops `name` from being a token or group name (Format 5.1.1), or `undefined`
+ * when it can be one: a leading `$`, which marks a property, except `$root` (Format 6.2), or a `.`,
+ * `{` or `}` anywhere, which references use.
+ *
+ * @example
+ * forbiddenInName("brand.500") // "."
+ * forbiddenInName("$root")     // undefined
+ */
+export function forbiddenInName(name: string): "$" | (typeof FORBIDDEN)[number] | undefined {
+    if (name.startsWith("$") && name !== "$root") return "$";
+    return FORBIDDEN.find((each) => name.includes(each));
+}
+
 export function within(path: string, group: string): boolean {
     return path === group || pathBelow(path, group) !== undefined;
 }
