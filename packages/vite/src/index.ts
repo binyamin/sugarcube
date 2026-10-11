@@ -13,7 +13,7 @@ import {
     problemsText,
     readOptions,
 } from "@sugarcube-sh/core";
-import type { Document } from "@sugarcube-sh/dtcg";
+import type { Project } from "@sugarcube-sh/dtcg";
 import { onFileChanged } from "@sugarcube-sh/dtcg/node";
 import dtcg, { type ReadEvent } from "@sugarcube-sh/dtcg-vite";
 import UnoCSS from "@unocss/vite";
@@ -61,12 +61,12 @@ export const SUGARCUBE_API_PLUGIN_NAME = "sugarcube:api";
 
 /**
  * What other plugins, such as Studio's, can read from sugarcube's: the config in use, the latest
- * Document read and its problems, the config's first (even when they keep the last good CSS in use),
- * and a signal after every read.
+ * read (the Document and the text of its files) and its problems, the config's first (even when
+ * they keep the last good CSS in use), and a signal after every read.
  */
 export interface SugarcubePluginContext {
     config: InternalConfig;
-    doc: Document;
+    project: Project;
     problems: Reported[];
     onReload: (fn: () => void) => () => void;
 }
@@ -90,7 +90,7 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
         entry: loaded.config.resolver,
         options: readOptions(loaded.config),
     }));
-    let doc = await tokens.api.document();
+    let project = await tokens.api.project();
     let fromConfig: Reported[] = [];
     let tokenProblems: Reported[] = [];
     const problems = () => [...fromConfig, ...tokenProblems];
@@ -104,7 +104,7 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
         problemsText(shown, {
             cwd: process.cwd(),
             folder: dirname(resolve(loaded.config.resolver)),
-            labels: doc.permutations.map((permutation) => permutation.label),
+            labels: project.doc.permutations.map((permutation) => permutation.label),
             configFile: loaded.configFile,
         });
 
@@ -116,9 +116,9 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
         else logger?.warn(text);
     };
 
-    const accept = (next: Document): boolean => {
-        doc = next;
-        const made = cssFrom(next, loaded.config);
+    const accept = (next: Project): boolean => {
+        project = next;
+        const made = cssFrom(next.doc, loaded.config);
         tokenProblems = made.diagnostics;
         if (failed(problems())) return false;
         const utilities = made.utilities ?? NO_UTILITIES;
@@ -130,7 +130,7 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
         return !same;
     };
 
-    accept(doc);
+    accept(project);
 
     const reloadConfig = createChangeQueue<{ kind: "config" }>(["config"], {
         onChange: async () => {
@@ -152,8 +152,8 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
         get config() {
             return loaded.config;
         },
-        get doc() {
-            return doc;
+        get project() {
+            return project;
         },
         get problems() {
             return problems();
@@ -184,7 +184,7 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
         .find((p) => p.name === "unocss:api")
         ?.api?.getContext();
 
-    const applied = async (next: Document, read: ReadEvent) => {
+    const applied = async (next: Project, read: ReadEvent) => {
         const started = performance.now();
         const utilitiesChanged = accept(next);
         const css = performance.now() - started;
