@@ -458,10 +458,12 @@ export interface TokenBase<T extends TokenType> {
      */
     replaces?: Span[];
     /**
-     * The value exactly as the file wrote it, and whether the file declared `$type` on this token.
-     * Absent when no file writes the token: one a {@link Generator} added.
+     * The value exactly as the file wrote it, and whether the file declared `$type` and
+     * `$deprecated` on this token, rather than the token taking them from a group or, for the
+     * type, from the token it refers to. Absent when no file writes the token: one a
+     * {@link Generator} added.
      */
-    authored?: { value: unknown; typeDeclared: boolean };
+    authored?: { value: unknown; typeDeclared: boolean; deprecatedDeclared: boolean };
     /**
      * Set when a {@link Generator} makes the token from an extension on the group at `from`, whether
      * a file writes the token or it was added. `from` is `""` for an extension on the top level of a
@@ -490,6 +492,12 @@ export interface Group {
     description?: string;
     deprecated?: boolean | string;
     extensions?: Record<string, unknown>;
+    /**
+     * The group this one takes tokens from, through `$extends` or a `$ref` to another group
+     * (Format 6.4), when the reference reaches one. The tokens it takes are marked
+     * {@link TokenBase.inherited | inherited}.
+     */
+    extends?: string;
     /**
      * Every place the group is declared. Groups can be spread across files, so there may be
      * several, and a group only {@link Group.inherited | inherited} has none.
@@ -1216,9 +1224,15 @@ export interface Move {
 export type TokenProperty = "value" | "type" | "description" | "deprecated" | "extensions";
 
 /**
- * One difference between two reads of a design system. `changed` and `renamed` list the
- * properties that differ; a rename with nothing else changed lists none. `group-added` and
- * `group-removed` report groups, empty ones included; the tokens inside are reported on their own.
+ * A property a file can set on a group, named as {@link TokenProperty} names them: `extends` is
+ * the group it takes tokens from, {@link Group.extends}.
+ */
+export type GroupProperty = "type" | "description" | "deprecated" | "extensions" | "extends";
+
+/**
+ * One difference between two reads of a design system. `changed`, `renamed`, `group-changed` and
+ * `group-renamed` list the properties that differ; a rename with nothing else changed lists none.
+ * Groups are reported on their own, empty ones included, and so are the tokens inside them.
  */
 export type Change =
     | { kind: "added"; path: string; in: Input[]; after: Token }
@@ -1246,44 +1260,23 @@ export type Change =
           kind: "group-changed";
           path: string;
           in: Input[];
-          properties: Exclude<TokenProperty, "value">[];
+          properties: GroupProperty[];
+          before: Group;
+          after: Group;
+      }
+    | {
+          kind: "group-renamed";
+          from: string;
+          path: string;
+          in: Input[];
+          properties: GroupProperty[];
           before: Group;
           after: Group;
       };
 
-/**
- * What changed between two reads, and in which permutations: tokens and groups added, removed,
- * renamed, or with different properties. Values are compared with {@link sameValue}, and the other
- * properties exactly.
- *
- * Tokens a generator made are included, with `generated` set, so a tool can show the change to
- * the extension on its group and fold its tokens under it.
- *
- * Two reads alone cannot tell a rename from a removal and an addition. Pass the moves the edits
- * made, and those tokens are listed as `renamed`.
- *
- * @example
- * for (const change of diff(before, after, { moved })) row(change.kind, change.path);
- */
-export function diff(before: Document, after: Document, options?: { moved?: Move[] }): Change[] {
-    throw new Error("not implemented yet");
-}
+export { diff } from "./lookup/diff.js";
 
-/**
- * Whether two values of a type are the same, allowing for the rounding that different spellings
- * of one value produce, such as color components written to different precision. Colors in different color spaces
- * are different values: to compare them, convert one into the other's space first.
- */
-export function sameValue<T extends TokenType>(
-    type: T,
-    a: ValueByType[T],
-    b: ValueByType[T],
-): boolean;
-/** Whether two tokens have the same type and the same resolved value. */
-export function sameValue(a: Token, b: Token): boolean;
-export function sameValue(...values: unknown[]): boolean {
-    throw new Error("not implemented yet");
-}
+export { sameValue } from "./values/same-value.js";
 
 /** A token that is related to another, and the permutations in which it is. */
 export interface Related {

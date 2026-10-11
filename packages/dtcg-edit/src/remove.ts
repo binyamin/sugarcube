@@ -4,12 +4,11 @@ import {
     type Span,
     group,
     referrers,
-    token,
     tokensIn,
 } from "@sugarcube-sh/dtcg";
 import { refused } from "./error-messages.js";
 import type { FileOp, OpResult, Refusal } from "./index.js";
-import { placeOf, refusalFor } from "./placement.js";
+import { having, placeOf, tokenCopies, unique } from "./placement.js";
 import { valueAt } from "./text-edits.js";
 
 /**
@@ -26,33 +25,24 @@ import { valueAt } from "./text-edits.js";
  */
 export function remove(project: Project, path: string): OpResult {
     const { doc } = project;
-    const copies = tokenCopies(doc, path) ?? groupCopies(doc, path);
+    const copies = tokenRemoval(doc, path) ?? groupCopies(doc, path);
     if ("refused" in copies) return copies;
 
-    const ops = unique(copies.spans).flatMap((span): FileOp[] => {
+    const ops = copies.spans.flatMap((span): FileOp[] => {
         const place = placeOf(project, span);
         const was = place && valueAt(project.files[span.file] ?? "", place.path);
         if (!place || was === undefined) return [];
         return [{ kind: "remove", file: span.file, path: place.path, was }];
     });
     const broken = referrers(doc, copies.inside).map((each) => each.path);
-    const alsoAffects = doc.permutations
-        .filter((perm) => Object.keys(perm.input).length > 0)
-        .filter((perm) => token(perm, path) ?? group(perm, path))
-        .map((perm) => perm.input);
-    return { ops, alsoAffects, broken, moved: [] };
+    return { ops, alsoAffects: having(doc, path), broken, moved: [] };
 }
 
 type Copies = { spans: Span[]; inside: string[] } | { refused: Refusal };
 
-function tokenCopies(doc: Document, path: string): Copies | undefined {
-    const found = doc.permutations.flatMap((perm) => token(perm, path) ?? []);
-    const [first] = found;
-    if (!first) return undefined;
-    const refusal = refusalFor(first);
-    if (refusal) return refusal;
-    const spans = found.flatMap((each) => (each.replaces ?? []).concat(each.source.at));
-    return { spans, inside: [path] };
+function tokenRemoval(doc: Document, path: string): Copies | undefined {
+    const copies = tokenCopies(doc, path);
+    return copies && ("refused" in copies ? copies : { spans: copies.spans, inside: [path] });
 }
 
 function groupCopies(doc: Document, path: string): Copies {
@@ -66,15 +56,5 @@ function groupCopies(doc: Document, path: string): Copies {
     if (inherited) return refused({ kind: "inherited", path, from: inherited.from });
     const spans = found.flatMap(({ declared }) => declared.declaredIn);
     const inside = found.flatMap(({ perm }) => tokensIn(perm, path).map((each) => each.path));
-    return { spans, inside: [...new Set(inside)] };
-}
-
-function unique(spans: Span[]): Span[] {
-    const seen = new Set<string>();
-    return spans.filter(({ file, offset }) => {
-        const key = `${file}:${offset}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
+    return { spans: unique(spans), inside: [...new Set(inside)] };
 }

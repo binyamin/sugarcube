@@ -4,7 +4,7 @@ import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { malformation } from "./malformed-pointer.js";
 import { type Merged, type MergedGroup, mergeProperties, removeGroup } from "./merge.js";
 import { pathBelow, within } from "../path.js";
-import { reach, refObjectMeaning } from "./ref-meaning.js";
+import { pointerParts, reach, refObjectMeaning } from "./ref-meaning.js";
 
 type Extending = MergedGroup & { extends: NonNullable<MergedGroup["extends"]> };
 
@@ -47,7 +47,7 @@ export function applyExtends(merged: Merged, permutation: number, diagnostics: D
 
     const extend = (group: Extending, chain: Extending[]): void => {
         const { keyword, written, steps } = group.extends;
-        const direct = steps && !steps.includes("$value") ? steps.join(".") : undefined;
+        const direct = steps && pointerParts(steps).path;
         if (direct !== undefined && within(group.path, direct)) {
             report("circular-reference", { chain: [group.path, direct] }, group);
             state.set(group.path, "in-a-loop");
@@ -63,6 +63,7 @@ export function applyExtends(merged: Merged, permutation: number, diagnostics: D
         } else if (reached.kind === "nothing") {
             report("missing-reference", { ref: written, referencedBy: [group.path] }, group);
         } else if (reached.kind === "group") {
+            group.extendsGroup = reached.path;
             inherit(merged, group, reached.path);
         } else if (keyword === "$ref" && refObjectMeaning(reached) === "token") {
             becomeToken(merged, group, permutation, diagnostics);

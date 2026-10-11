@@ -74,13 +74,15 @@ export function normalisePermutations(
 }
 
 function toGroup(group: MergedGroup): Group {
-    const { path, type, description, deprecated, extensions, declaredIn, inherited } = group;
+    const { path, type, description, deprecated, extensions, extendsGroup, declaredIn, inherited } =
+        group;
     return {
         path,
         ...(type !== undefined && type !== "unusable" && { type }),
         ...(description !== undefined && { description }),
         ...(deprecated !== undefined && { deprecated }),
         ...(extensions && { extensions }),
+        ...(extendsGroup !== undefined && { extends: extendsGroup }),
         declaredIn,
         ...(inherited && { inherited }),
     };

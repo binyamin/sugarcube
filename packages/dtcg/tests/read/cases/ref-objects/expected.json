@@ -15,7 +15,8 @@
           "type": "number",
           "authored": {
             "value": 9,
-            "typeDeclared": false
+            "typeDeclared": false,
+            "deprecatedDeclared": false
           }
         },
         {
@@ -43,7 +44,8 @@
             "value": {
               "$ref": "#/base"
             },
-            "typeDeclared": true
+            "typeDeclared": true,
+            "deprecatedDeclared": false
           },
           "resolved": 4,
           "aliasOf": "base"
@@ -65,7 +67,8 @@
             "value": {
               "$ref": "#/blue/$value/components/0"
             },
-            "typeDeclared": true
+            "typeDeclared": true,
+            "deprecatedDeclared": false
           },
           "resolved": 0.2
         },

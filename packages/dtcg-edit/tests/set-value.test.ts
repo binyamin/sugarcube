@@ -233,6 +233,57 @@ describe("setValue, for one context", () => {
         ]);
     });
 
+    it("keeps the token's own description, deprecation and extensions in a new override", () => {
+        const bg = {
+            $type: "color",
+            $value: "#ffffff",
+            $description: "The page.",
+            $deprecated: "Use surface.",
+            $extensions: { "com.example": { role: "page" } },
+        };
+        const files = {
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }], {
+                light: [],
+                dark: [{ $ref: "./dark.json" }],
+            }),
+            "base.json": JSON.stringify({ bg }),
+            "dark.json": "{}",
+        };
+        const project = opened(files);
+        const result = setValue(project, "bg", "#000000", dark);
+
+        expect(opsOf(result)).toEqual([
+            { kind: "add", file: "dark.json", path: ["bg"], value: { ...bg, $value: "#000000" } },
+        ]);
+        expect(token(committed(project, result).doc, "bg", { mode: "dark" })).toMatchObject({
+            description: "The page.",
+            deprecated: "Use surface.",
+            extensions: { "com.example": { role: "page" } },
+        });
+    });
+
+    it("leaves out a deprecation the token takes from its group, which still reaches it", () => {
+        const files = {
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }], {
+                light: [],
+                dark: [{ $ref: "./dark.json" }],
+            }),
+            "base.json": JSON.stringify({
+                old: { $type: "color", $deprecated: true, bg: { $value: "#ffffff" } },
+            }),
+            "dark.json": "{}",
+        };
+        const project = opened(files);
+        const result = setValue(project, "old.bg", "#000000", dark);
+
+        expect(opsOf(result)).toEqual([
+            { kind: "add", file: "dark.json", path: ["old", "bg"], value: { $value: "#000000" } },
+        ]);
+        expect(token(committed(project, result).doc, "old.bg", { mode: "dark" })?.deprecated).toBe(
+            true,
+        );
+    });
+
     it("asks which file when the context reads several, and takes the answer", () => {
         const files = {
             "tokens.resolver.json": resolver([{ $ref: "./base.json" }], {
@@ -477,6 +528,60 @@ describe("setDescription", () => {
                 value: "The anchor.",
                 was: at(demo, "color.json", ["color", "brand", "500", "$description"]),
             },
+        ]);
+    });
+
+    it("changes it in every file that writes the token, so every context keeps the same one", () => {
+        const files = {
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }], {
+                light: [],
+                dark: [{ $ref: "./dark.json" }],
+                dim: [{ $ref: "./dim.json" }],
+            }),
+            "base.json":
+                '{ "bg": { "$type": "color", "$value": "#ffffff", "$description": "Old." } }',
+            "dark.json":
+                '{ "bg": { "$type": "color", "$value": "#000000", "$description": "Old." } }',
+            "dim.json": '{ "bg": { "$type": "color", "$value": "#333333" } }',
+        };
+        const project = opened(files);
+        const result = setDescription(project, "bg", "The page.");
+
+        expect(opsOf(result)).toEqual([
+            {
+                kind: "set",
+                file: "base.json",
+                path: ["bg", "$description"],
+                value: "The page.",
+                was: "Old.",
+            },
+            {
+                kind: "set",
+                file: "dark.json",
+                path: ["bg", "$description"],
+                value: "The page.",
+                was: "Old.",
+            },
+            { kind: "add", file: "dim.json", path: ["bg", "$description"], value: "The page." },
+        ]);
+        const after = committed(project, result).doc;
+        for (const mode of ["light", "dark", "dim"]) {
+            expect(token(after, "bg", { mode })?.description).toBe("The page.");
+        }
+    });
+
+    it("changes the description of a token only one context writes", () => {
+        const files = {
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }], {
+                light: [],
+                dark: [{ $ref: "./dark.json" }],
+            }),
+            "base.json": "{}",
+            "dark.json": '{ "glow": { "$type": "color", "$value": "#ffffff" } }',
+        };
+
+        expect(opsOf(setDescription(opened(files), "glow", "Halo."))).toEqual([
+            { kind: "add", file: "dark.json", path: ["glow", "$description"], value: "Halo." },
         ]);
     });
 

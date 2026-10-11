@@ -17,7 +17,8 @@
           },
           "authored": {
             "value": "#e11d48",
-            "typeDeclared": false
+            "typeDeclared": false,
+            "deprecatedDeclared": false
           }
         },
         {

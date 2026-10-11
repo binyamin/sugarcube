@@ -48,10 +48,8 @@ export function placement(project: Project, path: string, where: Where = {}): Pl
     return contextPlace(project, path, chosen, where.place);
 }
 
-export function declaredPlace(project: Project, path: string): Declared {
+export function groupPlace(project: Project, path: string): Declared {
     const { doc } = project;
-    if (doc.permutations.some((perm) => token(perm, path))) return sharedPlace(project, path);
-
     const declared = group(doc, path);
     if (!declared) return refused({ kind: "not-found", path });
     if (declared.inherited) {
@@ -64,6 +62,36 @@ export function declaredPlace(project: Project, path: string): Declared {
         places[0];
     if (!at) return refused({ kind: "not-found", path });
     return { at, alsoAffects: seenBy(doc, path, at.span.file) };
+}
+
+export function tokenCopies(
+    doc: Document,
+    path: string,
+): { spans: Span[]; alsoAffects: Input[] } | { refused: Refusal } | undefined {
+    const found = doc.permutations.flatMap((perm) => token(perm, path) ?? []);
+    const [first] = found;
+    if (!first) return undefined;
+    const refusal = refusalFor(first);
+    if (refusal) return refusal;
+    const spans = found.flatMap((each) => (each.replaces ?? []).concat(each.source.at));
+    return { spans: unique(spans), alsoAffects: having(doc, path) };
+}
+
+export function having(doc: Document, path: string): Input[] {
+    return doc.permutations
+        .filter((perm) => Object.keys(perm.input).length > 0)
+        .filter((perm) => token(perm, path) ?? group(perm, path))
+        .map((perm) => perm.input);
+}
+
+export function unique(spans: Span[]): Span[] {
+    const seen = new Set<string>();
+    return spans.filter(({ file, offset }) => {
+        const key = `${file}:${offset}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
 }
 
 export function newPlace(
@@ -122,7 +150,7 @@ function chosenContext(doc: Document, input: Input): Chosen | { refused: Refusal
     return { perm, modifier, name: perm.input[modifier] ?? "" };
 }
 
-function sharedPlace(project: Project, path: string): Placement & Declared {
+function sharedPlace(project: Project, path: string): Placement {
     const { doc } = project;
     const found = doc.permutations.flatMap((perm) => token(perm, path) ?? []);
     const [first] = found;

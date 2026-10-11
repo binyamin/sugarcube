@@ -18,7 +18,8 @@
               "value": 20,
               "unit": "px"
             },
-            "typeDeclared": false
+            "typeDeclared": false,
+            "deprecatedDeclared": false
           },
           "generated": {
             "from": "space",
