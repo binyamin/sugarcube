@@ -3,7 +3,7 @@ import { readReference } from "@sugarcube-sh/dtcg/values";
 import type { Node } from "jsonc-parser";
 import { fixTitles } from "./error-messages.js";
 import type { Fix, TextEdit } from "./index.js";
-import { inline, memberRemoval, nodeAt, refString } from "./json-text.js";
+import { inline, nodeAt, refString, removal, spliced } from "./json-text.js";
 
 /**
  * The changes that would mend a diagnostic of this project, made from the facts the diagnostic
@@ -35,8 +35,14 @@ function fixFor(project: Project, diagnostic: Diagnostic): Fix | undefined {
     switch (diagnostic.kind) {
         case "duplicate-key": {
             const earlier = diagnostic.related?.[0]?.at;
-            const edit = earlier && deletion(earlier.file, written(earlier));
-            return edit && safe(fixTitles.deleteEarlier(diagnostic.detail.key), edit);
+            const edits = earlier && deletion(project, earlier.file, written(earlier));
+            return (
+                edits && {
+                    title: fixTitles.deleteEarlier(diagnostic.detail.key),
+                    safe: true,
+                    edits,
+                }
+            );
         }
         case "unknown-type": {
             const { type, similar } = diagnostic.detail;
@@ -117,7 +123,7 @@ function valueFix(
             }
             const pointer = pointerTo(reference.alias);
             const change = { ...place(at), text: inline({ $ref: pointer }) };
-            if (!readsClean(project, change)) return undefined;
+            if (!readsClean(project, [change])) return undefined;
             return safe(fixTitles.referenceAsPointer(pointer), change);
         }
         default:
@@ -126,22 +132,23 @@ function valueFix(
 }
 
 function deleteEmptyType(project: Project, at: Span, written: Node | undefined): Fix | undefined {
-    const removed = deletion(at.file, written);
-    if (!removed || !readsClean(project, removed)) return undefined;
-    return safe(fixTitles.deleteType, removed);
+    const edits = deletion(project, at.file, written);
+    if (!edits || !readsClean(project, edits)) return undefined;
+    return { title: fixTitles.deleteType, safe: true, edits };
 }
 
-function readsClean(project: Project, { file, offset, length, text }: TextEdit): boolean {
-    const before = project.files[file] ?? "";
-    const files = {
-        ...project.files,
-        [file]: before.slice(0, offset) + text + before.slice(offset + length),
-    };
+function readsClean(project: Project, edits: TextEdit[]): boolean {
+    const [first] = edits;
+    if (!first) return true;
+    const { file } = first;
+    const files = { ...project.files, [file]: spliced(project.files[file] ?? "", edits) };
     const { entry } = project;
     const doc = readFromMemory({ files, ...(entry !== undefined && { entry }) }, project.options);
-    const end = offset + text.length;
+    const start = Math.min(...edits.map(({ offset }) => offset));
+    const grown = edits.reduce((acc, { length, text }) => acc + text.length - length, 0);
+    const end = Math.max(...edits.map(({ offset, length }) => offset + length)) + grown;
     return !doc.diagnostics.some(
-        ({ at }) => at?.file === file && at.offset <= end && offset <= at.offset + at.length,
+        ({ at }) => at?.file === file && at.offset <= end && start <= at.offset + at.length,
     );
 }
 
@@ -155,9 +162,20 @@ function pointerTo(path: string): string {
     return `#/${steps.join("/")}/$value`;
 }
 
-function deletion(file: string, written: Node | undefined): TextEdit | undefined {
-    const removed = written && memberRemoval(written);
-    return removed && { file, ...removed, text: "" };
+function deletion(
+    project: Project,
+    file: string,
+    written: Node | undefined,
+): TextEdit[] | undefined {
+    const text = project.files[file];
+    if (!written || text === undefined) return undefined;
+    const edits = removal(text, written).map(({ offset, length, text: replaced }) => ({
+        file,
+        offset,
+        length,
+        text: replaced,
+    }));
+    return edits.length > 0 ? edits : undefined;
 }
 
 function place({ file, offset, length }: Span): Omit<TextEdit, "text"> {

@@ -1,26 +1,48 @@
 import type { JsonPath } from "@sugarcube-sh/dtcg";
-import {
-    type FormattingOptions,
-    type Node,
-    applyEdits,
-    findNodeAtLocation,
-    getNodeValue,
-    modify,
-    parseTree,
-} from "jsonc-parser";
+import { type Node, getNodeValue, parseTree } from "jsonc-parser";
 import type { Json } from "./index.js";
+import { insertion, nodeAtPath, removal, replacement, spliced } from "./json-text.js";
 
 /**
- * Sets a value in JSON text, changing nothing else. Groups missing on the way are created. New
- * lines are indented the way the file already is.
+ * Sets a value in JSON text, changing nothing else: every other line is left as written. Groups
+ * missing on the way are made. A value replacing one written on one line is written on one line;
+ * a new member is written in the style of the sibling before it, on one line or spread over
+ * several in the file's own indent.
+ *
+ * @returns the new text, or `undefined` when the path runs through something that isn't a group,
+ * or past the end of a list
  */
-export function setAt(text: string, path: JsonPath, value: Json): string {
-    return edit(text, path, value);
+export function setAt(text: string, path: JsonPath, value: Json): string | undefined {
+    const root = parseTree(text);
+    if (!root) return undefined;
+
+    let node = root;
+    for (const [index, step] of path.entries()) {
+        const child = nodeAtPath(node, [step]);
+        if (child) {
+            node = child;
+            continue;
+        }
+        const missing = path.slice(index);
+        if (node.type !== "object" || missing.some((each) => typeof each !== "string")) {
+            return undefined;
+        }
+        const [key, ...inner] = missing as string[];
+        const nested = inner.reduceRight<Json>((acc, each) => ({ [each]: acc }), value);
+        return spliced(text, insertion(text, node, key as string, nested));
+    }
+    return spliced(text, [replacement(text, node, value)]);
 }
 
-/** Removes a value from JSON text, changing nothing else. Text without the path comes back unchanged. */
+/**
+ * Removes a value from JSON text, changing nothing else: a member written on its own lines goes
+ * with its lines, and a group left empty is written `{}`.
+ *
+ * @returns the new text, or the same text when the path is not there
+ */
 export function removeAt(text: string, path: JsonPath): string {
-    return edit(text, path, undefined);
+    const node = find(text, path);
+    return node ? spliced(text, removal(text, node)) : text;
 }
 
 /**
@@ -30,21 +52,16 @@ export function removeAt(text: string, path: JsonPath): string {
  * name
  */
 export function renameKeyAt(text: string, path: JsonPath, name: string): string | undefined {
-    const property = propertyAt(text, path);
-    const key = property?.children?.[0];
+    const property = find(text, path)?.parent;
+    const key = property?.type === "property" ? property.children?.[0] : undefined;
     if (!property || !key) return undefined;
     const siblings = property.parent?.children ?? [];
     if (siblings.some((each) => each !== property && each.children?.[0]?.value === name)) {
         return undefined;
     }
-    return text.slice(0, key.offset) + JSON.stringify(name) + text.slice(key.offset + key.length);
+    return spliced(text, [{ offset: key.offset, length: key.length, text: JSON.stringify(name) }]);
 }
 
-/**
- * The value at a path in JSON text, as plain JSON.
- *
- * @returns the value, or `undefined` when the path is not there
- */
 export function valueAt(text: string, path: JsonPath): Json | undefined {
     const node = find(text, path);
     return node === undefined ? undefined : (getNodeValue(node) as Json);
@@ -52,47 +69,5 @@ export function valueAt(text: string, path: JsonPath): Json | undefined {
 
 function find(text: string, path: JsonPath): Node | undefined {
     const root = parseTree(text);
-    return root === undefined ? undefined : findNodeAtLocation(root, path);
-}
-
-function propertyAt(text: string, path: JsonPath): Node | undefined {
-    const parent = find(text, path)?.parent;
-    return parent?.type === "property" ? parent : undefined;
-}
-
-function edit(text: string, path: JsonPath, value: Json | undefined): string {
-    return applyEdits(text, modify(text, path, value, { formattingOptions: formatting(text) }));
-}
-
-const LEADING = /^[\t ]*/;
-
-function formatting(text: string): FormattingOptions {
-    const steps = new Map<number, number>();
-    let tabs = 0;
-    let spaces = 0;
-    let previous = 0;
-
-    for (const line of text.split("\n")) {
-        if (line.trim() === "") continue;
-
-        const indent = LEADING.exec(line)?.[0] ?? "";
-        if (indent.includes("\t")) tabs += 1;
-        else if (indent.length > 0) spaces += 1;
-
-        const step = indent.length - previous;
-        if (step > 0) steps.set(step, (steps.get(step) ?? 0) + 1);
-        previous = indent.length;
-    }
-
-    if (tabs > spaces) return { tabSize: 1, insertSpaces: false };
-
-    let best = 2;
-    let seen = 0;
-    for (const [step, count] of steps) {
-        if (count > seen) {
-            best = step;
-            seen = count;
-        }
-    }
-    return { tabSize: best, insertSpaces: true };
+    return root === undefined ? undefined : nodeAtPath(root, path);
 }

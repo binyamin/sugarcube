@@ -14,7 +14,7 @@
           "edits": [
             {
               "file": "base.json",
-              "text": "\"sm\": { \"$value\": 1 },\n    ",
+              "text": "    \"sm\": { \"$value\": 1 },\n",
               "replaceWith": ""
             }
           ]
