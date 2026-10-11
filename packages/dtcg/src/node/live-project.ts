@@ -1,7 +1,7 @@
 import type { Project, ReadOptions } from "../index.js";
 import { type FileStats, onFileChanged } from "./file-changed.js";
 import { open } from "./open.js";
-import { diskPath, fileOnDisk } from "./read.js";
+import { diskPath, fileOnDisk } from "./paths.js";
 
 /** What to open, as for `open`: a resolver or a token file, and how. */
 export interface ProjectSource {

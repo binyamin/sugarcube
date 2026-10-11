@@ -9,6 +9,11 @@ const resolver = JSON.stringify({
 const base = '{ "space": { "$type": "dimension", "$value": { "value": 4, "unit": "px" } } }';
 const brand = '{ "color": { "$type": "color", "$value": "#e11d48" } }';
 const dark = '{ "color": { "$type": "color", "$value": "#9f1239" } }';
+const localResolver = JSON.stringify({
+    version: "2025.10",
+    sets: { base: { sources: [{ $ref: "base.json" }] } },
+    resolutionOrder: [{ $ref: "#/sets/base" }],
+});
 
 const disk: Record<string, string> = {
     "tokens/design.resolver.json": resolver,
@@ -102,6 +107,18 @@ describe("openFromMemory", () => {
         const project = openFromMemory({ files: { "base.json": base, "dark.json": dark } });
         expect(project.entry).toBeUndefined();
         expect(project.files).toStrictEqual({ "base.json": base, "dark.json": dark });
+        expect(reopened(project)).toStrictEqual(project);
+    });
+
+    it("names the resolver it found among loose files as the entry", () => {
+        const project = openFromMemory({
+            files: { "base.json": base, "design.resolver.json": localResolver },
+        });
+        expect(project.entry).toBe("design.resolver.json");
+        expect(project.files).toStrictEqual({
+            "base.json": base,
+            "design.resolver.json": localResolver,
+        });
         expect(reopened(project)).toStrictEqual(project);
     });
 

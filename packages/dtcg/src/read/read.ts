@@ -1,5 +1,5 @@
 import packageJson from "../../package.json" with { type: "json" };
-import type { Document, ReadOptions, ReadText } from "../index.js";
+import type { Document, Project, ReadOptions, ReadText } from "../index.js";
 import type { Answer, FileText, Request } from "./files.js";
 import { collapse } from "./diagnostics.js";
 import { type Loaded, load } from "./load.js";
@@ -35,14 +35,33 @@ export async function read(
     entry: string,
     options: ReadOptions & { readText: ReadText },
 ): Promise<Document> {
+    return (await open(entry, options)).doc;
+}
+
+/**
+ * Reads a design system as {@link read} does, and keeps the text of every file it read beside
+ * the Document, for a tool that changes the files.
+ *
+ * @param entry A resolver document or a token file.
+ *
+ * @example
+ * const project = await open("tokens.resolver.json", {
+ *   readText: (path) => fetch(path).then((r) => r.text()),
+ * });
+ * project.files["dark.json"];
+ */
+export async function open(
+    entry: string,
+    { readText, ...options }: ReadOptions & { readText: ReadText },
+): Promise<Project> {
     const started = performance.now();
     const run = load({ entry: fileName(entry) }, permutationOptions(options));
     let step = run.next();
     while (!step.done) {
-        step = run.next(await fetchAll(step.value, folderOf(entry), options.readText));
+        step = run.next(await fetchAll(step.value, folderOf(entry), readText));
     }
     options.onStage?.("load", performance.now() - started);
-    return toDocument(step.value, options);
+    return projectOf(step.value, options);
 }
 
 async function fetchAll(files: Request, folder: string, readText: ReadText): Promise<Answer> {
@@ -80,14 +99,25 @@ export function readFromMemory(
     },
     options: ReadOptions = {},
 ): Document {
-    return readFromMemoryKeeping(sources, options);
+    return openFromMemory(sources, options).doc;
 }
 
-export function readFromMemoryKeeping(
-    sources: { files: Record<string, string>; entry?: string },
-    options: ReadOptions,
-    keep?: (file: string, text: string) => void,
-): Document {
+/**
+ * Reads a design system from text already in memory, as {@link readFromMemory} does, and keeps
+ * the text of every file it read beside the Document. Files it did not read are left out.
+ *
+ * @example
+ * const project = openFromMemory({ files, entry: "tokens.resolver.json" });
+ * const again = openFromMemory(project, project.options); // the same Document
+ */
+export function openFromMemory(
+    sources: {
+        files: Record<string, string>;
+        /** @default the first resolver among the files, or else every file, in order */
+        entry?: string;
+    },
+    options: ReadOptions = {},
+): Project {
     const started = performance.now();
     const texts = new Map(
         Object.entries(sources.files).map(([path, text]) => [normalise(path), text]),
@@ -104,13 +134,18 @@ export function readFromMemoryKeeping(
         const answer: Answer = {};
         for (const path of step.value) {
             const text = texts.get(filePath(folder, path));
-            if (text !== undefined) keep?.(path, text);
             answer[path] = text === undefined ? { missing: true } : { text };
         }
         step = run.next(answer);
     }
     options.onStage?.("load", performance.now() - started);
-    return toDocument(step.value, options);
+    return projectOf(step.value, options);
+}
+
+function projectOf(loaded: Loaded, options: ReadOptions): Project {
+    const doc = toDocument(loaded, options);
+    const { entry, texts } = loaded;
+    return { doc, ...(entry !== undefined && { entry }), files: texts, options };
 }
 
 function permutationOptions({

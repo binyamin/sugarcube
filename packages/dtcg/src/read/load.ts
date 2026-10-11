@@ -1,6 +1,7 @@
 import type { Diagnostic, Input } from "../index.js";
 import {
     type Answer,
+    type FileText,
     type Request,
     createFiles,
     fetchFiles,
@@ -18,6 +19,8 @@ import { entriesOf, expandSources, filesNamedBy, openSources } from "./sources.j
 
 export interface Loaded {
     files: string[];
+    texts: Record<string, string>;
+    entry: string | undefined;
     modifiers: Record<string, { contexts: string[]; default?: string }>;
     usedBy: Record<string, "everyone" | Input[]>;
     permutations: LoadedPermutation[];
@@ -31,18 +34,19 @@ export function* load(
     const used: string[] = [];
     const diagnostics: Diagnostic[] = [];
     const files = createFiles(used, diagnostics);
-    const loaded = (built: Pick<Loaded, "modifiers" | "usedBy" | "permutations">): Loaded => ({
-        files: used,
-        diagnostics,
-        ...built,
-    });
-
     const paths = "entry" in start ? [start.entry] : start.files;
     yield* fetchFiles(files, paths);
 
     const resolverPath = paths.find((path) => {
         const root = parseFile(files, path)?.root;
         return root !== undefined && isResolver(root);
+    });
+    const loaded = (built: Pick<Loaded, "modifiers" | "usedBy" | "permutations">): Loaded => ({
+        files: used,
+        texts: textsOf(files.texts, used),
+        entry: "entry" in start ? start.entry : resolverPath,
+        diagnostics,
+        ...built,
     });
     if (resolverPath === undefined) {
         return loaded(
@@ -59,4 +63,13 @@ export function* load(
     yield* fetchFiles(files, filesNamedBy(resolver, entries));
     const sources = openSources(files, resolver, entries);
     return loaded(fromResolver(resolver, items, sources, options, diagnostics));
+}
+
+function textsOf(texts: Map<string, FileText>, used: string[]): Record<string, string> {
+    const kept: Record<string, string> = {};
+    for (const path of used) {
+        const text = texts.get(path);
+        if (text && "text" in text) kept[path] = text.text;
+    }
+    return kept;
 }

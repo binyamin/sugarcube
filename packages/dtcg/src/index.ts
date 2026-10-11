@@ -1142,7 +1142,7 @@ export interface ReadOptions extends ParseOptions {
  */
 export type ReadText = (path: string, file: string) => Promise<string>;
 
-export { read, readFromMemory } from "./read/read.js";
+export { open, openFromMemory, read, readFromMemory } from "./read/read.js";
 export { filePath } from "./read/paths.js";
 
 /**
@@ -1156,8 +1156,9 @@ export { filePath } from "./read/paths.js";
 export interface Project {
     readonly doc: Document;
     /**
-     * The entry, by the Document's name for it, so `files[entry]` is its text. Absent when
-     * {@link openFromMemory} was given none: opening the same files again finds the same start.
+     * The file the read started from, by the Document's name for it, so `files[entry]` is its
+     * text: the entry given, or the resolver found among loose files. Absent when loose token
+     * files were read as one set.
      */
     readonly entry?: string;
     /** The text of every file the Document read, by the name the Document gives it, as at {@link ReadText}. */
@@ -1165,8 +1166,6 @@ export interface Project {
     /** The options it was read with, for reading it again. */
     readonly options: ReadOptions;
 }
-
-export { open, openFromMemory } from "./read/open.js";
 
 /** One token across every permutation. */
 export interface TokenView {
