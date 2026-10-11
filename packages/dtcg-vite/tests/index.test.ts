@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type Document, token } from "@sugarcube-sh/dtcg";
+import { type Project, token } from "@sugarcube-sh/dtcg";
 import { type Logger, type ViteDevServer, createServer } from "vite";
 import { afterEach, describe, expect, it } from "vitest";
 import dtcg, { type DtcgPlugin } from "../src/index.js";
@@ -79,21 +79,27 @@ async function until(done: () => boolean, what: string, step?: () => Promise<voi
 }
 
 describe("dtcg's Vite plugin", () => {
-    it("reads again when a file the Document lists is saved on Vite's watcher", async () => {
+    it("reads again when a file the Document lists is saved on Vite's watcher, text and all", async () => {
         const entry = await project();
         const plugin = dtcg({ entry, options: { hexStringColors: true } });
         await serve(plugin);
-        expect((await plugin.api.document()).files).toEqual(["tokens.resolver.json", "base.json"]);
+        const first = await plugin.api.project();
+        expect(first.doc.files).toEqual(["tokens.resolver.json", "base.json"]);
+        expect(first.files["base.json"]).toContain("#111111");
 
-        const reads: Array<{ doc: Document; file?: string }> = [];
-        plugin.api.onRead((doc, { file }) => reads.push({ doc, file }));
+        const reads: Array<{ project: Project; file?: string }> = [];
+        plugin.api.onRead((read, { file }) => reads.push({ project: read, file }));
         await until(
-            () => reads.some(({ doc }) => JSON.stringify(token(doc, "color.ink")).includes("#222")),
+            () =>
+                reads.some(({ project: read }) =>
+                    JSON.stringify(token(read.doc, "color.ink")).includes("#222"),
+                ),
             "the save",
             () => tokens({ color: { ink: color("#222222") } }),
         );
 
         expect(reads.at(-1)?.file).toBe("base.json");
+        expect(reads.at(-1)?.project.files["base.json"]).toContain("#222222");
     });
 
     it("logs a failure from before Vite's logger exists, once there is one", async () => {
@@ -101,7 +107,7 @@ describe("dtcg's Vite plugin", () => {
         const plugin = dtcg(() => {
             throw new Error("no source");
         });
-        await plugin.api.document().catch(() => undefined);
+        await plugin.api.project().catch(() => undefined);
         const logged: string[] = [];
 
         await serve(plugin, logged);
