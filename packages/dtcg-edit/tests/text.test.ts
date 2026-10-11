@@ -1,10 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { nodeAt, removeAt, renameKeyAt, reorderKeyAt, setAt } from "../src/text.js";
+import { removeAt, renameKeyAt, setAt, valueAt } from "../src/text.js";
 
 const colorJson = () => readFileSync(join(import.meta.dirname, "fixtures/demo/color.json"), "utf8");
-const keysOf = (text: string) => Object.keys(JSON.parse(text).color);
 
 const changedLines = (before: string, after: string) => {
     const a = before.split("\n");
@@ -57,11 +56,14 @@ describe("renameKeyAt", () => {
         expect(renameKeyAt(colorJson(), ["color", "nope"], "x")).toBeUndefined();
     });
 
+    it("refuses a name a sibling already has, rather than write the key twice", () => {
+        expect(renameKeyAt(colorJson(), ["color", "brand"], "neutral")).toBeUndefined();
+    });
+
     it("says so when the path is an item in a list, which has no key", () => {
         const stops = '{ "stops": [{ "position": 0 }, { "position": 1 }] }';
 
         expect(renameKeyAt(stops, ["stops", 1], "x")).toBeUndefined();
-        expect(reorderKeyAt(stops, ["stops", 1], 0)).toBeUndefined();
     });
 });
 
@@ -125,61 +127,12 @@ describe("indentation", () => {
     });
 });
 
-describe("reorderKeyAt", () => {
-    it("moves a key to the position asked for", () => {
-        const before = colorJson();
-        const was = keysOf(before);
-        const after = reorderKeyAt(before, ["color", "brand"], 4) as string;
-
-        expect(keysOf(after)).not.toEqual(was);
-        expect(keysOf(after).indexOf("brand")).toBe(4);
-        expect(keysOf(after).sort()).toEqual(was.sort());
-    });
-
-    it("moves it to the front, past the group's own metadata", () => {
-        const after = reorderKeyAt(colorJson(), ["color", "neutral"], 0) as string;
-
-        expect(keysOf(after)[0]).toBe("neutral");
-    });
-
-    it("leaves every property's own text exactly as it was", () => {
-        const before = colorJson();
-        const after = reorderKeyAt(before, ["color", "brand"], 4) as string;
-
-        const was = JSON.parse(before).color;
-        const now = JSON.parse(after).color;
-        for (const key of Object.keys(was)) {
-            expect(JSON.stringify(now[key])).toBe(JSON.stringify(was[key]));
-        }
-        expect(after.split("\n")).toHaveLength(before.split("\n").length);
-    });
-
-    it("keeps a comment sitting inside a moved property", () => {
-        const source = '{\n  "a": {\n    // keep me\n    "x": 1\n  },\n  "b": { "y": 2 }\n}';
-        const after = reorderKeyAt(source, ["a"], 1) as string;
-
-        expect(after).toContain("// keep me");
-        expect(after.indexOf('"b"')).toBeLessThan(after.indexOf('"a"'));
-    });
-
-    it("says so when the key or its parent is not there", () => {
-        expect(reorderKeyAt(colorJson(), ["color", "nope"], 0)).toBeUndefined();
-        expect(reorderKeyAt(colorJson(), ["nope", "brand"], 0)).toBeUndefined();
-    });
-
-    it("hands back the same text when the key is already there", () => {
-        const before = colorJson();
-        const at = keysOf(before).indexOf("brand");
-
-        expect(at).toBe(2);
-        expect(reorderKeyAt(before, ["color", "brand"], at)).toBe(before);
-    });
-});
-
-describe("nodeAt", () => {
+describe("valueAt", () => {
     it("gives the value at a path, as plain JSON", () => {
-        expect(nodeAt(colorJson(), ["color", "text", "brand", "$value"])).toBe("{color.brand.700}");
-        expect(nodeAt(colorJson(), ["color", "brand", "500", "$value"])).toEqual({
+        expect(valueAt(colorJson(), ["color", "text", "brand", "$value"])).toBe(
+            "{color.brand.700}",
+        );
+        expect(valueAt(colorJson(), ["color", "brand", "500", "$value"])).toEqual({
             colorSpace: "oklch",
             components: [0.624, 0.181, 258],
             hex: "#3884f2",
@@ -187,6 +140,6 @@ describe("nodeAt", () => {
     });
 
     it("says so when the path is not there", () => {
-        expect(nodeAt(colorJson(), ["color", "nope"])).toBeUndefined();
+        expect(valueAt(colorJson(), ["color", "nope"])).toBeUndefined();
     });
 });

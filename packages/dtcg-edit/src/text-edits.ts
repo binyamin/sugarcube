@@ -26,42 +26,18 @@ export function removeAt(text: string, path: JsonPath): string {
 /**
  * Renames a key in JSON text, keeping its value and position.
  *
- * @returns the new text, or `undefined` when the path is not there
+ * @returns the new text, or `undefined` when the path is not there or a sibling already has the
+ * name
  */
 export function renameKeyAt(text: string, path: JsonPath, name: string): string | undefined {
-    const key = propertyAt(text, path)?.children?.[0];
-    if (!key) return undefined;
-    return text.slice(0, key.offset) + JSON.stringify(name) + text.slice(key.offset + key.length);
-}
-
-/**
- * Moves a key to a new position among its siblings. Each property keeps its own text, comments
- * inside it included, and the spacing between properties stays where it was.
- *
- * @returns the new text, or `undefined` when the path is not there
- */
-export function reorderKeyAt(text: string, path: JsonPath, index: number): string | undefined {
     const property = propertyAt(text, path);
-    const properties = property?.parent?.children;
-    if (!property || !properties) return undefined;
-
-    const from = properties.indexOf(property);
-    const to = Math.max(0, Math.min(index, properties.length - 1));
-    if (to === from) return text;
-
-    const texts = properties.map((each) => text.slice(each.offset, each.offset + each.length));
-    const separators = properties.slice(1).map((each, i) => {
-        const previous = properties[i] as Node;
-        return text.slice(previous.offset + previous.length, each.offset);
-    });
-
-    const [moved] = texts.splice(from, 1);
-    texts.splice(to, 0, moved as string);
-    const rebuilt = texts.reduce((acc, each, i) => acc + (separators[i - 1] ?? "") + each);
-
-    const first = properties[0] as Node;
-    const last = properties[properties.length - 1] as Node;
-    return text.slice(0, first.offset) + rebuilt + text.slice(last.offset + last.length);
+    const key = property?.children?.[0];
+    if (!property || !key) return undefined;
+    const siblings = property.parent?.children ?? [];
+    if (siblings.some((each) => each !== property && each.children?.[0]?.value === name)) {
+        return undefined;
+    }
+    return text.slice(0, key.offset) + JSON.stringify(name) + text.slice(key.offset + key.length);
 }
 
 /**
@@ -69,7 +45,7 @@ export function reorderKeyAt(text: string, path: JsonPath, index: number): strin
  *
  * @returns the value, or `undefined` when the path is not there
  */
-export function nodeAt(text: string, path: JsonPath): Json | undefined {
+export function valueAt(text: string, path: JsonPath): Json | undefined {
     const node = find(text, path);
     return node === undefined ? undefined : (getNodeValue(node) as Json);
 }
