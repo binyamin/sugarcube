@@ -1,6 +1,6 @@
 import { statSync } from "node:fs";
 import { stat } from "node:fs/promises";
-import type { FileWatcher } from "./live-document.js";
+import type { FileWatcher } from "./live-project.js";
 
 /** What a watcher knows of a file when it says the file changed: Node's `Stats` is one. */
 export interface FileStats {
