@@ -10,13 +10,13 @@ Every edit is checked by reading the result with [`@sugarcube-sh/dtcg`](../dtcg)
 
 | Import from | Holds | Runs in |
 | --- | --- | --- |
-| `@sugarcube-sh/dtcg-edit` | `open`, the operations, `apply` and `commit`, sessions, and encoding edits as text | anywhere |
-| `@sugarcube-sh/dtcg-edit/node` | `open` from disk, and `applyToDisk`, which only writes the design system's own files, all or nothing | Node |
+| `@sugarcube-sh/dtcg-edit` | the operations, `apply` and `commit`, sessions, and encoding edits as text | anywhere |
+| `@sugarcube-sh/dtcg-edit/node` | `applyToDisk`, which only writes the design system's own files, all or nothing | Node |
 | `@sugarcube-sh/dtcg-edit/text` | edits to one JSON text that change nothing else | anywhere |
 
 ## How it works
 
-1. `open` reads a design system and keeps the text of its files. The result is a project.
+1. `open`, from `@sugarcube-sh/dtcg`, reads a design system and keeps the text of its files. The result is a project.
 2. An operation, such as `rename` or `setValue`, returns the file edits it needs. If it can't decide on its own, it returns a question. If it can't be done, it returns a refusal with the reason.
 3. `apply` or `commit` makes the edits and returns a new project. The old one is left as it was, so undo is keeping the previous project.
 
@@ -27,8 +27,9 @@ A script can stop there. An editor usually wants more: undo and redo, the list o
 Rename a token, updating every reference to it, and write the result to disk:
 
 ```ts
+import { open } from "@sugarcube-sh/dtcg/node";
 import { rename, commit } from "@sugarcube-sh/dtcg-edit";
-import { open, applyToDisk } from "@sugarcube-sh/dtcg-edit/node";
+import { applyToDisk } from "@sugarcube-sh/dtcg-edit/node";
 
 const project = await open("tokens/tokens.resolver.json");
 const done = commit(project, rename(project, "color.brand", "primary"));
