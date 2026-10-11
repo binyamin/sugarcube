@@ -38,7 +38,7 @@ export function fromTokenFiles(files: { path: string; json?: JsonFile }[]): Buil
         permutations: [
             {
                 input: {},
-                label: "default",
+                label: "",
                 sources: files.map(({ path, json }) => ({
                     source: { file: path },
                     pieces: [{ file: path, ...(json && { json, tree: json.root }) }],
@@ -244,18 +244,10 @@ function withDefaults(modifiers: Modifier[], chosen: Input): Input {
 }
 
 function labelsFor(modifiers: Modifier[]): (input: Input) => string {
-    const counts = new Map<string, number>();
-    for (const { contexts } of modifiers) {
-        for (const context of contexts) counts.set(context, (counts.get(context) ?? 0) + 1);
-    }
-    return (input) => {
-        const parts = modifiers.flatMap(({ name, default: fallback }) => {
-            const context = input[name];
-            if (context === undefined || context === fallback) return [];
-            return [(counts.get(context) ?? 0) > 1 ? `${name}: ${context}` : context];
-        });
-        return parts.length > 0 ? parts.join(" + ") : "default";
-    };
+    return (input) =>
+        modifiers
+            .flatMap(({ name }) => (input[name] === undefined ? [] : [`${name}: ${input[name]}`]))
+            .join(", ");
 }
 
 function sourcesFor(

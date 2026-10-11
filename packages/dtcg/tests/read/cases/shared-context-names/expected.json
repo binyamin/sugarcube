@@ -7,7 +7,7 @@
         "debug": "false",
         "beta": "false"
       },
-      "label": "default",
+      "label": "debug: false, beta: false",
       "sources": []
     },
     {
@@ -15,7 +15,7 @@
         "debug": "false",
         "beta": "true"
       },
-      "label": "beta: true",
+      "label": "debug: false, beta: true",
       "sources": [
         {
           "file": "beta.json",
@@ -31,7 +31,7 @@
         "debug": "true",
         "beta": "false"
       },
-      "label": "debug: true",
+      "label": "debug: true, beta: false",
       "sources": [
         {
           "file": "debug.json",
@@ -47,7 +47,7 @@
         "debug": "true",
         "beta": "true"
       },
-      "label": "debug: true + beta: true",
+      "label": "debug: true, beta: true",
       "sources": [
         {
           "file": "debug.json",

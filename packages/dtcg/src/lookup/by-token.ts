@@ -9,7 +9,9 @@ const views = new WeakMap<Document, readonly TokenView[]>();
  * Every call returns the same list, so it is read-only: sort a copy, with `toSorted`.
  *
  * @example
- * for (const t of byToken(doc)) row(t.path, t.default?.resolved, t.permutations.dark?.resolved);
+ * for (const t of byToken(doc)) {
+ *   row(t.path, ...t.permutations.map(({ token }) => token.resolved));
+ * }
  */
 export function byToken(doc: Document): readonly TokenView[] {
     const cached = views.get(doc);
@@ -19,13 +21,13 @@ export function byToken(doc: Document): readonly TokenView[] {
     const viewOf = ({ path, type }: Token) => {
         const existing = found.get(path);
         if (existing) return existing;
-        const created: TokenView = { path, type, permutations: {} };
+        const created: TokenView = { path, type, permutations: [] };
         found.set(path, created);
         return created;
     };
     for (const each of base?.tokens ?? []) viewOf(each).default = each;
-    for (const { label, tokens } of doc.permutations) {
-        for (const each of tokens) viewOf(each).permutations[label] = each;
+    for (const { input, label, tokens } of doc.permutations) {
+        for (const token of tokens) viewOf(token).permutations.push({ input, label, token });
     }
     const built = [...found.values()];
     views.set(doc, built);

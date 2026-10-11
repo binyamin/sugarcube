@@ -23,7 +23,7 @@
       "input": {
         "theme": "light"
       },
-      "label": "light",
+      "label": "theme: light",
       "sources": [
         {
           "file": "light.json",
@@ -38,7 +38,7 @@
       "input": {
         "theme": "dark"
       },
-      "label": "dark",
+      "label": "theme: dark",
       "sources": [
         {
           "file": "dark.json",

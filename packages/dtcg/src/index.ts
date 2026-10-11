@@ -531,8 +531,10 @@ export interface Source {
 export interface Permutation {
     input: Input;
     /**
-     * A short name for display, such as `"default"`, `"dark"` or `"dark + ocean"`.
-     * Functions take an {@link Input}, never a label.
+     * The input written out for people: each modifier and its context, in the order the resolver
+     * declares them, such as `"theme: dark, brand: ocean"`. Empty when there are no modifiers, as
+     * for token files read without a resolver. For display only: functions take an
+     * {@link Input}, never a label.
      */
     label: string;
     /** Where the tokens come from, in the order they apply: a later source overrides an earlier one. */
@@ -1184,8 +1186,8 @@ export interface TokenView {
     path: string;
     /** The type in the default permutation, or in the first permutation that has the token. */
     type: TokenType;
-    /** The token in each permutation that has it, keyed by {@link Permutation.label | label}. */
-    permutations: Record<string, Token>;
+    /** The token in each permutation that has it, in order, with the permutation's input and label. */
+    permutations: { input: Input; label: string; token: Token }[];
     /** The token in the default permutation. */
     default?: Token;
 }

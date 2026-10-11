@@ -165,11 +165,15 @@ describe("acrossPermutations", () => {
         expect(
             across.map(({ label, overrides, from }) => ({ label, overrides, from })),
         ).toStrictEqual([
-            { label: "default", overrides: false, from: { set: "base" } },
-            { label: "compact", overrides: false, from: { set: "base" } },
-            { label: "dark", overrides: true, from: { modifier: "theme", context: "dark" } },
+            { label: "theme: light, density: comfy", overrides: false, from: { set: "base" } },
+            { label: "theme: light, density: compact", overrides: false, from: { set: "base" } },
             {
-                label: "dark + compact",
+                label: "theme: dark, density: comfy",
+                overrides: true,
+                from: { modifier: "theme", context: "dark" },
+            },
+            {
+                label: "theme: dark, density: compact",
                 overrides: true,
                 from: { modifier: "theme", context: "dark" },
             },
@@ -179,9 +183,9 @@ describe("acrossPermutations", () => {
     });
 
     it("leaves out permutations that don't have the token", () => {
-        expect(acrossPermutations(doc, "glow").map(({ label }) => label)).toStrictEqual([
-            "dark",
-            "dark + compact",
+        expect(acrossPermutations(doc, "glow").map(({ input }) => input)).toStrictEqual([
+            { theme: "dark", density: "comfy" },
+            { theme: "dark", density: "compact" },
         ]);
         expect(acrossPermutations(doc, "nope")).toStrictEqual([]);
     });
@@ -318,17 +322,18 @@ describe("byToken", () => {
         expect(paths(byToken(darkFirst))?.at(-1)).toBe("glow");
     });
 
-    it("holds each token as it is in every permutation, keyed by label", () => {
+    it("holds each token as it is in every permutation, by input", () => {
         const two = byToken(twoThemes).find(({ path }) => path === "2");
         expect(two?.type).toBe("dimension");
-        expect(Object.keys(two?.permutations ?? {})).toStrictEqual(["default", "dark"]);
-        expect(valueOf(two?.permutations.dark)).toBe(3);
+        expect(two?.permutations.map(({ input }) => input.theme)).toStrictEqual(["light", "dark"]);
+        expect(valueOf(two?.permutations[1]?.token)).toBe(3);
+        expect(two?.permutations[1]?.label).toBe(permutation(twoThemes, { theme: "dark" })?.label);
         expect(valueOf(two?.default)).toBe(2);
     });
 
     it("has no default for a token the default permutation lacks", () => {
         const glow = byToken(twoThemes).find(({ path }) => path === "glow");
-        expect(Object.keys(glow?.permutations ?? {})).toStrictEqual(["dark"]);
+        expect(glow?.permutations.map(({ input }) => input.theme)).toStrictEqual(["dark"]);
         expect(glow?.default).toBeUndefined();
     });
 

@@ -19,7 +19,7 @@
         "theme": "dark",
         "brand": "house"
       },
-      "label": "dark",
+      "label": "theme: dark, brand: house",
       "sources": [
         {
           "file": "dark.json",
@@ -35,7 +35,7 @@
         "theme": "light",
         "brand": "house"
       },
-      "label": "default",
+      "label": "theme: light, brand: house",
       "sources": []
     }
   ],

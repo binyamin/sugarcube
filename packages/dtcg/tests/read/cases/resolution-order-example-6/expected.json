@@ -6,7 +6,7 @@
       "input": {
         "theme": "light"
       },
-      "label": "default",
+      "label": "theme: light",
       "sources": [
         {
           "file": "foundation/size.json",
@@ -39,7 +39,7 @@
       "input": {
         "theme": "lightHighContrast"
       },
-      "label": "lightHighContrast",
+      "label": "theme: lightHighContrast",
       "sources": [
         {
           "file": "foundation/size.json",
@@ -79,7 +79,7 @@
       "input": {
         "theme": "dark"
       },
-      "label": "dark",
+      "label": "theme: dark",
       "sources": [
         {
           "file": "foundation/size.json",
@@ -112,7 +112,7 @@
       "input": {
         "theme": "darkHighContrast"
       },
-      "label": "darkHighContrast",
+      "label": "theme: darkHighContrast",
       "sources": [
         {
           "file": "foundation/size.json",

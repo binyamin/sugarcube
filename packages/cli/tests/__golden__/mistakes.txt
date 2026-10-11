@@ -1,5 +1,5 @@
 ## a-theme-turns-a-token-into-a-group
-dark.json:3:12  error  this is a group here but a token in another file  in dark  token-and-group
+dark.json:3:12  error  this is a group here but a token in another file  in theme: dark  token-and-group
                        base.json:4:12  declared as a token here
 1 error.
 
