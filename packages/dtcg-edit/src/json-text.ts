@@ -138,7 +138,7 @@ function spread(value: Json, indent: string, unit: string, eol: string): string 
     return JSON.stringify(value, null, unit).split("\n").join(`${eol}${indent}`);
 }
 
-function lineBreak(text: string): string {
+export function lineBreak(text: string): string {
     return /\r?\n/.exec(text)?.[0] ?? "\n";
 }
 
@@ -183,7 +183,7 @@ function indentOf(text: string, offset: number): string {
     return /^[\t ]*/.exec(text.slice(start))?.[0] ?? "";
 }
 
-function indentUnit(text: string): string {
+export function indentUnit(text: string): string {
     const steps = new Map<number, number>();
     let tabs = 0;
     let spaces = 0;

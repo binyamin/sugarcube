@@ -11,3 +11,16 @@ export const fixTitles = {
     referenceAsPointer: (pointer: string) =>
         `write it as the pointer \`${pointer}\`, which can stand for part of a value`,
 };
+
+export const conflictReasons = {
+    notInProject: (file: string) => `\`${file}\` is not one of the project's files`,
+    gone: (place: string) => `${place} is no longer there`,
+    changedSince: (place: string) => `${place} has changed since the edit was made`,
+    alreadyThere: (place: string) => `${place} already holds something else`,
+    notAGroup: (place: string) => `${place} runs through something that is not a group`,
+    nameTaken: (place: string, name: string) =>
+        `${place} can't be renamed: a sibling is already called \`${name}\``,
+    fileExists: (file: string) => `\`${file}\` already exists and holds something else`,
+    fileChanged: (file: string) => `\`${file}\` has changed since the edit was made`,
+    unread: (file: string) => `nothing in the project reads \`${file}\`, so it would be lost`,
+};

@@ -1,11 +1,4 @@
-import type {
-    Change,
-    Input,
-    JsonPath,
-    Move,
-    Project,
-    TokenType,
-} from "@sugarcube-sh/dtcg";
+import type { Change, Input, JsonPath, Move, Project, TokenType } from "@sugarcube-sh/dtcg";
 
 /**
  * A replacement of some text in a file. The offset and length count UTF-16 code units, as a
@@ -43,19 +36,21 @@ export type Json = string | number | boolean | null | Json[] | { [key: string]: 
  * - `set` changes something that exists. Its parent must exist.
  * - `add` adds something new, creating any missing groups on the way. It must not already exist.
  * - `remove` removes something. Nothing happens if it is already gone.
- * - `renameKey` renames a key, keeping its value and position.
+ * - `renameKey` renames a key, keeping its value and position. Nothing happens if a sibling
+ *   already has the new name and holds `was`.
  * - `createFile` creates a file holding `value`. It must not already exist.
  * - `deleteFile` deletes a file.
  *
  * `set`, `remove` and `deleteFile` record `was`, what they expect to find. If that has changed by
  * the time the edit is applied, the edit is a conflict rather than written over the change,
- * unless what it would write is already there.
+ * unless what it would write is already there. `renameKey` records `was`, the value at the key,
+ * only to tell when the rename is already done: the key is renamed whatever its value now.
  */
 export type FileOp =
     | { kind: "set"; file: string; path: JsonPath; value: Json; was: Json }
     | { kind: "add"; file: string; path: JsonPath; value: Json }
     | { kind: "remove"; file: string; path: JsonPath; was: Json }
-    | { kind: "renameKey"; file: string; path: JsonPath; name: string }
+    | { kind: "renameKey"; file: string; path: JsonPath; name: string; was: Json }
     | { kind: "createFile"; file: string; value: Json }
     | { kind: "deleteFile"; file: string; was: string };
 
@@ -358,14 +353,7 @@ export interface Conflict {
     reason: string;
 }
 
-/**
- * Applies edits to a project's text and reads the result, returning a new project, or the
- * edits that no longer apply: those whose place has gone, or whose `was` has changed since they
- * were made.
- */
-export function apply(project: Project, ops: FileOp[]): Project | { conflicts: Conflict[] } {
-    throw new Error("not implemented yet");
-}
+export { apply, commit } from "./apply.js";
 
 /** The outcome of {@link commit}. */
 export type Committed =
@@ -379,17 +367,6 @@ export type Committed =
     | { decision: Decision }
     | { refused: { reason: string } }
     | { conflicts: Conflict[] };
-
-/**
- * Applies an operation's result in one step.
- *
- * @example
- * const done = commit(project, rename(project, "color.brand", "primary"));
- * if ("project" in done) project = done.project;
- */
-export function commit(project: Project, result: OpResult): Committed {
-    throw new Error("not implemented yet");
-}
 
 /** Edits, with the moves they made, as they are kept for undo and saved for later. */
 export interface Edits {
