@@ -24,13 +24,21 @@ type Outcome = { text: string } | { conflict: Conflict["kind"] } | undefined;
  * else project = next;
  */
 export function apply(project: Project, ops: FileOp[]): Project | { conflicts: Conflict[] } {
+    const done = applyKeepingTexts(project, ops);
+    return "conflicts" in done ? done : done.project;
+}
+
+export function applyKeepingTexts(
+    project: Project,
+    ops: FileOp[],
+): { project: Project; files: Record<string, string> } | { conflicts: Conflict[] } {
     const { files, conflicts } = editedFiles(project, ops);
     if (conflicts.length > 0) return { conflicts };
 
     const next = reread(project, files);
     const lost = unread(next, ops);
     if (lost.length > 0) return { conflicts: lost.map((op) => conflict(op, "unread")) };
-    return next;
+    return { project: next, files };
 }
 
 export function applyWhatFits(
