@@ -76,12 +76,10 @@ export function createSession(project: Project): Session {
             const { project: next, applied, skipped } = applyWhatFits(current, edits.ops);
             const clashes = clashesOf(skipped, current, next);
             if (applied.length === 0) return clashes;
+            const moved = kept(edits.moved, next.doc);
             current = next;
-            unsaved = {
-                ops: [...unsaved.ops, ...applied],
-                moved: [...unsaved.moved, ...edits.moved],
-            };
-            ids = followed(ids, edits.moved, current.doc, counter);
+            unsaved = { ops: [...unsaved.ops, ...applied], moved: [...unsaved.moved, ...moved] };
+            ids = followed(ids, moved, current.doc, counter);
             changed();
             return clashes;
         },
@@ -92,7 +90,7 @@ export function createSession(project: Project): Session {
             ids = followed(ids, [], next.doc, counter, openedIds);
             opened = fresh;
             current = next;
-            unsaved = { ops: applied, moved: unsaved.moved };
+            unsaved = { ops: applied, moved: kept(unsaved.moved, next.doc) };
             changed();
             return clashes;
         },
@@ -147,6 +145,16 @@ function followed(
         set(id, path);
     }
     return { byId, byPath };
+}
+
+function kept(moved: Move[], doc: Document): Move[] {
+    const paths = pathsIn(doc);
+    const later: Move[] = [];
+    for (let index = moved.length - 1; index >= 0; index--) {
+        const move = moved[index];
+        if (move && paths.has(movedPath(move.to, later))) later.unshift(move);
+    }
+    return later;
 }
 
 function pathsIn(doc: Document): Set<string> {

@@ -161,6 +161,34 @@ describe("adopt", () => {
         expect(session.pathOf(made ?? "")).toBeUndefined();
     });
 
+    it("drops the move of a rename that no longer fits, and keeps the change list honest", () => {
+        const session = createSession(demo);
+        session.do(rename(session.project, "radius.md", "medium"));
+        const fresh = changed(demo, [["radius.json", ["radius", "md"], undefined]]);
+
+        expect(session.adopt(fresh)).toMatchObject([{ path: "radius.md", file: "radius.json" }]);
+        expect(session.unsaved).toEqual({ ops: [], moved: [] });
+        expect(session.changes()).toEqual([]);
+    });
+
+    it("keeps the moves of renames made one after another when they fit", () => {
+        const session = createSession(demo);
+        session.do(rename(session.project, "radius.md", "medium"));
+        session.do(rename(session.project, "radius.medium", "mid"));
+        const fresh = changed(demo, [
+            ["radius.json", ["radius", "lg", "$value"], { value: 1, unit: "rem" }],
+        ]);
+
+        expect(session.adopt(fresh)).toEqual([]);
+        expect(session.unsaved.moved).toEqual([
+            { from: "radius.md", to: "radius.medium" },
+            { from: "radius.medium", to: "radius.mid" },
+        ]);
+        expect(session.changes().map(({ kind, path }) => [kind, path])).toEqual([
+            ["renamed", "radius.mid"],
+        ]);
+    });
+
     it("tells listeners", () => {
         const session = createSession(demo);
         const heard = vi.fn();
@@ -229,6 +257,17 @@ describe("restore", () => {
             unit: "rem",
         });
         expect(session.unsaved.ops).toHaveLength(1);
+    });
+
+    it("puts back only the moves of the renames that fit", () => {
+        const before = createSession(demo);
+        before.do(rename(before.project, "radius.md", "medium"));
+        before.do(rename(before.project, "radius.sm", "small"));
+        const elsewhere = changed(demo, [["radius.json", ["radius", "md"], undefined]]);
+
+        const session = createSession(elsewhere);
+        session.restore(before.unsaved);
+        expect(session.unsaved.moved).toEqual([{ from: "radius.sm", to: "radius.small" }]);
     });
 
     it("hands back a clash for an edit to a file that is gone", () => {

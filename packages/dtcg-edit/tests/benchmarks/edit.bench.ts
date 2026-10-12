@@ -6,6 +6,7 @@ import {
     create,
     createSession,
     remove,
+    rename,
     setDescription,
     setValue,
 } from "../../src/index.js";
@@ -23,6 +24,7 @@ const operations: [string, (project: Project) => OpResult][] = [
     ["create a group", (p) => create(p, "color", "fresh", { group: true })],
     ["remove a token", (p) => remove(p, "color.c2")],
     ["remove a group", (p) => remove(p, "space")],
+    ["rename the group 100 references point into", (p) => rename(p, "color", "colour")],
 ];
 
 function edits(name: string, opened: Project) {

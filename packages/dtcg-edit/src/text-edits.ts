@@ -1,7 +1,7 @@
 import type { JsonPath } from "@sugarcube-sh/dtcg";
 import { type Node, findNodeAtLocation, getNodeValue, parseTree } from "jsonc-parser";
 import type { Json } from "./index.js";
-import { insertion, removal, replacement, spliced } from "./json-text.js";
+import { type Splice, insertion, removal, replacement, spliced } from "./json-text.js";
 
 /**
  * Sets a value in JSON text, changing nothing else: every other line is left as written. Groups
@@ -14,8 +14,16 @@ import { insertion, removal, replacement, spliced } from "./json-text.js";
  */
 export function setAt(text: string, path: JsonPath, value: Json): string | undefined {
     const root = parseTree(text);
-    if (!root) return undefined;
+    const splices = root && setSplices(text, root, path, value);
+    return splices && spliced(text, splices);
+}
 
+export function setSplices(
+    text: string,
+    root: Node,
+    path: JsonPath,
+    value: Json,
+): Splice[] | undefined {
     let node = root;
     for (const [index, step] of path.entries()) {
         const child = findNodeAtLocation(node, [step]);
@@ -29,9 +37,9 @@ export function setAt(text: string, path: JsonPath, value: Json): string | undef
         }
         const [key, ...inner] = missing as string[];
         const nested = inner.reduceRight<Json>((acc, each) => ({ [each]: acc }), value);
-        return spliced(text, insertion(text, node, key as string, nested));
+        return insertion(text, node, key as string, nested);
     }
-    return spliced(text, [replacement(text, node, value)]);
+    return [replacement(text, node, value)];
 }
 
 /**
@@ -52,14 +60,20 @@ export function removeAt(text: string, path: JsonPath): string {
  * name
  */
 export function renameKeyAt(text: string, path: JsonPath, name: string): string | undefined {
-    const property = find(text, path)?.parent;
+    const node = find(text, path);
+    const splices = node && renameSplices(node, name);
+    return splices && spliced(text, splices);
+}
+
+export function renameSplices(node: Node, name: string): Splice[] | undefined {
+    const property = node.parent;
     const key = property?.type === "property" ? property.children?.[0] : undefined;
     if (!property || !key) return undefined;
     const siblings = property.parent?.children ?? [];
     if (siblings.some((each) => each !== property && each.children?.[0]?.value === name)) {
         return undefined;
     }
-    return spliced(text, [{ offset: key.offset, length: key.length, text: JSON.stringify(name) }]);
+    return [{ offset: key.offset, length: key.length, text: JSON.stringify(name) }];
 }
 
 export function valueAt(text: string, path: JsonPath): Json | undefined {

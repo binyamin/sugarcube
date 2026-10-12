@@ -1,13 +1,20 @@
 import type { Project } from "@sugarcube-sh/dtcg";
+import { type Node, findNodeAtLocation, getNodeValue, parseTree } from "jsonc-parser";
 import { conflict } from "./error-messages.js";
 import type { Committed, Conflict, FileOp, Json, OpResult } from "./index.js";
-import { indentUnit, lineBreak } from "./json-text.js";
+import { type Splice, indentUnit, lineBreak, removal, spliced } from "./json-text.js";
 import { reread } from "./reread.js";
-import { removeAt, renameKeyAt, setAt, valueAt } from "./text-edits.js";
+import { renameSplices, setSplices, valueAt } from "./text-edits.js";
 
 export type MemberOp = Exclude<FileOp, { kind: "createFile" | "deleteFile" }>;
 type FileLevelOp = Extract<FileOp, { kind: "createFile" | "deleteFile" }>;
-type Outcome = { text: string } | { conflict: Conflict["kind"] } | undefined;
+type Outcome = { conflict: Conflict["kind"] } | "stale" | undefined;
+
+interface Draft {
+    text: string;
+    root?: Node | undefined;
+    pending: Splice[];
+}
 
 /**
  * Applies edits to a project's text in order and reads the result with the project's own
@@ -60,12 +67,25 @@ export function applyWhatFits(
 
 function editedFiles(project: Project, ops: FileOp[]) {
     const files: Record<string, string> = { ...project.files };
+    const drafts = new Map<string, Draft>();
     const style = project.files[project.entry] ?? "";
     const conflicts: Conflict[] = [];
+    const written = (file: string) => {
+        const draft = drafts.get(file);
+        if (draft && draft.pending.length > 0) files[file] = spliced(draft.text, draft.pending);
+        drafts.delete(file);
+    };
+    const draftOf = (file: string) => {
+        const text = files[file];
+        const draft = drafts.get(file) ?? (text === undefined ? undefined : { text, pending: [] });
+        if (draft) drafts.set(file, draft);
+        return draft;
+    };
     for (const op of ops) {
-        const kind = applyOne(files, op, style);
+        const kind = applyOne(op, style, files, { draftOf, written });
         if (kind !== undefined) conflicts.push(conflict(op, kind));
     }
+    for (const file of drafts.keys()) written(file);
     return { files, conflicts };
 }
 
@@ -89,18 +109,24 @@ export function commit(project: Project, result: OpResult): Committed {
 }
 
 function applyOne(
-    files: Record<string, string>,
     op: FileOp,
     style: string,
+    files: Record<string, string>,
+    {
+        draftOf,
+        written,
+    }: { draftOf: (file: string) => Draft | undefined; written: (file: string) => void },
 ): Conflict["kind"] | undefined {
-    if (op.kind === "createFile" || op.kind === "deleteFile") return fileEdit(files, op, style);
-    const text = files[op.file];
-    if (text === undefined) return "not-in-project";
-    const outcome = memberEdit(text, op);
-    if (outcome === undefined) return undefined;
-    if ("conflict" in outcome) return outcome.conflict;
-    files[op.file] = outcome.text;
-    return undefined;
+    if (op.kind === "createFile" || op.kind === "deleteFile") {
+        written(op.file);
+        return fileEdit(files, op, style);
+    }
+    const draft = draftOf(op.file);
+    if (!draft) return "not-in-project";
+    const outcome = memberEdit(draft, op);
+    if (outcome !== "stale") return outcome?.conflict;
+    written(op.file);
+    return applyOne(op, style, files, { draftOf, written });
 }
 
 function fileEdit(
@@ -122,46 +148,76 @@ function fileEdit(
     return undefined;
 }
 
-function memberEdit(text: string, op: MemberOp): Outcome {
-    const current = valueAt(text, op.path);
-    const written = (edited: string | undefined): Outcome =>
-        edited === undefined ? { conflict: "not-a-group" } : { text: edited };
+function memberEdit(draft: Draft, op: MemberOp): Outcome {
+    const { text, pending } = draft;
+    draft.root ??= parseTree(text);
+    const { root } = draft;
+    const node = root && findNodeAtLocation(root, op.path);
+    if (pending.length > 0 && (!node || reads(node, op).some((range) => touches(range, pending)))) {
+        return "stale";
+    }
+    const current = node && (getNodeValue(node) as Json);
+    const written = (unwritable: Conflict["kind"]): Outcome => {
+        const splices = root && splicesFor(text, root, op);
+        if (splices === undefined) return { conflict: unwritable };
+        pending.push(...splices);
+        return undefined;
+    };
 
     switch (op.kind) {
         case "set":
-            if (current === undefined) return { conflict: "gone" };
+            if (!node) return { conflict: "gone" };
             if (same(current, op.value)) return undefined;
             if (!same(current, op.was)) return { conflict: "changed" };
-            return written(editedText(text, op));
+            return written("not-a-group");
         case "add":
-            if (current !== undefined)
-                return same(current, op.value) ? undefined : { conflict: "taken" };
-            return written(editedText(text, op));
+            if (node) return same(current, op.value) ? undefined : { conflict: "taken" };
+            return written("not-a-group");
         case "remove":
-            if (current === undefined) return undefined;
+            if (!node) return undefined;
             if (!same(current, op.was)) return { conflict: "changed" };
-            return written(editedText(text, op));
+            return written("not-a-group");
         case "renameKey": {
-            if (current === undefined) {
-                const renamed = valueAt(text, [...op.path.slice(0, -1), op.name]);
-                return same(renamed, op.was) ? undefined : { conflict: "gone" };
+            if (!node) {
+                const renamed =
+                    root && findNodeAtLocation(root, [...op.path.slice(0, -1), op.name]);
+                const there = renamed && (getNodeValue(renamed) as Json);
+                return same(there, op.was) ? undefined : { conflict: "gone" };
             }
-            const edited = editedText(text, op);
-            return edited === undefined ? { conflict: "taken" } : { text: edited };
+            return written("taken");
         }
     }
 }
 
-export function editedText(text: string, op: MemberOp): string | undefined {
-    switch (op.kind) {
-        case "set":
-        case "add":
-            return setAt(text, op.path, op.value);
-        case "remove":
-            return removeAt(text, op.path);
-        case "renameKey":
-            return renameKeyAt(text, op.path, op.name);
+function splicesFor(text: string, root: Node, op: MemberOp): Splice[] | undefined {
+    if (op.kind === "set" || op.kind === "add") return setSplices(text, root, op.path, op.value);
+    const node = findNodeAtLocation(root, op.path);
+    if (!node) return op.kind === "remove" ? [] : undefined;
+    return op.kind === "remove" ? removal(text, node) : renameSplices(node, op.name);
+}
+
+function reads(node: Node, op: MemberOp): { offset: number; length: number }[] {
+    const own = op.kind === "renameKey" ? (node.parent?.parent ?? node) : (node.parent ?? node);
+    const keys: Node[] = [];
+    for (let at = node.parent; at; at = at.parent) {
+        const key = at.type === "property" ? at.children?.[0] : undefined;
+        if (key) keys.push(key);
     }
+    return [own, ...keys];
+}
+
+function touches(range: { offset: number; length: number }, splices: Splice[]): boolean {
+    return splices.some(
+        (splice) =>
+            range.offset <= splice.offset + splice.length &&
+            splice.offset <= range.offset + range.length,
+    );
+}
+
+export function editedText(text: string, op: MemberOp): string | undefined {
+    const root = parseTree(text);
+    const splices = root && splicesFor(text, root, op);
+    return splices && spliced(text, splices);
 }
 
 function same(a: Json | undefined, b: Json | undefined): boolean {
