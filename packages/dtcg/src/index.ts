@@ -561,8 +561,9 @@ export interface Permutation {
     groups: Group[];
     /**
      * Every reference between this permutation's tokens, one per reference as written, in the
-     * order of {@link Permutation.tokens | tokens}. To ask what refers to a token, use
-     * {@link referrers}.
+     * order of {@link Permutation.tokens | tokens}, including those in a value that isn't valid
+     * as a whole, since they are written whatever else is wrong. To ask what refers to a token,
+     * use {@link referrers}.
      */
     edges: Edge[];
 }

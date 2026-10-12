@@ -126,3 +126,35 @@ describe("each permutation's edges", () => {
         expect(edges(dark)).not.toContain("brand→red");
     });
 });
+
+describe("references in a value that isn't valid as a whole", () => {
+    const written = readFromMemory({
+        files: {
+            "tokens.json": JSON.stringify({
+                red: color(red),
+                line: {
+                    $type: "border",
+                    broken: {
+                        $value: {
+                            color: "{red}",
+                            width: "wide",
+                            style: "solid",
+                        },
+                    },
+                },
+            }),
+        },
+    });
+
+    it("are recorded, since they are written whatever else is wrong", () => {
+        const [permutation] = written.permutations;
+        expect(written.diagnostics.map(({ kind }) => kind)).toContain("invalid-value");
+        expect(permutation?.edges.map(({ from, to }) => [from, to])).toStrictEqual([
+            ["line.broken", "red"],
+        ]);
+    });
+
+    it("count as referring", () => {
+        expect(referrers(written, "red").map(({ path }) => path)).toStrictEqual(["line.broken"]);
+    });
+});

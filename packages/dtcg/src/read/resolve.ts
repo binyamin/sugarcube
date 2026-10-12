@@ -213,7 +213,6 @@ function resolvePermutation(
         const outcome = resolveToken(entry);
         if (outcome === "untyped") continue;
         built.push(toToken(entry.token, outcome, merged));
-        if (!outcome.read.ok) continue;
         for (const { occurrence } of outcome.references) {
             edges.push({ from: path, to: targetOf(occurrence, merged), at: occurrence.at });
         }
