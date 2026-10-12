@@ -8,16 +8,19 @@ export type Reached =
 
 export function reach(steps: string[] | undefined, merged: Merged): Reached {
     if (!steps) return { kind: "nothing" };
-    const valueAt = steps.indexOf("$value");
-    const path = (valueAt === -1 ? steps : steps.slice(0, valueAt)).join(".");
+    const { path, inside } = pointerParts(steps);
     const token = merged.tokens.get(path);
     if (token) {
-        return valueAt === -1
-            ? { kind: "token", path, token }
-            : { kind: "part", path, token, inside: steps.slice(valueAt + 1) };
+        return inside ? { kind: "part", path, token, inside } : { kind: "token", path, token };
     }
-    if (valueAt === -1 && merged.groups.has(path)) return { kind: "group", path };
+    if (!inside && merged.groups.has(path)) return { kind: "group", path };
     return { kind: "nothing" };
+}
+
+export function pointerParts(steps: string[]): { path: string; inside?: string[] } {
+    const valueAt = steps.indexOf("$value");
+    if (valueAt === -1) return { path: steps.join(".") };
+    return { path: steps.slice(0, valueAt).join("."), inside: steps.slice(valueAt + 1) };
 }
 
 export function refObjectMeaning(reached: Reached): "group" | "token" | "nothing" {

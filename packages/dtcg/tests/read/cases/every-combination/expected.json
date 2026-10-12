@@ -31,7 +31,7 @@
         "theme": "light",
         "brand": "house"
       },
-      "label": "default",
+      "label": "theme: light, brand: house",
       "sources": [
         {
           "file": "base.json",
@@ -46,7 +46,7 @@
         "theme": "light",
         "brand": "ocean"
       },
-      "label": "ocean",
+      "label": "theme: light, brand: ocean",
       "sources": [
         {
           "file": "base.json",
@@ -68,7 +68,7 @@
         "theme": "dark",
         "brand": "house"
       },
-      "label": "dark",
+      "label": "theme: dark, brand: house",
       "sources": [
         {
           "file": "base.json",
@@ -90,7 +90,7 @@
         "theme": "dark",
         "brand": "ocean"
       },
-      "label": "dark + ocean",
+      "label": "theme: dark, brand: ocean",
       "sources": [
         {
           "file": "base.json",

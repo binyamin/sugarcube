@@ -13,7 +13,8 @@
               "colorSpace": "srgb",
               "components": [2, 0, 0]
             },
-            "typeDeclared": true
+            "typeDeclared": true,
+            "deprecatedDeclared": false
           }
         },
         {

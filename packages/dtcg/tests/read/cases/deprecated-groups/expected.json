@@ -1,28 +1,53 @@
 {
   "entry": "tokens.json",
-  "spec": "Format 5.2.4 and 6.3.1: a group's $deprecated extends to every token inside unless a closer group or the token says otherwise; false undoes it. The top level counts as the outermost group. Groups report only their own",
+  "spec": "Format 5.2.4 and 6.3.1: a group's $deprecated extends to every token inside unless a closer group or the token says otherwise; false undoes it. The top level counts as the outermost group. Groups report only their own, and a token's authored says whether it writes $deprecated itself",
   "permutations": [
     {
       "tokens": [
         {
           "path": "top",
-          "deprecated": true
+          "deprecated": true,
+          "authored": {
+            "value": 1,
+            "typeDeclared": false,
+            "deprecatedDeclared": false
+          }
         },
         {
           "path": "old.a",
-          "deprecated": "use new"
+          "deprecated": "use new",
+          "authored": {
+            "value": 2,
+            "typeDeclared": false,
+            "deprecatedDeclared": false
+          }
         },
         {
           "path": "old.b",
-          "deprecated": "use new.b"
+          "deprecated": "use new.b",
+          "authored": {
+            "value": 3,
+            "typeDeclared": false,
+            "deprecatedDeclared": true
+          }
         },
         {
           "path": "old.kept.c",
-          "deprecated": false
+          "deprecated": false,
+          "authored": {
+            "value": 4,
+            "typeDeclared": false,
+            "deprecatedDeclared": false
+          }
         },
         {
           "path": "old.kept.d",
-          "deprecated": true
+          "deprecated": true,
+          "authored": {
+            "value": 5,
+            "typeDeclared": false,
+            "deprecatedDeclared": true
+          }
         }
       ],
       "groups": [

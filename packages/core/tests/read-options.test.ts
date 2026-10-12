@@ -25,32 +25,39 @@ const files = {
     "dark.json": JSON.stringify({ color: { brand: { $value: "#fb7185" } } }),
 };
 
-function labelsRead(variables?: Parameters<typeof fillDefaults>[0]["variables"]) {
+function readWith(variables?: Parameters<typeof fillDefaults>[0]["variables"]) {
     const config = fillDefaults({
         resolver: "tokens.resolver.json",
         ...(variables && { variables }),
     });
     const doc = readFromMemory({ files, entry: "tokens.resolver.json" }, readOptions(config));
-    return { doc, labels: doc.permutations.map(({ label }) => label) };
+    return { doc, inputs: doc.permutations.map(({ input }) => input) };
 }
 
 describe("readOptions", () => {
     it("reads the default and each context on its own when the config lists no permutations", () => {
-        expect(labelsRead().labels).toStrictEqual(["default", "dark", "ocean"]);
+        expect(readWith().inputs).toStrictEqual([
+            { theme: "light", brand: "house" },
+            { theme: "dark", brand: "house" },
+            { theme: "light", brand: "ocean" },
+        ]);
     });
 
     it("reads exactly the permutations the config lists, a combined one included", () => {
-        const { labels } = labelsRead({
+        const { inputs } = readWith({
             permutations: [
                 { input: {}, selector: ":root" },
                 { input: { theme: "dark", brand: "ocean" }, selector: ".dark.ocean" },
             ],
         });
-        expect(labels).toStrictEqual(["default", "dark + ocean"]);
+        expect(inputs).toStrictEqual([
+            { theme: "light", brand: "house" },
+            { theme: "dark", brand: "ocean" },
+        ]);
     });
 
     it("reads a hex-string color as sRGB, keeping the hex", () => {
-        const brand = labelsRead().doc.permutations[0]?.tokens[0];
+        const brand = readWith().doc.permutations[0]?.tokens[0];
         expect(brand?.resolved).toMatchObject({ colorSpace: "srgb", hex: "#e11d48" });
     });
 

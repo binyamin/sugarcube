@@ -1,4 +1,4 @@
-import { type Span, filePath } from "@sugarcube-sh/dtcg";
+import { type Input, type Span, filePath } from "@sugarcube-sh/dtcg";
 import { relative } from "pathe";
 import color from "picocolors";
 import type { Reported } from "../types/diagnostics.js";
@@ -9,7 +9,7 @@ type Colors = ReturnType<typeof color.createColors>;
 export interface Where {
     cwd: string;
     folder: string;
-    labels: string[];
+    permutations: { input: Input; label: string }[];
     configFile?: string;
 }
 
@@ -59,12 +59,10 @@ export function problemLines(
         hint: colors.cyan,
     };
     return placed.flatMap(({ problem, place }) => {
-        const some = problem.permutations
-            ? where.labels.filter((_, index) => problem.permutations?.includes(index))
-            : [];
+        const some = problem.permutations ? affected(problem.permutations, where) : "";
         const words: Word[] = [
             ...problem.message.split(" ").map((text) => ({ text })),
-            ...(some.length > 0 ? [{ text: `in ${listed(some)}`, apart: true, dim: true }] : []),
+            ...(some ? [{ text: `in ${some}`, apart: true, dim: true }] : []),
             { text: problem.kind, apart: true, dim: true },
         ];
         const available = width === undefined ? undefined : width - indent;
@@ -128,6 +126,24 @@ function wrapped(words: Word[], colors: Colors, available: number | undefined): 
         length += gap.length + text.length;
     }
     return [...lines, line];
+}
+
+function affected(indexes: number[], { permutations }: Where): string {
+    const some = permutations.filter((_, index) => indexes.includes(index));
+    const modifiers = Object.keys(permutations[0]?.input ?? {}).map((name) => ({
+        name,
+        chosen: [...new Set(some.map(({ input }) => input[name] ?? ""))],
+        every: new Set(permutations.map(({ input }) => input[name] ?? "")),
+    }));
+    const inside = ({ input }: Where["permutations"][number]) =>
+        modifiers.every(({ name, chosen }) => chosen.includes(input[name] ?? ""));
+    if (permutations.filter(inside).length !== some.length) {
+        return listed(some.map(({ label }) => label));
+    }
+    return modifiers
+        .filter(({ chosen, every }) => chosen.length < every.size)
+        .map(({ name, chosen }) => `${name}: ${listed(chosen)}`)
+        .join(", ");
 }
 
 function listed(names: string[]): string {

@@ -1,3 +1,4 @@
+import { forbiddenInName } from "../path.js";
 import type { Node } from "jsonc-parser";
 import type {
     Alias,
@@ -65,8 +66,6 @@ type Property = Exclude<
     DiagnosticDetailByKind["invalid-property"]["property"],
     "$extends" | "$ref"
 >;
-
-const FORBIDDEN = [".", "{", "}"] as const;
 
 type OwnProperty = DiagnosticDetailByKind["misspelt-property"]["property"];
 
@@ -260,7 +259,7 @@ export function walkSource(
                 report("invalid-name", { name: key, character: "$" }, keyNode);
                 continue;
             }
-            const character = FORBIDDEN.find((each) => key.includes(each));
+            const character = forbiddenInName(key);
             if (character) {
                 report("invalid-name", { name: key, character }, keyNode);
                 continue;

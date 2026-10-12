@@ -1,11 +1,4 @@
-import type {
-    Change,
-    Input,
-    JsonPath,
-    Move,
-    Project,
-    TokenType,
-} from "@sugarcube-sh/dtcg";
+import type { Change, Input, JsonPath, Move, Project, TokenType } from "@sugarcube-sh/dtcg";
 
 /**
  * A replacement of some text in a file. The offset and length count UTF-16 code units, as a
@@ -43,19 +36,21 @@ export type Json = string | number | boolean | null | Json[] | { [key: string]: 
  * - `set` changes something that exists. Its parent must exist.
  * - `add` adds something new, creating any missing groups on the way. It must not already exist.
  * - `remove` removes something. Nothing happens if it is already gone.
- * - `renameKey` renames a key, keeping its value and position.
+ * - `renameKey` renames a key, keeping its value and position. Nothing happens if a sibling
+ *   already has the new name and holds `was`.
  * - `createFile` creates a file holding `value`. It must not already exist.
  * - `deleteFile` deletes a file.
  *
  * `set`, `remove` and `deleteFile` record `was`, what they expect to find. If that has changed by
  * the time the edit is applied, the edit is a conflict rather than written over the change,
- * unless what it would write is already there.
+ * unless what it would write is already there. `renameKey` records `was`, the value at the key,
+ * only to tell when the rename is already done: the key is renamed whatever its value now.
  */
 export type FileOp =
     | { kind: "set"; file: string; path: JsonPath; value: Json; was: Json }
     | { kind: "add"; file: string; path: JsonPath; value: Json }
     | { kind: "remove"; file: string; path: JsonPath; was: Json }
-    | { kind: "renameKey"; file: string; path: JsonPath; name: string }
+    | { kind: "renameKey"; file: string; path: JsonPath; name: string; was: Json }
     | { kind: "createFile"; file: string; value: Json }
     | { kind: "deleteFile"; file: string; was: string };
 
@@ -64,7 +59,7 @@ export type FileOp =
  * operation again with the answer.
  *
  * - `placement`: several files could hold the change. Answer with `{ place }`.
- * - `generated`: the token is made by a generator, from the setting on the group at `by`. Answer
+ * - `generated`: the token is made by a generator, from the setting on the group at `from`. Answer
  *   with {@link detach}.
  * - `inherited`: the token comes from another group. Answer with `{ inherited: "here" | "original" }`.
  *
@@ -72,14 +67,18 @@ export type FileOp =
  */
 export type Decision =
     | { kind: "placement"; path: string; candidates: string[] }
-    | { kind: "generated"; path: string; by: string }
+    | { kind: "generated"; path: string; from: string }
     | { kind: "inherited"; path: string; from: string; alsoAffects: string[] };
 
 /** What an operation returns: the edits, a question, or a refusal with its reason. */
 export type OpResult =
     | {
           ops: FileOp[];
-          /** Other contexts where the change also shows, because they read the same file. */
+          /**
+           * The permutations, other than the one edited, where the change shows, by their input.
+           * Only permutations the read built are listed, so a read limited by `inputs` lists only
+           * those.
+           */
           alsoAffects: Input[];
           /** References left pointing at nothing, after a {@link remove}. */
           broken?: string[];
@@ -87,7 +86,50 @@ export type OpResult =
           moved: Move[];
       }
     | { decision: Decision }
-    | { refused: { reason: string } };
+    | { refused: Refusal };
+
+/**
+ * Why an operation can't be done: a `kind`, the facts it is about, and a `reason` worded from
+ * them, so a tool can show the reason or word its own from the facts.
+ *
+ * - `not-found`: no token or group at `path`.
+ * - `not-a-group`: `path` is a token, so nothing can be made inside it.
+ * - `taken`: a token or group is already at `path`.
+ * - `override-instead`: the token at `path` is shared, so `context` gets its own value by
+ *   changing it for that context ({@link setValue}), not by making it again.
+ * - `invalid-name`: `name` can't be a name: `character` is the one the spec forbids (Format
+ *   5.1.1), and an empty name has none, since no path reaches it.
+ * - `generated`: a generator makes the token, from the extension at `extension` on the group at
+ *   `from` (`""` for the top level of a file).
+ * - `inherited`: the token or group comes from the group at `from`, through `$extends`.
+ * - `no-permutation`: there is no permutation for `context`; `why` says whether a modifier or
+ *   context isn't declared, a modifier with no default was left out, or the read didn't build it.
+ * - `several-contexts`: `context` names more than one context away from its default; no file is
+ *   read by that combination alone.
+ * - `no-file-for-context`: `context` reads no whole file of its own to hold the edit.
+ * - `no-shared-file`: no whole file every permutation reads can hold the edit.
+ * - `hidden-by-later-file`: an override for `context` would be hidden by `file`, read after it.
+ * - `no-shared-value`: no file every permutation reads writes the token; only contexts do.
+ */
+export type Refusal = { reason: string } & (
+    | { kind: "not-found"; path: string }
+    | { kind: "not-a-group"; path: string }
+    | { kind: "taken"; path: string }
+    | { kind: "override-instead"; path: string; context: Input }
+    | { kind: "invalid-name"; name: string; character?: "$" | "." | "{" | "}" }
+    | { kind: "generated"; path: string; from: string; extension: [string, ...string[]] }
+    | { kind: "inherited"; path: string; from: string }
+    | {
+          kind: "no-permutation";
+          context: Input;
+          why: "unknown-modifier" | "unknown-context" | "no-default" | "not-read";
+      }
+    | { kind: "several-contexts"; context: Input }
+    | { kind: "no-file-for-context"; path: string; context: Input }
+    | { kind: "no-shared-file"; path: string }
+    | { kind: "hidden-by-later-file"; path: string; context: Input; file: string }
+    | { kind: "no-shared-value"; path: string }
+);
 
 /** Where an edit goes. */
 export interface Where {
@@ -106,7 +148,8 @@ export interface Where {
 export interface NewToken {
     /**
      * Its type. Leave it out when the group declares one, or when the value is a reference: the
-     * token then takes its type from there, as the spec allows. Refused if no type can be worked out.
+     * token then takes its type from there, as the spec allows. Written as given either way: when
+     * no type can be worked out, the read reports it.
      */
     $type?: TokenType;
     /** Written exactly as given. */
@@ -114,34 +157,9 @@ export interface NewToken {
     $description?: string;
 }
 
-/**
- * Renames a token or group, and updates every reference to it: `{…}` references, `$extends`,
- * `$ref` pointers, and fragments in the resolver.
- */
-export function rename(project: Project, path: string, newName: string): OpResult {
-    throw new Error("not implemented yet");
-}
+export { rename } from "./rename.js";
 
-/**
- * Changes a token's value.
- *
- * The value is written exactly as given, keeping the file's own spelling; use `toDTCGValue`
- * from `@sugarcube-sh/dtcg` to write a value taken from the model. The change is checked by
- * reading the result: a value wrong for the token's type, a reference to the wrong type, or a
- * reference that makes a loop is refused.
- *
- * @example
- * setValue(project, "color.danger", "{color.red.600}", { context: { theme: "dark" } })
- * setValue(project, "shadow.card", "{color.shadow}", { part: ["color"] })
- */
-export function setValue(
-    project: Project,
-    path: string,
-    value: Json,
-    options?: ValueOptions,
-): OpResult {
-    throw new Error("not implemented yet");
-}
+export { setDescription, setValue } from "./set-value.js";
 
 /** How a value change is made: where it goes, and which part of the value it changes. */
 export interface ValueOptions extends Where {
@@ -169,22 +187,7 @@ export function setValues(
     throw new Error("not implemented yet");
 }
 
-/** Creates a token or a group. */
-export function create(
-    project: Project,
-    parent: string,
-    name: string,
-    token: NewToken | { group: true },
-    options?: Where & {
-        /**
-         * The sibling to place it after.
-         * @default the end of the group
-         */
-        after?: string;
-    },
-): OpResult {
-    throw new Error("not implemented yet");
-}
+export { create } from "./create.js";
 
 /** Moves a token or group among its siblings. */
 export function reorder(
@@ -211,19 +214,7 @@ export function move(
     throw new Error("not implemented yet");
 }
 
-/** Removes a token or group, and reports the references it leaves pointing at nothing. */
-export function remove(project: Project, path: string): OpResult {
-    throw new Error("not implemented yet");
-}
-
-/** Changes a token's or group's description. `null` removes it. */
-export function setDescription(
-    project: Project,
-    path: string,
-    description: string | null,
-): OpResult {
-    throw new Error("not implemented yet");
-}
+export { remove } from "./remove.js";
 
 /**
  * Marks a token or group as deprecated, with a message saying what to use instead, or `true` for
@@ -352,20 +343,25 @@ export function setDefault(project: Project, modifier: string, context: string):
     throw new Error("not implemented yet");
 }
 
-/** An edit that could no longer be made, such as a change to a token someone has since deleted. */
+/**
+ * An edit that could no longer be made, such as a change to a token someone has since deleted,
+ * with a `reason` worded from its `kind` and the edit.
+ *
+ * - `not-in-project`: the project doesn't hold the edit's file.
+ * - `gone`: the place the edit changes is no longer there.
+ * - `changed`: what is there is no longer what the edit expected (`was`).
+ * - `taken`: something different is already where the edit would write, or a sibling already
+ *   has the new name.
+ * - `not-a-group`: the path runs through something that isn't a group, or past the end of a list.
+ * - `unread`: nothing in the project would read the new file, so it would be lost.
+ */
 export interface Conflict {
     op: FileOp;
+    kind: "not-in-project" | "gone" | "changed" | "taken" | "not-a-group" | "unread";
     reason: string;
 }
 
-/**
- * Applies edits to a project's text and reads the result, returning a new project, or the
- * edits that no longer apply: those whose place has gone, or whose `was` has changed since they
- * were made.
- */
-export function apply(project: Project, ops: FileOp[]): Project | { conflicts: Conflict[] } {
-    throw new Error("not implemented yet");
-}
+export { apply, commit } from "./apply.js";
 
 /** The outcome of {@link commit}. */
 export type Committed =
@@ -377,19 +373,8 @@ export type Committed =
           moved: Move[];
       }
     | { decision: Decision }
-    | { refused: { reason: string } }
+    | { refused: Refusal }
     | { conflicts: Conflict[] };
-
-/**
- * Applies an operation's result in one step.
- *
- * @example
- * const done = commit(project, rename(project, "color.brand", "primary"));
- * if ("project" in done) project = done.project;
- */
-export function commit(project: Project, result: OpResult): Committed {
-    throw new Error("not implemented yet");
-}
 
 /** Edits, with the moves they made, as they are kept for undo and saved for later. */
 export interface Edits {
@@ -405,14 +390,21 @@ export function changedFiles(before: Project, after: Project): Record<string, st
     throw new Error("not implemented yet");
 }
 
-/** Encodes edits and their moves as a compact string, for URLs and saved sessions. */
-export function encodeEdits(edits: Edits): Promise<string> {
-    throw new Error("not implemented yet");
-}
+export { isEdits } from "./is-edits.js";
 
-/** Decodes edits encoded with {@link encodeEdits}. */
-export function decodeEdits(text: string): Promise<Edits> {
-    throw new Error("not implemented yet");
+/**
+ * An unsaved edit that no longer fits the files, one per token or group: someone else changed or
+ * removed what it changes, or its file is gone.
+ */
+export interface Clash {
+    /** The token or group the edits are to, or `""` for a whole file. */
+    path: string;
+    /** The file the edits change. */
+    file: string;
+    /** What the edits write for it there, put on top of the file as it is now; absent when they remove it. */
+    yours?: Json;
+    /** What the file has for it now; absent when it isn't there, or the file is gone. */
+    theirs?: Json;
 }
 
 /**
@@ -455,22 +447,37 @@ export interface Session {
     /** Goes back to {@link Session.opened} and drops the unsaved edits. The undo history starts again. */
     discard(): void;
     /**
-     * Puts back unsaved edits kept from before a reload, on top of the current version. Returns the
-     * edits that no longer apply; if there are any, nothing changes.
+     * Puts back unsaved edits kept from before a reload, such as in session storage, on top
+     * of the current version, where they are unsaved again; {@link Session.discard} still goes
+     * back to {@link Session.opened}. Each edit that still fits is put back; the rest come back as
+     * one {@link Clash} per token.
      */
-    restore(unsaved: Edits): Conflict[];
+    restore(unsaved: Edits): Clash[];
     /**
-     * Takes in files that changed underneath the session, such as after a `git pull`: the unsaved
-     * edits are put back on top of `fresh`, which becomes {@link Session.opened}, and the undo
-     * history starts again. Returns the edits that no longer apply; if there are any, nothing
-     * changes.
+     * Takes in files that changed underneath the session, such as after a `git pull`: `fresh`
+     * becomes {@link Session.opened}, and each unsaved edit that still fits is put back on top of
+     * it; the rest come back as one {@link Clash} per token, and the files show theirs. A token
+     * still there keeps its id, one gone loses it, and a new one gets a new id. The undo history
+     * starts again.
      */
-    adopt(fresh: Project): Conflict[];
+    adopt(fresh: Project): Clash[];
     /** Calls `listener` whenever the session changes. Returns a function that stops listening. */
     subscribe(listener: () => void): () => void;
+    /**
+     * The id of the token or group at `path`, for a screen to hold in place of the path, so a
+     * selection or a URL stays on it through renames. A token or group has its path when opened as
+     * its id, and one made in the session an id starting `new:`, so it never takes the id of one
+     * renamed away from its path. A removed one's id is forgotten. `undefined` when nothing is at
+     * `path`.
+     *
+     * @example
+     * const id = session.idOf("color.brand");
+     * session.do(rename(session.project, "color.brand", "primary"));
+     * session.pathOf(id); // "color.primary"
+     */
+    idOf(path: string): string | undefined;
+    /** Where the token or group with this id is now, or `undefined` once it is removed. */
+    pathOf(id: string): string | undefined;
 }
 
-/** Starts an editing session on a project. */
-export function createSession(project: Project): Session {
-    throw new Error("not implemented yet");
-}
+export { createSession } from "./session.js";

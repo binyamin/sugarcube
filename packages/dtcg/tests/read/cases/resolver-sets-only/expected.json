@@ -9,7 +9,7 @@
   "permutations": [
     {
       "input": {},
-      "label": "default",
+      "label": "",
       "sources": [
         {
           "file": "tokens.json",

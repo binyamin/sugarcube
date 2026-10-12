@@ -70,6 +70,9 @@ export const ERROR_MESSAGES = {
     VALIDATE_SEVERAL_RESOLVERS: (paths: string[]) =>
         `Several resolver files were found:\n${paths.map((p) => `  - ${p}`).join("\n")}\n\nValidate one at a time, such as: ${color.cyan(`sugarcube validate ${paths[0]}`)}`,
 
+    VALIDATE_NO_RESOLVER: (paths: string[]) =>
+        `Several token files need a resolver to be read together:\n${paths.map((p) => `  - ${p}`).join("\n")}\n\nSee ${color.cyan(LINKS.RESOLVER)} for more information.`,
+
     VALIDATE_PATH_NOT_FOUND: (path: string) =>
         `Path not found: ${path}\n\nPlease check that the specified path exists`,
 

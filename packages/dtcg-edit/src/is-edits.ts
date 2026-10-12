@@ -1,0 +1,52 @@
+import type { Edits } from "./index.js";
+
+/**
+ * Whether a value is well-formed {@link Edits}: every edit one of the six kinds, with the members
+ * its kind needs, and every move a `from` and a `to`. For edits from outside the session, such as
+ * a request, a link or storage, before they go to {@link Session.restore} or {@link apply}.
+ *
+ * @example
+ * const sent: unknown = JSON.parse(body);
+ * if (!isEdits(sent)) return badRequest();
+ * session.restore(sent);
+ */
+export function isEdits(value: unknown): value is Edits {
+    if (!isObject(value)) return false;
+    const { ops, moved } = value;
+    return Array.isArray(ops) && ops.every(isOp) && Array.isArray(moved) && moved.every(isMove);
+}
+
+function isOp(value: unknown): boolean {
+    if (!isObject(value) || typeof value.file !== "string") return false;
+    switch (value.kind) {
+        case "set":
+            return isPath(value.path) && "value" in value && "was" in value;
+        case "add":
+            return isPath(value.path) && "value" in value;
+        case "remove":
+            return isPath(value.path) && "was" in value;
+        case "renameKey":
+            return isPath(value.path) && typeof value.name === "string" && "was" in value;
+        case "createFile":
+            return "value" in value;
+        case "deleteFile":
+            return typeof value.was === "string";
+        default:
+            return false;
+    }
+}
+
+function isMove(value: unknown): boolean {
+    return isObject(value) && typeof value.from === "string" && typeof value.to === "string";
+}
+
+function isPath(value: unknown): boolean {
+    return (
+        Array.isArray(value) &&
+        value.every((step) => typeof step === "string" || typeof step === "number")
+    );
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}

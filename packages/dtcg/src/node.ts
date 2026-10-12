@@ -13,6 +13,7 @@ export function findResolver(
 
 export { read } from "./node/read.js";
 export { open } from "./node/open.js";
+export { fileOnDisk } from "./node/paths.js";
 export { type FileStats, onFileChanged } from "./node/file-changed.js";
 export {
     type FileWatcher,

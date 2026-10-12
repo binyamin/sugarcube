@@ -83,6 +83,12 @@ const resolverRules: Record<Exclude<ResolverRule, "wrong-type">, (name: string) 
 };
 
 export const thrownMessages = {
+    noResolver: (files: string[]) =>
+        files.length === 0
+            ? "no files were given to read"
+            : `${files.map((file) => `\`${file}\``).join(", ")} are token files with no resolver among them: a resolver says which files make the design system and in what order, so give one, or name the entry to start from`,
+    severalResolvers: (files: string[]) =>
+        `${files.map((file) => `\`${file}\``).join(", ")} are all resolvers: name the entry to start from`,
     asyncSchema: (key: string) =>
         `the schema for \`${key}\` returned a Promise: extension schemas must validate synchronously`,
     emptyResult: "an extension reader's result needs a value, or a problem reported first",

@@ -6,10 +6,11 @@ import { applyToDisk } from "@sugarcube-sh/dtcg-edit/node";
 
 declare function confirm(question: string): Promise<boolean>;
 
-const project = await open("tokens/tokens.resolver.json");
+const source = { entry: "tokens/tokens.resolver.json" };
+const project = await open(source.entry);
 const deleteFiles = await confirm("Also delete the files only the dim theme uses?");
 const result = removeContext(project, "theme", "dim", { deleteFiles });
 if ("ops" in result) {
-    const saved = await applyToDisk(project, result.ops);
-    if ("refused" in saved) showMessage(saved.refused.reason);
+    const saved = await applyToDisk(source, result.ops);
+    if ("conflicts" in saved) showConflicts(saved.conflicts);
 }

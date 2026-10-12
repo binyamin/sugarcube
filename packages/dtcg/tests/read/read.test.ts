@@ -328,14 +328,14 @@ describe("the combination limit", () => {
 
     it("builds the default and each context on its own above it, and says so", () => {
         const doc = readWith(withModifiers(6));
-        expect(doc.permutations.map(({ label }) => label)).toStrictEqual([
-            "default",
-            "m0: on",
-            "m1: on",
-            "m2: on",
-            "m3: on",
-            "m4: on",
-            "m5: on",
+        expect(doc.permutations.map(({ input }) => Object.values(input).join(""))).toStrictEqual([
+            "offoffoffoffoffoff",
+            "onoffoffoffoffoff",
+            "offonoffoffoffoff",
+            "offoffonoffoffoff",
+            "offoffoffonoffoff",
+            "offoffoffoffonoff",
+            "offoffoffoffoffon",
         ]);
         expect(doc.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
             { kind: "permutation-limit", detail: { count: 64, limit: 32, built: 7 } },
@@ -365,7 +365,7 @@ describe("the combination limit", () => {
             { files: { "tokens.resolver.json": withModifiers(20) } },
             { inputs: [{ m3: "on" }] },
         );
-        expect(doc.permutations.map(({ label }) => label)).toStrictEqual(["m3: on"]);
+        expect(doc.permutations.map(({ input }) => input.m3)).toStrictEqual(["on"]);
         expect(doc.diagnostics).toStrictEqual([]);
     });
 });
@@ -398,7 +398,15 @@ describe("each context on its own", () => {
                     brand: { contexts: { house: [], ocean: [] }, default: "house" },
                 }),
             ),
-        ).toStrictEqual({ labels: ["default", "dark", "dim", "ocean"], diagnostics: [] });
+        ).toStrictEqual({
+            labels: [
+                "theme: light, brand: house",
+                "theme: dark, brand: house",
+                "theme: dim, brand: house",
+                "theme: light, brand: ocean",
+            ],
+            diagnostics: [],
+        });
     });
 
     it("builds each context of the one modifier with no default, and says what it could not build", () => {
@@ -410,7 +418,7 @@ describe("each context on its own", () => {
                 }),
             ),
         ).toStrictEqual({
-            labels: ["small", "large"],
+            labels: ["size: small, brand: house", "size: large, brand: house"],
             diagnostics: [{ kind: "no-default", detail: { modifiers: ["size"] } }],
         });
     });
@@ -437,30 +445,38 @@ describe("inputs without modifiers", () => {
             { inputs: [{ theme: "dark" }] },
         );
         expect(doc.permutations.map(({ input, label }) => ({ input, label }))).toStrictEqual([
-            { input: {}, label: "default" },
+            { input: {}, label: "" },
         ]);
         expect(doc.diagnostics).toStrictEqual([]);
     });
 });
 
 describe("readFromMemory", () => {
-    it("reads several files with no resolver as one set, in the order given", () => {
-        const doc = readFromMemory({ files: { "base.json": valid, "./themes/dark.json": valid } });
-        expect(doc.files).toStrictEqual(["base.json", "themes/dark.json"]);
-        expect(doc.usedBy).toStrictEqual({
-            "base.json": "everyone",
-            "themes/dark.json": "everyone",
+    it("refuses several token files with no resolver among them, naming them", () => {
+        const reading = () =>
+            readFromMemory({ files: { "base.json": valid, "./themes/dark.json": valid } });
+        expect(reading).toThrow(TypeError);
+        expect(reading).toThrow(/`base\.json`.*`themes\/dark\.json`/);
+    });
+
+    it("refuses several resolvers when no entry says which, naming them", () => {
+        const resolver = JSON.stringify({ version: "2025.10", resolutionOrder: [] });
+        const reading = () =>
+            readFromMemory({ files: { "a.resolver.json": resolver, "b.resolver.json": resolver } });
+        expect(reading).toThrow(TypeError);
+        expect(reading).toThrow(/`a\.resolver\.json`.*`b\.resolver\.json`/);
+    });
+
+    it("refuses to read no files at all", () => {
+        expect(() => readFromMemory({ files: {} })).toThrow(TypeError);
+    });
+
+    it("reads several token files when an entry names the one to start from", () => {
+        const doc = readFromMemory({
+            files: { "base.json": valid, "other.json": valid },
+            entry: "base.json",
         });
-        expect(
-            doc.permutations.map(({ input, label, sources }) => ({ input, label, sources })),
-        ).toStrictEqual([
-            {
-                input: {},
-                label: "default",
-                sources: [{ file: "base.json" }, { file: "themes/dark.json" }],
-            },
-        ]);
-        expect(doc.diagnostics).toStrictEqual([]);
+        expect(doc.files).toStrictEqual(["base.json"]);
     });
 
     it("finds an entry given with a folder among the files", () => {
@@ -523,5 +539,40 @@ describe("a member named like a property at the top of a file", () => {
     it("is not taken for `$value`, since the top of a file is never a token", () => {
         const doc = readFromMemory({ files: { "tokens.json": JSON.stringify({ value: "x" }) } });
         expect(doc.diagnostics.map(({ kind }) => kind)).toStrictEqual(["invalid-member"]);
+    });
+});
+
+describe("labels", () => {
+    const resolver = JSON.stringify({
+        version: "2025.10",
+        resolutionOrder: [
+            {
+                type: "modifier",
+                name: "theme",
+                default: "light",
+                contexts: { light: [], dark: [] },
+            },
+            {
+                type: "modifier",
+                name: "size",
+                default: "large",
+                contexts: { default: [], large: [] },
+            },
+        ],
+    });
+    const doc = readFromMemory({ files: { "tokens.resolver.json": resolver } });
+
+    it("write out the input, every modifier in the order the resolver declares them", () => {
+        expect(doc.permutations.map(({ input, label }) => [input, label])).toStrictEqual([
+            [{ theme: "light", size: "large" }, "theme: light, size: large"],
+            [{ theme: "light", size: "default" }, "theme: light, size: default"],
+            [{ theme: "dark", size: "default" }, "theme: dark, size: default"],
+            [{ theme: "dark", size: "large" }, "theme: dark, size: large"],
+        ]);
+    });
+
+    it("are empty without a resolver, where there is nothing to choose", () => {
+        const loose = readFromMemory({ files: { "tokens.json": valid } });
+        expect(loose.permutations.map(({ label }) => label)).toStrictEqual([""]);
     });
 });

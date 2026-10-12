@@ -213,7 +213,6 @@ function resolvePermutation(
         const outcome = resolveToken(entry);
         if (outcome === "untyped") continue;
         built.push(toToken(entry.token, outcome, merged));
-        if (!outcome.read.ok) continue;
         for (const { occurrence } of outcome.references) {
             edges.push({ from: path, to: targetOf(occurrence, merged), at: occurrence.at });
         }
@@ -257,8 +256,13 @@ function toToken<T extends TokenType>(
         ...(deprecated !== undefined && { deprecated }),
         ...(token.extensions && { extensions: token.extensions }),
         source: { index: token.piece.source, at: token.at },
+        ...(token.replaces && { replaces: token.replaces }),
         ...(!token.added && {
-            authored: { value: token.authored, typeDeclared: token.type !== undefined },
+            authored: {
+                value: token.authored,
+                typeDeclared: token.type !== undefined,
+                deprecatedDeclared: token.deprecated !== undefined,
+            },
         }),
         ...(token.generated && { generated: token.generated }),
         ...(token.inherited && { inherited: token.inherited }),

@@ -20,7 +20,7 @@ import { entriesOf, expandSources, filesNamedBy, openSources } from "./sources.j
 export interface Loaded {
     files: string[];
     texts: Record<string, string>;
-    entry: string | undefined;
+    entry: string;
     modifiers: Record<string, { contexts: string[]; default?: string }>;
     usedBy: Record<string, "everyone" | Input[]>;
     permutations: LoadedPermutation[];
@@ -28,33 +28,27 @@ export interface Loaded {
 }
 
 export function* load(
-    start: { entry: string } | { files: string[] },
+    entry: string,
     options: PermutationOptions,
 ): Generator<Request, Loaded, Answer> {
     const used: string[] = [];
     const diagnostics: Diagnostic[] = [];
     const files = createFiles(used, diagnostics);
-    const paths = "entry" in start ? [start.entry] : start.files;
-    yield* fetchFiles(files, paths);
+    yield* fetchFiles(files, [entry]);
 
-    const resolverPath = paths.find((path) => {
-        const root = parseFile(files, path)?.root;
-        return root !== undefined && isResolver(root);
-    });
+    const root = parseFile(files, entry)?.root;
     const loaded = (built: Pick<Loaded, "modifiers" | "usedBy" | "permutations">): Loaded => ({
         files: used,
         texts: textsOf(files.texts, used),
-        entry: "entry" in start ? start.entry : resolverPath,
+        entry,
         diagnostics,
         ...built,
     });
-    if (resolverPath === undefined) {
-        return loaded(
-            fromTokenFiles(paths.map((path) => ({ path, json: openFile(files, path, "tokens") }))),
-        );
+    if (root === undefined || !isResolver(root)) {
+        return loaded(fromTokenFiles([{ path: entry, json: openFile(files, entry, "tokens") }]));
     }
 
-    const file = openFile(files, resolverPath, "resolver");
+    const file = openFile(files, entry, "resolver");
     if (!file) return loaded({ modifiers: {}, usedBy: {}, permutations: [] });
 
     const resolver = checkResolver(file, diagnostics);

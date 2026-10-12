@@ -279,7 +279,7 @@ export interface UnresolvedValueByType {
  */
 export type UnresolvedValue<T extends TokenType> = UnresolvedValueByType[T];
 
-export { isAlias, isPointer } from "./values/references.js";
+export { isAlias, isPointer, movedReference } from "./values/references.js";
 export { referenceAt, references } from "./lookup/references.js";
 
 /**
@@ -452,17 +452,26 @@ export interface TokenBase<T extends TokenType> {
      */
     source: { index: number; at: Span };
     /**
-     * The value exactly as the file wrote it, and whether the file declared `$type` on this token.
-     * Absent when no file writes the token: one a {@link Generator} added.
+     * The places earlier sources of the permutation write the token, in the order they are read,
+     * which {@link TokenBase.source | source.at} replaces: a later source writes a token whole.
+     * Absent when no earlier source writes it.
      */
-    authored?: { value: unknown; typeDeclared: boolean };
+    replaces?: Span[];
+    /**
+     * The value exactly as the file wrote it, and whether the file declared `$type` and
+     * `$deprecated` on this token, rather than the token taking them from a group or, for the
+     * type, from the token it refers to. Absent when no file writes the token: one a
+     * {@link Generator} added.
+     */
+    authored?: { value: unknown; typeDeclared: boolean; deprecatedDeclared: boolean };
     /**
      * Set when a {@link Generator} makes the token from an extension on the group at `from`, whether
      * a file writes the token or it was added. `from` is `""` for an extension on the top level of a
-     * file. An added token has no {@link TokenBase.authored | authored}, and its
+     * file, and `extension` is where the extension sits in the group's `$extensions`, as the
+     * generator names it. An added token has no {@link TokenBase.authored | authored}, and its
      * {@link TokenBase.source | source} is the extension.
      */
-    generated?: { from: string };
+    generated?: { from: string; extension: [string, ...string[]] };
     /** Set when the token is here only because of `$extends`, or a `$ref` to another group, at `from`. */
     inherited?: { from: string };
 }
@@ -484,6 +493,12 @@ export interface Group {
     deprecated?: boolean | string;
     extensions?: Record<string, unknown>;
     /**
+     * The group this one takes tokens from, through `$extends` or a `$ref` to another group
+     * (Format 6.4), when the reference reaches one, and where that reference is written. The
+     * tokens it takes are marked {@link TokenBase.inherited | inherited}.
+     */
+    extends?: { path: string; at: Span };
+    /**
      * Every place the group is declared. Groups can be spread across files, so there may be
      * several, and a group only {@link Group.inherited | inherited} has none.
      */
@@ -501,7 +516,11 @@ export interface Group {
 export interface Source {
     /** The file its tokens are written in, or the resolver for tokens written there. */
     file: string;
-    /** Set when the source is only part of the file, such as `"#/color"`. */
+    /**
+     * Set when the source is only part of the file, such as `"#/color"`. Tokens written in the
+     * resolver are part of it too, so theirs says where they sit, such as
+     * `"#/resolutionOrder/0/sources/1"`. Absent when the source is a whole file.
+     */
     pointer?: string;
     /**
      * How the resolver reached it: straight from a set, or through a modifier's context, possibly
@@ -520,8 +539,10 @@ export interface Source {
 export interface Permutation {
     input: Input;
     /**
-     * A short name for display, such as `"default"`, `"dark"` or `"dark + ocean"`.
-     * Functions take an {@link Input}, never a label.
+     * The input written out for people: each modifier and its context, in the order the resolver
+     * declares them, such as `"theme: dark, brand: ocean"`. Empty when there are no modifiers, as
+     * for token files read without a resolver. For display only: functions take an
+     * {@link Input}, never a label.
      */
     label: string;
     /** Where the tokens come from, in the order they apply: a later source overrides an earlier one. */
@@ -540,8 +561,9 @@ export interface Permutation {
     groups: Group[];
     /**
      * Every reference between this permutation's tokens, one per reference as written, in the
-     * order of {@link Permutation.tokens | tokens}. To ask what refers to a token, use
-     * {@link referrers}.
+     * order of {@link Permutation.tokens | tokens}, including those in a value that isn't valid
+     * as a whole, since they are written whatever else is wrong. To ask what refers to a token,
+     * use {@link referrers}.
      */
     edges: Edge[];
 }
@@ -1034,8 +1056,9 @@ export type ExtensionError<M extends ExtensionMessages = ExtensionMessages> = st
       }[keyof M & string];
 
 /**
- * Makes tokens from an extension on a group, such as a scale recipe. The extension owns every token
- * it makes: each is marked {@link TokenBase.generated | generated}, whether a file writes it or not.
+ * Makes tokens from an extension on a group, such as the steps of a spacing scale. The extension
+ * owns every token it makes: each is marked {@link TokenBase.generated | generated}, whether a file
+ * writes it or not.
  * A token a file writes keeps its written value. A token no file writes is added, after the group's
  * files are merged and its `$extends` followed, and read like any written token, so references to
  * it resolve.
@@ -1109,7 +1132,7 @@ export interface ReadOptions extends ParseOptions {
     /** Checks for your own `$extensions` keys, run in each permutation once types are known. */
     extensionValidators?: ExtensionValidator[];
     /**
-     * Generators that add tokens from extensions on groups, such as recipes. Run in order, in
+     * Generators that add tokens from extensions on groups. Run in order, in
      * each permutation, before values are read.
      */
     generators?: Generator[];
@@ -1156,11 +1179,10 @@ export { filePath } from "./read/paths.js";
 export interface Project {
     readonly doc: Document;
     /**
-     * The file the read started from, by the Document's name for it, so `files[entry]` is its
-     * text: the entry given, or the resolver found among loose files. Absent when loose token
-     * files were read as one set.
+     * The file the read started from, a resolver or a token file, by the Document's name for it,
+     * so `files[entry]` is its text.
      */
-    readonly entry?: string;
+    readonly entry: string;
     /** The text of every file the Document read, by the name the Document gives it, as at {@link ReadText}. */
     readonly files: Readonly<Record<string, string>>;
     /** The options it was read with, for reading it again. */
@@ -1172,32 +1194,25 @@ export interface TokenView {
     path: string;
     /** The type in the default permutation, or in the first permutation that has the token. */
     type: TokenType;
-    /** The token in each permutation that has it, keyed by {@link Permutation.label | label}. */
-    permutations: Record<string, Token>;
+    /** The token in each permutation that has it, in order, with the permutation's input and label. */
+    permutations: { input: Input; label: string; token: Token }[];
     /** The token in the default permutation. */
     default?: Token;
 }
 
 export { byToken } from "./lookup/by-token.js";
-export { pathBelow, withoutRoot } from "./path.js";
-export { defaultPermutation, permutation } from "./lookup/permutation.js";
+export { forbiddenInName, movedPath, pathBelow, withoutRoot } from "./path.js";
+export { completeInput, defaultPermutation, permutation } from "./lookup/permutation.js";
+
+/** What {@link completeInput} gives: the full input, or the modifier or context it could not match. */
+export type CompleteInput =
+    | { ok: true; input: Input }
+    | { ok: false; reason: "unknown-modifier"; modifier: string }
+    | { ok: false; reason: "unknown-context"; modifier: string; context: string }
+    | { ok: false; reason: "no-default"; modifier: string };
 export { group, token, tokensIn } from "./lookup/token.js";
 
-/** A token as it is in each permutation, in order. */
-export function acrossPermutations(
-    doc: Document,
-    path: string,
-): {
-    input: Input;
-    label: string;
-    token: Token;
-    /** Whether this permutation's value comes from a context's own file rather than the base. */
-    overrides: boolean;
-    /** How the value arrived: straight from a set, or through a modifier's context. */
-    from: Source["from"];
-}[] {
-    throw new Error("not implemented yet");
-}
+export { acrossPermutations } from "./lookup/across-permutations.js";
 
 /** A token or group whose path changed, such as after a rename. */
 export interface Move {
@@ -1209,9 +1224,15 @@ export interface Move {
 export type TokenProperty = "value" | "type" | "description" | "deprecated" | "extensions";
 
 /**
- * One difference between two reads of a design system. `changed` and `renamed` list the
- * properties that differ; a rename with nothing else changed lists none. `group-added` and
- * `group-removed` report groups, empty ones included; the tokens inside are reported on their own.
+ * A property a file can set on a group, named as {@link TokenProperty} names them: `extends` is
+ * the group it takes tokens from, {@link Group.extends}.
+ */
+export type GroupProperty = "type" | "description" | "deprecated" | "extensions" | "extends";
+
+/**
+ * One difference between two reads of a design system. `changed`, `renamed`, `group-changed` and
+ * `group-renamed` list the properties that differ; a rename with nothing else changed lists none.
+ * Groups are reported on their own, empty ones included, and so are the tokens inside them.
  */
 export type Change =
     | { kind: "added"; path: string; in: Input[]; after: Token }
@@ -1239,44 +1260,23 @@ export type Change =
           kind: "group-changed";
           path: string;
           in: Input[];
-          properties: Exclude<TokenProperty, "value">[];
+          properties: GroupProperty[];
+          before: Group;
+          after: Group;
+      }
+    | {
+          kind: "group-renamed";
+          from: string;
+          path: string;
+          in: Input[];
+          properties: GroupProperty[];
           before: Group;
           after: Group;
       };
 
-/**
- * What changed between two reads, and in which permutations: tokens and groups added, removed,
- * renamed, or with different properties. Values are compared with {@link sameValue}, and the other
- * properties exactly.
- *
- * Tokens a generator made are included, with `generated` set, so a tool can show the change to
- * the extension on its group and fold its tokens under it.
- *
- * Two reads alone cannot tell a rename from a removal and an addition. Pass the moves the edits
- * made, and those tokens are listed as `renamed`.
- *
- * @example
- * for (const change of diff(before, after, { moved })) row(change.kind, change.path);
- */
-export function diff(before: Document, after: Document, options?: { moved?: Move[] }): Change[] {
-    throw new Error("not implemented yet");
-}
+export { diff } from "./lookup/diff.js";
 
-/**
- * Whether two values of a type are the same, allowing for the rounding that different spellings
- * of one value produce, such as color components written to different precision. Colors in different color spaces
- * are different values: to compare them, convert one into the other's space first.
- */
-export function sameValue<T extends TokenType>(
-    type: T,
-    a: ValueByType[T],
-    b: ValueByType[T],
-): boolean;
-/** Whether two tokens have the same type and the same resolved value. */
-export function sameValue(a: Token, b: Token): boolean;
-export function sameValue(...values: unknown[]): boolean {
-    throw new Error("not implemented yet");
-}
+export { sameValue } from "./values/same-value.js";
 
 /** A token that is related to another, and the permutations in which it is. */
 export interface Related {

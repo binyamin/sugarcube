@@ -1,9 +1,11 @@
-import { type Diagnostic, type Project, type Span, readFromMemory } from "@sugarcube-sh/dtcg";
+import type { Diagnostic, Project, Span } from "@sugarcube-sh/dtcg";
 import { readReference } from "@sugarcube-sh/dtcg/values";
 import type { Node } from "jsonc-parser";
 import { fixTitles } from "./error-messages.js";
 import type { Fix, TextEdit } from "./index.js";
-import { inline, memberRemoval, nodeAt, refString } from "./json-text.js";
+import { inline, refString, removal, spliced } from "./json-text.js";
+import { nodeAt } from "./project-text.js";
+import { reread } from "./reread.js";
 
 /**
  * The changes that would mend a diagnostic of this project, made from the facts the diagnostic
@@ -27,16 +29,19 @@ export function fixesFor(project: Project, diagnostic: Diagnostic): Fix[] {
 function fixFor(project: Project, diagnostic: Diagnostic): Fix | undefined {
     const { at } = diagnostic;
     if (!at) return undefined;
-    const written = (span: Span) => {
-        const text = project.files[span.file];
-        return text === undefined ? undefined : nodeAt(text, span);
-    };
+    const written = (span: Span) => nodeAt(project, span);
 
     switch (diagnostic.kind) {
         case "duplicate-key": {
             const earlier = diagnostic.related?.[0]?.at;
-            const edit = earlier && deletion(earlier.file, written(earlier));
-            return edit && safe(fixTitles.deleteEarlier(diagnostic.detail.key), edit);
+            const edits = earlier && deletion(project, earlier.file, written(earlier));
+            return (
+                edits && {
+                    title: fixTitles.deleteEarlier(diagnostic.detail.key),
+                    safe: true,
+                    edits,
+                }
+            );
         }
         case "unknown-type": {
             const { type, similar } = diagnostic.detail;
@@ -56,7 +61,7 @@ function fixFor(project: Project, diagnostic: Diagnostic): Fix | undefined {
         case "hex-string-color": {
             const { value, asObject } = diagnostic.detail;
             if (written(at)?.value !== value) return undefined;
-            return safe(fixTitles.hexToObject, { ...place(at), text: inline(asObject) });
+            return safe(fixTitles.hexToObject, { ...range(at), text: inline(asObject) });
         }
         case "invalid-value":
             return valueFix(project, diagnostic.detail, at, written(at)?.value);
@@ -98,7 +103,7 @@ function valueFix(
         case "string-with-unit": {
             const { value, asObject, type } = detail;
             if (written !== value || !asObject) return undefined;
-            return safe(fixTitles.measureAsObject(type), { ...place(at), text: inline(asObject) });
+            return safe(fixTitles.measureAsObject(type), { ...range(at), text: inline(asObject) });
         }
         case "hex-not-six-digits": {
             const { value, sixDigits } = detail;
@@ -116,8 +121,8 @@ function valueFix(
                 return undefined;
             }
             const pointer = pointerTo(reference.alias);
-            const change = { ...place(at), text: inline({ $ref: pointer }) };
-            if (!readsClean(project, change)) return undefined;
+            const change = { ...range(at), text: inline({ $ref: pointer }) };
+            if (!readsClean(project, [change])) return undefined;
             return safe(fixTitles.referenceAsPointer(pointer), change);
         }
         default:
@@ -126,22 +131,22 @@ function valueFix(
 }
 
 function deleteEmptyType(project: Project, at: Span, written: Node | undefined): Fix | undefined {
-    const removed = deletion(at.file, written);
-    if (!removed || !readsClean(project, removed)) return undefined;
-    return safe(fixTitles.deleteType, removed);
+    const edits = deletion(project, at.file, written);
+    if (!edits || !readsClean(project, edits)) return undefined;
+    return { title: fixTitles.deleteType, safe: true, edits };
 }
 
-function readsClean(project: Project, { file, offset, length, text }: TextEdit): boolean {
-    const before = project.files[file] ?? "";
-    const files = {
-        ...project.files,
-        [file]: before.slice(0, offset) + text + before.slice(offset + length),
-    };
-    const { entry } = project;
-    const doc = readFromMemory({ files, ...(entry !== undefined && { entry }) }, project.options);
-    const end = offset + text.length;
+function readsClean(project: Project, edits: TextEdit[]): boolean {
+    const [first] = edits;
+    if (!first) return true;
+    const { file } = first;
+    const files = { ...project.files, [file]: spliced(project.files[file] ?? "", edits) };
+    const { doc } = reread(project, files);
+    const start = Math.min(...edits.map(({ offset }) => offset));
+    const grown = edits.reduce((acc, { length, text }) => acc + text.length - length, 0);
+    const end = Math.max(...edits.map(({ offset, length }) => offset + length)) + grown;
     return !doc.diagnostics.some(
-        ({ at }) => at?.file === file && at.offset <= end && offset <= at.offset + at.length,
+        ({ at }) => at?.file === file && at.offset <= end && start <= at.offset + at.length,
     );
 }
 
@@ -155,17 +160,28 @@ function pointerTo(path: string): string {
     return `#/${steps.join("/")}/$value`;
 }
 
-function deletion(file: string, written: Node | undefined): TextEdit | undefined {
-    const removed = written && memberRemoval(written);
-    return removed && { file, ...removed, text: "" };
+function deletion(
+    project: Project,
+    file: string,
+    written: Node | undefined,
+): TextEdit[] | undefined {
+    const text = project.files[file];
+    if (!written || text === undefined) return undefined;
+    const edits = removal(text, written).map(({ offset, length, text: replaced }) => ({
+        file,
+        offset,
+        length,
+        text: replaced,
+    }));
+    return edits.length > 0 ? edits : undefined;
 }
 
-function place({ file, offset, length }: Span): Omit<TextEdit, "text"> {
+function range({ file, offset, length }: Span): Omit<TextEdit, "text"> {
     return { file, offset, length };
 }
 
 function replacing(at: Span, value: string): TextEdit {
-    return { ...place(at), text: JSON.stringify(value) };
+    return { ...range(at), text: JSON.stringify(value) };
 }
 
 function safe(title: string, change: TextEdit): Fix {

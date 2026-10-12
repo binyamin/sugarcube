@@ -5,7 +5,7 @@
   "permutations": [
     {
       "input": {},
-      "label": "default",
+      "label": "",
       "sources": [
         {
           "file": "all.json",

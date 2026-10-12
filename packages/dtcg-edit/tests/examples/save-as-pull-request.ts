@@ -1,13 +1,14 @@
-// A server that turns saved edits into a pull request. It reads the files from GitHub as they are
-// now, applies the edits, and opens the pull request.
+// A server that turns saved edits into a pull request. It checks that what the browser sent is
+// edits, reads the files from GitHub as they are now, applies the edits, and opens the pull request.
 import { open } from "@sugarcube-sh/dtcg";
-import { apply, changedFiles, decodeEdits } from "@sugarcube-sh/dtcg-edit";
+import { apply, changedFiles, isEdits } from "@sugarcube-sh/dtcg-edit";
 
-declare const body: { edits: string; title: string };
+declare const body: { edits: unknown; title: string };
 declare function readFromGitHub(path: string): Promise<string>;
 
+if (!isEdits(body.edits)) throw new Error("not edits");
 const project = await open("tokens.resolver.json", { readText: readFromGitHub });
-const next = apply(project, (await decodeEdits(body.edits)).ops);
+const next = apply(project, body.edits.ops);
 if ("conflicts" in next) {
     showConflicts(next.conflicts);
 } else {

@@ -47,7 +47,7 @@
       "input": {
         "size": "small"
       },
-      "label": "small",
+      "label": "size: small",
       "sources": [
         {
           "file": "size/base.json",
@@ -77,7 +77,7 @@
       "input": {
         "size": "medium"
       },
-      "label": "medium",
+      "label": "size: medium",
       "sources": [
         {
           "file": "size/base.json",
@@ -107,7 +107,7 @@
       "input": {
         "size": "large"
       },
-      "label": "large",
+      "label": "size: large",
       "sources": [
         {
           "file": "size/base.json",
