@@ -180,19 +180,57 @@ class Changes {
     }
 }
 
-function sameSides(a: Change, b: Change): boolean {
-    const before = "before" in a && "before" in b ? sameSide(a.before, b.before) : true;
-    const after = "after" in a && "after" in b ? sameSide(a.after, b.after) : true;
-    return before && after;
+type Sides =
+    | { of: "token"; before?: Token; after?: Token }
+    | { of: "group"; before?: Group; after?: Group }
+    | { of: "top level"; before: TopLevel; after: TopLevel };
+
+function sidesOf(change: Change): Sides {
+    switch (change.kind) {
+        case "added":
+        case "removed":
+        case "changed":
+        case "renamed":
+            return { of: "token", ...change };
+        case "group-added":
+        case "group-removed":
+        case "group-changed":
+        case "group-renamed":
+            return { of: "group", ...change };
+        case "top-level-changed":
+            return { of: "top level", ...change };
+    }
 }
 
-function sameSide(a: Token | Group | TopLevel, b: Token | Group | TopLevel): boolean {
-    if (!("path" in a) || !("path" in b)) {
-        return !("path" in a) && !("path" in b) && differing(sameWritten(a, b)).length === 0;
+function sameSides(a: Change, b: Change): boolean {
+    const x = sidesOf(a);
+    const y = sidesOf(b);
+    if (x.of === "token" && y.of === "token") {
+        return both(x.before, y.before, sameToken) && both(x.after, y.after, sameToken);
     }
-    if (a.path !== b.path) return false;
-    if ("source" in a) return "source" in b && tokenDifferences(a, b).length === 0;
-    return !("source" in b) && groupDifferences(a, b, []).length === 0;
+    if (x.of === "group" && y.of === "group") {
+        return both(x.before, y.before, sameGroup) && both(x.after, y.after, sameGroup);
+    }
+    if (x.of === "top level" && y.of === "top level") {
+        return sameTopLevel(x.before, y.before) && sameTopLevel(x.after, y.after);
+    }
+    return false;
+}
+
+function both<T>(a: T | undefined, b: T | undefined, same: (a: T, b: T) => boolean): boolean {
+    return a === undefined || b === undefined ? a === b : same(a, b);
+}
+
+function sameToken(a: Token, b: Token): boolean {
+    return a.path === b.path && tokenDifferences(a, b).length === 0;
+}
+
+function sameGroup(a: Group, b: Group): boolean {
+    return a.path === b.path && groupDifferences(a, b, []).length === 0;
+}
+
+function sameTopLevel(a: TopLevel, b: TopLevel): boolean {
+    return differing(sameWritten(a, b)).length === 0;
 }
 
 function movedReferences(before: Token, moved: Move[]): Token {

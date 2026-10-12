@@ -1,3 +1,4 @@
+import { type Settings, settingsOf } from "./settings.js";
 import { childPath } from "../path.js";
 import type { Node } from "jsonc-parser";
 import type {
@@ -21,13 +22,7 @@ import {
     extensionDiagnostic,
 } from "./extension-check.js";
 import { type JsonFile, member, spanOf } from "./json.js";
-import {
-    type Merged,
-    type MergedToken,
-    type MergedTopLevel,
-    type Piece,
-    everyGroup,
-} from "./merge.js";
+import { type Merged, type MergedToken, type Piece, everyGroup } from "./merge.js";
 
 interface Extension {
     value: unknown;
@@ -95,8 +90,9 @@ export function fillGenerated(
     const reportedIgnored = new Map<Generator, Set<Node>>();
 
     for (const [groupPath, group] of everyGroup(merged)) {
+        const settings = settingsOf(merged, group);
         for (const generator of generators) {
-            const extension = extensionOf(group, generator.extension);
+            const extension = extensionOf(settings, generator.extension);
             if (!extension) continue;
             const checked: CheckedExtension = {
                 within: generator.extension,
@@ -120,7 +116,7 @@ export function fillGenerated(
                 report(passed.problems);
                 continue;
             }
-            const type = group.type === "unusable" ? undefined : group.type;
+            const type = settings.type === "unusable" ? undefined : settings.type;
             const result = generator.generate(
                 { ...(groupPath !== undefined && { path: groupPath }), ...(type && { type }) },
                 passed.value,
@@ -152,7 +148,7 @@ export function fillGenerated(
 }
 
 function extensionOf(
-    group: MergedTopLevel,
+    group: Settings,
     [key, ...inside]: Generator["extension"],
 ): Extension | undefined {
     const at = group.extensionsAt?.[key];

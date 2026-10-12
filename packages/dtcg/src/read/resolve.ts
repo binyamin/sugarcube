@@ -16,7 +16,7 @@ import type {
     Written,
 } from "../index.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
-import { inherited } from "./inherit.js";
+import { applying, inherited } from "./inherit.js";
 import type { Merged, MergedGroup, MergedToken, MergedTopLevel } from "./merge.js";
 import type { Properties } from "./walk.js";
 import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
@@ -240,14 +240,7 @@ function resolvePermutation(
             (path) => kept.has(path) || merged.groups.has(path),
         );
     const toGroup = (group: MergedGroup) =>
-        publicGroup(
-            {
-                ...group,
-                type: inherited(group, merged, "type"),
-                deprecated: inherited(group, merged, "deprecated"),
-            },
-            childrenOf(group.path),
-        );
+        publicGroup(group, applying(merged, group), childrenOf(group.path));
     const { input, label, sources } = permutation;
     return {
         input,
@@ -270,12 +263,14 @@ function publicTopLevel(top: MergedTopLevel, children: string[]): TopLevel {
     return { ...publicProperties(top), declaredIn: top.declaredIn, children };
 }
 
-function publicGroup(group: MergedGroup, children: string[]): Group {
-    const { path, extendsGroup, inherited: from, own } = group;
-    const authored = publicProperties(own);
+function publicGroup(group: MergedGroup, applies: Properties, children: string[]): Group {
+    const { path, declaredIn, extendsGroup, inherited: from } = group;
+    const authored = publicProperties(group);
     return {
         path,
-        ...publicTopLevel(group, children),
+        ...publicProperties(applies),
+        declaredIn,
+        children,
         ...(extendsGroup !== undefined && { extends: extendsGroup }),
         ...(from && { inherited: from }),
         ...(Object.keys(authored).length > 0 && { authored }),
@@ -308,8 +303,7 @@ function toToken<T extends TokenType>(
         ...(!token.added && {
             authored: {
                 value: token.authored,
-                ...(token.type !== undefined && token.type !== "unusable" && { type: token.type }),
-                ...(token.deprecated !== undefined && { deprecated: token.deprecated }),
+                ...publicProperties({ type: token.type, deprecated: token.deprecated }),
             },
         }),
         ...(token.generated && { generated: token.generated }),

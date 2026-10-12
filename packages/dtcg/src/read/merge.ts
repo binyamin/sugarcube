@@ -26,7 +26,6 @@ export interface MergedToken extends SourceToken {
 }
 
 export interface MergedTopLevel extends Properties {
-    own: Properties;
     declaredIn: Span[];
     extensionsAt?: Record<string, ExtensionsAt & { piece: Piece }>;
 }
@@ -35,6 +34,7 @@ export interface MergedGroup extends MergedTopLevel {
     path: string;
     extends?: GroupReference & { piece: Piece };
     extendsGroup?: { path: string; at: Span };
+    takesFrom?: string;
     inherited?: { from: string };
 }
 
@@ -52,7 +52,7 @@ export function merge(
     diagnostics: Diagnostic[],
 ): Merged {
     const merged: Merged = {
-        root: { own: {}, declaredIn: [] },
+        root: { declaredIn: [] },
         tokens: new Map(),
         groups: new Map(),
         order: new Set(),
@@ -107,7 +107,7 @@ export function merge(
 
 function mergeGroup(groups: Map<string, MergedGroup>, group: SourceGroup, piece: Piece): void {
     const { path, extends: extending, ...rest } = group;
-    const existing = groups.get(path) ?? { path, own: {}, declaredIn: [] };
+    const existing = groups.get(path) ?? { path, declaredIn: [] };
     mergeInto(existing, rest, piece);
     if (extending) existing.extends = { ...extending, piece };
     groups.set(path, existing);
@@ -116,7 +116,6 @@ function mergeGroup(groups: Map<string, MergedGroup>, group: SourceGroup, piece:
 function mergeInto(existing: MergedTopLevel, source: SourceTopLevel, piece: Piece): void {
     const { at, extensionsAt, ...properties } = source;
     mergeProperties(existing, properties);
-    mergeProperties(existing.own, properties);
     existing.declaredIn.push(at);
     if (extensionsAt && properties.extensions) {
         const declared = { ...extensionsAt, piece };
@@ -129,7 +128,7 @@ export function everyGroup(merged: Merged): [path: string | undefined, MergedTop
     return [[undefined, merged.root], ...merged.groups.entries()];
 }
 
-export function mergeProperties(target: Properties, { extensions, ...rest }: Properties): void {
+function mergeProperties(target: Properties, { extensions, ...rest }: Properties): void {
     Object.assign(target, rest);
     if (extensions) target.extensions = { ...target.extensions, ...extensions };
 }

@@ -2,7 +2,7 @@ import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind } from "../inde
 import { relatedMessages } from "../error-messages.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { malformation } from "./malformed-pointer.js";
-import { type Merged, type MergedGroup, mergeProperties, removeGroup } from "./merge.js";
+import { type Merged, type MergedGroup, removeGroup } from "./merge.js";
 import { pathBelow, within } from "../path.js";
 import { pointerParts, reach, refObjectMeaning } from "./ref-meaning.js";
 
@@ -93,8 +93,7 @@ function isExtending(group: MergedGroup): group is Extending {
 }
 
 function inherit(merged: Merged, group: MergedGroup, from: string): void {
-    const target = merged.groups.get(from);
-    if (target) fillIn(group, target);
+    group.takesFrom ??= from;
     const moved = (path: string) => {
         const rest = pathBelow(path, from);
         return rest === undefined ? undefined : `${group.path}.${rest}`;
@@ -125,34 +124,17 @@ function inherit(merged: Merged, group: MergedGroup, from: string): void {
         }
         if (!each) continue;
         const existing = merged.groups.get(path);
-        if (existing) fillIn(existing, each);
+        if (existing) existing.takesFrom ??= appeared;
         else if (!merged.tokens.has(path) && !underLocalToken(path)) {
-            const { type, description, deprecated, extensions, extensionsAt } = each;
             merged.groups.set(path, {
                 path,
-                ...(type !== undefined && { type }),
-                ...(description !== undefined && { description }),
-                ...(deprecated !== undefined && { deprecated }),
-                ...(extensions && { extensions }),
-                ...(extensionsAt && { extensionsAt }),
-                own: {},
                 declaredIn: [],
+                takesFrom: appeared,
                 inherited: { from },
             });
             merged.order.add(path);
         }
     }
-}
-
-function fillIn(local: MergedGroup, inherited: MergedGroup): void {
-    const { type, description, deprecated, extensions, extensionsAt } = inherited;
-    if (extensionsAt) local.extensionsAt = { ...extensionsAt, ...local.extensionsAt };
-    mergeProperties(local, {
-        ...(local.type === undefined && type !== undefined && { type }),
-        ...(local.description === undefined && description !== undefined && { description }),
-        ...(local.deprecated === undefined && deprecated !== undefined && { deprecated }),
-        ...(extensions && { extensions: { ...extensions, ...local.extensions } }),
-    });
 }
 
 function becomeToken(
