@@ -6,7 +6,7 @@ import { type Splice, indentUnit, lineBreak, removal, spliced } from "./json-tex
 import { reread } from "./reread.js";
 import { renameSplices, setSplices, valueAt } from "./text-edits.js";
 
-export type MemberOp = Exclude<FileOp, { kind: "createFile" | "deleteFile" }>;
+type MemberOp = Exclude<FileOp, { kind: "createFile" | "deleteFile" }>;
 type FileLevelOp = Extract<FileOp, { kind: "createFile" | "deleteFile" }>;
 type Outcome = { conflict: Conflict["kind"] } | "stale" | undefined;
 

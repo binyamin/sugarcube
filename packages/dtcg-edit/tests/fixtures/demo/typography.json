@@ -14,7 +14,7 @@
     "text": {
       "$type": "dimension",
       "$description": "Type sizes, bound to the sizing scale so they move with it rather than drifting from it.",
-      "$extensions": { "sh.sugarcube": { "measures": "font-size" } },
+      "$extensions": { "com.example": { "measures": "font-size" } },
       "sm": { "$value": "{size.step.-1}" },
       "base": { "$value": "{size.step.0}" },
       "lg": { "$value": "{size.step.1}" },

@@ -4,7 +4,7 @@
     "$description": "Sizing steps on a modular scale, fluid between a small and large viewport.",
     "step": {
       "$extensions": {
-        "sh.sugarcube": {
+        "com.example": {
           "measures": "font-size",
           "scale": {
             "mode": "exponential",
@@ -20,11 +20,11 @@
     },
     "fluid": {
       "$type": "dimension",
-      "$description": "Authored fluid pairs, rather than pairs a recipe generated.",
+      "$description": "Fluid pairs written by hand.",
       "gutter": {
         "$value": { "value": 2, "unit": "rem" },
         "$extensions": {
-          "sh.sugarcube": {
+          "com.example": {
             "fluid": {
               "min": { "value": 1, "unit": "rem" },
               "max": { "value": 2, "unit": "rem" }
@@ -35,7 +35,7 @@
       "measure": {
         "$value": { "value": 36, "unit": "rem" },
         "$extensions": {
-          "sh.sugarcube": {
+          "com.example": {
             "fluid": {
               "min": { "value": 20, "unit": "rem" },
               "max": { "value": 36, "unit": "rem" }

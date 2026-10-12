@@ -16,7 +16,7 @@ import { refused } from "./error-messages.js";
 import type { Decision, Refusal, Where } from "./index.js";
 import { type Place, placeOf, spanKey, unique, writtenAt } from "./project-text.js";
 
-export type Placement =
+type Placement =
     | { token: Token; at: Place; alsoAffects: Input[] }
     | { token: Token; into: string; alsoAffects: Input[] }
     | { decision: Decision }
@@ -24,7 +24,7 @@ export type Placement =
 
 type Declared = { at: Place; alsoAffects: Input[] } | { refused: Refusal };
 
-export type NewPlace =
+type NewPlace =
     | { into: string; path: string; alsoAffects: Input[] }
     | { decision: Decision }
     | { refused: Refusal };
@@ -60,7 +60,7 @@ export function groupPlace(project: Project, path: string): Declared {
     return { at, alsoAffects: seenBy(doc, path, at.span.file) };
 }
 
-export type Copies = { places: Place[]; alsoAffects: Input[] } | { refused: Refusal };
+type Copies = { places: Place[]; alsoAffects: Input[] } | { refused: Refusal };
 
 export function tokenCopies(project: Project, path: string): Copies | undefined {
     const found = project.doc.permutations.flatMap((perm) => token(perm, path) ?? []);
@@ -230,7 +230,7 @@ function contextOf(chosen: Chosen): Input {
     return { [chosen.modifier]: chosen.name };
 }
 
-export function refusalFor(found: Token | Group): { refused: Refusal } | undefined {
+function refusalFor(found: Token | Group): { refused: Refusal } | undefined {
     const { path, inherited } = found;
     const generated = "generated" in found ? found.generated : undefined;
     if (generated) return refused({ kind: "generated", path, ...generated });
