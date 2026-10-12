@@ -54,12 +54,3 @@ export function changed(
     }
     return openFromMemory({ files, entry: project.entry }, project.options);
 }
-
-export function renamed(project: Project, file: string, path: string, name: string): OpResult {
-    const steps = path.split(".");
-    const was = at(project, file, steps);
-    if (was === undefined) throw new Error(`nothing at ${path} in ${file}`);
-    const op: FileOp = { kind: "renameKey", file, path: steps, name, was };
-    const to = [...steps.slice(0, -1), name].join(".");
-    return { ops: [op], alsoAffects: [], moved: [{ from: path, to }] };
-}

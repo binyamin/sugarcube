@@ -1,7 +1,15 @@
 import { diff, openFromMemory, token } from "@sugarcube-sh/dtcg";
 import { describe, expect, it, vi } from "vitest";
-import { apply, create, createSession, remove, setDescription, setValue } from "../src/index.js";
-import { demo, renamed } from "./helpers.js";
+import {
+    apply,
+    create,
+    createSession,
+    remove,
+    rename,
+    setDescription,
+    setValue,
+} from "../src/index.js";
+import { demo } from "./helpers.js";
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 
 describe("createSession", () => {
@@ -54,7 +62,7 @@ describe("createSession", () => {
     it("lists what changed since it was opened, as diff does with the moves made", () => {
         const session = createSession(demo);
         session.do(setValue(session.project, "color.brand.500", red));
-        session.do(renamed(session.project, "color.json", "color.brand.300", "350"));
+        session.do(rename(session.project, "color.brand.300", "350"));
 
         expect(session.changes()).toEqual(
             diff(demo.doc, session.project.doc, { moved: session.unsaved.moved }),
@@ -123,6 +131,7 @@ describe("createSession", () => {
         session.do(create(session.project, "color", "highlight", { $type: "color", $value: red }));
         session.do(create(session.project, "", "motion2", { group: true }));
         session.do(remove(session.project, "color.brand.50"));
+        session.do(rename(session.project, "color.brand", "primary"));
         const replayed = apply(demo, session.unsaved.ops);
 
         if ("conflicts" in replayed) throw new Error(JSON.stringify(replayed.conflicts));
@@ -144,13 +153,13 @@ describe("ids", () => {
 
     it("keeps a token's id through a rename, and the ids inside a renamed group", () => {
         const session = createSession(demo);
-        session.do(renamed(session.project, "color.json", "color.brand.500", "550"));
+        session.do(rename(session.project, "color.brand.500", "550"));
 
         expect(session.pathOf("color.brand.500")).toBe("color.brand.550");
         expect(session.idOf("color.brand.550")).toBe("color.brand.500");
         expect(session.idOf("color.brand.500")).toBeUndefined();
 
-        session.do(renamed(session.project, "color.json", "color.brand", "house"));
+        session.do(rename(session.project, "color.brand", "house"));
         expect(session.pathOf("color.brand.500")).toBe("color.house.550");
         expect(session.pathOf("color.brand.300")).toBe("color.house.300");
         expect(session.pathOf("color.brand")).toBe("color.house");
@@ -179,7 +188,7 @@ describe("ids", () => {
 
     it("doesn't give a renamed-away path's id to what is made there next", () => {
         const session = createSession(demo);
-        session.do(renamed(session.project, "color.json", "color.brand.500", "550"));
+        session.do(rename(session.project, "color.brand.500", "550"));
         session.do(create(session.project, "color.brand", "500", { $value: red }));
 
         expect(session.idOf("color.brand.500")).toMatch(/^new:/);
@@ -188,11 +197,11 @@ describe("ids", () => {
 
     it("puts ids back on discard, and keeps them through a save", () => {
         const session = createSession(demo);
-        session.do(renamed(session.project, "color.json", "color.brand.500", "550"));
+        session.do(rename(session.project, "color.brand.500", "550"));
         session.saved();
         expect(session.pathOf("color.brand.500")).toBe("color.brand.550");
 
-        session.do(renamed(session.project, "color.json", "color.brand.550", "555"));
+        session.do(rename(session.project, "color.brand.550", "555"));
         session.discard();
         expect(session.pathOf("color.brand.500")).toBe("color.brand.550");
     });

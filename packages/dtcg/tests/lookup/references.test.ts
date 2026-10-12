@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFromMemory, referenceAt, references, token } from "../../src/index.js";
+import { readFromMemory, referenceAt, references, token, movedReference } from "../../src/index.js";
 
 const color = { colorSpace: "srgb", components: [1, 0, 0] };
 const px = (value: number) => ({ value, unit: "px" });
@@ -161,5 +161,37 @@ describe("referenceAt", () => {
 
     it("finds nothing in a token whose value could not be read", () => {
         expect(referenceAt(tokenAt("broken"), [])).toBeUndefined();
+    });
+});
+
+describe("movedReference", () => {
+    const moved = [{ from: "color.brand", to: "color.primary" }];
+
+    it.for([
+        { ref: { alias: "color.brand" }, expected: { alias: "color.primary" } },
+        { ref: { alias: "color.brand.500" }, expected: { alias: "color.primary.500" } },
+        { ref: { alias: "color.branding" }, expected: { alias: "color.branding" } },
+        { ref: { pointer: "#/color/brand/500" }, expected: { pointer: "#/color/primary/500" } },
+        {
+            ref: { pointer: "#/color/brand/500/$value/components/0" },
+            expected: { pointer: "#/color/primary/500/$value/components/0" },
+        },
+        { ref: { pointer: "#/space/sm" }, expected: { pointer: "#/space/sm" } },
+        {
+            ref: { pointer: "other.json#/color/brand" },
+            expected: { pointer: "other.json#/color/brand" },
+        },
+    ])("moves $ref.alias$ref.pointer", ({ ref, expected }) => {
+        expect(movedReference(ref, moved)).toStrictEqual(expected);
+    });
+
+    it("follows moves made one after another", () => {
+        const twice = [
+            { from: "color.brand", to: "color.house" },
+            { from: "color.house.500", to: "color.house.550" },
+        ];
+        expect(movedReference({ alias: "color.brand.500" }, twice)).toStrictEqual({
+            alias: "color.house.550",
+        });
     });
 });

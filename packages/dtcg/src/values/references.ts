@@ -1,4 +1,7 @@
-import type { Alias, Pointer } from "../index.js";
+import type { Alias, Move, Pointer } from "../index.js";
+import { movedPath } from "../path.js";
+import { encodePointer, refSteps } from "../read/pointer.js";
+import { pointerParts } from "../read/ref-meaning.js";
 import { isJsonObject } from "./json.js";
 
 /**
@@ -58,4 +61,26 @@ export function isPointer(value: unknown): value is Pointer {
     return (
         isJsonObject(value) && Object.keys(value).length === 1 && typeof value.pointer === "string"
     );
+}
+
+/**
+ * A reference after a list of {@link Move}s, made in order: an {@link Alias}'s path moved, or a
+ * {@link Pointer}'s token path moved with its steps into the value kept. A reference no move
+ * reaches, and a pointer into another document, comes back as it was.
+ *
+ * @example
+ * movedReference({ alias: "color.brand.500" }, [{ from: "color.brand", to: "color.primary" }])
+ * // { alias: "color.primary.500" }
+ */
+export function movedReference<R extends Alias | Pointer>(ref: R, moved: readonly Move[]): R;
+export function movedReference(ref: Alias | Pointer, moved: readonly Move[]): Alias | Pointer {
+    if (isAlias(ref)) return { alias: movedPath(ref.alias, moved) };
+    const steps = refSteps(ref.pointer);
+    if (!steps) return ref;
+    const { path, inside } = pointerParts(steps);
+    const now = movedPath(path, moved);
+    if (now === path) return ref;
+    return {
+        pointer: encodePointer([...now.split("."), ...(inside ? ["$value", ...inside] : [])]),
+    };
 }

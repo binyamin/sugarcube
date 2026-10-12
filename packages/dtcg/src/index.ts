@@ -279,7 +279,7 @@ export interface UnresolvedValueByType {
  */
 export type UnresolvedValue<T extends TokenType> = UnresolvedValueByType[T];
 
-export { isAlias, isPointer } from "./values/references.js";
+export { isAlias, isPointer, movedReference } from "./values/references.js";
 export { referenceAt, references } from "./lookup/references.js";
 
 /**

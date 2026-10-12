@@ -9,9 +9,7 @@ import type {
     TokenProperty,
 } from "../index.js";
 import { movedPath } from "../path.js";
-import { encodePointer, refSteps } from "../read/pointer.js";
-import { pointerParts } from "../read/ref-meaning.js";
-import { isAlias, isPointer } from "../values/references.js";
+import { isAlias, isPointer, movedReference } from "../values/references.js";
 import { sameJson, saysTheSame } from "../values/same-value.js";
 import { permutation } from "./permutation.js";
 
@@ -39,16 +37,15 @@ import { permutation } from "./permutation.js";
  */
 export function diff(before: Document, after: Document, options?: { moved?: Move[] }): Change[] {
     const moved = options?.moved ?? [];
-    const forward: Forward = (path) => movedPath(path, moved);
     const changes = new Changes();
     for (const now of after.permutations) {
         const was = permutation(before, now.input);
         if (!was) continue;
-        for (const pair of matched(was.groups, now.groups, forward)) {
-            changes.add(groupChange(pair, now, forward));
+        for (const pair of matched(was.groups, now.groups, moved)) {
+            changes.add(groupChange(pair, now, moved));
         }
-        for (const pair of matched(was.tokens, now.tokens, forward)) {
-            changes.add(tokenChange(pair, now, forward));
+        for (const pair of matched(was.tokens, now.tokens, moved)) {
+            changes.add(tokenChange(pair, now, moved));
         }
     }
     return changes.list;
@@ -59,10 +56,10 @@ type Pair<T> =
     | { before: T; after: undefined }
     | { before: undefined; after: T };
 
-function matched<T extends Token | Group>(earlier: T[], later: T[], forward: Forward): Pair<T>[] {
+function matched<T extends Token | Group>(earlier: T[], later: T[], moved: Move[]): Pair<T>[] {
     const byPath = new Map<string, T>();
     for (const each of earlier) {
-        const path = forward(each.path);
+        const path = movedPath(each.path, moved);
         if (path !== each.path || !byPath.has(path)) byPath.set(path, each);
     }
     const left = new Set(earlier);
@@ -78,11 +75,11 @@ function matched<T extends Token | Group>(earlier: T[], later: T[], forward: For
 function groupChange(
     { before, after }: Pair<Group>,
     { input }: Permutation,
-    forward: Forward,
+    moved: Move[],
 ): Change | undefined {
     if (!before) return { kind: "group-added", path: after.path, in: [input], after };
     if (!after) return { kind: "group-removed", path: before.path, in: [input], before };
-    const properties = groupDifferences(before, after, forward);
+    const properties = groupDifferences(before, after, moved);
     const { path } = after;
     if (before.path !== path) {
         return {
@@ -102,11 +99,11 @@ function groupChange(
 function tokenChange(
     { before, after }: Pair<Token>,
     { input }: Permutation,
-    forward: Forward,
+    moved: Move[],
 ): Change | undefined {
     if (!before) return { kind: "added", path: after.path, in: [input], after };
     if (!after) return { kind: "removed", path: before.path, in: [input], before };
-    const properties = tokenDifferences(movedReferences(before, forward), after);
+    const properties = tokenDifferences(movedReferences(before, moved), after);
     const { path } = after;
     if (before.path !== path) {
         return { kind: "renamed", from: before.path, path, in: [input], properties, before, after };
@@ -126,13 +123,13 @@ function tokenDifferences(before: Token, after: Token): TokenProperty[] {
     return differing(same);
 }
 
-function groupDifferences(before: Group, after: Group, forward: Forward): GroupProperty[] {
+function groupDifferences(before: Group, after: Group, moved: Move[]): GroupProperty[] {
     const same: Record<GroupProperty, boolean> = {
         type: before.type === after.type,
         description: before.description === after.description,
         deprecated: before.deprecated === after.deprecated,
         extensions: sameJson(before.extensions, after.extensions),
-        extends: (before.extends && forward(before.extends.path)) === after.extends?.path,
+        extends: (before.extends && movedPath(before.extends.path, moved)) === after.extends?.path,
     };
     return differing(same);
 }
@@ -177,35 +174,21 @@ function sameSides(a: Change, b: Change): boolean {
 function sameSide(a: Token | Group, b: Token | Group): boolean {
     if (a.path !== b.path) return false;
     if ("source" in a) return "source" in b && tokenDifferences(a, b).length === 0;
-    return !("source" in b) && groupDifferences(a, b, unmoved).length === 0;
+    return !("source" in b) && groupDifferences(a, b, []).length === 0;
 }
 
-type Forward = (path: string) => string;
-
-const unmoved: Forward = (path) => path;
-
-function movedReferences(before: Token, forward: Forward): Token {
+function movedReferences(before: Token, moved: Move[]): Token {
     if (before.value === undefined) return before;
-    return { ...before, value: forwarded(before.value, forward) } as Token;
+    return { ...before, value: forwarded(before.value, moved) } as Token;
 }
 
-function forwarded(value: unknown, forward: Forward): unknown {
-    if (isAlias(value)) return { alias: forward(value.alias) };
-    if (isPointer(value)) return { pointer: forwardPointer(value.pointer, forward) };
-    if (Array.isArray(value)) return value.map((each) => forwarded(each, forward));
+function forwarded(value: unknown, moved: Move[]): unknown {
+    if (isAlias(value) || isPointer(value)) return movedReference(value, moved);
+    if (Array.isArray(value)) return value.map((each) => forwarded(each, moved));
     if (typeof value === "object" && value !== null) {
         return Object.fromEntries(
-            Object.entries(value).map(([key, each]) => [key, forwarded(each, forward)]),
+            Object.entries(value).map(([key, each]) => [key, forwarded(each, moved)]),
         );
     }
     return value;
-}
-
-function forwardPointer(pointer: string, forward: Forward): string {
-    const steps = refSteps(pointer);
-    if (!steps) return pointer;
-    const { path, inside } = pointerParts(steps);
-    const moved = forward(path);
-    if (moved === path) return pointer;
-    return encodePointer([...moved.split("."), ...(inside ? ["$value", ...inside] : [])]);
 }

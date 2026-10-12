@@ -157,13 +157,7 @@ export interface NewToken {
     $description?: string;
 }
 
-/**
- * Renames a token or group, and updates every reference to it: `{…}` references, `$extends`,
- * `$ref` pointers, and fragments in the resolver.
- */
-export function rename(project: Project, path: string, newName: string): OpResult {
-    throw new Error("not implemented yet");
-}
+export { rename } from "./rename.js";
 
 export { setDescription, setValue } from "./set-value.js";
 

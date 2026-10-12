@@ -5,10 +5,11 @@ import {
     create,
     createSession,
     remove,
+    rename,
     setDescription,
     setValue,
 } from "../src/index.js";
-import { demo, changed, renamed } from "./helpers.js";
+import { demo, changed } from "./helpers.js";
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 const blue = { colorSpace: "srgb", components: [0, 0, 1] };
 
@@ -192,8 +193,8 @@ describe("restore", () => {
 
     it("keeps ids through the renames it puts back", () => {
         const before = createSession(demo);
-        before.do(renamed(before.project, "radius.json", "radius.md", "medium"));
-        before.do(renamed(before.project, "radius.json", "radius", "corner"));
+        before.do(rename(before.project, "radius.md", "medium"));
+        before.do(rename(before.project, "radius", "corner"));
 
         const session = createSession(demo);
         session.restore(before.unsaved);
