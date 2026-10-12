@@ -5,7 +5,7 @@ import { indentUnit, lineBreak } from "./json-text.js";
 import { reread } from "./reread.js";
 import { removeAt, renameKeyAt, setAt, valueAt } from "./text-edits.js";
 
-type MemberOp = Exclude<FileOp, { kind: "createFile" | "deleteFile" }>;
+export type MemberOp = Exclude<FileOp, { kind: "createFile" | "deleteFile" }>;
 type FileLevelOp = Extract<FileOp, { kind: "createFile" | "deleteFile" }>;
 type Outcome = { text: string } | { conflict: Conflict["kind"] } | undefined;
 
@@ -24,6 +24,33 @@ type Outcome = { text: string } | { conflict: Conflict["kind"] } | undefined;
  * else project = next;
  */
 export function apply(project: Project, ops: FileOp[]): Project | { conflicts: Conflict[] } {
+    const { files, conflicts } = editedFiles(project, ops);
+    if (conflicts.length > 0) return { conflicts };
+
+    const next = reread(project, files);
+    const lost = unread(next, ops);
+    if (lost.length > 0) return { conflicts: lost.map((op) => conflict(op, "unread")) };
+    return next;
+}
+
+export function applyWhatFits(
+    project: Project,
+    ops: FileOp[],
+): { project: Project; applied: FileOp[]; skipped: FileOp[] } {
+    const { files, conflicts } = editedFiles(project, ops);
+    if (conflicts.length === ops.length) return { project, applied: [], skipped: ops };
+    let next = reread(project, files);
+    const lost = unread(next, ops);
+    if (lost.length > 0) {
+        for (const op of lost) delete files[op.file];
+        next = reread(project, files);
+    }
+    const failed = new Set([...conflicts.map(({ op }) => op), ...lost]);
+    const skipped = ops.filter((op) => failed.has(op));
+    return { project: next, applied: ops.filter((op) => !failed.has(op)), skipped };
+}
+
+function editedFiles(project: Project, ops: FileOp[]) {
     const files: Record<string, string> = { ...project.files };
     const style = project.files[project.entry ?? Object.keys(project.files)[0] ?? ""] ?? "";
     const conflicts: Conflict[] = [];
@@ -31,12 +58,11 @@ export function apply(project: Project, ops: FileOp[]): Project | { conflicts: C
         const kind = applyOne(files, op, style);
         if (kind !== undefined) conflicts.push(conflict(op, kind));
     }
-    if (conflicts.length > 0) return { conflicts };
+    return { files, conflicts };
+}
 
-    const next = reread(project, files);
-    const lost = ops.filter((op) => op.kind === "createFile" && next.files[op.file] === undefined);
-    if (lost.length > 0) return { conflicts: lost.map((op) => conflict(op, "unread")) };
-    return next;
+function unread(next: Project, ops: FileOp[]): FileOp[] {
+    return ops.filter((op) => op.kind === "createFile" && next.files[op.file] === undefined);
 }
 
 /**
@@ -98,23 +124,35 @@ function memberEdit(text: string, op: MemberOp): Outcome {
             if (current === undefined) return { conflict: "gone" };
             if (same(current, op.value)) return undefined;
             if (!same(current, op.was)) return { conflict: "changed" };
-            return written(setAt(text, op.path, op.value));
+            return written(editedText(text, op));
         case "add":
             if (current !== undefined)
                 return same(current, op.value) ? undefined : { conflict: "taken" };
-            return written(setAt(text, op.path, op.value));
+            return written(editedText(text, op));
         case "remove":
             if (current === undefined) return undefined;
             if (!same(current, op.was)) return { conflict: "changed" };
-            return { text: removeAt(text, op.path) };
+            return written(editedText(text, op));
         case "renameKey": {
             if (current === undefined) {
                 const renamed = valueAt(text, [...op.path.slice(0, -1), op.name]);
                 return same(renamed, op.was) ? undefined : { conflict: "gone" };
             }
-            const edited = renameKeyAt(text, op.path, op.name);
+            const edited = editedText(text, op);
             return edited === undefined ? { conflict: "taken" } : { text: edited };
         }
+    }
+}
+
+export function editedText(text: string, op: MemberOp): string | undefined {
+    switch (op.kind) {
+        case "set":
+        case "add":
+            return setAt(text, op.path, op.value);
+        case "remove":
+            return removeAt(text, op.path);
+        case "renameKey":
+            return renameKeyAt(text, op.path, op.name);
     }
 }
 

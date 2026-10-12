@@ -396,14 +396,21 @@ export function changedFiles(before: Project, after: Project): Record<string, st
     throw new Error("not implemented yet");
 }
 
-/** Encodes edits and their moves as a compact string, for URLs and saved sessions. */
-export function encodeEdits(edits: Edits): Promise<string> {
-    throw new Error("not implemented yet");
-}
+export { isEdits } from "./is-edits.js";
 
-/** Decodes edits encoded with {@link encodeEdits}. */
-export function decodeEdits(text: string): Promise<Edits> {
-    throw new Error("not implemented yet");
+/**
+ * An unsaved edit that no longer fits the files, one per token or group: someone else changed or
+ * removed what it changes, or its file is gone.
+ */
+export interface Clash {
+    /** The token or group the edits are to, or `""` for a whole file. */
+    path: string;
+    /** The file the edits change. */
+    file: string;
+    /** What the edits write for it there, put on top of the file as it is now; absent when they remove it. */
+    yours?: Json;
+    /** What the file has for it now; absent when it isn't there, or the file is gone. */
+    theirs?: Json;
 }
 
 /**
@@ -446,22 +453,37 @@ export interface Session {
     /** Goes back to {@link Session.opened} and drops the unsaved edits. The undo history starts again. */
     discard(): void;
     /**
-     * Puts back unsaved edits kept from before a reload, on top of the current version. Returns the
-     * edits that no longer apply; if there are any, nothing changes.
+     * Puts back unsaved edits kept from before a reload, such as in session storage, on top
+     * of the current version, where they are unsaved again; {@link Session.discard} still goes
+     * back to {@link Session.opened}. Each edit that still fits is put back; the rest come back as
+     * one {@link Clash} per token.
      */
-    restore(unsaved: Edits): Conflict[];
+    restore(unsaved: Edits): Clash[];
     /**
-     * Takes in files that changed underneath the session, such as after a `git pull`: the unsaved
-     * edits are put back on top of `fresh`, which becomes {@link Session.opened}, and the undo
-     * history starts again. Returns the edits that no longer apply; if there are any, nothing
-     * changes.
+     * Takes in files that changed underneath the session, such as after a `git pull`: `fresh`
+     * becomes {@link Session.opened}, and each unsaved edit that still fits is put back on top of
+     * it; the rest come back as one {@link Clash} per token, and the files show theirs. A token
+     * still there keeps its id, one gone loses it, and a new one gets a new id. The undo history
+     * starts again.
      */
-    adopt(fresh: Project): Conflict[];
+    adopt(fresh: Project): Clash[];
     /** Calls `listener` whenever the session changes. Returns a function that stops listening. */
     subscribe(listener: () => void): () => void;
+    /**
+     * The id of the token or group at `path`, for a screen to hold in place of the path, so a
+     * selection or a URL stays on it through renames. A token or group has its path when opened as
+     * its id, and one made in the session an id starting `new:`, so it never takes the id of one
+     * renamed away from its path. A removed one's id is forgotten. `undefined` when nothing is at
+     * `path`.
+     *
+     * @example
+     * const id = session.idOf("color.brand");
+     * session.do(rename(session.project, "color.brand", "primary"));
+     * session.pathOf(id); // "color.primary"
+     */
+    idOf(path: string): string | undefined;
+    /** Where the token or group with this id is now, or `undefined` once it is removed. */
+    pathOf(id: string): string | undefined;
 }
 
-/** Starts an editing session on a project. */
-export function createSession(project: Project): Session {
-    throw new Error("not implemented yet");
-}
+export { createSession } from "./session.js";

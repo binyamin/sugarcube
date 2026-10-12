@@ -1,7 +1,7 @@
 // Unsaved edits survive a page reload. They're kept in the browser's session storage after every
-// change, and replayed onto the files when the page comes back, even if the files changed while it
-// was away.
-import { decodeEdits, encodeEdits, type Session } from "@sugarcube-sh/dtcg-edit";
+// change, and put back onto the files when the page comes back. If the files changed while it was
+// away, each edit that still fits goes back, and the rest come back as clashes.
+import { isEdits, type Session } from "@sugarcube-sh/dtcg-edit";
 
 declare const session: Session;
 declare const sessionStorage: {
@@ -11,13 +11,13 @@ declare const sessionStorage: {
 
 const key = "unsaved-edits";
 
-session.subscribe(async () => {
-    sessionStorage.setItem(key, await encodeEdits(session.unsaved));
+session.subscribe(() => {
+    sessionStorage.setItem(key, JSON.stringify(session.unsaved));
 });
 
-export async function restore(): Promise<void> {
-    const held = sessionStorage.getItem(key);
-    if (!held) return;
-    const conflicts = session.restore(await decodeEdits(held));
-    if (conflicts.length) showConflicts(conflicts);
+export function restore(): void {
+    const held: unknown = JSON.parse(sessionStorage.getItem(key) ?? "null");
+    if (!isEdits(held)) return;
+    const clashes = session.restore(held);
+    for (const { path, yours, theirs } of clashes) showClash(path, yours, theirs);
 }
