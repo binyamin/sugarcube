@@ -456,12 +456,12 @@ export interface TokenBase<T extends TokenType> {
      */
     replaces?: Span[];
     /**
-     * The value exactly as the file wrote it, and whether the file declared `$type` and
-     * `$deprecated` on this token, rather than the token taking them from a group or, for the
+     * What the file wrote for the token: its value exactly as written, and its `$type` and
+     * `$deprecated` when it writes them itself, rather than taking them from a group or, for the
      * type, from the token it refers to. Absent when no file writes the token: one a
      * {@link Generator} added.
      */
-    authored?: { value: unknown; typeDeclared: boolean; deprecatedDeclared: boolean };
+    authored?: { value: unknown } & Pick<Written, "type" | "deprecated">;
     /**
      * Set when a {@link Generator} makes the token from an extension on the group at `from`, whether
      * a file writes the token or it was added. `from` is absent for an extension on the top level of
@@ -482,13 +482,31 @@ export interface TokenBase<T extends TokenType> {
  */
 export type Token = { [T in TokenType]: TokenBase<T> }[TokenType];
 
-/** A group of tokens. */
-export interface Group {
-    path: string;
-    /** The type its tokens take, when the group declares one. */
+/**
+ * What a token or group writes itself, beside what applies to it: a group may take its `$type` and
+ * `$deprecated` from the group it is inside (Format 6.7.3, 6.3.1), and all four from the group it
+ * extends (6.4).
+ */
+export interface Written {
     type?: TokenType;
     description?: string;
     deprecated?: boolean | string;
+    extensions?: Record<string, unknown>;
+}
+
+/** A group of tokens. */
+export interface Group {
+    path: string;
+    /**
+     * The type its tokens take: its own, else the group it extends, else the group it is inside
+     * (Format 6.7.3).
+     */
+    type?: TokenType;
+    /** Its own, else the group it extends. */
+    description?: string;
+    /** Its own, else the group it extends, else the group it is inside (Format 6.3.1). */
+    deprecated?: boolean | string;
+    /** Its own, over those of the group it extends. */
     extensions?: Record<string, unknown>;
     /**
      * The group this one takes tokens from, through `$extends` or a `$ref` to another group
@@ -503,6 +521,8 @@ export interface Group {
     declaredIn: Span[];
     /** Set when the group is here only because of `$extends`, or a `$ref` to another group, at `from`. */
     inherited?: { from: string };
+    /** What the files write on the group itself; absent when they write none of it. */
+    authored?: Written;
     /**
      * The paths directly inside it, tokens and groups together, in the order the files write them.
      * What a later file adds comes after what the first one wrote, and tokens it takes through
@@ -1254,6 +1274,9 @@ export type TokenProperty = "value" | "type" | "description" | "deprecated" | "e
  */
 export type GroupProperty = "type" | "description" | "deprecated" | "extensions" | "extends";
 
+/** A property a file can set on its top level. */
+export type TopLevelProperty = "type" | "description" | "deprecated" | "extensions";
+
 /**
  * One difference between two reads of a design system. `changed`, `renamed`, `group-changed` and
  * `group-renamed` list the properties that differ; a rename with nothing else changed lists none.
@@ -1297,6 +1320,15 @@ export type Change =
           properties: GroupProperty[];
           before: Group;
           after: Group;
+      }
+    | {
+          kind: "top-level-changed";
+          /** The top level has no path. */
+          path?: undefined;
+          in: Input[];
+          properties: TopLevelProperty[];
+          before: TopLevel;
+          after: TopLevel;
       };
 
 export { diff } from "./lookup/diff.js";

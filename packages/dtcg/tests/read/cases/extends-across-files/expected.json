@@ -21,9 +21,7 @@
             }
           },
           "authored": {
-            "value": 1,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 1
           },
           "inherited": {
             "from": "surface"
@@ -50,9 +48,7 @@
             }
           },
           "authored": {
-            "value": 2,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 2
           },
           "inherited": {
             "from": "surface"

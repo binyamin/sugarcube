@@ -13,10 +13,12 @@ import type {
     TokenType,
     TopLevel,
     ValueByType,
+    Written,
 } from "../index.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
-import { inheritedDeprecation, inheritedType } from "./inherit.js";
+import { inherited } from "./inherit.js";
 import type { Merged, MergedGroup, MergedToken, MergedTopLevel } from "./merge.js";
+import type { Properties } from "./walk.js";
 import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
 import type { LocatedReference, ValueReader } from "./parse-value.js";
 import { malformation } from "./malformed-pointer.js";
@@ -187,7 +189,7 @@ function resolvePermutation(
     };
 
     const groupType = (token: MergedToken): TokenType | undefined => {
-        const type = inheritedType(token, merged);
+        const type = inherited(token, merged, "type");
         return type === "unusable" ? undefined : type;
     };
 
@@ -237,7 +239,15 @@ function resolvePermutation(
         (merged.children.get(parent) ?? []).filter(
             (path) => kept.has(path) || merged.groups.has(path),
         );
-    const toGroup = (group: MergedGroup) => publicGroup(group, childrenOf(group.path));
+    const toGroup = (group: MergedGroup) =>
+        publicGroup(
+            {
+                ...group,
+                type: inherited(group, merged, "type"),
+                deprecated: inherited(group, merged, "deprecated"),
+            },
+            childrenOf(group.path),
+        );
     const { input, label, sources } = permutation;
     return {
         input,
@@ -256,25 +266,28 @@ function targetOf(use: Occurrence, merged: Merged): string {
     return reached.kind === "nothing" ? use.written : reached.path;
 }
 
-function publicTopLevel(root: MergedTopLevel, children: string[]): TopLevel {
-    const { type, description, deprecated, extensions, declaredIn } = root;
+function publicTopLevel(top: MergedTopLevel, children: string[]): TopLevel {
+    return { ...publicProperties(top), declaredIn: top.declaredIn, children };
+}
+
+function publicGroup(group: MergedGroup, children: string[]): Group {
+    const { path, extendsGroup, inherited: from, own } = group;
+    const authored = publicProperties(own);
+    return {
+        path,
+        ...publicTopLevel(group, children),
+        ...(extendsGroup !== undefined && { extends: extendsGroup }),
+        ...(from && { inherited: from }),
+        ...(Object.keys(authored).length > 0 && { authored }),
+    };
+}
+
+function publicProperties({ type, description, deprecated, extensions }: Properties): Written {
     return {
         ...(type !== undefined && type !== "unusable" && { type }),
         ...(description !== undefined && { description }),
         ...(deprecated !== undefined && { deprecated }),
         ...(extensions && { extensions }),
-        declaredIn,
-        children,
-    };
-}
-
-function publicGroup(group: MergedGroup, children: string[]): Group {
-    const { path, extendsGroup, inherited } = group;
-    return {
-        path,
-        ...publicTopLevel(group, children),
-        ...(extendsGroup !== undefined && { extends: extendsGroup }),
-        ...(inherited && { inherited }),
     };
 }
 
@@ -283,7 +296,7 @@ function toToken<T extends TokenType>(
     outcome: Resolved & { type: T },
     merged: Merged,
 ): Token {
-    const deprecated = inheritedDeprecation(token, merged);
+    const deprecated = inherited(token, merged, "deprecated");
     const built: TokenBase<T> = {
         path: token.path,
         type: outcome.type,
@@ -295,8 +308,8 @@ function toToken<T extends TokenType>(
         ...(!token.added && {
             authored: {
                 value: token.authored,
-                typeDeclared: token.type !== undefined,
-                deprecatedDeclared: token.deprecated !== undefined,
+                ...(token.type !== undefined && token.type !== "unusable" && { type: token.type }),
+                ...(token.deprecated !== undefined && { deprecated: token.deprecated }),
             },
         }),
         ...(token.generated && { generated: token.generated }),

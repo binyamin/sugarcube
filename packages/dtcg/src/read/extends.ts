@@ -135,6 +135,7 @@ function inherit(merged: Merged, group: MergedGroup, from: string): void {
                 ...(deprecated !== undefined && { deprecated }),
                 ...(extensions && { extensions }),
                 ...(extensionsAt && { extensionsAt }),
+                own: {},
                 declaredIn: [],
                 inherited: { from },
             });

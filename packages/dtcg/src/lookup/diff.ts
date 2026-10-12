@@ -7,6 +7,9 @@ import type {
     Permutation,
     Token,
     TokenProperty,
+    TopLevel,
+    TopLevelProperty,
+    Written,
 } from "../index.js";
 import { movedPath } from "../path.js";
 import { isAlias, isPointer, movedReference } from "../values/references.js";
@@ -41,6 +44,7 @@ export function diff(before: Document, after: Document, options?: { moved?: Move
     for (const now of after.permutations) {
         const was = permutation(before, now.input);
         if (!was) continue;
+        changes.add(topLevelChange(was.root, now));
         for (const pair of matched(was.groups, now.groups, moved)) {
             changes.add(groupChange(pair, now, moved));
         }
@@ -124,14 +128,25 @@ function tokenDifferences(before: Token, after: Token): TokenProperty[] {
 }
 
 function groupDifferences(before: Group, after: Group, moved: Move[]): GroupProperty[] {
-    const same: Record<GroupProperty, boolean> = {
+    return differing({
+        ...sameWritten(before.authored ?? {}, after.authored ?? {}),
+        extends: (before.extends && movedPath(before.extends.path, moved)) === after.extends?.path,
+    });
+}
+
+function topLevelChange(before: TopLevel, { input, root: after }: Permutation): Change | undefined {
+    const properties = differing(sameWritten(before, after));
+    if (properties.length === 0) return undefined;
+    return { kind: "top-level-changed", in: [input], properties, before, after };
+}
+
+function sameWritten(before: Written, after: Written): Record<TopLevelProperty, boolean> {
+    return {
         type: before.type === after.type,
         description: before.description === after.description,
         deprecated: before.deprecated === after.deprecated,
         extensions: sameJson(before.extensions, after.extensions),
-        extends: (before.extends && movedPath(before.extends.path, moved)) === after.extends?.path,
     };
-    return differing(same);
 }
 
 function differing<P extends string>(same: Record<P, boolean>): P[] {
@@ -139,11 +154,11 @@ function differing<P extends string>(same: Record<P, boolean>): P[] {
 }
 
 function saidType(token: Token): string | undefined {
-    return !token.authored || token.authored.typeDeclared ? token.type : undefined;
+    return token.authored ? token.authored.type : token.type;
 }
 
 function saidDeprecation(token: Token): Token["deprecated"] {
-    return !token.authored || token.authored.deprecatedDeclared ? token.deprecated : undefined;
+    return token.authored ? token.authored.deprecated : token.deprecated;
 }
 
 class Changes {
@@ -152,7 +167,7 @@ class Changes {
 
     add(change: Change | undefined): void {
         if (!change) return;
-        const key = `${change.kind} ${change.path}`;
+        const key = `${change.kind} ${change.path ?? ""}`;
         const earlier = this.#byPath.get(key) ?? [];
         const same = earlier.find((each) => sameSides(each, change));
         if (same) {
@@ -171,7 +186,10 @@ function sameSides(a: Change, b: Change): boolean {
     return before && after;
 }
 
-function sameSide(a: Token | Group, b: Token | Group): boolean {
+function sameSide(a: Token | Group | TopLevel, b: Token | Group | TopLevel): boolean {
+    if (!("path" in a) || !("path" in b)) {
+        return !("path" in a) && !("path" in b) && differing(sameWritten(a, b)).length === 0;
+    }
     if (a.path !== b.path) return false;
     if ("source" in a) return "source" in b && tokenDifferences(a, b).length === 0;
     return !("source" in b) && groupDifferences(a, b, []).length === 0;

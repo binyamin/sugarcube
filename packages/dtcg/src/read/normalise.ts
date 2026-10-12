@@ -1,7 +1,7 @@
 import type { Diagnostic, Input, Source, TokenType } from "../index.js";
 import { diagnostic } from "./diagnostics.js";
 import { applyExtends } from "./extends.js";
-import { inheritedType } from "./inherit.js";
+import { inherited } from "./inherit.js";
 import { type Merged, type MergedToken, merge } from "./merge.js";
 import { inWrittenOrder } from "./order.js";
 import type { ValueRead, ValueReader } from "./parse-value.js";
@@ -52,7 +52,7 @@ export function normalisePermutations(
                 tokens.set(token.path, { token });
                 continue;
             }
-            const type = inheritedType(token, merged);
+            const type = inherited(token, merged, "type");
             if (type === "unusable") continue;
             if (type === undefined) {
                 const where = { at: token.at, path: token.path, permutation: index };

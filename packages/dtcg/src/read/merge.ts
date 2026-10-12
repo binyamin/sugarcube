@@ -26,6 +26,7 @@ export interface MergedToken extends SourceToken {
 }
 
 export interface MergedTopLevel extends Properties {
+    own: Properties;
     declaredIn: Span[];
     extensionsAt?: Record<string, ExtensionsAt & { piece: Piece }>;
 }
@@ -51,7 +52,7 @@ export function merge(
     diagnostics: Diagnostic[],
 ): Merged {
     const merged: Merged = {
-        root: { declaredIn: [] },
+        root: { own: {}, declaredIn: [] },
         tokens: new Map(),
         groups: new Map(),
         order: new Set(),
@@ -106,7 +107,7 @@ export function merge(
 
 function mergeGroup(groups: Map<string, MergedGroup>, group: SourceGroup, piece: Piece): void {
     const { path, extends: extending, ...rest } = group;
-    const existing = groups.get(path) ?? { path, declaredIn: [] };
+    const existing = groups.get(path) ?? { path, own: {}, declaredIn: [] };
     mergeInto(existing, rest, piece);
     if (extending) existing.extends = { ...extending, piece };
     groups.set(path, existing);
@@ -115,6 +116,7 @@ function mergeGroup(groups: Map<string, MergedGroup>, group: SourceGroup, piece:
 function mergeInto(existing: MergedTopLevel, source: SourceTopLevel, piece: Piece): void {
     const { at, extensionsAt, ...properties } = source;
     mergeProperties(existing, properties);
+    mergeProperties(existing.own, properties);
     existing.declaredIn.push(at);
     if (extensionsAt && properties.extensions) {
         const declared = { ...extensionsAt, piece };

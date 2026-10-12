@@ -14,9 +14,7 @@
           "path": "button-primary.background",
           "type": "number",
           "authored": {
-            "value": 9,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 9
           }
         },
         {
@@ -44,8 +42,7 @@
             "value": {
               "$ref": "#/base"
             },
-            "typeDeclared": true,
-            "deprecatedDeclared": false
+            "type": "number"
           },
           "resolved": 4
         },
@@ -66,8 +63,7 @@
             "value": {
               "$ref": "#/blue/$value/components/0"
             },
-            "typeDeclared": true,
-            "deprecatedDeclared": false
+            "type": "number"
           },
           "resolved": 0.2
         },

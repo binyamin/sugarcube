@@ -13,9 +13,7 @@
         {
           "path": "g.sub.x",
           "authored": {
-            "value": 1,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 1
           },
           "inherited": {
             "from": "t"

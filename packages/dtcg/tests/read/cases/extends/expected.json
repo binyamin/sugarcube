@@ -32,9 +32,7 @@
           "path": "button-primary.state.hover",
           "type": "number",
           "authored": {
-            "value": 30,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 30
           }
         },
         {
@@ -65,9 +63,7 @@
         {
           "path": "button-large.background",
           "authored": {
-            "value": 9,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 9
           },
           "inherited": {
             "from": "button-primary"
@@ -76,9 +72,7 @@
         {
           "path": "button-large.state.hover",
           "authored": {
-            "value": 30,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 30
           },
           "inherited": {
             "from": "button-primary"

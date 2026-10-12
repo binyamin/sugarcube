@@ -1,24 +1,17 @@
-import type { TokenType } from "../index.js";
 import { parentOf } from "../path.js";
-import type { Merged, MergedToken } from "./merge.js";
+import type { Merged } from "./merge.js";
 import type { Properties } from "./walk.js";
 
 type Inheritable = "type" | "deprecated";
 
 const remembered = new WeakMap<Merged, { [K in Inheritable]: Map<string, Properties[K]> }>();
 
-export function inheritedType(
-    token: MergedToken,
+export function inherited<K extends Inheritable>(
+    item: Properties & { path: string },
     merged: Merged,
-): TokenType | "unusable" | undefined {
-    return token.type ?? closest(token.path, merged, "type");
-}
-
-export function inheritedDeprecation(
-    token: MergedToken,
-    merged: Merged,
-): boolean | string | undefined {
-    return token.deprecated ?? closest(token.path, merged, "deprecated");
+    property: K,
+): Properties[K] {
+    return item[property] ?? closest(item.path, merged, property);
 }
 
 function closest<K extends Inheritable>(path: string, merged: Merged, property: K): Properties[K] {

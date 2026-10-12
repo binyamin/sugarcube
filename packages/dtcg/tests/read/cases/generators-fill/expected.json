@@ -17,9 +17,7 @@
             "value": {
               "value": 20,
               "unit": "px"
-            },
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            }
           },
           "generated": {
             "from": "space",

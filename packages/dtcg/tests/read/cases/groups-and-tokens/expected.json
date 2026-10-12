@@ -18,9 +18,7 @@
             "value": {
               "colorSpace": "srgb",
               "components": [0.867, 0, 0]
-            },
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            }
           }
         },
         {
@@ -45,8 +43,7 @@
               "colorSpace": "srgb",
               "components": [1, 0.133, 0.133]
             },
-            "typeDeclared": false,
-            "deprecatedDeclared": true
+            "deprecated": "use the root accent"
           }
         },
         {
@@ -60,9 +57,7 @@
             }
           },
           "authored": {
-            "value": 0.5,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 0.5
           }
         },
         {
@@ -80,8 +75,7 @@
               "value": 4,
               "unit": "px"
             },
-            "typeDeclared": true,
-            "deprecatedDeclared": false
+            "type": "dimension"
           }
         }
       ],
