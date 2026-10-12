@@ -435,8 +435,6 @@ export interface TokenBase<T extends TokenType> {
     resolved?: ValueByType[T];
     /** Set when the value could not be read. The reasons are in {@link Document.diagnostics}, under this token's path. */
     invalid?: true;
-    /** The token this one finally points at, when its whole value is a reference. */
-    aliasOf?: string;
     description?: string;
     /** `true`, or a message explaining what to use instead. */
     deprecated?: boolean | string;
@@ -877,8 +875,6 @@ export function diagnosticsFor(doc: Document, path: string): Diagnostic[] {
  * changes it after {@link read} returns it.
  */
 export interface Document {
-    /** The version of this package that produced it. */
-    version: string;
     /**
      * Every file the read used, the entry first, in the order they were read. For watching and
      * reloading. Paths are as described at {@link ReadText}.

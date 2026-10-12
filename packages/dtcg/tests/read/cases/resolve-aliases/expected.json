@@ -1,6 +1,6 @@
 {
   "entry": "tokens.json",
-  "spec": "Format 7.2.2 (Example 33) and Resolver 6.3: references are followed until a token with an explicit value; a typeless reference takes its target's type (5.2.2); aliasOf names the final token. Parts of a composite that are references are followed too (9.1 to 9.6). Each permutation's edges hold one edge per reference as written, at the reference",
+  "spec": "Format 7.2.2 (Example 33) and Resolver 6.3: references are followed until a token with an explicit value; a typeless reference takes its target's type (5.2.2). Parts of a composite that are references are followed too (9.1 to 9.6). Each permutation's edges hold one edge per reference as written, at the reference",
   "permutations": [
     {
       "tokens": [
@@ -15,7 +15,7 @@
         {
           "path": "color.brand",
           "type": "color",
-          "aliasOf": "color.red",
+          "aliasOf": null,
           "resolved": {
             "colorSpace": "srgb",
             "components": [1, 0, 0],
@@ -25,7 +25,7 @@
         {
           "path": "semantic.danger",
           "type": "color",
-          "aliasOf": "color.red",
+          "aliasOf": null,
           "value": {
             "alias": "color.brand"
           },

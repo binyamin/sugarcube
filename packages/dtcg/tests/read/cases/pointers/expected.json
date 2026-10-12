@@ -66,7 +66,6 @@
         {
           "path": "semantic.whole",
           "type": "dimension",
-          "aliasOf": "base.spacing",
           "resolved": {
             "value": 16,
             "unit": "px"

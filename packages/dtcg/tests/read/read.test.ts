@@ -576,3 +576,17 @@ describe("labels", () => {
         expect(loose.permutations.map(({ label }) => label)).toStrictEqual([""]);
     });
 });
+
+describe("what a Document holds", () => {
+    it("is the files, the modifiers, who uses each file, the permutations, how values were read and the problems", () => {
+        const doc = readFromMemory({ files: { "tokens.json": valid } });
+        expect(Object.keys(doc)).toStrictEqual([
+            "files",
+            "modifiers",
+            "usedBy",
+            "permutations",
+            "parseOptions",
+            "diagnostics",
+        ]);
+    });
+});

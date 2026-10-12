@@ -67,8 +67,7 @@
           "resolved": {
             "value": 3,
             "unit": "rem"
-          },
-          "aliasOf": "space.3"
+          }
         }
       ]
     }

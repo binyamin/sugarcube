@@ -1,4 +1,3 @@
-import packageJson from "../../package.json" with { type: "json" };
 import type { Document, Project, ReadOptions, ReadText } from "../index.js";
 import type { Answer, FileText, Request } from "./files.js";
 import { collapse } from "./diagnostics.js";
@@ -210,7 +209,6 @@ function toDocument(
     );
 
     return {
-        version: packageJson.version,
         files: loaded.files,
         modifiers: loaded.modifiers,
         usedBy: loaded.usedBy,

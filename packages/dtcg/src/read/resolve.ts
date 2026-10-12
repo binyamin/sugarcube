@@ -28,7 +28,6 @@ interface Resolved {
     read: ParseResult<unknown>;
     references: LocatedReference[];
     resolved?: unknown;
-    aliasOf?: string;
 }
 
 type Outcome = Resolved | "untyped";
@@ -149,7 +148,6 @@ function resolvePermutation(
         const whole = wholeReference(token);
 
         let type = entry.type;
-        let aliasOf: string | undefined;
         if (whole) {
             const followed = followWhole(token, whole);
             if (followed.kind === "unreachable") {
@@ -168,13 +166,12 @@ function resolvePermutation(
                 if (target === undefined || target === "untyped") return fallback(entry, type);
                 if (!("resolved" in target)) return unresolved(entry, type ?? target.type);
                 type ??= target.type;
-                aliasOf = target.aliasOf ?? followed.path;
             }
         }
         if (type === undefined) return "untyped";
 
         const { result: read, references, readAgain } = entry.read ?? readValue.read(token, type);
-        const base = { type, read, references, ...(aliasOf !== undefined && { aliasOf }) };
+        const base = { type, read, references };
         if (!read.ok) return base;
         if (references.length === 0) return { ...base, resolved: read.value };
 
@@ -266,7 +263,6 @@ function toToken<T extends TokenType>(
         }),
         ...(token.generated && { generated: token.generated }),
         ...(token.inherited && { inherited: token.inherited }),
-        ...(outcome.aliasOf !== undefined && { aliasOf: outcome.aliasOf }),
     };
     if (!outcome.read.ok) built.invalid = true;
     else {
