@@ -156,19 +156,6 @@
       }
     ]
   },
-  "usedBy": {
-    "base.json": "everyone",
-    "dark.json": [
-      {
-        "theme": "dark"
-      }
-    ],
-    "ocean.json": [
-      {
-        "brand": "ocean"
-      }
-    ]
-  },
   "permutations": [
     {
       "input": {
@@ -180,8 +167,9 @@
         {
           "file": "base.json",
           "from": {
-            "set": "base"
-          }
+            "sets": ["base"]
+          },
+          "readBy": "everyone"
         }
       ]
     },
@@ -195,15 +183,22 @@
         {
           "file": "base.json",
           "from": {
-            "set": "base"
-          }
+            "sets": ["base"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "ocean.json",
           "from": {
             "modifier": "brand",
-            "context": "ocean"
-          }
+            "context": "ocean",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "brand": "ocean"
+            }
+          ]
         }
       ]
     },
@@ -217,15 +212,22 @@
         {
           "file": "base.json",
           "from": {
-            "set": "base"
-          }
+            "sets": ["base"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "dark.json",
           "from": {
             "modifier": "theme",
-            "context": "dark"
-          }
+            "context": "dark",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "theme": "dark"
+            }
+          ]
         }
       ]
     },
@@ -239,22 +241,35 @@
         {
           "file": "base.json",
           "from": {
-            "set": "base"
-          }
+            "sets": ["base"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "dark.json",
           "from": {
             "modifier": "theme",
-            "context": "dark"
-          }
+            "context": "dark",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "theme": "dark"
+            }
+          ]
         },
         {
           "file": "ocean.json",
           "from": {
             "modifier": "brand",
-            "context": "ocean"
-          }
+            "context": "ocean",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "brand": "ocean"
+            }
+          ]
         }
       ]
     }

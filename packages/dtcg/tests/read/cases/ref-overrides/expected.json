@@ -10,14 +10,16 @@
         {
           "file": "tokens.json",
           "from": {
-            "set": "base"
-          }
+            "sets": ["base"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "replacement.json",
           "from": {
-            "set": "other"
-          }
+            "sets": ["other"]
+          },
+          "readBy": "everyone"
         }
       ]
     }

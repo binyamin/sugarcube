@@ -21,8 +21,14 @@
           "file": "beta.json",
           "from": {
             "modifier": "beta",
-            "context": "true"
-          }
+            "context": "true",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "beta": "true"
+            }
+          ]
         }
       ]
     },
@@ -37,8 +43,14 @@
           "file": "debug.json",
           "from": {
             "modifier": "debug",
-            "context": "true"
-          }
+            "context": "true",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "debug": "true"
+            }
+          ]
         }
       ]
     },
@@ -53,15 +65,27 @@
           "file": "debug.json",
           "from": {
             "modifier": "debug",
-            "context": "true"
-          }
+            "context": "true",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "debug": "true"
+            }
+          ]
         },
         {
           "file": "beta.json",
           "from": {
             "modifier": "beta",
-            "context": "true"
-          }
+            "context": "true",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "beta": "true"
+            }
+          ]
         }
       ]
     }

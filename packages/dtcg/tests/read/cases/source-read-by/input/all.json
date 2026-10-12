@@ -1,0 +1,4 @@
+{
+  "base": { "space": { "$type": "dimension", "$value": { "value": 4, "unit": "px" } } },
+  "dark": { "glow": { "$type": "dimension", "$value": { "value": 2, "unit": "px" } } }
+}

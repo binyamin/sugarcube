@@ -10,24 +10,16 @@
         {
           "file": "red.json",
           "from": {
-            "set": "base"
+            "sets": ["base", "palette"]
           },
-          "extensions": {
-            "sh.sugarcube": {
-              "emit": false
-            }
-          }
+          "readBy": "everyone"
         },
         {
           "file": "blue.json",
           "from": {
-            "set": "base"
+            "sets": ["base", "palette"]
           },
-          "extensions": {
-            "sh.sugarcube": {
-              "emit": false
-            }
-          }
+          "readBy": "everyone"
         }
       ]
     }

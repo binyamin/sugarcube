@@ -1,4 +1,4 @@
-import type { Diagnostic, Input, Resolver } from "../index.js";
+import type { Diagnostic, Resolver } from "../index.js";
 import {
     type Answer,
     type FileText,
@@ -16,6 +16,7 @@ import {
 } from "./permutations.js";
 import { checkResolver, isResolver } from "./resolver.js";
 import { resolverPart } from "./resolver-part.js";
+import { onceEach } from "./diagnostics.js";
 import { entriesOf, expandSources, filesNamedBy, openSources } from "./sources.js";
 
 export interface Loaded {
@@ -23,7 +24,6 @@ export interface Loaded {
     texts: Record<string, string>;
     entry: string;
     resolver?: Resolver;
-    usedBy: Record<string, "everyone" | Input[]>;
     permutations: LoadedPermutation[];
     diagnostics: Diagnostic[];
 }
@@ -38,11 +38,11 @@ export function* load(
     yield* fetchFiles(files, [entry]);
 
     const root = parseFile(files, entry)?.root;
-    const loaded = (built: Pick<Loaded, "resolver" | "usedBy" | "permutations">): Loaded => ({
+    const loaded = (built: Pick<Loaded, "resolver" | "permutations">): Loaded => ({
         files: used,
         texts: textsOf(files.texts, used),
         entry,
-        diagnostics,
+        diagnostics: onceEach(diagnostics),
         ...built,
     });
     if (root === undefined || !isResolver(root)) {
@@ -50,7 +50,7 @@ export function* load(
     }
 
     const file = openFile(files, entry, "resolver");
-    if (!file) return loaded({ usedBy: {}, permutations: [] });
+    if (!file) return loaded({ permutations: [] });
 
     const resolver = checkResolver(file, diagnostics);
     const { items, setsUsed } = expandSources(resolver, diagnostics);

@@ -167,12 +167,15 @@ describe("acrossPermutations", () => {
         expect(
             across.map((each) => ({ label: each.permutation.label, from: each.from })),
         ).toStrictEqual([
-            { label: "theme: light, density: comfy", from: { set: "base" } },
-            { label: "theme: light, density: compact", from: { set: "base" } },
-            { label: "theme: dark, density: comfy", from: { modifier: "theme", context: "dark" } },
+            { label: "theme: light, density: comfy", from: { sets: ["base"] } },
+            { label: "theme: light, density: compact", from: { sets: ["base"] } },
+            {
+                label: "theme: dark, density: comfy",
+                from: { modifier: "theme", context: "dark", sets: [] },
+            },
             {
                 label: "theme: dark, density: compact",
-                from: { modifier: "theme", context: "dark" },
+                from: { modifier: "theme", context: "dark", sets: [] },
             },
         ]);
         expect(across[2]?.permutation).toBe(permutation(doc, { theme: "dark" }));

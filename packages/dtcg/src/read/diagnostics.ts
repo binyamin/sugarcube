@@ -28,6 +28,16 @@ function docsFor<K extends DiagnosticKind>(kind: K, detail: DiagnosticDetailByKi
     return `${page}#${(detail as DiagnosticDetailByKind["invalid-value"]).reason}`;
 }
 
+export function onceEach(diagnostics: Diagnostic[]): Diagnostic[] {
+    const seen = new Set<string>();
+    return diagnostics.filter((found) => {
+        const key = JSON.stringify(found);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 export function collapse(diagnostics: Diagnostic[], inputs: Input[]): Diagnostic[] {
     const alike = new Map<string, Diagnostic>();
     for (const found of diagnostics) {

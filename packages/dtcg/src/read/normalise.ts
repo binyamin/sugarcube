@@ -61,9 +61,8 @@ export function normalisePermutations(
             }
             tokens.set(token.path, { token, type, read: readValue.read(token, type) });
         }
-        const publicSources = sources.map(({ source, pieces, extensionsOfSet }) => {
-            const own = pieces.map((each) => walk(each)?.root.extensions).find(Boolean);
-            const extensions = extensionsOfSet || own ? { ...extensionsOfSet, ...own } : undefined;
+        const publicSources = sources.map(({ source, pieces }) => {
+            const extensions = pieces.map((each) => walk(each)?.root.extensions).find(Boolean);
             return { ...source, ...(extensions && { extensions }) };
         });
         return { input, label, sources: publicSources, merged, tokens };

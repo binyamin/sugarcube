@@ -29,6 +29,7 @@ export interface Declared {
 
 export interface DeclarationOptions {
     variable: (path: string) => string;
+    privateSource: (source: Source) => boolean;
     fluid: FluidConfig;
     polyfill: boolean;
     parseOptions: ParseOptions;
@@ -36,8 +37,12 @@ export interface DeclarationOptions {
 
 export function declarationOptions(doc: Document, config: InternalConfig): DeclarationOptions {
     const { prefix, variableName, transforms } = config.variables;
+    const setExtensions = new Map(
+        doc.resolver?.sets.map(({ name, extensions }) => [name, extensions]),
+    );
     return {
         variable: (path) => cssVariable(path, { prefix, name: variableName }),
+        privateSource: (source) => !emits(source, setExtensions),
         fluid: transforms.fluid,
         polyfill: transforms.colorFallbackStrategy === "polyfill",
         parseOptions: doc.parseOptions,
@@ -46,9 +51,10 @@ export function declarationOptions(doc: Document, config: InternalConfig): Decla
 
 export function declarations(
     permutation: Permutation,
-    { variable, fluid, polyfill, parseOptions }: DeclarationOptions,
+    { variable, privateSource, fluid, polyfill, parseOptions }: DeclarationOptions,
 ): Declared {
-    const isPrivate = (each: Token) => privateSource(permutation.sources[each.source.index]);
+    const privateAt = permutation.sources.map(privateSource);
+    const isPrivate = (each: Token) => privateAt[each.source.index] ?? false;
     const writer = (colors: "native" | "hex") => {
         const renderedFor = new Map<Token, Written | undefined>();
         const rendered = (each: Token): Written | undefined => {
@@ -107,7 +113,17 @@ export function declarations(
     return { declarations: declared, undeclared, missing };
 }
 
-function privateSource(source: Source | undefined): boolean {
-    const ours = source?.extensions?.[SUGARCUBE_NAMESPACE];
-    return typeof ours === "object" && ours !== null && "emit" in ours && ours.emit === false;
+function emits(source: Source, setExtensions: Map<string, Source["extensions"]>): boolean {
+    const outermostFirst = [
+        ...(source.from?.sets ?? []).map((name) => setExtensions.get(name)),
+        source.extensions,
+    ];
+    let emitted = true;
+    for (const extensions of outermostFirst) {
+        const ours = extensions?.[SUGARCUBE_NAMESPACE];
+        if (typeof ours === "object" && ours !== null && "emit" in ours) {
+            emitted = ours.emit !== false;
+        }
+    }
+    return emitted;
 }

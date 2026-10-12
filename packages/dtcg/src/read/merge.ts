@@ -17,16 +17,21 @@ export interface Piece {
     source: number;
 }
 
+export interface WrittenAt {
+    index: number;
+    at: Span;
+}
+
 export interface MergedToken extends SourceToken {
     piece: Piece;
-    replaces?: Span[];
+    replaces?: WrittenAt[];
     inherited?: { from: string };
     generated?: { from?: string; extension: [string, ...string[]] };
     added?: true;
 }
 
 export interface MergedTopLevel extends Properties {
-    declaredIn: Span[];
+    declaredIn: WrittenAt[];
     extensionsAt?: Record<string, ExtensionsAt & { piece: Piece }>;
 }
 
@@ -94,11 +99,18 @@ export function merge(
             merged.order.add(token.path);
             const group = merged.groups.get(token.path);
             if (group) {
-                conflict(token.at, group.declaredIn, "group");
+                conflict(
+                    token.at,
+                    group.declaredIn.map(({ at }) => at),
+                    "group",
+                );
                 removeGroup(merged, token.path);
             }
             const earlier = merged.tokens.get(token.path);
-            const replaces = earlier && [...(earlier.replaces ?? []), earlier.at];
+            const replaces = earlier && [
+                ...(earlier.replaces ?? []),
+                { index: earlier.piece.source, at: earlier.at },
+            ];
             merged.tokens.set(token.path, { ...token, piece, ...(replaces && { replaces }) });
         }
     }
@@ -116,7 +128,7 @@ function mergeGroup(groups: Map<string, MergedGroup>, group: SourceGroup, piece:
 function mergeInto(existing: MergedTopLevel, source: SourceTopLevel, piece: Piece): void {
     const { at, extensionsAt, ...properties } = source;
     mergeProperties(existing, properties);
-    existing.declaredIn.push(at);
+    existing.declaredIn.push({ index: piece.source, at });
     if (extensionsAt && properties.extensions) {
         const declared = { ...extensionsAt, piece };
         const keys = Object.keys(properties.extensions).map((key) => [key, declared]);

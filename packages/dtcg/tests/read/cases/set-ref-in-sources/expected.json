@@ -1,29 +1,33 @@
 {
   "entry": "tokens.resolver.json",
-  "spec": "Resolver 4.1.5.1, Example 4: a set named in sources stands for its sources, in place; 4.3: its $extensions come with them",
+  "spec": "Resolver 4.1.5.1, Example 4: a set named in sources stands for its sources, in place, and the route names every set on the way, outermost first; 4.3: the set's $extensions stay on the set, in the resolver part, not on its sources",
   "files": ["tokens.resolver.json", "palette.json", "semantic.json"],
+  "resolver": {
+    "file": "tokens.resolver.json",
+    "version": "2025.10",
+    "sets": [
+      {
+        "name": "palette",
+        "extensions": { "sh.sugarcube": { "emit": false } },
+        "sources": [{ "file": "palette.json" }],
+        "at": { "file": "tokens.resolver.json", "valueAfter": "\"palette\":" }
+      },
+      {
+        "name": "base",
+        "sources": [{ "set": "palette" }, { "file": "semantic.json" }],
+        "at": { "file": "tokens.resolver.json", "valueAfter": "\"base\":" }
+      }
+    ],
+    "modifiers": [],
+    "order": [{ "set": "base" }]
+  },
   "permutations": [
     {
       "input": {},
       "label": "",
       "sources": [
-        {
-          "file": "palette.json",
-          "from": {
-            "set": "base"
-          },
-          "extensions": {
-            "sh.sugarcube": {
-              "emit": false
-            }
-          }
-        },
-        {
-          "file": "semantic.json",
-          "from": {
-            "set": "base"
-          }
-        }
+        { "file": "palette.json", "from": { "sets": ["base", "palette"] }, "readBy": "everyone" },
+        { "file": "semantic.json", "from": { "sets": ["base"] }, "readBy": "everyone" }
       ]
     }
   ],

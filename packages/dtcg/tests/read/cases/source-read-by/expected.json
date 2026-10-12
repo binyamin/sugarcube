@@ -1,0 +1,108 @@
+{
+  "entry": "tokens.resolver.json",
+  "spec": "Resolver 4.2, Example 10: a $ref may name part of a file, so one file can be read in parts, each by different contexts; who reads a source is answered per source, not per file; a source a set reads is read by everyone, even where a context reads it too",
+  "permutations": [
+    {
+      "input": {
+        "mode": "light"
+      },
+      "label": "mode: light",
+      "sources": [
+        {
+          "file": "all.json",
+          "pointer": "#/base",
+          "from": {
+            "sets": ["base"]
+          },
+          "readBy": "everyone"
+        },
+        {
+          "file": "shared.json",
+          "from": {
+            "sets": ["base"]
+          },
+          "readBy": "everyone"
+        },
+        {
+          "file": "both.json",
+          "from": {
+            "modifier": "mode",
+            "context": "light",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "mode": "light"
+            },
+            {
+              "mode": "dark"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "mode": "dark"
+      },
+      "label": "mode: dark",
+      "sources": [
+        {
+          "file": "all.json",
+          "pointer": "#/base",
+          "from": {
+            "sets": ["base"]
+          },
+          "readBy": "everyone"
+        },
+        {
+          "file": "shared.json",
+          "from": {
+            "sets": ["base"]
+          },
+          "readBy": "everyone"
+        },
+        {
+          "file": "all.json",
+          "pointer": "#/dark",
+          "from": {
+            "modifier": "mode",
+            "context": "dark",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "mode": "dark"
+            }
+          ]
+        },
+        {
+          "file": "both.json",
+          "from": {
+            "modifier": "mode",
+            "context": "dark",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "mode": "light"
+            },
+            {
+              "mode": "dark"
+            }
+          ]
+        },
+        {
+          "file": "shared.json",
+          "from": {
+            "modifier": "mode",
+            "context": "dark",
+            "sets": []
+          },
+          "readBy": "everyone"
+        }
+      ]
+    }
+  ],
+  "diagnostics": []
+}

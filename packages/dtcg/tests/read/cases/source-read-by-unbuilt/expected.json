@@ -1,0 +1,53 @@
+{
+  "entry": "tokens.resolver.json",
+  "spec": "Who reads a source counts every context the resolver declares, including those whose permutations the read didn't build",
+  "options": {
+    "inputs": [
+      {
+        "mode": "light"
+      }
+    ]
+  },
+  "permutations": [
+    {
+      "input": {
+        "mode": "light"
+      },
+      "label": "mode: light",
+      "sources": [
+        {
+          "file": "all.json",
+          "pointer": "#/base",
+          "from": {
+            "sets": ["base"]
+          },
+          "readBy": "everyone"
+        },
+        {
+          "file": "shared.json",
+          "from": {
+            "sets": ["base"]
+          },
+          "readBy": "everyone"
+        },
+        {
+          "file": "both.json",
+          "from": {
+            "modifier": "mode",
+            "context": "light",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "mode": "light"
+            },
+            {
+              "mode": "dark"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "diagnostics": []
+}

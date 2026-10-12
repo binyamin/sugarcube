@@ -60,8 +60,11 @@
           },
           "declaredIn": [
             {
-              "file": "base.json",
-              "valueAfter": "\"color\":"
+              "index": 0,
+              "at": {
+                "file": "base.json",
+                "valueAfter": "\"color\":"
+              }
             }
           ]
         }
@@ -122,12 +125,18 @@
           },
           "declaredIn": [
             {
-              "file": "base.json",
-              "valueAfter": "\"color\":"
+              "index": 0,
+              "at": {
+                "file": "base.json",
+                "valueAfter": "\"color\":"
+              }
             },
             {
-              "file": "dark.json",
-              "valueAfter": "\"color\":"
+              "index": 1,
+              "at": {
+                "file": "dark.json",
+                "valueAfter": "\"color\":"
+              }
             }
           ]
         }

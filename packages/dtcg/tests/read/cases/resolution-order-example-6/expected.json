@@ -11,27 +11,39 @@
         {
           "file": "foundation/size.json",
           "from": {
-            "set": "size"
-          }
+            "sets": ["size"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "foundation/typography.json",
           "from": {
-            "set": "typography"
-          }
+            "sets": ["typography"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "foundation/animation.json",
           "from": {
-            "set": "animation"
-          }
+            "sets": ["animation"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "theme/light.json",
           "from": {
             "modifier": "theme",
-            "context": "light"
-          }
+            "context": "light",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "theme": "light"
+            },
+            {
+              "theme": "lightHighContrast"
+            }
+          ]
         }
       ]
     },
@@ -44,34 +56,55 @@
         {
           "file": "foundation/size.json",
           "from": {
-            "set": "size"
-          }
+            "sets": ["size"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "foundation/typography.json",
           "from": {
-            "set": "typography"
-          }
+            "sets": ["typography"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "foundation/animation.json",
           "from": {
-            "set": "animation"
-          }
+            "sets": ["animation"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "theme/light.json",
           "from": {
             "modifier": "theme",
-            "context": "lightHighContrast"
-          }
+            "context": "lightHighContrast",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "theme": "light"
+            },
+            {
+              "theme": "lightHighContrast"
+            }
+          ]
         },
         {
           "file": "theme/dark-high-contrast.json",
           "from": {
             "modifier": "theme",
-            "context": "lightHighContrast"
-          }
+            "context": "lightHighContrast",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "theme": "lightHighContrast"
+            },
+            {
+              "theme": "darkHighContrast"
+            }
+          ]
         }
       ]
     },
@@ -84,27 +117,39 @@
         {
           "file": "foundation/size.json",
           "from": {
-            "set": "size"
-          }
+            "sets": ["size"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "foundation/typography.json",
           "from": {
-            "set": "typography"
-          }
+            "sets": ["typography"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "foundation/animation.json",
           "from": {
-            "set": "animation"
-          }
+            "sets": ["animation"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "theme/dark.json",
           "from": {
             "modifier": "theme",
-            "context": "dark"
-          }
+            "context": "dark",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "theme": "dark"
+            },
+            {
+              "theme": "darkHighContrast"
+            }
+          ]
         }
       ]
     },
@@ -117,34 +162,55 @@
         {
           "file": "foundation/size.json",
           "from": {
-            "set": "size"
-          }
+            "sets": ["size"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "foundation/typography.json",
           "from": {
-            "set": "typography"
-          }
+            "sets": ["typography"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "foundation/animation.json",
           "from": {
-            "set": "animation"
-          }
+            "sets": ["animation"]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "theme/dark.json",
           "from": {
             "modifier": "theme",
-            "context": "darkHighContrast"
-          }
+            "context": "darkHighContrast",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "theme": "dark"
+            },
+            {
+              "theme": "darkHighContrast"
+            }
+          ]
         },
         {
           "file": "theme/dark-high-contrast.json",
           "from": {
             "modifier": "theme",
-            "context": "darkHighContrast"
-          }
+            "context": "darkHighContrast",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "theme": "lightHighContrast"
+            },
+            {
+              "theme": "darkHighContrast"
+            }
+          ]
         }
       ]
     }

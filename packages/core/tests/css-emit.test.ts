@@ -30,6 +30,50 @@ function cssFor(files: Record<string, unknown>, variables: Variables = {}) {
 const color = (value: unknown) => ({ $type: "color", $value: value });
 
 describe("emitCSS", () => {
+    it("keeps a set private where a set around it is, unless a nearer setting says otherwise", () => {
+        const resolver = {
+            version: "2025.10",
+            sets: {
+                palette: { sources: [{ $ref: "palette.json" }] },
+                accents: {
+                    sources: [{ $ref: "accents.json" }],
+                    $extensions: { "sh.sugarcube": { emit: true } },
+                },
+                base: {
+                    sources: [
+                        { $ref: "#/sets/palette" },
+                        { $ref: "#/sets/accents" },
+                        { $ref: "extras.json", $extensions: { "sh.sugarcube": { emit: true } } },
+                    ],
+                    $extensions: { "sh.sugarcube": { emit: false } },
+                },
+            },
+            resolutionOrder: [
+                { $ref: "#/sets/base" },
+                { type: "set", name: "semantic", sources: [{ $ref: "semantic.json" }] },
+            ],
+        };
+        expect(
+            cssFor({
+                "tokens.resolver.json": resolver,
+                "palette.json": { rose: color("#e11d48") },
+                "accents.json": { lime: color("#84cc16") },
+                "extras.json": { mint: color("#10b981") },
+                "semantic.json": { brand: color("{rose}"), accent: color("{lime}") },
+            }),
+        ).toBe(
+            [
+                ":root {",
+                "    --lime: #84cc16;",
+                "    --mint: #10b981;",
+                "    --brand: #e11d48;",
+                "    --accent: var(--lime);",
+                "}",
+                "",
+            ].join("\n"),
+        );
+    });
+
     it("writes var() for an alias to a token with a variable, and the value for one without", () => {
         const resolver = {
             version: "2025.10",

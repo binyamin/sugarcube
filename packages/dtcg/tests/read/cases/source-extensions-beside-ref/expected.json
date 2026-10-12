@@ -10,8 +10,9 @@
         {
           "file": "palette.json",
           "from": {
-            "set": "base"
+            "sets": ["base"]
           },
+          "readBy": "everyone",
           "extensions": {
             "sh.sugarcube": {
               "emit": false
@@ -21,8 +22,9 @@
         {
           "file": "semantic.json",
           "from": {
-            "set": "base"
-          }
+            "sets": ["base"]
+          },
+          "readBy": "everyone"
         }
       ]
     }

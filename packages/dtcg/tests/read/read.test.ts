@@ -161,7 +161,9 @@ describe("read", () => {
         const doc = await read("tokens/base.json", { readText });
         expect(readText.mock.calls).toStrictEqual([["tokens/base.json", "base.json"]]);
         expect(doc.files).toStrictEqual(["base.json"]);
-        expect(doc.permutations[0]?.sources).toStrictEqual([{ file: "base.json" }]);
+        expect(doc.permutations[0]?.sources).toStrictEqual([
+            { file: "base.json", readBy: "everyone" },
+        ]);
     });
 
     it("tidies the entry's folder", async () => {
@@ -607,7 +609,7 @@ describe("labels", () => {
 });
 
 describe("what a Document holds", () => {
-    it("is the files, the resolver part, who uses each file, the permutations, how values were read and the problems", () => {
+    it("is the files, the resolver part, the permutations, how values were read and the problems", () => {
         const resolver = JSON.stringify({ version: "2025.10", resolutionOrder: [] });
         const doc = readFromMemory({
             files: { "tokens.resolver.json": resolver },
@@ -616,7 +618,6 @@ describe("what a Document holds", () => {
         expect(Object.keys(doc)).toStrictEqual([
             "files",
             "resolver",
-            "usedBy",
             "permutations",
             "parseOptions",
             "diagnostics",

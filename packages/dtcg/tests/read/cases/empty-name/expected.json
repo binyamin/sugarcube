@@ -19,8 +19,11 @@
           "type": "number",
           "declaredIn": [
             {
-              "file": "tokens.json",
-              "valueAfter": "\"\":"
+              "index": 0,
+              "at": {
+                "file": "tokens.json",
+                "valueAfter": "\"\":"
+              }
             }
           ]
         }

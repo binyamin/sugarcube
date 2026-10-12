@@ -1,0 +1,14 @@
+{
+  "version": "2025.10",
+  "sets": { "base": { "sources": [{ "$ref": "all.json#/base" }, { "$ref": "shared.json" }] } },
+  "modifiers": {
+    "mode": {
+      "contexts": {
+        "light": [{ "$ref": "both.json" }],
+        "dark": [{ "$ref": "all.json#/dark" }, { "$ref": "both.json" }, { "$ref": "shared.json" }]
+      },
+      "default": "light"
+    }
+  },
+  "resolutionOrder": [{ "$ref": "#/sets/base" }, { "$ref": "#/modifiers/mode" }]
+}

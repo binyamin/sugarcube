@@ -112,8 +112,11 @@
           "description": "Buttons",
           "declaredIn": [
             {
-              "file": "tokens.json",
-              "valueAfter": "\"button-primary\":"
+              "index": 0,
+              "at": {
+                "file": "tokens.json",
+                "valueAfter": "\"button-primary\":"
+              }
             }
           ]
         },
@@ -121,9 +124,12 @@
           "path": "button-primary.state",
           "declaredIn": [
             {
-              "file": "tokens.json",
-              "valueAfter": "\"state\":",
-              "occurrence": 2
+              "index": 0,
+              "at": {
+                "file": "tokens.json",
+                "valueAfter": "\"state\":",
+                "occurrence": 2
+              }
             }
           ]
         },

@@ -73,18 +73,6 @@
       }
     ]
   },
-  "usedBy": {
-    "light.json": [
-      {
-        "theme": "light"
-      }
-    ],
-    "dark.json": [
-      {
-        "theme": "dark"
-      }
-    ]
-  },
   "permutations": [
     {
       "input": {
@@ -96,8 +84,14 @@
           "file": "light.json",
           "from": {
             "modifier": "theme",
-            "context": "light"
-          }
+            "context": "light",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "theme": "light"
+            }
+          ]
         }
       ]
     },
@@ -111,8 +105,14 @@
           "file": "dark.json",
           "from": {
             "modifier": "theme",
-            "context": "dark"
-          }
+            "context": "dark",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "theme": "dark"
+            }
+          ]
         }
       ]
     }

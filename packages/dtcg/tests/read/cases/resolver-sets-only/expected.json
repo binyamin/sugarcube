@@ -35,9 +35,6 @@
       }
     ]
   },
-  "usedBy": {
-    "tokens.json": "everyone"
-  },
   "permutations": [
     {
       "input": {},
@@ -46,8 +43,9 @@
         {
           "file": "tokens.json",
           "from": {
-            "set": "base"
-          }
+            "sets": ["base"]
+          },
+          "readBy": "everyone"
         }
       ]
     }

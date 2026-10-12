@@ -451,10 +451,10 @@ export interface TokenBase<T extends TokenType> {
     source: { index: number; at: Span };
     /**
      * The places earlier sources of the permutation write the token, in the order they are read,
-     * which {@link TokenBase.source | source.at} replaces: a later source writes a token whole.
-     * Absent when no earlier source writes it.
+     * each with its source as {@link TokenBase.source | source} has it, which `source.at` replaces:
+     * a later source writes a token whole. Absent when no earlier source writes it.
      */
-    replaces?: Span[];
+    replaces?: { index: number; at: Span }[];
     /**
      * What the file wrote for the token: its value exactly as written, and its `$type` and
      * `$deprecated` when it writes them itself, rather than taking them from a group or, for the
@@ -515,10 +515,11 @@ export interface Group {
      */
     extends?: { path: string; at: Span };
     /**
-     * Every place the group is declared. Groups can be spread across files, so there may be
-     * several, and a group only {@link Group.inherited | inherited} has none.
+     * Every place the group is declared, each with the permutation's source that declares it, as
+     * {@link TokenBase.source | a token's source} has it. Groups can be spread across files, so
+     * there may be several, and a group only {@link Group.inherited | inherited} has none.
      */
-    declaredIn: Span[];
+    declaredIn: { index: number; at: Span }[];
     /** Set when the group is here only because of `$extends`, or a `$ref` to another group, at `from`. */
     inherited?: { from: string };
     /** What the files write on the group itself; absent when they write none of it. */
@@ -544,8 +545,8 @@ export interface TopLevel {
     description?: string;
     deprecated?: boolean | string;
     extensions?: Record<string, unknown>;
-    /** The top of each file that writes something there. */
-    declaredIn: Span[];
+    /** The top of each file that writes something there, each with its source. */
+    declaredIn: { index: number; at: Span }[];
     /** The paths written at the top of the files, tokens and groups together, in order. */
     children: string[];
 }
@@ -566,16 +567,31 @@ export interface Source {
      */
     pointer?: string;
     /**
-     * How the resolver reached it: straight from a set, or through a modifier's context, possibly
-     * by way of a set that context names. Absent when there is no resolver.
+     * How the resolver reached it: the modifier and context, when it came through one, and every
+     * set on the way, outermost first, each name finding its entry in {@link Document.resolver}.
+     * Absent when there is no resolver.
+     *
+     * @example
+     * source.from // { sets: ["base", "palette"] }: palette, which base names
+     * source.from // { modifier: "mode", context: "dark", sets: [] }
      */
-    from?: { set: string } | { modifier: string; context: string; set?: string };
+    from?: { sets: string[] } | { modifier: string; context: string; sets: string[] };
     /**
-     * Vendor data for the source as a whole, passed through untouched: the `$extensions` of the
-     * set that lists it, then those at the top of the source, with the source's keys winning.
-     * `$extensions` written beside the source's `$ref` replace the ones at the top of the file.
+     * The source's own vendor data, passed through untouched: the `$extensions` written beside its
+     * `$ref`, or else those at the top of its file. A set's and a modifier's stay on them, in
+     * {@link Document.resolver}.
      */
     extensions?: Record<string, unknown>;
+    /**
+     * Who reads it: `"everyone"` when a set `resolutionOrder` names reaches it, otherwise each
+     * context whose permutations read it, as an input naming that one modifier. Every context the
+     * resolver declares counts, including those whose permutations the read didn't build. For
+     * deciding which file an edit belongs in.
+     *
+     * @example
+     * source.readBy // [{ mode: "dark" }]
+     */
+    readBy: "everyone" | Input[];
 }
 
 /**
@@ -1002,14 +1018,6 @@ export interface Document {
     files: string[];
     /** What the resolver says about itself and how it is put together; absent with no resolver. */
     resolver?: Resolver;
-    /**
-     * Which permutations use each file: `"everyone"` for a file in a set, otherwise the contexts
-     * whose permutations read it. For deciding which file an edit belongs in.
-     *
-     * @example
-     * doc.usedBy["dark.json"] // [{ theme: "dark" }]
-     */
-    usedBy: Record<string, "everyone" | Input[]>;
     permutations: Permutation[];
     /**
      * How the values were read. To read a value from the Document again, such as one inside
