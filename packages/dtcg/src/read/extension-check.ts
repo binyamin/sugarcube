@@ -5,6 +5,7 @@ import type {
     ExtensionError,
     ExtensionMessages,
     IgnoredProperty,
+    Input,
     JsonPath,
     StandardSchemaV1,
     ValueError,
@@ -29,7 +30,7 @@ export interface CheckedExtension {
     json: JsonFile;
     node: Node;
     path?: string | undefined;
-    permutation: number;
+    permutation: Input;
 }
 
 export function checkSchema(

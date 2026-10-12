@@ -1,6 +1,6 @@
 import { relatedMessages } from "../error-messages.js";
 import { within } from "../path.js";
-import type { Diagnostic, Span } from "../index.js";
+import type { Diagnostic, Input, Span } from "../index.js";
 import { diagnostic } from "./diagnostics.js";
 import type {
     ExtensionsAt,
@@ -48,7 +48,7 @@ export interface Merged {
 
 export function merge(
     pieces: { contents: SourceContents | undefined; source: number }[],
-    permutation: number,
+    permutation: Input,
     diagnostics: Diagnostic[],
 ): Merged {
     const merged: Merged = {

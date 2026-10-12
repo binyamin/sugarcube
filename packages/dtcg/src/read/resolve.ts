@@ -52,8 +52,8 @@ export function resolvePermutations(
     readValue: ValueReader,
     diagnostics: Diagnostic[],
 ): Permutation[] {
-    return permutations.map((permutation, index) =>
-        resolvePermutation(permutation, index, { readValue, diagnostics }),
+    return permutations.map((permutation) =>
+        resolvePermutation(permutation, { readValue, diagnostics }),
     );
 }
 
@@ -64,7 +64,6 @@ interface Context {
 
 function resolvePermutation(
     permutation: NormalisedPermutation,
-    index: number,
     { readValue, diagnostics }: Context,
 ): Permutation {
     const { tokens, merged } = permutation;
@@ -78,7 +77,10 @@ function resolvePermutation(
         path: string,
         at: Span,
         extra: Omit<DiagnosticExtra, "at" | "path" | "permutation"> = {},
-    ) => diagnostics.push(diagnostic(kind, detail, { at, path, permutation: index, ...extra }));
+    ) =>
+        diagnostics.push(
+            diagnostic(kind, detail, { at, path, permutation: permutation.input, ...extra }),
+        );
 
     const recordMissing = (ref: string, from: string, at: Span) => {
         const entry = missing.get(ref) ?? { first: { from, at }, referencedBy: [], uses: [] };
@@ -202,7 +204,7 @@ function resolvePermutation(
     const resolving: Resolving = {
         readValue,
         merged,
-        permutation: index,
+        permutation: permutation.input,
         outcomeOf,
         report,
         recordMissing,

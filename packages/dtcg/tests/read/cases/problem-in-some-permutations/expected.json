@@ -13,7 +13,7 @@
         "text": "\"{color.ink}\""
       },
       "path": "color.text",
-      "permutations": [1, 2]
+      "permutations": [{ "theme": "dark" }, { "theme": "dim" }]
     }
   ]
 }

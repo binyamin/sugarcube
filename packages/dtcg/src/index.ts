@@ -887,11 +887,14 @@ export type DiagnosticOf<DetailByKind> = {
         /** The token or group it concerns. */
         path?: string;
         /**
-         * Indexes into {@link Document.permutations}, in order, when only some permutations have
-         * it. Absent when every permutation has it, or it concerns none, such as a file that is not
-         * valid JSON.
+         * The inputs of the permutations that have it, in the order of
+         * {@link Document.permutations}, when only some do. Absent when every permutation has it,
+         * or it concerns none, such as a file that is not valid JSON.
+         *
+         * @example
+         * diagnostic.permutations // [{ mode: "dark" }]
          */
-        permutations?: number[];
+        permutations?: Input[];
         /** Other places involved, such as every token that uses a missing one. */
         related?: { message: string; at: Span }[];
         /** How an editor may show it: struck through for a deprecated reference. */
@@ -1236,6 +1239,7 @@ export interface Project {
 
 export { childPath, forbiddenInName, movedPath, parentOf, pathBelow, withoutRoot } from "./path.js";
 export { completeInput, defaultPermutation, permutation } from "./lookup/permutation.js";
+export { permutationLabel } from "./lookup/permutation-label.js";
 
 /** What {@link completeInput} gives: the full input, or the modifier or context it could not match. */
 export type CompleteInput =

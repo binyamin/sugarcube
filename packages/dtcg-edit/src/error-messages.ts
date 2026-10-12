@@ -1,4 +1,4 @@
-import type { Input } from "@sugarcube-sh/dtcg";
+import { type Input, permutationLabel } from "@sugarcube-sh/dtcg";
 import type { Conflict, FileOp, Refusal } from "./index.js";
 
 export const fixTitles = {
@@ -88,7 +88,5 @@ function conflictReason(op: FileOp, kind: Conflict["kind"]): string {
 }
 
 function named(context: Input): string {
-    return Object.entries(context)
-        .map(([modifier, name]) => `\`${modifier}: ${name}\``)
-        .join(" and ");
+    return `\`${permutationLabel(context)}\``;
 }

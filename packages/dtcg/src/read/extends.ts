@@ -1,4 +1,4 @@
-import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind } from "../index.js";
+import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind, Input } from "../index.js";
 import { relatedMessages } from "../error-messages.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { malformation } from "./malformed-pointer.js";
@@ -8,7 +8,7 @@ import { pointerParts, reach, refObjectMeaning } from "./ref-meaning.js";
 
 type Extending = MergedGroup & { extends: NonNullable<MergedGroup["extends"]> };
 
-export function applyExtends(merged: Merged, permutation: number, diagnostics: Diagnostic[]): void {
+export function applyExtends(merged: Merged, permutation: Input, diagnostics: Diagnostic[]): void {
     const state = new Map<string, "extending" | "done" | "in-a-loop">();
     const report = <K extends DiagnosticKind>(
         kind: K,
@@ -140,7 +140,7 @@ function inherit(merged: Merged, group: MergedGroup, from: string): void {
 function becomeToken(
     merged: Merged,
     group: Extending,
-    permutation: number,
+    permutation: Input,
     diagnostics: Diagnostic[],
 ): void {
     const { path, extends: extending, type, description, deprecated, extensions } = group;

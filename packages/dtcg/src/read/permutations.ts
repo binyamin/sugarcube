@@ -1,5 +1,6 @@
 import type { Node } from "jsonc-parser";
 import type { Diagnostic, DiagnosticDetailByKind, Input, Source } from "../index.js";
+import { permutationLabel } from "../lookup/permutation-label.js";
 import { diagnostic } from "./diagnostics.js";
 import { type JsonFile, plainObject, spanOf } from "./json.js";
 import type { Resolver } from "./resolver.js";
@@ -57,7 +58,6 @@ export function fromResolver(
 ): Built {
     const modifiers = modifiersOf(items);
     const inputs = chooseInputs(modifiers, options, { diagnostics, file: resolver.file });
-    const labels = labelsFor(modifiers);
     return {
         modifiers: Object.fromEntries(
             modifiers.map(({ name, contexts, default: fallback }) => [
@@ -68,7 +68,7 @@ export function fromResolver(
         usedBy: whoUsesEachFile(items, sources),
         permutations: inputs.map((input) => ({
             input,
-            label: labels(input),
+            label: permutationLabel(input),
             sources: sourcesFor(resolver, items, sources, input),
         })),
     };
@@ -241,13 +241,6 @@ function withDefaults(modifiers: Modifier[], chosen: Input): Input {
         if (context !== undefined) input[name] = context;
     }
     return input;
-}
-
-function labelsFor(modifiers: Modifier[]): (input: Input) => string {
-    return (input) =>
-        modifiers
-            .flatMap(({ name }) => (input[name] === undefined ? [] : [`${name}: ${input[name]}`]))
-            .join(", ");
 }
 
 function sourcesFor(

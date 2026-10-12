@@ -2,6 +2,7 @@ import type { Node } from "jsonc-parser";
 import type {
     Diagnostic,
     IgnoredProperty,
+    Input,
     ParseOptions,
     ParseResult,
     TokenType,
@@ -43,7 +44,7 @@ export interface ValueReader {
         token: MergedToken,
         place: Place,
         raw: unknown,
-        permutation: number,
+        permutation: Input,
     ) => { result: ParseResult<unknown>; notes: Notes };
 }
 
@@ -96,7 +97,7 @@ function ignoredToDiagnostic(token: MergedToken, ignored: IgnoredProperty): Diag
     return ignoredDiagnostic(ignored, ignored.path, within, { path });
 }
 
-function toDiagnostic(token: MergedToken, error: ValueError, permutation?: number): Diagnostic {
+function toDiagnostic(token: MergedToken, error: ValueError, permutation?: Input): Diagnostic {
     const { json, value, path } = token;
     const node = deepestNode(value, error.path.slice(1));
     const at = spanOf(json.path, json.lineStarts, node.offset, node.length);

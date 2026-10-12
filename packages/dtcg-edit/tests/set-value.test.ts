@@ -355,7 +355,7 @@ describe("setValue, for one context", () => {
             refused: {
                 kind: "several-contexts",
                 context: { mode: "dark", brand: "b" },
-                reason: expect.any(String),
+                reason: "an override for `mode: dark, brand: b` at once can't be written: no file is read by that combination alone",
             },
         });
     });

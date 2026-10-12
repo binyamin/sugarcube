@@ -72,7 +72,7 @@
           }
         }
       ],
-      "permutations": [1]
+      "permutations": [{ "theme": "dark" }]
     },
     {
       "kind": "token-and-group",
@@ -93,7 +93,7 @@
           }
         }
       ],
-      "permutations": [1]
+      "permutations": [{ "theme": "dark" }]
     }
   ]
 }

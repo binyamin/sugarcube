@@ -104,7 +104,6 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
         problemsText(shown, {
             cwd: process.cwd(),
             folder: dirname(resolve(loaded.config.resolver)),
-            permutations: project.doc.permutations.map(({ input, label }) => ({ input, label })),
             configFile: loaded.configFile,
         });
 

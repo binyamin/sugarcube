@@ -7,9 +7,10 @@ import type {
     ExtensionMessages,
     GeneratedToken,
     Generator,
-    StandardSchemaV1,
     IgnoredProperty,
+    Input,
     ParseOptions,
+    StandardSchemaV1,
     ValueError,
 } from "../index.js";
 import { isJsonObject } from "../values/json.js";
@@ -81,7 +82,7 @@ export function defineGenerator<
 export function fillGenerated(
     merged: Merged,
     generators: Generator[],
-    { permutation, parseOptions }: { permutation: number; parseOptions: ParseOptions },
+    { permutation, parseOptions }: { permutation: Input; parseOptions: ParseOptions },
     diagnostics: Diagnostic[],
 ): void {
     const added: MergedToken[] = [];

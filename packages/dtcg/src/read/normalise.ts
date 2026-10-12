@@ -29,7 +29,7 @@ export function normalisePermutations(
     permutations: LoadedPermutation[],
     readValue: ValueReader,
     diagnostics: Diagnostic[],
-    generate: (merged: Merged, permutation: number) => void,
+    generate: (merged: Merged, permutation: Input) => void,
 ): NormalisedPermutation[] {
     const walked = new Map<string, SourceContents | undefined>();
     const walk = (loaded: LoadedSource) => {
@@ -38,13 +38,13 @@ export function normalisePermutations(
         return walked.get(key);
     };
 
-    return permutations.map(({ input, label, sources }, index) => {
+    return permutations.map(({ input, label, sources }) => {
         const walkedPieces = sources.flatMap((each, source) =>
             each.pieces.map((piece) => ({ contents: walk(piece), source })),
         );
-        const merged = merge(walkedPieces, index, diagnostics);
-        applyExtends(merged, index, diagnostics);
-        generate(merged, index);
+        const merged = merge(walkedPieces, input, diagnostics);
+        applyExtends(merged, input, diagnostics);
+        generate(merged, input);
         inWrittenOrder(merged);
         const tokens = new Map<string, NormalisedToken>();
         for (const token of merged.tokens.values()) {
@@ -55,7 +55,7 @@ export function normalisePermutations(
             const type = inherited(token, merged, "type");
             if (type === "unusable") continue;
             if (type === undefined) {
-                const where = { at: token.at, path: token.path, permutation: index };
+                const where = { at: token.at, path: token.path, permutation: input };
                 diagnostics.push(diagnostic("missing-type", {}, where));
                 continue;
             }

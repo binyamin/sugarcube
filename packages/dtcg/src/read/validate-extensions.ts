@@ -64,7 +64,7 @@ export function validateExtensions(
 ): void {
     if (validators.length === 0) return;
 
-    normalised.forEach(({ merged }, permutation) => {
+    normalised.forEach(({ merged, input: permutation }, index) => {
         const checked = new Map<ExtensionValidator, Set<Node>>();
         const check = (
             validator: ExtensionValidator,
@@ -107,9 +107,7 @@ export function validateExtensions(
             }
         }
 
-        const types = new Map(
-            permutations[permutation]?.tokens.map(({ path, type }) => [path, type]),
-        );
+        const types = new Map(permutations[index]?.tokens.map(({ path, type }) => [path, type]));
         for (const token of merged.tokens.values()) {
             const type = types.get(token.path);
             const object = token.value.parent?.parent;

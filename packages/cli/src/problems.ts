@@ -1,9 +1,8 @@
 import { type Reported, type Where, problemsText } from "@sugarcube-sh/core";
 import type { Built } from "./build.js";
 
-export function whereOf({ doc, folder, configFile }: Built): Where {
-    const permutations = doc.permutations.map(({ input, label }) => ({ input, label }));
-    return { cwd: process.cwd(), folder, permutations, configFile };
+export function whereOf({ folder, configFile }: Built): Where {
+    return { cwd: process.cwd(), folder, configFile };
 }
 
 export function printProblems(

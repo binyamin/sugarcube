@@ -8,6 +8,7 @@ import {
     errors,
     group,
     permutation,
+    permutationLabel,
     readFromMemory,
     token,
     tokensIn,
@@ -207,6 +208,18 @@ describe("tokenPaths", () => {
         const listed = tokenPaths(doc);
         listed.reverse();
         expect(tokenPaths(doc)[0]).toBe("px");
+    });
+});
+
+describe("permutationLabel", () => {
+    it("names each modifier and its context, in the order the resolver declares them", () => {
+        expect(permutationLabel({ theme: "dark", density: "compact" })).toBe(
+            "theme: dark, density: compact",
+        );
+    });
+
+    it("is the label the read gives each permutation", () => {
+        for (const each of doc.permutations) expect(permutationLabel(each.input)).toBe(each.label);
     });
 });
 
