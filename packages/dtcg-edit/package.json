@@ -47,6 +47,7 @@
     "build": "pkgroll --minify",
     "dev": "pkgroll --watch",
     "test": "vitest run",
+    "bench": "vitest bench --no-watch --project unit",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

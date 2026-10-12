@@ -7,6 +7,6 @@
       "@sugarcube-sh/dtcg/*": ["../../dtcg/src/*.ts"]
     }
   },
-  "include": ["*.test.ts", "../src/**/*"],
+  "include": ["*.test.ts", "benchmarks/*.ts", "../src/**/*"],
   "exclude": []
 }
