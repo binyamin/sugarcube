@@ -3,7 +3,8 @@ import { readReference } from "@sugarcube-sh/dtcg/values";
 import type { Node } from "jsonc-parser";
 import { fixTitles } from "./error-messages.js";
 import type { Fix, TextEdit } from "./index.js";
-import { inline, nodeAt, refString, removal, spliced } from "./json-text.js";
+import { inline, refString, removal, spliced } from "./json-text.js";
+import { nodeAt } from "./project-text.js";
 import { reread } from "./reread.js";
 
 /**
@@ -28,10 +29,7 @@ export function fixesFor(project: Project, diagnostic: Diagnostic): Fix[] {
 function fixFor(project: Project, diagnostic: Diagnostic): Fix | undefined {
     const { at } = diagnostic;
     if (!at) return undefined;
-    const written = (span: Span) => {
-        const text = project.files[span.file];
-        return text === undefined ? undefined : nodeAt(text, span);
-    };
+    const written = (span: Span) => nodeAt(project, span);
 
     switch (diagnostic.kind) {
         case "duplicate-key": {

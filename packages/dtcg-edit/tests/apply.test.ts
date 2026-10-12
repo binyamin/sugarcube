@@ -1,32 +1,7 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { type JsonPath, type Project, openFromMemory, token } from "@sugarcube-sh/dtcg";
+import { type Project, openFromMemory, token } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { type FileOp, type Json, apply, commit } from "../src/index.js";
-import { setAt } from "../src/text.js";
-
-const folder = join(import.meta.dirname, "fixtures/demo");
-const demo = openFromMemory({
-    files: Object.fromEntries(
-        readdirSync(folder).map((name) => [name, readFileSync(join(folder, name), "utf8")]),
-    ),
-    entry: "tokens.resolver.json",
-});
-
-const json = (project: Project, file: string) => JSON.parse(project.files[file] ?? "null");
-
-const at = (project: Project, file: string, path: JsonPath): Json | undefined =>
-    path.reduce((value, step) => value?.[step], json(project, file));
-
-function changed(project: Project, file: string, path: JsonPath, value: Json): Project {
-    const text = setAt(project.files[file] ?? "", path, value);
-    if (text === undefined) throw new Error("the test's own edit could not be made");
-    return openFromMemory(
-        { files: { ...project.files, [file]: text }, entry: project.entry },
-        project.options,
-    );
-}
-
+import { demo, at, changed } from "./helpers.js";
 function applied(project: Project, ops: FileOp[]): Project {
     const result = apply(project, ops);
     if (!("doc" in result)) throw new Error(JSON.stringify(result.conflicts));
@@ -53,7 +28,7 @@ describe("apply, set", () => {
 
     it("still applies after someone changed another token in the same file", () => {
         const op = setBrand500(demo);
-        const theirs = changed(demo, "color.json", ["color", "brand", "600", "$value"], "#000");
+        const theirs = changed(demo, [["color.json", ["color", "brand", "600", "$value"], "#000"]]);
 
         const after = applied(theirs, [op]);
 
@@ -63,7 +38,7 @@ describe("apply, set", () => {
 
     it("is a conflict when someone changed the same value, and writes nothing over it", () => {
         const op = setBrand500(demo);
-        const theirs = changed(demo, "color.json", brand500, "#000");
+        const theirs = changed(demo, [["color.json", brand500, "#000"]]);
 
         const result = apply(theirs, [op]);
 
@@ -77,21 +52,21 @@ describe("apply, set", () => {
         const written = at(demo, "color.json", brand500) as Record<string, Json>;
         const { hex, ...rest } = written;
         const reordered = { hex, ...rest } as Json;
-        const theirs = changed(demo, "color.json", brand500, reordered);
+        const theirs = changed(demo, [["color.json", brand500, reordered]]);
 
         expect(at(applied(theirs, [op]), "color.json", brand500)).toEqual(red);
     });
 
     it("does nothing when someone already made the same change", () => {
         const op = setBrand500(demo);
-        const theirs = changed(demo, "color.json", brand500, red);
+        const theirs = changed(demo, [["color.json", brand500, red]]);
 
         expect(applied(theirs, [op]).files).toEqual(theirs.files);
     });
 
     it("is a conflict when the place has gone", () => {
         const op = setBrand500(demo);
-        const theirs = changed(demo, "color.json", ["color", "brand"], {});
+        const theirs = changed(demo, [["color.json", ["color", "brand"], {}]]);
 
         expect(apply(theirs, [op])).toEqual({
             conflicts: [{ op, kind: "gone", reason: expect.any(String) }],
@@ -121,7 +96,9 @@ describe("apply, add", () => {
             path: ["color", "brand", "950"],
             value: { $value: red },
         };
-        const theirs = changed(demo, "color.json", ["color", "brand", "950"], { $value: "#000" });
+        const theirs = changed(demo, [
+            ["color.json", ["color", "brand", "950"], { $value: "#000" }],
+        ]);
 
         expect(apply(theirs, [op])).toEqual({
             conflicts: [{ op, kind: "taken", reason: expect.any(String) }],
@@ -135,7 +112,7 @@ describe("apply, add", () => {
             path: ["color", "brand", "950"],
             value: { $value: red },
         };
-        const theirs = changed(demo, "color.json", ["color", "brand", "950"], { $value: red });
+        const theirs = changed(demo, [["color.json", ["color", "brand", "950"], { $value: red }]]);
 
         expect(applied(theirs, [op]).files).toEqual(theirs.files);
     });
@@ -186,7 +163,7 @@ describe("apply, remove", () => {
 
     it("is a conflict when someone changed it since", () => {
         const op = removeSm();
-        const theirs = changed(demo, "radius.json", [...sm, "$value", "value"], 0.2);
+        const theirs = changed(demo, [["radius.json", [...sm, "$value", "value"], 0.2]]);
 
         expect(apply(theirs, [op])).toEqual({
             conflicts: [{ op, kind: "changed", reason: expect.any(String) }],
@@ -246,7 +223,7 @@ describe("apply, renameKey", () => {
 
     it("still renames when someone changed the value since", () => {
         const op = rename("small");
-        const theirs = changed(demo, "radius.json", [...sm, "$value", "value"], 0.2);
+        const theirs = changed(demo, [["radius.json", [...sm, "$value", "value"], 0.2]]);
 
         const after = applied(theirs, [op]);
 
@@ -415,7 +392,7 @@ describe("commit", () => {
 
     it("hands back the conflicts when the edits no longer apply", () => {
         const op = setBrand500(demo);
-        const theirs = changed(demo, "color.json", brand500, "#000");
+        const theirs = changed(demo, [["color.json", brand500, "#000"]]);
 
         expect(commit(theirs, { ops: [op], alsoAffects: [], moved: [] })).toEqual({
             conflicts: [{ op, kind: "changed", reason: expect.any(String) }],

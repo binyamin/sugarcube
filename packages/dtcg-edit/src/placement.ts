@@ -1,7 +1,7 @@
 import {
     type Document,
+    type Group,
     type Input,
-    type JsonPath,
     type Permutation,
     type Project,
     type Source,
@@ -13,14 +13,8 @@ import {
     token,
 } from "@sugarcube-sh/dtcg";
 import { refused } from "./error-messages.js";
-import type { Decision, Json, Refusal, Where } from "./index.js";
-import { pathAt } from "./json-text.js";
-import { valueAt } from "./text-edits.js";
-
-export interface Place {
-    span: Span;
-    path: JsonPath;
-}
+import type { Decision, Refusal, Where } from "./index.js";
+import { type Place, placeOf, spanKey, unique, writtenAt } from "./project-text.js";
 
 export type Placement =
     | { token: Token; at: Place; alsoAffects: Input[] }
@@ -52,46 +46,51 @@ export function groupPlace(project: Project, path: string): Declared {
     const { doc } = project;
     const declared = group(doc, path);
     if (!declared) return refused({ kind: "not-found", path });
-    if (declared.inherited) {
-        return refused({ kind: "inherited", path, from: declared.inherited.from });
-    }
+    const refusal = refusalFor(declared);
+    if (refusal) return refusal;
     const places = declared.declaredIn.flatMap((span) => placeOf(project, span) ?? []);
     const at =
-        places.find((each) => writtenAt(project, each, "$description") !== undefined) ??
+        places.find(
+            (each) =>
+                writtenAt(project, each.span.file, [...each.path, "$description"]) !== undefined,
+        ) ??
         places.find((each) => doc.usedBy[each.span.file] === "everyone") ??
         places[0];
     if (!at) return refused({ kind: "not-found", path });
     return { at, alsoAffects: seenBy(doc, path, at.span.file) };
 }
 
-export function tokenCopies(
-    doc: Document,
-    path: string,
-): { spans: Span[]; alsoAffects: Input[] } | { refused: Refusal } | undefined {
-    const found = doc.permutations.flatMap((perm) => token(perm, path) ?? []);
+export type Copies = { places: Place[]; alsoAffects: Input[] } | { refused: Refusal };
+
+export function tokenCopies(project: Project, path: string): Copies | undefined {
+    const found = project.doc.permutations.flatMap((perm) => token(perm, path) ?? []);
     const [first] = found;
     if (!first) return undefined;
-    const refusal = refusalFor(first);
-    if (refusal) return refusal;
     const spans = found.flatMap((each) => (each.replaces ?? []).concat(each.source.at));
-    return { spans: unique(spans), alsoAffects: having(doc, path) };
+    return refusalFor(first) ?? copiesAt(project, path, spans);
 }
 
-export function having(doc: Document, path: string): Input[] {
+export function groupCopies(project: Project, path: string): Copies | undefined {
+    const found = project.doc.permutations.flatMap((perm) => group(perm, path) ?? []);
+    const [first] = found;
+    if (!first) return undefined;
+    const spans = found.flatMap((each) => each.declaredIn);
+    return refusalFor(first) ?? copiesAt(project, path, spans);
+}
+
+function copiesAt(project: Project, path: string, spans: Span[]): Copies {
+    const places = unique(spans).flatMap((span) => placeOf(project, span) ?? []);
+    const alsoAffects = inputsOf(
+        project.doc,
+        (perm) => (token(perm, path) ?? group(perm, path)) !== undefined,
+    );
+    return { places, alsoAffects };
+}
+
+function inputsOf(doc: Document, affected: (perm: Permutation) => boolean): Input[] {
     return doc.permutations
-        .filter((perm) => Object.keys(perm.input).length > 0)
-        .filter((perm) => token(perm, path) ?? group(perm, path))
+        .filter((perm) => Object.keys(perm.input).length > 0 && affected(perm))
         .map((perm) => perm.input);
-}
-
-export function unique(spans: Span[]): Span[] {
-    const seen = new Set<string>();
-    return spans.filter(({ file, offset }) => {
-        const key = `${file}:${offset}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
 }
 
 export function newPlace(
@@ -124,10 +123,6 @@ export function newPlace(
     const into = chosenFile(path, files, declaredIn, where.place);
     if (typeof into !== "string") return into;
     return { into, path, alsoAffects: seenBy(doc, path, into, chosen) };
-}
-
-export function writtenAt(project: Project, at: Place, key: string): Json | undefined {
-    return valueAt(project.files[at.span.file] ?? "", [...at.path, key]);
 }
 
 function chosenContext(doc: Document, input: Input): Chosen | { refused: Refusal } | undefined {
@@ -235,8 +230,9 @@ function contextOf(chosen: Chosen): Input {
     return { [chosen.modifier]: chosen.name };
 }
 
-export function refusalFor(found: Token): { refused: Refusal } | undefined {
-    const { path, generated, inherited } = found;
+export function refusalFor(found: Token | Group): { refused: Refusal } | undefined {
+    const { path, inherited } = found;
+    const generated = "generated" in found ? found.generated : undefined;
     if (generated) return refused({ kind: "generated", path, ...generated });
     if (inherited) return refused({ kind: "inherited", path, from: inherited.from });
     return undefined;
@@ -246,16 +242,12 @@ function seenBy(doc: Document, path: string, where: Span | string, chosen?: Chos
     const reads = (perm: Permutation) => {
         if (typeof where === "string") return perm.sources.some(({ file }) => file === where);
         const at = token(perm, path)?.source.at;
-        return at?.file === where.file && at.offset === where.offset;
+        return at !== undefined && spanKey(at) === spanKey(where);
     };
-    return doc.permutations
-        .filter(
-            (perm) =>
-                Object.keys(perm.input).length > 0 &&
-                !(chosen && perm.input[chosen.modifier] === chosen.name) &&
-                reads(perm),
-        )
-        .map((perm) => perm.input);
+    return inputsOf(
+        doc,
+        (perm) => !(chosen && perm.input[chosen.modifier] === chosen.name) && reads(perm),
+    );
 }
 
 function isFrom(source: Source | undefined, chosen: Chosen): boolean {
@@ -266,9 +258,4 @@ function isFrom(source: Source | undefined, chosen: Chosen): boolean {
         from.modifier === chosen.modifier &&
         from.context === chosen.name
     );
-}
-
-export function placeOf(project: Project, span: Span): Place | undefined {
-    const path = pathAt(project.files[span.file] ?? "", span);
-    return path && { span, path };
 }

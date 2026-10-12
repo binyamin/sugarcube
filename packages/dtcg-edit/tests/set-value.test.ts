@@ -1,59 +1,7 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import {
-    type JsonPath,
-    type Project,
-    type ReadOptions,
-    defineGenerator,
-    openFromMemory,
-    token,
-} from "@sugarcube-sh/dtcg";
+import { defineGenerator, token } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
-import {
-    type FileOp,
-    type Json,
-    type OpResult,
-    commit,
-    setDescription,
-    setValue,
-} from "../src/index.js";
-
-const folder = join(import.meta.dirname, "fixtures/demo");
-const demo = openFromMemory({
-    files: Object.fromEntries(
-        readdirSync(folder).map((name) => [name, readFileSync(join(folder, name), "utf8")]),
-    ),
-    entry: "tokens.resolver.json",
-});
-
-const at = (project: Project, file: string, path: JsonPath): Json | undefined =>
-    path.reduce((value, step) => value?.[step], JSON.parse(project.files[file] ?? "null"));
-
-function opsOf(result: OpResult): FileOp[] {
-    if (!("ops" in result)) throw new Error(JSON.stringify(result));
-    return result.ops;
-}
-
-function committed(project: Project, result: OpResult): Project {
-    const done = commit(project, result);
-    if (!("project" in done)) throw new Error(JSON.stringify(done));
-    return done.project;
-}
-
-const resolver = (sources: object[], contexts: Record<string, object[]> = {}) =>
-    JSON.stringify({
-        version: "2025.10",
-        resolutionOrder: [
-            { type: "set", name: "base", sources },
-            ...(Object.keys(contexts).length > 0
-                ? [{ type: "modifier", name: "mode", default: "light", contexts }]
-                : []),
-        ],
-    });
-
-const opened = (files: Record<string, string>, options?: ReadOptions) =>
-    openFromMemory({ files, entry: "tokens.resolver.json" }, options);
-
+import { setDescription, setValue } from "../src/index.js";
+import { demo, at, opsOf, committed, resolver, opened } from "./helpers.js";
 describe("setValue, the shared value", () => {
     it("is one edit where the token is written, leaving dark's override alone", () => {
         const result = setValue(demo, "color.text.brand", "{color.brand.800}");

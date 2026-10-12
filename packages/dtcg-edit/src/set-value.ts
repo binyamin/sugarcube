@@ -1,6 +1,7 @@
 import type { Project, Token } from "@sugarcube-sh/dtcg";
 import type { FileOp, Json, OpResult, ValueOptions } from "./index.js";
-import { type Place, groupPlace, placeOf, placement, tokenCopies, writtenAt } from "./placement.js";
+import { groupPlace, placement, tokenCopies } from "./placement.js";
+import { type Place, writtenAt } from "./project-text.js";
 
 /**
  * Changes a token's value.
@@ -74,13 +75,12 @@ export function setDescription(
     path: string,
     description: string | null,
 ): OpResult {
-    const copies = tokenCopies(project.doc, path);
+    const copies = tokenCopies(project, path);
     if (copies && "refused" in copies) return copies;
     if (copies) {
-        const ops = copies.spans.flatMap((span) => {
-            const at = placeOf(project, span);
-            return at ? written(project, at, "$description", description) : [];
-        });
+        const ops = copies.places.flatMap((at) =>
+            written(project, at, "$description", description),
+        );
         return { ops, alsoAffects: copies.alsoAffects, moved: [] };
     }
     const placed = groupPlace(project, path);
@@ -92,7 +92,7 @@ export function setDescription(
 function written(project: Project, at: Place, key: string, value: Json | null): FileOp[] {
     const { file } = at.span;
     const path = [...at.path, key];
-    const was = writtenAt(project, at, key);
+    const was = writtenAt(project, file, path);
     if (value === null) return was === undefined ? [] : [{ kind: "remove", file, path, was }];
     return was === undefined
         ? [{ kind: "add", file, path, value }]
