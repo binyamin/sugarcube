@@ -8,7 +8,7 @@ import type {
     Token,
     TokenProperty,
 } from "../index.js";
-import { pathBelow } from "../path.js";
+import { movedPath } from "../path.js";
 import { encodePointer, refSteps } from "../read/pointer.js";
 import { pointerParts } from "../read/ref-meaning.js";
 import { isAlias, isPointer } from "../values/references.js";
@@ -38,7 +38,8 @@ import { permutation } from "./permutation.js";
  * for (const change of diff(before, after, { moved })) row(change.kind, change.path);
  */
 export function diff(before: Document, after: Document, options?: { moved?: Move[] }): Change[] {
-    const forward = forwardThrough(options?.moved ?? []);
+    const moved = options?.moved ?? [];
+    const forward: Forward = (path) => movedPath(path, moved);
     const changes = new Changes();
     for (const now of after.permutations) {
         const was = permutation(before, now.input);
@@ -182,15 +183,6 @@ function sameSide(a: Token | Group, b: Token | Group): boolean {
 type Forward = (path: string) => string;
 
 const unmoved: Forward = (path) => path;
-
-function forwardThrough(moves: Move[]): Forward {
-    return (path) =>
-        moves.reduce((current, { from, to }) => {
-            if (current === from) return to;
-            const rest = from === "" ? undefined : pathBelow(current, from);
-            return rest === undefined ? current : `${to}.${rest}`;
-        }, path);
-}
 
 function movedReferences(before: Token, forward: Forward): Token {
     if (before.value === undefined) return before;

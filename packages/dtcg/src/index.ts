@@ -1201,7 +1201,7 @@ export interface TokenView {
 }
 
 export { byToken } from "./lookup/by-token.js";
-export { forbiddenInName, pathBelow, withoutRoot } from "./path.js";
+export { forbiddenInName, movedPath, pathBelow, withoutRoot } from "./path.js";
 export { completeInput, defaultPermutation, permutation } from "./lookup/permutation.js";
 
 /** What {@link completeInput} gives: the full input, or the modifier or context it could not match. */
