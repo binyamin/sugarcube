@@ -298,7 +298,16 @@ beforeAll(async () => {
     }
     for (const together of readTogether) {
         const texts = together.map((file) => [file, readFileSync(join(repo, file), "utf8")]);
-        projects.set(together.join(" + "), readFromMemory({ files: Object.fromEntries(texts) }));
+        const sources = together.map((file) => ({
+            $ref: `./${relative(dirname(together[0] ?? ""), file)}`,
+        }));
+        const entry = join(dirname(together[0] ?? ""), "together.resolver.json");
+        const resolver = JSON.stringify({
+            version: "2025.10",
+            resolutionOrder: [{ type: "set", name: "together", sources }],
+        });
+        const withResolver = Object.fromEntries([...texts, [entry, resolver]]);
+        projects.set(together.join(" + "), readFromMemory({ files: withResolver, entry }));
         for (const file of together) covered.add(file);
     }
     for (const file of files.filter(

@@ -60,7 +60,7 @@ export function applyWhatFits(
 
 function editedFiles(project: Project, ops: FileOp[]) {
     const files: Record<string, string> = { ...project.files };
-    const style = project.files[project.entry ?? Object.keys(project.files)[0] ?? ""] ?? "";
+    const style = project.files[project.entry] ?? "";
     const conflicts: Conflict[] = [];
     for (const op of ops) {
         const kind = applyOne(files, op, style);

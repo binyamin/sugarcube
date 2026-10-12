@@ -11,6 +11,9 @@ import { createValueReader } from "./parse-value.js";
 import { resolvePermutations } from "./resolve.js";
 import type { PermutationOptions } from "./permutations.js";
 import { fileName, filePath, folderOf, normalise } from "./paths.js";
+import { parseJson } from "./json.js";
+import { isResolver } from "./resolver.js";
+import { thrownMessages } from "../error-messages.js";
 
 const { performance } = globalThis as unknown as { performance: { now(): number } };
 
@@ -55,7 +58,7 @@ export async function open(
     { readText, ...options }: ReadOptions & { readText: ReadText },
 ): Promise<Project> {
     const started = performance.now();
-    const run = load({ entry: fileName(entry) }, permutationOptions(options));
+    const run = load(fileName(entry), permutationOptions(options));
     let step = run.next();
     while (!step.done) {
         step = run.next(await fetchAll(step.value, folderOf(entry), readText));
@@ -81,9 +84,11 @@ async function fetchAll(files: Request, folder: string, readText: ReadText): Pro
 /**
  * Reads a design system from text already in memory.
  *
- * With a resolver among the files, it is the entry. Without one, every file is read as a single
- * set, in the order given, a later file overriding an earlier one: the rule a set in a resolver
- * follows.
+ * The read starts from one entry, a resolver or a token file: the one given, or else the one
+ * resolver among the files, or else the only file. Several token files with no resolver among
+ * them are not read together, since only a resolver says which files make a design system and in
+ * what order (Resolver 4.1, 6); several resolvers need an entry to say which. Either is refused
+ * with a `TypeError` naming the files.
  *
  * @example
  * const doc = readFromMemory({ files: { "tokens.json": text } });
@@ -93,7 +98,7 @@ export function readFromMemory(
         files: Record<string, string>;
         /**
          * The file to start from.
-         * @default the first resolver among the files, or else every file, in order
+         * @default the one resolver among the files, or else the only file
          */
         entry?: string | undefined;
     },
@@ -113,7 +118,7 @@ export function readFromMemory(
 export function openFromMemory(
     sources: {
         files: Record<string, string>;
-        /** @default the first resolver among the files, or else every file, in order */
+        /** @default the one resolver among the files, or else the only file */
         entry?: string | undefined;
     },
     options: ReadOptions = {},
@@ -122,12 +127,9 @@ export function openFromMemory(
     const texts = new Map(
         Object.entries(sources.files).map(([path, text]) => [normalise(path), text]),
     );
-    const { entry } = sources;
-    const folder = entry === undefined ? "" : folderOf(normalise(entry));
-    const run = load(
-        entry === undefined ? { files: [...texts.keys()] } : { entry: fileName(entry) },
-        permutationOptions(options),
-    );
+    const entry = normalise(sources.entry ?? entryAmong(texts));
+    const folder = folderOf(entry);
+    const run = load(fileName(entry), permutationOptions(options));
 
     let step = run.next();
     while (!step.done) {
@@ -142,10 +144,24 @@ export function openFromMemory(
     return projectOf(step.value, options);
 }
 
+function entryAmong(texts: Map<string, string>): string {
+    const names = [...texts.keys()];
+    const [only] = names;
+    if (names.length === 1 && only !== undefined) return only;
+    const resolvers = names.filter((name) => {
+        const root = parseJson(texts.get(name) ?? "").root;
+        return root !== undefined && isResolver(root);
+    });
+    const [resolver] = resolvers;
+    if (resolvers.length === 1 && resolver !== undefined) return resolver;
+    if (resolvers.length > 1) throw new TypeError(thrownMessages.severalResolvers(resolvers));
+    throw new TypeError(thrownMessages.noResolver(names));
+}
+
 function projectOf(loaded: Loaded, options: ReadOptions): Project {
     const doc = toDocument(loaded, options);
     const { entry, texts } = loaded;
-    return { doc, ...(entry !== undefined && { entry }), files: texts, options };
+    return { doc, entry, files: texts, options };
 }
 
 function permutationOptions({

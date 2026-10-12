@@ -103,10 +103,9 @@ describe("openFromMemory", () => {
         expect(reopened(project)).toStrictEqual(project);
     });
 
-    it("has no entry when loose files are read as one set, and opens again to the same Document", () => {
-        const project = openFromMemory({ files: { "base.json": base, "dark.json": dark } });
-        expect(project.entry).toBeUndefined();
-        expect(project.files).toStrictEqual({ "base.json": base, "dark.json": dark });
+    it("takes a single file as its entry, and opens again to the same Document", () => {
+        const project = openFromMemory({ files: { "base.json": base } });
+        expect(project.entry).toBe("base.json");
         expect(reopened(project)).toStrictEqual(project);
     });
 

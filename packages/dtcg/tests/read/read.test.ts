@@ -452,23 +452,31 @@ describe("inputs without modifiers", () => {
 });
 
 describe("readFromMemory", () => {
-    it("reads several files with no resolver as one set, in the order given", () => {
-        const doc = readFromMemory({ files: { "base.json": valid, "./themes/dark.json": valid } });
-        expect(doc.files).toStrictEqual(["base.json", "themes/dark.json"]);
-        expect(doc.usedBy).toStrictEqual({
-            "base.json": "everyone",
-            "themes/dark.json": "everyone",
+    it("refuses several token files with no resolver among them, naming them", () => {
+        const reading = () =>
+            readFromMemory({ files: { "base.json": valid, "./themes/dark.json": valid } });
+        expect(reading).toThrow(TypeError);
+        expect(reading).toThrow(/`base\.json`.*`themes\/dark\.json`/);
+    });
+
+    it("refuses several resolvers when no entry says which, naming them", () => {
+        const resolver = JSON.stringify({ version: "2025.10", resolutionOrder: [] });
+        const reading = () =>
+            readFromMemory({ files: { "a.resolver.json": resolver, "b.resolver.json": resolver } });
+        expect(reading).toThrow(TypeError);
+        expect(reading).toThrow(/`a\.resolver\.json`.*`b\.resolver\.json`/);
+    });
+
+    it("refuses to read no files at all", () => {
+        expect(() => readFromMemory({ files: {} })).toThrow(TypeError);
+    });
+
+    it("reads several token files when an entry names the one to start from", () => {
+        const doc = readFromMemory({
+            files: { "base.json": valid, "other.json": valid },
+            entry: "base.json",
         });
-        expect(
-            doc.permutations.map(({ input, label, sources }) => ({ input, label, sources })),
-        ).toStrictEqual([
-            {
-                input: {},
-                label: "",
-                sources: [{ file: "base.json" }, { file: "themes/dark.json" }],
-            },
-        ]);
-        expect(doc.diagnostics).toStrictEqual([]);
+        expect(doc.files).toStrictEqual(["base.json"]);
     });
 
     it("finds an entry given with a folder among the files", () => {

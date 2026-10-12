@@ -313,8 +313,21 @@ describe("apply, several edits", () => {
 });
 
 describe("apply, files", () => {
-    const loose = openFromMemory({
-        files: { "base.json": '{\n  "a": { "$type": "number", "$value": 1 }\n}\n' },
+    const resolver = {
+        version: "2025.10",
+        resolutionOrder: [
+            {
+                type: "set",
+                name: "base",
+                sources: [{ $ref: "./base.json" }, { $ref: "./more.json" }],
+            },
+        ],
+    };
+    const named = openFromMemory({
+        files: {
+            "tokens.resolver.json": `${JSON.stringify(resolver, null, 2)}\n`,
+            "base.json": '{\n  "a": { "$type": "number", "$value": 1 }\n}\n',
+        },
     });
     const created: FileOp = {
         kind: "createFile",
@@ -323,7 +336,7 @@ describe("apply, files", () => {
     };
 
     it("creates a file, written in the project's indent", () => {
-        const after = applied(loose, [created]);
+        const after = applied(named, [created]);
 
         expect(after.files["more.json"]).toBe(
             '{\n  "b": {\n    "$type": "number",\n    "$value": 2\n  }\n}\n',
@@ -332,10 +345,10 @@ describe("apply, files", () => {
     });
 
     it("does nothing when the file already holds the same, and is a conflict when it holds other", () => {
-        const same = applied(loose, [created]);
+        const same = applied(named, [created]);
         expect(applied(same, [created]).files).toEqual(same.files);
 
-        const other = applied(loose, [
+        const other = applied(named, [
             { ...created, value: { c: { $type: "number", $value: 3 } } },
         ]);
         expect(apply(other, [created])).toEqual({
@@ -352,7 +365,7 @@ describe("apply, files", () => {
     });
 
     it("deletes a file only as it was, and does nothing when it is already gone", () => {
-        const both = applied(loose, [created]);
+        const both = applied(named, [created]);
         const deleted: FileOp = {
             kind: "deleteFile",
             file: "more.json",

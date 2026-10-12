@@ -1178,11 +1178,10 @@ export { filePath } from "./read/paths.js";
 export interface Project {
     readonly doc: Document;
     /**
-     * The file the read started from, by the Document's name for it, so `files[entry]` is its
-     * text: the entry given, or the resolver found among loose files. Absent when loose token
-     * files were read as one set.
+     * The file the read started from, a resolver or a token file, by the Document's name for it,
+     * so `files[entry]` is its text.
      */
-    readonly entry?: string;
+    readonly entry: string;
     /** The text of every file the Document read, by the name the Document gives it, as at {@link ReadText}. */
     readonly files: Readonly<Record<string, string>>;
     /** The options it was read with, for reading it again. */
