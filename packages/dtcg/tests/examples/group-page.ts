@@ -23,7 +23,7 @@ for (const child of children) {
     const t = base && token(base, child);
     if (!t) continue;
     const overrides = acrossPermutations(doc, t.path)
-        .filter((p) => p.overrides)
-        .map((p) => `${p.label} in ${p.token.source.at.file}`);
+        .filter(({ from }) => from && "modifier" in from)
+        .map(({ permutation, token: there }) => `${permutation.label} in ${there.source.at.file}`);
     row(t.path, t.authored?.value, t.source.at.file, overrides.join(", "));
 }

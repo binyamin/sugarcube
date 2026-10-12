@@ -1234,18 +1234,6 @@ export interface Project {
     readonly options: ReadOptions;
 }
 
-/** One token across every permutation. */
-export interface TokenView {
-    path: string;
-    /** The type in the default permutation, or in the first permutation that has the token. */
-    type: TokenType;
-    /** The token in each permutation that has it, in order, with the permutation's input and label. */
-    permutations: { input: Input; label: string; token: Token }[];
-    /** The token in the default permutation. */
-    default?: Token;
-}
-
-export { byToken } from "./lookup/by-token.js";
 export { childPath, forbiddenInName, movedPath, parentOf, pathBelow, withoutRoot } from "./path.js";
 export { completeInput, defaultPermutation, permutation } from "./lookup/permutation.js";
 
@@ -1258,6 +1246,7 @@ export type CompleteInput =
 export { group, token, tokensIn } from "./lookup/token.js";
 
 export { acrossPermutations } from "./lookup/across-permutations.js";
+export { tokenPaths } from "./lookup/token-paths.js";
 
 /** A token or group whose path changed, such as after a rename. */
 export interface Move {
