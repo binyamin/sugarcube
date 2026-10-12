@@ -45,9 +45,8 @@ async function builtFromPaths(paths: string[]): Promise<Built> {
         throw new CLIError(ERROR_MESSAGES.VALIDATE_SEVERAL_RESOLVERS(resolvers));
     const [resolver] = resolvers;
     if (resolver) return build(await loadConfig({ resolver }), { markup: false });
-    if (files.length === 0) throw new CLIError(ERROR_MESSAGES.VALIDATE_NO_TOKEN_FILES());
-    const texts = await Promise.all(
-        files.map(async (file) => [file, await readFile(file, "utf-8")]),
-    );
-    return buildFiles(Object.fromEntries(texts), process.cwd());
+    const [file, ...others] = files;
+    if (file === undefined) throw new CLIError(ERROR_MESSAGES.VALIDATE_NO_TOKEN_FILES());
+    if (others.length > 0) throw new CLIError(ERROR_MESSAGES.VALIDATE_NO_RESOLVER(files));
+    return buildFiles({ [file]: await readFile(file, "utf-8") }, process.cwd());
 }

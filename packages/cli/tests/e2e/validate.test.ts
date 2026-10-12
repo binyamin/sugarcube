@@ -151,7 +151,7 @@ describe("validate command", () => {
             const result = await validate("tokens");
 
             expect(result.exitCode).toBe(1);
-            expect(result.stdout).toContain("in dark  missing-reference");
+            expect(result.stdout).toContain("in theme: dark  missing-reference");
         },
     );
 
@@ -192,15 +192,35 @@ describe("validate command", () => {
         expect(result.stdout).toContain("sugarcube validate tokens/a.resolver.json");
     });
 
-    it("reads a folder of loose token files as one set", { timeout: TEST_TIMEOUT }, async () => {
-        await write({
-            "tokens/a.json": { ink: color(black) },
-            "tokens/b.json": { text: color("{ink}") },
-        });
+    it("validates a single token file without a resolver", { timeout: TEST_TIMEOUT }, async () => {
+        await write({ "tokens/a.json": { ink: color(black), text: color("{ink}") } });
 
-        const result = await validate("tokens");
+        const result = await validate("tokens/a.json");
 
         expect(result.exitCode).toBe(0);
         expect(result.stdout).toContain("All tokens valid ✨");
     });
+
+    it(
+        "refuses several token files with no resolver, naming them",
+        { timeout: TEST_TIMEOUT },
+        async () => {
+            await write({
+                "tokens/a.json": { ink: color(black) },
+                "tokens/b.json": { text: color("{ink}") },
+            });
+
+            for (const paths of ["tokens", "tokens/a.json tokens/b.json"]) {
+                const result = await validate(paths);
+
+                expect(result.exitCode).toBe(1);
+                expect(result.stdout).toContain(
+                    "Several token files need a resolver to be read together:",
+                );
+                expect(result.stdout).toContain("- tokens/a.json");
+                expect(result.stdout).toContain("- tokens/b.json");
+                expect(result.stdout).toContain("https://sugarcube.sh/docs/resolver");
+            }
+        },
+    );
 });
