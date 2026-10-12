@@ -107,7 +107,13 @@
         },
         {
           "path": "button-primary",
-          "extends": "button",
+          "extends": {
+            "path": "button",
+            "at": {
+              "file": "tokens.json",
+              "valueAfter": "\"$extends\":"
+            }
+          },
           "type": "number",
           "description": "Buttons",
           "declaredIn": [
@@ -129,7 +135,14 @@
         },
         {
           "path": "button-large",
-          "extends": "button-primary",
+          "extends": {
+            "path": "button-primary",
+            "at": {
+              "file": "tokens.json",
+              "valueAfter": "\"$extends\":",
+              "occurrence": 2
+            }
+          },
           "type": "number",
           "description": "Buttons"
         },

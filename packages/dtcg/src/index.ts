@@ -494,10 +494,10 @@ export interface Group {
     extensions?: Record<string, unknown>;
     /**
      * The group this one takes tokens from, through `$extends` or a `$ref` to another group
-     * (Format 6.4), when the reference reaches one. The tokens it takes are marked
-     * {@link TokenBase.inherited | inherited}.
+     * (Format 6.4), when the reference reaches one, and where that reference is written. The
+     * tokens it takes are marked {@link TokenBase.inherited | inherited}.
      */
-    extends?: string;
+    extends?: { path: string; at: Span };
     /**
      * Every place the group is declared. Groups can be spread across files, so there may be
      * several, and a group only {@link Group.inherited | inherited} has none.

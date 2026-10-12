@@ -28,7 +28,7 @@ export interface MergedGroup extends Properties {
     path: string;
     declaredIn: Span[];
     extends?: GroupReference & { piece: Piece };
-    extendsGroup?: string;
+    extendsGroup?: { path: string; at: Span };
     extensionsAt?: Record<string, ExtensionsAt & { piece: Piece }>;
     inherited?: { from: string };
 }

@@ -370,7 +370,7 @@ describe("diff", () => {
         ]);
         expect(changes[0]).toMatchObject({
             properties: ["extends"],
-            after: { extends: "button.base" },
+            after: { extends: { path: "button.base" } },
         });
         expect(changes[1]).toMatchObject({ after: { inherited: { from: "button.base" } } });
     });

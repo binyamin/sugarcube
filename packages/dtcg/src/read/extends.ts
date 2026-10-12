@@ -63,7 +63,7 @@ export function applyExtends(merged: Merged, permutation: number, diagnostics: D
         } else if (reached.kind === "nothing") {
             report("missing-reference", { ref: written, referencedBy: [group.path] }, group);
         } else if (reached.kind === "group") {
-            group.extendsGroup = reached.path;
+            group.extendsGroup = { path: reached.path, at: group.extends.at };
             inherit(merged, group, reached.path);
         } else if (keyword === "$ref" && refObjectMeaning(reached) === "token") {
             becomeToken(merged, group, permutation, diagnostics);

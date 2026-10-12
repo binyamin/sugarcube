@@ -132,7 +132,7 @@ function groupDifferences(before: Group, after: Group, forward: Forward): GroupP
         description: before.description === after.description,
         deprecated: before.deprecated === after.deprecated,
         extensions: sameJson(before.extensions, after.extensions),
-        extends: (before.extends && forward(before.extends)) === after.extends,
+        extends: (before.extends && forward(before.extends.path)) === after.extends?.path,
     };
     return differing(same);
 }
