@@ -1,14 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { type Project, type ReadOptions, filePath } from "@sugarcube-sh/dtcg";
-import { open } from "@sugarcube-sh/dtcg/node";
+import type { Project } from "@sugarcube-sh/dtcg";
+import { type ProjectSource, fileOnDisk, open } from "@sugarcube-sh/dtcg/node";
 import { applyKeepingTexts } from "./apply.js";
 import type { Conflict, FileOp } from "./index.js";
 
 /**
- * Applies edits to the files on disk, starting from the resolver or token file at `entry`, read
- * with `options` as it was opened. Each file is read as it is now, so changes made there in the
+ * Applies edits to the files on disk of the design system at `source`, its resolver or token file
+ * and the options it is read with, as `open` and `liveProject` take them. Each file is read as it
+ * is now, so changes made there in the
  * meantime are kept; an edit that no longer applies, as {@link apply} decides, is returned as a
  * conflict, and so is an edit to a file the design system doesn't read, such as `package.json`,
  * or a new file nothing reads.
@@ -19,30 +20,28 @@ import type { Conflict, FileOp } from "./index.js";
  * written and deleted.
  *
  * @example
- * const saved = await applyToDisk("tokens/tokens.resolver.json", session.unsaved.ops, options);
+ * const saved = await applyToDisk({ entry: "tokens/tokens.resolver.json", options }, session.unsaved.ops);
  * if ("project" in saved) {
  *     session.saved();
  *     session.adopt(saved.project);
  * }
  */
 export async function applyToDisk(
-    entry: string,
+    { entry, options }: ProjectSource,
     ops: FileOp[],
-    options: ReadOptions = {},
 ): Promise<{ project: Project; written: string[]; deleted: string[] } | { conflicts: Conflict[] }> {
     const fresh = await open(entry, options);
     const done = applyKeepingTexts(fresh, ops);
     if ("conflicts" in done) return done;
 
     const { files } = done;
-    const folder = dirname(entry);
     const changed = Object.entries(files).filter(([file, text]) => text !== fresh.files[file]);
     const written = changed.map(([file]) => file).sort();
     const deleted = Object.keys(fresh.files)
         .filter((file) => files[file] === undefined)
         .sort();
-    await replaced(changed.map(([file, text]) => [filePath(folder, file), text]));
-    await Promise.all(deleted.map((file) => rm(filePath(folder, file), { force: true })));
+    await replaced(changed.map(([file, text]) => [fileOnDisk(entry, file), text]));
+    await Promise.all(deleted.map((file) => rm(fileOnDisk(entry, file), { force: true })));
     return { project: done.project, written, deleted };
 }
 

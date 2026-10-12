@@ -30,7 +30,7 @@ const half = { value: 0.5, unit: "rem" };
 describe("applyToDisk", () => {
     it("writes the edits to the files they change, and nothing else", async () => {
         const before = readdirSync(folder).map((file) => [file, read(file)]);
-        const result = await applyToDisk(entry, opsOf(setValue(demo, "radius.md", half)), {});
+        const result = await applyToDisk({ entry }, opsOf(setValue(demo, "radius.md", half)));
 
         expect(result).toMatchObject({ written: ["radius.json"], deleted: [] });
         expect(JSON.parse(read("radius.json")).radius.md.$value).toEqual(half);
@@ -40,11 +40,21 @@ describe("applyToDisk", () => {
     });
 
     it("hands back the project as read from the files written", async () => {
-        const result = await applyToDisk(entry, opsOf(setValue(demo, "radius.md", half)), {});
+        const result = await applyToDisk({ entry }, opsOf(setValue(demo, "radius.md", half)));
 
         if (!("project" in result)) throw new Error(JSON.stringify(result));
         expect(token(result.project.doc, "radius.md")?.authored?.value).toEqual(half);
         expect(result.project.files).toEqual((await open(entry)).files);
+    });
+
+    it("reads the files with the source's own options", async () => {
+        const options = { hexStringColors: true };
+        const result = await applyToDisk(
+            { entry, options },
+            opsOf(setValue(demo, "radius.md", half)),
+        );
+
+        expect(result).toMatchObject({ project: { options } });
     });
 
     it("keeps a change made on disk since the edits were made", async () => {
@@ -54,7 +64,7 @@ describe("applyToDisk", () => {
         ]);
         written("radius.json", theirs.files["radius.json"] ?? "");
 
-        await applyToDisk(entry, ops, {});
+        await applyToDisk({ entry }, ops);
         const radius = JSON.parse(read("radius.json")).radius;
         expect(radius.md.$value).toEqual(half);
         expect(radius.lg.$value).toEqual({ value: 9, unit: "px" });
@@ -70,7 +80,7 @@ describe("applyToDisk", () => {
             was: at(demo, "color.json", ["color", "brand", "500"]) ?? null,
         };
         const before = { radius: read("radius.json"), color: read("color.json") };
-        const result = await applyToDisk(entry, [...fits, clashes], {});
+        const result = await applyToDisk({ entry }, [...fits, clashes]);
 
         expect(result).toEqual({ conflicts: [expect.objectContaining({ kind: "taken" })] });
         expect(read("radius.json")).toBe(before.radius);
@@ -85,7 +95,7 @@ describe("applyToDisk", () => {
             value: "x",
             was: "demo",
         };
-        const result = await applyToDisk(entry, [op], {});
+        const result = await applyToDisk({ entry }, [op]);
 
         expect(result).toEqual({
             conflicts: [expect.objectContaining({ kind: "not-in-project" })],
@@ -95,7 +105,7 @@ describe("applyToDisk", () => {
 
     it("won't make a file nothing reads, and makes one the same edits add to the resolver", async () => {
         const make: FileOp = { kind: "createFile", file: "extra.json", value: { extra: {} } };
-        expect(await applyToDisk(entry, [make], {})).toEqual({
+        expect(await applyToDisk({ entry }, [make])).toEqual({
             conflicts: [expect.objectContaining({ kind: "unread" })],
         });
         expect(readdirSync(folder)).not.toContain("extra.json");
@@ -109,13 +119,13 @@ describe("applyToDisk", () => {
             value: [...was, { $ref: "./extra.json" }],
             was,
         };
-        const result = await applyToDisk(entry, [make, reference], {});
+        const result = await applyToDisk({ entry }, [make, reference]);
         expect(result).toMatchObject({ written: ["extra.json", "tokens.resolver.json"] });
         expect(JSON.parse(read("extra.json"))).toEqual({ extra: {} });
     });
 
     it("makes the folder a new file goes in", async () => {
-        const result = await applyToDisk(entry, madeAndRead("more/extra.json"), {});
+        const result = await applyToDisk({ entry }, madeAndRead("more/extra.json"));
 
         expect(result).toMatchObject({ written: ["more/extra.json", "tokens.resolver.json"] });
         expect(JSON.parse(read("more/extra.json"))).toEqual({ extra: {} });
@@ -126,7 +136,7 @@ describe("applyToDisk", () => {
 
         written("z.json", "{}\n");
         const ops = madeAndRead("more/extra.json", "z.json/extra.json");
-        await expect(applyToDisk(entry, ops, {})).rejects.toThrow();
+        await expect(applyToDisk({ entry }, ops)).rejects.toThrow();
         expect(read("tokens.resolver.json")).toBe(before);
         expect(readdirSync(folder)).not.toContain("more");
         expect(readdirSync(folder).filter((file) => !file.endsWith(".json"))).toEqual([]);
@@ -134,14 +144,14 @@ describe("applyToDisk", () => {
 
     it("deletes a file the edits delete", async () => {
         const gone: FileOp = { kind: "deleteFile", file: "motion.json", was: read("motion.json") };
-        const result = await applyToDisk(entry, [gone], {});
+        const result = await applyToDisk({ entry }, [gone]);
 
         expect(result).toMatchObject({ written: [], deleted: ["motion.json"] });
         expect(readdirSync(folder)).not.toContain("motion.json");
     });
 
     it("leaves no temporary file behind", async () => {
-        await applyToDisk(entry, opsOf(setValue(demo, "radius.md", half)), {});
+        await applyToDisk({ entry }, opsOf(setValue(demo, "radius.md", half)));
 
         expect(readdirSync(folder).filter((file) => !file.endsWith(".json"))).toEqual([]);
     });
