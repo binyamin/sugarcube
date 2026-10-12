@@ -63,13 +63,14 @@ export function merge(
         order: new Set(),
         children: new Map(),
     };
-    const conflict = (later: Span, earlier: Span[], earlierIs: "token" | "group") =>
+    const conflict = (path: string, later: Span, earlier: Span[], earlierIs: "token" | "group") =>
         diagnostics.push(
             diagnostic(
                 "token-and-group",
                 { reason: "declared", here: earlierIs === "token" ? "group" : "token" },
                 {
                     at: later,
+                    path,
                     permutation,
                     related: earlier.map((at) => ({
                         message: relatedMessages.declaredAs(earlierIs),
@@ -89,7 +90,7 @@ export function merge(
                 merged.order.add(group.path);
                 const token = merged.tokens.get(group.path);
                 if (token) {
-                    conflict(group.at, [token.at], "token");
+                    conflict(group.path, group.at, [token.at], "token");
                     merged.tokens.delete(group.path);
                 }
                 mergeGroup(merged.groups, group, piece);
@@ -100,6 +101,7 @@ export function merge(
             const group = merged.groups.get(token.path);
             if (group) {
                 conflict(
+                    token.path,
                     token.at,
                     group.declaredIn.map(({ at }) => at),
                     "group",

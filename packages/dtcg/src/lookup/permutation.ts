@@ -14,10 +14,11 @@ import { findByName } from "../read/permutations.js";
 export function permutation(doc: Document, input: Input = {}): Permutation | undefined {
     const complete = completeInput(doc, input);
     if (!complete.ok) return undefined;
-    const names = modifiersOf(doc).map(({ name }) => name);
-    return doc.permutations.find((each) =>
-        names.every((name) => each.input[name] === complete.input[name]),
-    );
+    return doc.permutations.find((each) => sameInput(doc, each.input, complete.input));
+}
+
+export function sameInput(doc: Document, a: Input, b: Input): boolean {
+    return modifiersOf(doc).every(({ name }) => a[name] === b[name]);
 }
 
 /**

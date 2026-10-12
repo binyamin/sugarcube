@@ -993,17 +993,7 @@ export type DiagnosticOf<DetailByKind> = {
 
 export { errors } from "./lookup/errors.js";
 
-/**
- * The diagnostics about one token or group, for showing on its own page: those at its path, and
- * those about a reference it holds. A reference to a token that does not exist is reported once,
- * naming every token that uses it, so it appears here for each of them.
- *
- * @example
- * diagnosticsFor(doc, "color.brand") // includes "color.missing does not exist" if it refers to it
- */
-export function diagnosticsFor(doc: Document, path: string): Diagnostic[] {
-    throw new Error("not implemented yet");
-}
+export { diagnosticsFor } from "./lookup/diagnostics-for.js";
 
 /**
  * A design system as the DTCG specifications define it: every permutation, with every value in
