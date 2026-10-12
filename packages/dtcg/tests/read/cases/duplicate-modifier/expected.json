@@ -1,10 +1,69 @@
 {
   "entry": "tokens.resolver.json",
   "spec": "Resolver 4.1.6.1 and 5: a modifier may appear once in resolutionOrder, since inputs are keyed by its name",
-  "modifiers": {
-    "theme": {
-      "contexts": ["light", "dark"]
-    }
+  "resolver": {
+    "file": "tokens.resolver.json",
+    "version": "2025.10",
+    "sets": [],
+    "modifiers": [
+      {
+        "name": "theme",
+        "contexts": [
+          {
+            "name": "light",
+            "sources": [],
+            "at": {
+              "file": "tokens.resolver.json",
+              "offset": 77,
+              "length": 2,
+              "start": {
+                "line": 3,
+                "column": 52
+              },
+              "end": {
+                "line": 3,
+                "column": 54
+              }
+            }
+          },
+          {
+            "name": "dark",
+            "sources": [],
+            "at": {
+              "file": "tokens.resolver.json",
+              "offset": 89,
+              "length": 2,
+              "start": {
+                "line": 3,
+                "column": 64
+              },
+              "end": {
+                "line": 3,
+                "column": 66
+              }
+            }
+          }
+        ],
+        "at": {
+          "file": "tokens.resolver.json",
+          "offset": 52,
+          "length": 43,
+          "start": {
+            "line": 3,
+            "column": 27
+          },
+          "end": {
+            "line": 3,
+            "column": 70
+          }
+        }
+      }
+    ],
+    "order": [
+      {
+        "modifier": "theme"
+      }
+    ]
   },
   "diagnostics": [
     {

@@ -131,9 +131,9 @@ function chosenContext(doc: Document, input: Input): Chosen | { refused: Refusal
     }
     const perm = permutation(doc, complete.input);
     if (!perm) return refused({ kind: "no-permutation", context: input, why: "not-read" });
-    const away = Object.keys(doc.modifiers).filter(
-        (name) => perm.input[name] !== doc.modifiers[name]?.default,
-    );
+    const away = (doc.resolver?.modifiers ?? [])
+        .filter(({ name, default: fallback }) => perm.input[name] !== fallback)
+        .map(({ name }) => name);
     const [modifier] = away;
     if (modifier === undefined) return undefined;
     if (away.length > 1) {

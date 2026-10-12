@@ -3,7 +3,7 @@ import type { Diagnostic, DiagnosticDetailByKind, Input, Source } from "../index
 import { permutationLabel } from "../lookup/permutation-label.js";
 import { diagnostic } from "./diagnostics.js";
 import { type JsonFile, plainObject, spanOf } from "./json.js";
-import type { Resolver } from "./resolver.js";
+import type { CheckedResolver } from "./resolver.js";
 import type { Loaded } from "./load.js";
 import type { ExpandedItem, LoadedSource, SourceEntry } from "./sources.js";
 
@@ -17,7 +17,7 @@ export interface LoadedPermutation {
     }[];
 }
 
-type Built = Pick<Loaded, "modifiers" | "usedBy" | "permutations">;
+type Built = Pick<Loaded, "usedBy" | "permutations">;
 
 export interface PermutationOptions {
     inputs?: Record<string, unknown>[];
@@ -34,7 +34,6 @@ interface Modifier {
 
 export function fromTokenFiles(files: { path: string; json?: JsonFile }[]): Built {
     return {
-        modifiers: {},
         usedBy: Object.fromEntries(files.map(({ path }) => [path, "everyone"])),
         permutations: [
             {
@@ -50,7 +49,7 @@ export function fromTokenFiles(files: { path: string; json?: JsonFile }[]): Buil
 }
 
 export function fromResolver(
-    resolver: Resolver,
+    resolver: CheckedResolver,
     items: ExpandedItem[],
     sources: Map<SourceEntry, LoadedSource>,
     options: PermutationOptions,
@@ -59,12 +58,6 @@ export function fromResolver(
     const modifiers = modifiersOf(items);
     const inputs = chooseInputs(modifiers, options, { diagnostics, file: resolver.file });
     return {
-        modifiers: Object.fromEntries(
-            modifiers.map(({ name, contexts, default: fallback }) => [
-                name,
-                { contexts, ...(fallback !== undefined && { default: fallback }) },
-            ]),
-        ),
         usedBy: whoUsesEachFile(items, sources),
         permutations: inputs.map((input) => ({
             input,
@@ -244,7 +237,7 @@ function withDefaults(modifiers: Modifier[], chosen: Input): Input {
 }
 
 function sourcesFor(
-    resolver: Resolver,
+    resolver: CheckedResolver,
     items: ExpandedItem[],
     sources: Map<SourceEntry, LoadedSource>,
     input: Input,
@@ -268,7 +261,7 @@ function sourcesFor(
 }
 
 function described(
-    resolver: Resolver,
+    resolver: CheckedResolver,
     sources: Map<SourceEntry, LoadedSource>,
     entry: SourceEntry,
     from: Source["from"],

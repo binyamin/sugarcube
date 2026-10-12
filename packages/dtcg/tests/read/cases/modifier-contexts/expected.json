@@ -1,10 +1,69 @@
 {
   "entry": "tokens.resolver.json",
   "spec": "Resolver 4.1.5.1: MUST throw for 0 contexts, SHOULD for 1 (old sugarcube also refuses 1); 4.1.5.3: a default MUST be one of the contexts",
-  "modifiers": {
-    "theme": {
-      "contexts": ["light", "dark"]
-    }
+  "resolver": {
+    "file": "tokens.resolver.json",
+    "version": "2025.10",
+    "sets": [],
+    "modifiers": [
+      {
+        "name": "theme",
+        "contexts": [
+          {
+            "name": "light",
+            "sources": [],
+            "at": {
+              "file": "tokens.resolver.json",
+              "offset": 157,
+              "length": 2,
+              "start": {
+                "line": 6,
+                "column": 39
+              },
+              "end": {
+                "line": 6,
+                "column": 41
+              }
+            }
+          },
+          {
+            "name": "dark",
+            "sources": [],
+            "at": {
+              "file": "tokens.resolver.json",
+              "offset": 169,
+              "length": 2,
+              "start": {
+                "line": 6,
+                "column": 51
+              },
+              "end": {
+                "line": 6,
+                "column": 53
+              }
+            }
+          }
+        ],
+        "at": {
+          "file": "tokens.resolver.json",
+          "offset": 132,
+          "length": 62,
+          "start": {
+            "line": 6,
+            "column": 14
+          },
+          "end": {
+            "line": 6,
+            "column": 76
+          }
+        }
+      }
+    ],
+    "order": [
+      {
+        "modifier": "theme"
+      }
+    ]
   },
   "diagnostics": [
     {
@@ -67,6 +126,46 @@
         "end": {
           "line": 6,
           "column": 74
+        }
+      }
+    },
+    {
+      "kind": "not-in-resolution-order",
+      "detail": {
+        "item": "modifier",
+        "name": "empty"
+      },
+      "at": {
+        "file": "tokens.resolver.json",
+        "offset": 56,
+        "length": 18,
+        "start": {
+          "line": 4,
+          "column": 14
+        },
+        "end": {
+          "line": 4,
+          "column": 32
+        }
+      }
+    },
+    {
+      "kind": "not-in-resolution-order",
+      "detail": {
+        "item": "modifier",
+        "name": "only"
+      },
+      "at": {
+        "file": "tokens.resolver.json",
+        "offset": 88,
+        "length": 29,
+        "start": {
+          "line": 5,
+          "column": 13
+        },
+        "end": {
+          "line": 5,
+          "column": 42
         }
       }
     }

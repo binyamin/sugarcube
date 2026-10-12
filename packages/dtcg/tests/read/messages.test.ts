@@ -315,6 +315,10 @@ const examples: { [K in DiagnosticKind]: DiagnosticDetailByKind[K][] } = {
     ],
     "permutation-limit": [{ count: 16384, limit: 64, built: 15 }],
     "no-default": [{ modifiers: ["size"] }, { modifiers: ["size", "theme"] }],
+    "not-in-resolution-order": [
+        { item: "set", name: "palette" },
+        { item: "modifier", name: "density" },
+    ],
     "deprecated-reference": [{ ref: "color.old" }, { ref: "color.old", reason: "use color.brand" }],
 };
 

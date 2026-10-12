@@ -1,13 +1,108 @@
 {
   "entry": "tokens.resolver.json",
   "spec": "Resolver 4.2.2: keys beside $ref override the target's, and the result is checked as a whole; a problem in the target is reported once, where it is written",
-  "modifiers": {
-    "theme": {
-      "contexts": ["light", "dark"]
-    },
-    "size": {
-      "contexts": ["only"]
-    }
+  "resolver": {
+    "file": "tokens.resolver.json",
+    "version": "2025.10",
+    "sets": [],
+    "modifiers": [
+      {
+        "name": "theme",
+        "contexts": [
+          {
+            "name": "light",
+            "sources": [],
+            "at": {
+              "file": "tokens.resolver.json",
+              "offset": 81,
+              "length": 2,
+              "start": {
+                "line": 4,
+                "column": 39
+              },
+              "end": {
+                "line": 4,
+                "column": 41
+              }
+            }
+          },
+          {
+            "name": "dark",
+            "sources": [],
+            "at": {
+              "file": "tokens.resolver.json",
+              "offset": 93,
+              "length": 2,
+              "start": {
+                "line": 4,
+                "column": 51
+              },
+              "end": {
+                "line": 4,
+                "column": 53
+              }
+            }
+          }
+        ],
+        "at": {
+          "file": "tokens.resolver.json",
+          "offset": 56,
+          "length": 63,
+          "start": {
+            "line": 4,
+            "column": 14
+          },
+          "end": {
+            "line": 4,
+            "column": 77
+          }
+        }
+      },
+      {
+        "name": "size",
+        "description": "one context, reported once",
+        "contexts": [
+          {
+            "name": "only",
+            "sources": [],
+            "at": {
+              "file": "tokens.resolver.json",
+              "offset": 157,
+              "length": 2,
+              "start": {
+                "line": 5,
+                "column": 37
+              },
+              "end": {
+                "line": 5,
+                "column": 39
+              }
+            }
+          }
+        ],
+        "at": {
+          "file": "tokens.resolver.json",
+          "offset": 133,
+          "length": 30,
+          "start": {
+            "line": 5,
+            "column": 13
+          },
+          "end": {
+            "line": 5,
+            "column": 43
+          }
+        }
+      }
+    ],
+    "order": [
+      {
+        "modifier": "theme"
+      },
+      {
+        "modifier": "size"
+      }
+    ]
   },
   "diagnostics": [
     {

@@ -188,6 +188,11 @@ const expectedFailures: Expected[] = [
             d.detail.owner === "resolver",
     },
     {
+        project: "packages/core/tests/__fixtures__/resolver/circular-b.resolver.json",
+        why: "declares a set and an empty resolutionOrder, the target circular-a points at; nothing reaches the set, so it takes no part (Resolver 4.1.6) and is reported as a hint",
+        matches: (d) => d.kind === "not-in-resolution-order" && d.detail.name === "b",
+    },
+    {
         project: "packages/core/tests/__fixtures__/resolver/circular-a.resolver.json",
         why: "names circular-b, a resolver, as a token source, to test that it is refused",
         matches: (d) => d.kind === "resolver-invalid" && d.detail.rule === "resolver-as-source",

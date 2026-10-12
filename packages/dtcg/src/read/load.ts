@@ -1,4 +1,4 @@
-import type { Diagnostic, Input } from "../index.js";
+import type { Diagnostic, Input, Resolver } from "../index.js";
 import {
     type Answer,
     type FileText,
@@ -15,13 +15,14 @@ import {
     fromTokenFiles,
 } from "./permutations.js";
 import { checkResolver, isResolver } from "./resolver.js";
+import { resolverPart } from "./resolver-part.js";
 import { entriesOf, expandSources, filesNamedBy, openSources } from "./sources.js";
 
 export interface Loaded {
     files: string[];
     texts: Record<string, string>;
     entry: string;
-    modifiers: Record<string, { contexts: string[]; default?: string }>;
+    resolver?: Resolver;
     usedBy: Record<string, "everyone" | Input[]>;
     permutations: LoadedPermutation[];
     diagnostics: Diagnostic[];
@@ -37,7 +38,7 @@ export function* load(
     yield* fetchFiles(files, [entry]);
 
     const root = parseFile(files, entry)?.root;
-    const loaded = (built: Pick<Loaded, "modifiers" | "usedBy" | "permutations">): Loaded => ({
+    const loaded = (built: Pick<Loaded, "resolver" | "usedBy" | "permutations">): Loaded => ({
         files: used,
         texts: textsOf(files.texts, used),
         entry,
@@ -49,14 +50,18 @@ export function* load(
     }
 
     const file = openFile(files, entry, "resolver");
-    if (!file) return loaded({ modifiers: {}, usedBy: {}, permutations: [] });
+    if (!file) return loaded({ usedBy: {}, permutations: [] });
 
     const resolver = checkResolver(file, diagnostics);
-    const items = expandSources(resolver, diagnostics);
+    const { items, setsUsed } = expandSources(resolver, diagnostics);
     const entries = entriesOf(items);
     yield* fetchFiles(files, filesNamedBy(resolver, entries));
     const sources = openSources(files, resolver, entries);
-    return loaded(fromResolver(resolver, items, sources, options, diagnostics));
+    const part = resolverPart(resolver, setsUsed, diagnostics);
+    return loaded({
+        resolver: part,
+        ...fromResolver(resolver, items, sources, options, diagnostics),
+    });
 }
 
 function textsOf(texts: Map<string, FileText>, used: string[]): Record<string, string> {

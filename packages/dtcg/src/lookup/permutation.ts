@@ -1,4 +1,4 @@
-import type { CompleteInput, Document, Input, Permutation } from "../index.js";
+import type { CompleteInput, Document, Input, Permutation, ResolverModifier } from "../index.js";
 import { findByName } from "../read/permutations.js";
 
 /**
@@ -14,7 +14,7 @@ import { findByName } from "../read/permutations.js";
 export function permutation(doc: Document, input: Input = {}): Permutation | undefined {
     const complete = completeInput(doc, input);
     if (!complete.ok) return undefined;
-    const names = Object.keys(doc.modifiers);
+    const names = modifiersOf(doc).map(({ name }) => name);
     return doc.permutations.find((each) =>
         names.every((name) => each.input[name] === complete.input[name]),
     );
@@ -46,22 +46,36 @@ export function chosenPermutation(
  * completeInput(doc, { theme: "sepia" })  // { ok: false, reason: "unknown-context", modifier: "theme", context: "sepia" }
  */
 export function completeInput(doc: Document, input: Input): CompleteInput {
-    const names = Object.keys(doc.modifiers);
     const full: Input = {};
     for (const [key, value] of Object.entries(input)) {
-        const name = findByName(names, key, (each) => each);
-        if (name === undefined) return { ok: false, reason: "unknown-modifier", modifier: key };
-        const contexts = doc.modifiers[name]?.contexts ?? [];
-        const context = findByName(contexts, value, (each) => each);
+        const found = modifier(doc, key);
+        if (!found) return { ok: false, reason: "unknown-modifier", modifier: key };
+        const context = findByName(found.contexts, value, ({ name }) => name);
         if (context === undefined) {
-            return { ok: false, reason: "unknown-context", modifier: name, context: value };
+            return { ok: false, reason: "unknown-context", modifier: found.name, context: value };
         }
-        full[name] = context;
+        full[found.name] = context.name;
     }
-    for (const name of names) {
-        const context = full[name] ?? doc.modifiers[name]?.default;
+    for (const { name, default: fallback } of modifiersOf(doc)) {
+        const context = full[name] ?? fallback;
         if (context === undefined) return { ok: false, reason: "no-default", modifier: name };
         full[name] = context;
     }
     return { ok: true, input: full };
+}
+
+/**
+ * A modifier that takes part, by its name, whatever its case, as the resolver spec asks; with its
+ * contexts and default, as {@link Resolver} has them.
+ *
+ * @example
+ * modifier(doc, "mode")?.default                       // "light"
+ * modifier(doc, "mode")?.contexts.map(({ name }) => name) // ["light", "dark"]
+ */
+export function modifier(doc: Document, name: string): ResolverModifier | undefined {
+    return findByName(modifiersOf(doc), name, (each) => each.name);
+}
+
+function modifiersOf(doc: Document): ResolverModifier[] {
+    return doc.resolver?.modifiers ?? [];
 }

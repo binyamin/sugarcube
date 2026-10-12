@@ -3,6 +3,7 @@ import {
     type Document,
     type Input,
     type Permutation,
+    modifier,
     permutation as permutationFor,
 } from "@sugarcube-sh/dtcg";
 import type { InternalConfig } from "../../types/config.js";
@@ -102,7 +103,7 @@ function entries(
 
 function derivedSelector(doc: Document, input: Input): string {
     const changed = Object.entries(input).find(
-        ([name, context]) => context !== doc.modifiers[name]?.default,
+        ([name, context]) => context !== modifier(doc, name)?.default,
     );
     return changed ? `[data-${changed[0]}="${changed[1]}"]` : ":root";
 }

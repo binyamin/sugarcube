@@ -210,7 +210,7 @@ function toDocument(
 
     return {
         files: loaded.files,
-        modifiers: loaded.modifiers,
+        ...(loaded.resolver && { resolver: loaded.resolver }),
         usedBy: loaded.usedBy,
         permutations,
         parseOptions,

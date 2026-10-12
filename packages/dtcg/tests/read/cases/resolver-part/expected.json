@@ -1,0 +1,94 @@
+{
+  "entry": "tokens.resolver.json",
+  "spec": "Resolver 4.1 to 4.3, 4.1.6.1 and 4.2.2: an inline set is listed like any other, and a key written beside a $ref in resolutionOrder is in effect, also for a set another set names; the resolver's name, description and version, each set's and modifier's description and $extensions, contexts and default, kept as written; a set named inside a set takes part (4.1.5.1); only what resolutionOrder reaches takes part (4.1.6), the rest reported as unnecessary; sets and modifiers listed in written order, a modifier named like a whole number included",
+  "resolver": {
+    "file": "tokens.resolver.json",
+    "version": "2025.10",
+    "name": "Acme",
+    "description": "Acme's tokens",
+    "sets": [
+      {
+        "name": "base",
+        "description": "Shared by every theme, as used here",
+        "extensions": { "com.example": { "tier": 1 } },
+        "sources": [
+          { "set": "palette" },
+          { "file": "all.json", "pointer": "#/base" },
+          { "file": "tokens.resolver.json", "pointer": "#/sets/base/sources/2" }
+        ],
+        "at": { "file": "tokens.resolver.json", "valueAfter": "\"base\":" }
+      },
+      {
+        "name": "palette",
+        "description": "Named here as well as inside base",
+        "sources": [{ "file": "palette.json" }],
+        "at": { "file": "tokens.resolver.json", "valueAfter": "\"palette\":" }
+      },
+      {
+        "name": "local",
+        "sources": [],
+        "at": {
+          "file": "tokens.resolver.json",
+          "text": "{ \"type\": \"set\", \"name\": \"local\", \"sources\": [] }"
+        }
+      }
+    ],
+    "modifiers": [
+      {
+        "name": "mode",
+        "description": "Colour mode",
+        "extensions": { "com.example": { "picker": "toggle" } },
+        "contexts": [
+          {
+            "name": "light",
+            "sources": [],
+            "at": { "file": "tokens.resolver.json", "valueAfter": "\"light\":" }
+          },
+          {
+            "name": "dark",
+            "sources": [{ "file": "all.json", "pointer": "#/dark" }],
+            "at": { "file": "tokens.resolver.json", "valueAfter": "\"dark\":" }
+          }
+        ],
+        "default": "light",
+        "at": { "file": "tokens.resolver.json", "valueAfter": "\"mode\":" }
+      },
+      {
+        "name": "2025",
+        "contexts": [
+          {
+            "name": "a",
+            "sources": [],
+            "at": { "file": "tokens.resolver.json", "valueAfter": "\"a\":" }
+          },
+          {
+            "name": "b",
+            "sources": [],
+            "at": { "file": "tokens.resolver.json", "valueAfter": "\"b\":" }
+          }
+        ],
+        "default": "a",
+        "at": { "file": "tokens.resolver.json", "valueAfter": "\"2025\":" }
+      }
+    ],
+    "order": [
+      { "set": "base" },
+      { "modifier": "mode" },
+      { "modifier": "2025" },
+      { "set": "local" },
+      { "set": "palette" }
+    ]
+  },
+  "diagnostics": [
+    {
+      "kind": "not-in-resolution-order",
+      "detail": { "item": "set", "name": "spareSet" },
+      "at": { "file": "tokens.resolver.json", "valueAfter": "\"spareSet\":" }
+    },
+    {
+      "kind": "not-in-resolution-order",
+      "detail": { "item": "modifier", "name": "spareModifier" },
+      "at": { "file": "tokens.resolver.json", "valueAfter": "\"spareModifier\":" }
+    }
+  ]
+}

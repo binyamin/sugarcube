@@ -607,11 +607,15 @@ describe("labels", () => {
 });
 
 describe("what a Document holds", () => {
-    it("is the files, the modifiers, who uses each file, the permutations, how values were read and the problems", () => {
-        const doc = readFromMemory({ files: { "tokens.json": valid } });
+    it("is the files, the resolver part, who uses each file, the permutations, how values were read and the problems", () => {
+        const resolver = JSON.stringify({ version: "2025.10", resolutionOrder: [] });
+        const doc = readFromMemory({
+            files: { "tokens.resolver.json": resolver },
+            entry: "tokens.resolver.json",
+        });
         expect(Object.keys(doc)).toStrictEqual([
             "files",
-            "modifiers",
+            "resolver",
             "usedBy",
             "permutations",
             "parseOptions",
@@ -668,5 +672,31 @@ describe("the top level of a file, to a generator or an extension check", () => 
         const problem = doc.diagnostics.find(({ kind }) => kind === "extension-invalid");
         expect(problem).toBeDefined();
         expect(problem && "path" in problem).toBe(false);
+    });
+});
+
+describe("the resolver part", () => {
+    it("is absent for a token file read without a resolver", () => {
+        expect(readFromMemory({ files: { "tokens.json": valid } }).resolver).toBeUndefined();
+    });
+
+    it("reports a set or modifier resolutionOrder never reaches as a hint editors fade", () => {
+        const resolver = JSON.stringify({
+            version: "2025.10",
+            sets: { spare: { sources: [] } },
+            resolutionOrder: [],
+        });
+        const doc = readFromMemory({
+            files: { "tokens.resolver.json": resolver },
+            entry: "tokens.resolver.json",
+        });
+        expect(doc.diagnostics).toMatchObject([
+            {
+                kind: "not-in-resolution-order",
+                severity: "hint",
+                tags: ["unnecessary"],
+                detail: { item: "set", name: "spare" },
+            },
+        ]);
     });
 });

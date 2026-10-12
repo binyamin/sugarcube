@@ -7,6 +7,7 @@ import {
     defaultPermutation,
     errors,
     group,
+    modifier,
     permutation,
     permutationLabel,
     readFromMemory,
@@ -208,6 +209,20 @@ describe("tokenPaths", () => {
         const listed = tokenPaths(doc);
         listed.reverse();
         expect(tokenPaths(doc)[0]).toBe("px");
+    });
+});
+
+describe("modifier", () => {
+    it("finds a modifier that takes part by its name, whatever its case", () => {
+        expect(modifier(doc, "Theme")).toMatchObject({ name: "theme", default: "light" });
+        expect(modifier(doc, "theme")?.contexts.map(({ name }) => name)).toStrictEqual([
+            "light",
+            "dark",
+        ]);
+    });
+
+    it("is undefined for a name the resolver doesn't use", () => {
+        expect(modifier(doc, "brand")).toBeUndefined();
     });
 });
 

@@ -1,14 +1,55 @@
 {
   "entry": "tokens.resolver.json",
-  "spec": "Resolver 4.1.6: only modifiers in resolutionOrder take part; 4.2.2: a key beside $ref overrides the target's",
-  "modifiers": {
-    "theme": {
-      "contexts": ["light", "dark"],
-      "default": "dark"
-    },
-    "brand": {
-      "contexts": ["house", "ocean"]
-    }
+  "spec": "Resolver 4.1.6: only modifiers in resolutionOrder take part, and one that takes none is reported as unnecessary; 4.2.2: a key beside $ref overrides the target's, so the resolver part shows the modifier as in effect",
+  "resolver": {
+    "file": "tokens.resolver.json",
+    "version": "2025.10",
+    "sets": [],
+    "modifiers": [
+      {
+        "name": "theme",
+        "contexts": [
+          {
+            "name": "light",
+            "sources": [],
+            "at": { "file": "tokens.resolver.json", "valueAfter": "\"light\":" }
+          },
+          {
+            "name": "dark",
+            "sources": [],
+            "at": { "file": "tokens.resolver.json", "valueAfter": "\"dark\":" }
+          }
+        ],
+        "default": "dark",
+        "at": { "file": "tokens.resolver.json", "valueAfter": "\"theme\":" }
+      },
+      {
+        "name": "brand",
+        "contexts": [
+          {
+            "name": "house",
+            "sources": [],
+            "at": { "file": "tokens.resolver.json", "valueAfter": "\"house\":" }
+          },
+          {
+            "name": "ocean",
+            "sources": [],
+            "at": { "file": "tokens.resolver.json", "valueAfter": "\"ocean\":" }
+          }
+        ],
+        "at": {
+          "file": "tokens.resolver.json",
+          "text": "{ \"type\": \"modifier\", \"name\": \"brand\", \"contexts\": { \"house\": [], \"ocean\": [] } }"
+        }
+      }
+    ],
+    "order": [{ "modifier": "theme" }, { "modifier": "brand" }]
   },
-  "diagnostics": []
+  "diagnostics": [
+    {
+      "kind": "not-in-resolution-order",
+      "detail": { "item": "modifier", "name": "unused" },
+      "at": { "file": "tokens.resolver.json", "valueAfter": "\"unused\":" }
+    }
+  ]
 }

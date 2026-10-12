@@ -34,13 +34,21 @@ export interface SourceNode {
 export interface SetDefinition {
     name: string;
     sources: SourceNode[];
+    description?: string;
     extensions?: Node;
+    declared: Node;
+}
+
+export interface ContextDefinition {
+    sources: SourceNode[];
+    declared: Node;
 }
 
 export interface ModifierDefinition {
     name: string;
-    contexts: Map<string, SourceNode[]>;
+    contexts: Map<string, ContextDefinition>;
     default?: string;
+    description?: string;
     extensions?: Node;
     declared: Node;
 }
@@ -49,8 +57,11 @@ export type ResolverItem =
     | { kind: "set"; set: SetDefinition }
     | { kind: "modifier"; modifier: ModifierDefinition };
 
-export interface Resolver {
+export interface CheckedResolver {
     file: JsonFile;
+    version?: string;
+    name?: string;
+    description?: string;
     sets: Map<string, SetDefinition>;
     modifiers: Map<string, ModifierDefinition>;
     order: ResolverItem[];
@@ -86,7 +97,7 @@ export function isResolver(root: Node): boolean {
     );
 }
 
-export function checkResolver(file: JsonFile, diagnostics: Diagnostic[]): Resolver {
+export function checkResolver(file: JsonFile, diagnostics: Diagnostic[]): CheckedResolver {
     const reader = createReader(file, diagnostics);
     const root: Place = { node: file.root, path: [] };
 
@@ -94,14 +105,22 @@ export function checkResolver(file: JsonFile, diagnostics: Diagnostic[]): Resolv
     if (version?.type !== "string" || version.value !== "2025.10") {
         reader.report({ rule: "version", name: "version", at: ["version"] }, version ?? root.node);
     }
-    optional(reader, root, "name", "string");
-    optional(reader, root, "description", "string");
+    const name = optional(reader, root, "name", "string");
+    const description = optional(reader, root, "description", "string");
     reader.checkKeys(root, "resolver", ROOT_KEYS);
 
     const sets = readAll(reader, root, "sets", readSet);
     const modifiers = readAll(reader, root, "modifiers", readModifier);
     const order = readOrder(reader, root, sets, modifiers);
-    return { file, sets, modifiers, order };
+    return {
+        file,
+        ...(version?.type === "string" && { version: version.value as string }),
+        ...(name && { name: name.value as string }),
+        ...(description && { description: description.value as string }),
+        sets,
+        modifiers,
+        order,
+    };
 }
 
 export function resolverProblem(
@@ -188,10 +207,11 @@ function readSources(reader: Reader, list: Place, label: string): SourceNode[] {
 }
 
 export function readSetParts(reader: Reader, owner: Place): Partial<SetDefinition> {
-    optional(reader, owner, "description", "string");
+    const description = optional(reader, owner, "description", "string");
     const extensions = optional(reader, owner, "$extensions", "object");
     const list = optional(reader, owner, "sources", "array");
     return {
+        ...(description && { description: description.value as string }),
         ...(list && {
             sources: readSources(
                 reader,
@@ -211,7 +231,7 @@ function readSet(
 ): SetDefinition {
     reader.checkKeys(owner, "set", [...SET_KEYS, ...alsoKnown]);
     present(reader, owner, "sources");
-    return { name, sources: [], ...readSetParts(reader, owner) };
+    return { name, sources: [], declared: owner.node, ...readSetParts(reader, owner) };
 }
 
 function readModifierParts(
@@ -219,12 +239,12 @@ function readModifierParts(
     owner: Place,
     name: string,
 ): Partial<ModifierDefinition> {
-    optional(reader, owner, "description", "string");
+    const description = optional(reader, owner, "description", "string");
     const extensions = optional(reader, owner, "$extensions", "object");
     const map = optional(reader, owner, "contexts", "object");
     const fallback = optional(reader, owner, "default", "string");
 
-    let contexts: Map<string, SourceNode[]> | undefined;
+    let contexts: Map<string, ContextDefinition> | undefined;
     if (map) {
         const at = [...owner.path, "contexts"];
         const entries = members(map);
@@ -234,11 +254,13 @@ function readModifierParts(
             entries.map(({ key, value }) => {
                 const path = [...at, key];
                 const list = reader.expect(value, "array", key, path);
-                return [key, list ? readSources(reader, { node: value, path }, key) : []];
+                const sources = list ? readSources(reader, { node: value, path }, key) : [];
+                return [key, { sources, declared: value }];
             }),
         );
     }
     return {
+        ...(description && { description: description.value as string }),
         ...(contexts && { contexts }),
         ...(fallback && { default: fallback.value as string }),
         ...(extensions && { extensions }),

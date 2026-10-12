@@ -578,6 +578,70 @@ export interface Source {
     extensions?: Record<string, unknown>;
 }
 
+/**
+ * What the resolver says about itself and how it is put together (Resolver 4): its name and
+ * description, the spec version it declares, and the sets and modifiers that take part, each as it
+ * is in effect, with keys written beside a `$ref` applied (Resolver 4.2.2), and where it is written.
+ * A set or modifier `resolutionOrder` never reaches takes no part (Resolver 4.1.6): it is left out
+ * here and reported as a hint. A set a source points inside of, such as `#/sets/palette/sources/0`,
+ * is left out too, as it doesn't take part as a set, but isn't reported, as part of it is read.
+ *
+ * @example
+ * doc.resolver?.name                         // "Acme"
+ * doc.resolver?.modifiers.map(({ name }) => name) // ["mode", "density"]
+ */
+export interface Resolver {
+    /** The resolver, as {@link Document.files} names it. */
+    file: string;
+    /** The spec version the resolver declares, such as `"2025.10"`. */
+    version?: string;
+    name?: string;
+    description?: string;
+    /** The sets that take part, in the order they are written. */
+    sets: ResolverSet[];
+    /** The modifiers that take part, in the order they are written. */
+    modifiers: ResolverModifier[];
+    /** `resolutionOrder`, each item by its name. */
+    order: ({ set: string } | { modifier: string })[];
+}
+
+/** A set that takes part, as it is in effect. */
+export interface ResolverSet {
+    name: string;
+    description?: string;
+    /** The set's own `$extensions`, passed through untouched. */
+    extensions?: Record<string, unknown>;
+    /** Its sources, in order, as written. */
+    sources: SourceRef[];
+    /** Where it is written: under `sets`, or inline in `resolutionOrder`. */
+    at: Span;
+}
+
+/** A modifier that takes part, as it is in effect. */
+export interface ResolverModifier {
+    name: string;
+    description?: string;
+    /** The modifier's own `$extensions`, passed through untouched. */
+    extensions?: Record<string, unknown>;
+    /** Its contexts, in the order they are written, each with its sources. */
+    contexts: { name: string; sources: SourceRef[]; at: Span }[];
+    default?: string;
+    /** Where it is written: under `modifiers`, or inline in `resolutionOrder`. */
+    at: Span;
+}
+
+/**
+ * A source as the resolver writes it: a file, or part of one, as {@link Document.files} names it,
+ * or a set it names. Tokens written in the resolver are part of the resolver, with a pointer to
+ * where they sit.
+ *
+ * @example
+ * { file: "dark.json" }
+ * { file: "all.json", pointer: "#/dark" }
+ * { set: "palette" }
+ */
+export type SourceRef = { file: string; pointer?: string } | { set: string };
+
 /** The tokens that result from one input. */
 export interface Permutation {
     input: Input;
@@ -786,6 +850,12 @@ export interface DiagnosticDetailByKind {
      * none, some contexts could not be built on their own.
      */
     "no-default": { modifiers: string[] };
+    /**
+     * A set or modifier the resolver declares that `resolutionOrder` never reaches, so it takes no
+     * part (Resolver 4.1.6). A hint at where it is written, tagged `unnecessary` so an editor can
+     * fade it.
+     */
+    "not-in-resolution-order": { item: "set" | "modifier"; name: string };
 }
 
 /**
@@ -930,8 +1000,8 @@ export interface Document {
      * reloading. Paths are as described at {@link ReadText}.
      */
     files: string[];
-    /** The modifiers the resolver declares, with their contexts and defaults. */
-    modifiers: Record<string, { contexts: string[]; default?: string }>;
+    /** What the resolver says about itself and how it is put together; absent with no resolver. */
+    resolver?: Resolver;
     /**
      * Which permutations use each file: `"everyone"` for a file in a set, otherwise the contexts
      * whose permutations read it. For deciding which file an edit belongs in.
@@ -946,7 +1016,10 @@ export interface Document {
      * `$extensions`, the same way, give these to `parseValue` or `extensionReader`.
      */
     parseOptions: Required<ParseOptions>;
-    /** Every error, warning and note, in file order. {@link errors} picks out the errors. */
+    /**
+     * Every error, warning and note, in the order the read found them; sort by `at` for file order.
+     * {@link errors} picks out the errors.
+     */
     diagnostics: Diagnostic[];
 }
 
@@ -1238,7 +1311,7 @@ export interface Project {
 }
 
 export { childPath, forbiddenInName, movedPath, parentOf, pathBelow, withoutRoot } from "./path.js";
-export { completeInput, defaultPermutation, permutation } from "./lookup/permutation.js";
+export { completeInput, defaultPermutation, modifier, permutation } from "./lookup/permutation.js";
 export { permutationLabel } from "./lookup/permutation-label.js";
 
 /** What {@link completeInput} gives: the full input, or the modifier or context it could not match. */

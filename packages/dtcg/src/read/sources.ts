@@ -8,7 +8,7 @@ import { encodePointer, follow, parsePointer, readPointerText } from "./pointer.
 import {
     type ModifierDefinition,
     type Reader,
-    type Resolver,
+    type CheckedResolver,
     type SetDefinition,
     type SourceNode,
     createReader,
@@ -51,29 +51,40 @@ export interface LoadedSource {
     pieces?: LoadedSource[];
 }
 
-export function expandSources(resolver: Resolver, diagnostics: Diagnostic[]): ExpandedItem[] {
+export interface SetsUsed {
+    reached: Set<string>;
+    pointedInto: Set<string>;
+}
+
+export function expandSources(
+    resolver: CheckedResolver,
+    diagnostics: Diagnostic[],
+): { items: ExpandedItem[]; setsUsed: SetsUsed } {
+    const setsUsed: SetsUsed = { reached: new Set(), pointedInto: new Set() };
     const expander: Expander = {
         reader: createReader(resolver.file, diagnostics),
         root: resolver.file.root,
         sets: resolver.sets,
         expanded: new Map(),
+        setsUsed,
     };
     const expand = (sources: SourceNode[], holder?: SetDefinition) =>
         expandList(expander, sources, holder, []);
-    return resolver.order.map((item): ExpandedItem =>
+    const items = resolver.order.map((item): ExpandedItem =>
         item.kind === "set"
             ? { kind: "set", set: item.set, entries: expand(item.set.sources, item.set) }
             : {
                   kind: "modifier",
                   modifier: item.modifier,
                   contexts: new Map(
-                      [...item.modifier.contexts].map(([context, sources]) => [
+                      [...item.modifier.contexts].map(([context, { sources }]) => [
                           context,
                           expand(sources),
                       ]),
                   ),
               },
     );
+    return { items, setsUsed };
 }
 
 export function entriesOf(items: ExpandedItem[]): SourceEntry[] {
@@ -82,14 +93,14 @@ export function entriesOf(items: ExpandedItem[]): SourceEntry[] {
     );
 }
 
-export function filesNamedBy(resolver: Resolver, entries: SourceEntry[]): string[] {
+export function filesNamedBy(resolver: CheckedResolver, entries: SourceEntry[]): string[] {
     const folder = folderOf(resolver.file.path);
     return entries.flatMap((entry) => (entry.kind === "file" ? [join(folder, entry.file)] : []));
 }
 
 export function openSources(
     files: Files,
-    resolver: Resolver,
+    resolver: CheckedResolver,
     entries: SourceEntry[],
 ): Map<SourceEntry, LoadedSource> {
     const opened = new Map(entries.map((entry) => [entry, openSource(files, resolver, entry)]));
@@ -99,7 +110,7 @@ export function openSources(
     return opened;
 }
 
-function openSource(files: Files, resolver: Resolver, entry: SourceEntry): LoadedSource {
+function openSource(files: Files, resolver: CheckedResolver, entry: SourceEntry): LoadedSource {
     const overridden = entry.overriddenKeys && { overriddenKeys: entry.overriddenKeys };
     if (entry.kind === "inline") {
         return {
@@ -153,6 +164,7 @@ interface Expander {
     root: Node;
     sets: Map<string, SetDefinition>;
     expanded: Map<Node, Map<SetDefinition | undefined, SourceEntry[]>>;
+    setsUsed: SetsUsed;
 }
 
 function expandList(
@@ -186,7 +198,7 @@ function followSource(
     seen: string[],
     pointedFrom: SourceNode[] = [],
 ): SourceEntry[] {
-    const { reader, root, sets } = expander;
+    const { reader, root, sets, setsUsed } = expander;
     const refNode = member(source.node, "$ref");
     if (!refNode) return [{ kind: "inline", node: source.node, path: source.path, holder }];
 
@@ -196,10 +208,7 @@ function followSource(
     const overriding = [source, ...pointedFrom];
 
     if (!ref.startsWith("#")) {
-        const hash = ref.indexOf("#");
-        const fragment = hash === -1 ? "" : ref.slice(hash + 1);
-        const file = hash === -1 ? ref : ref.slice(0, hash);
-        const read = fragment === "" ? undefined : readPointerText(`#${fragment}`);
+        const { file, read } = fileRef(ref);
         if (read && !read.ok) {
             const corrected = `${file}${read.corrected}`;
             const detail = malformedPointer(ref, { ...read, corrected }, true);
@@ -236,13 +245,14 @@ function followSource(
         return [];
     }
 
-    const [collection, name, ...rest] = steps;
-    if (collection === "sets" && name !== undefined && rest.length === 0) {
+    const name = setNamed(steps);
+    if (name !== undefined) {
         const target = sets.get(name);
         if (!target) {
             reader.report({ rule: "unknown-set", name, at }, refNode);
             return [];
         }
+        setsUsed.reached.add(name);
         for (const each of overriding) reader.checkKeys(each, "set", ["$ref", ...SET_KEYS]);
         const set = overriding.some((each) => keysBeside(each).length > 0)
             ? Object.assign({ ...target }, ...overriding.map((each) => readSetParts(reader, each)))
@@ -255,6 +265,8 @@ function followSource(
         reader.report({ rule: "invalid-pointer", name: ref, at }, refNode);
         return [];
     }
+    const [collection, inside] = steps;
+    if (collection === "sets" && inside !== undefined) setsUsed.pointedInto.add(inside);
     if (!reader.expect(followed.node, "object", ref, at)) return [];
     const target = { node: followed.node, path: steps };
     if (member(target.node, "$ref")) {
@@ -262,6 +274,19 @@ function followSource(
     }
     const entries = expandSource(expander, target, holder, [...seen, ref]);
     return withOverrides(entries, overriding, holder);
+}
+
+export function setNamed(steps: string[]): string | undefined {
+    const [collection, name, ...rest] = steps;
+    return collection === "sets" && name !== undefined && rest.length === 0 ? name : undefined;
+}
+
+export function fileRef(ref: string): { file: string; read?: ReturnType<typeof readPointerText> } {
+    const hash = ref.indexOf("#");
+    if (hash === -1) return { file: ref };
+    const fragment = ref.slice(hash + 1);
+    const file = ref.slice(0, hash);
+    return fragment === "" ? { file } : { file, read: readPointerText(`#${fragment}`) };
 }
 
 function keysBeside(source: SourceNode): string[] {
