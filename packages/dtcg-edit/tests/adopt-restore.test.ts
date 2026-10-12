@@ -142,7 +142,7 @@ describe("adopt", () => {
 
     it("keeps the id of a path still there, forgets one gone, and gives a new path a new one", () => {
         const session = createSession(demo);
-        session.do(create(session.project, "color", "highlight", { $type: "color", $value: red }));
+        session.do(create(session.project, "color.highlight", { $type: "color", $value: red }));
         const made = session.idOf("color.highlight");
         const fresh = changed(demo, [
             ["radius.json", ["radius", "md"], undefined],

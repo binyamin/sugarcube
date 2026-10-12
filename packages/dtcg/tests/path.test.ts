@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { forbiddenInName, movedPath, pathBelow, withoutRoot } from "../src/index.js";
+import {
+    childPath,
+    forbiddenInName,
+    movedPath,
+    parentOf,
+    pathBelow,
+    withoutRoot,
+} from "../src/index.js";
 
 describe("withoutRoot", () => {
     it.for([
@@ -16,12 +23,45 @@ describe("pathBelow", () => {
         { path: "color.brand.ink", group: "color", expected: "brand.ink" },
         { path: "color.brand.ink", group: "color.brand", expected: "ink" },
         { path: "color.$root", group: "color", expected: "$root" },
-        { path: "color.ink", group: "", expected: "color.ink" },
+        { path: "color.ink", group: "", expected: undefined },
+        { path: ".x", group: "", expected: "x" },
         { path: "color", group: "color", expected: undefined },
         { path: "colors.ink", group: "color", expected: undefined },
         { path: "color", group: "color.brand", expected: undefined },
     ])("$path below $group is $expected", ({ path, group, expected }) => {
         expect(pathBelow(path, group)).toBe(expected);
+    });
+});
+
+describe("parentOf", () => {
+    it.for([
+        { path: "color.brand.500", expected: "color.brand" },
+        { path: "color.brand.$root", expected: "color.brand" },
+        { path: "color", expected: undefined },
+        { path: "", expected: undefined },
+        { path: ".x", expected: "" },
+    ])("$path is inside $expected", ({ path, expected }) => {
+        expect(parentOf(path)).toBe(expected);
+    });
+});
+
+describe("childPath", () => {
+    it.for([
+        { parent: "color.brand", name: "500", expected: "color.brand.500" },
+        { parent: "color", name: "$root", expected: "color.$root" },
+        { parent: undefined, name: "color", expected: "color" },
+        { parent: undefined, name: "", expected: "" },
+        { parent: "", name: "x", expected: ".x" },
+    ])("$name inside $parent is $expected", ({ parent, name, expected }) => {
+        expect(childPath(parent, name)).toBe(expected);
+    });
+
+    it("is undone by parentOf", () => {
+        for (const path of ["color.brand.500", "color", ".x", ""]) {
+            const parent = parentOf(path);
+            const name = parent === undefined ? path : path.slice(parent.length + 1);
+            expect(childPath(parent, name)).toBe(path);
+        }
     });
 });
 
@@ -53,5 +93,11 @@ describe("movedPath", () => {
         { path: "space.sm", expected: "space.sm" },
     ])("$path ends up at $expected", ({ path, expected }) => {
         expect(movedPath(path, moved)).toBe(expected);
+    });
+
+    it('carries what is inside the group named "", and nothing at the top level', () => {
+        const renamed = [{ from: "", to: "named" }];
+        expect(movedPath(".x", renamed)).toBe("named.x");
+        expect(movedPath("color", renamed)).toBe("color");
     });
 });

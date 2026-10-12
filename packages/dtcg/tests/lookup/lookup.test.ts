@@ -268,20 +268,21 @@ describe("tokensIn", () => {
         expect(paths(tokensIn(doc, "space"))).not.toContain("spacer.x");
     });
 
-    it("lists every token for the top level, whole-number names where the file writes them", () => {
-        expect(paths(tokensIn(doc, ""))).toStrictEqual([
-            "px",
-            "2",
-            "1",
-            "space.$root",
-            "space.sm",
-            "space.inset.lg",
-            "spacer.x",
-        ]);
+    it('takes "" as the group named "", never the top level of the files (Format 5.1)', () => {
+        expect(tokensIn(doc, "")).toStrictEqual([]);
+        const named = readFromMemory({
+            files: {
+                "tokens.json": JSON.stringify({
+                    "": { $type: "number", x: { $value: 1 } },
+                    "top": { $type: "number", $value: 2 },
+                }),
+            },
+        });
+        expect(paths(tokensIn(named, ""))).toStrictEqual([".x"]);
     });
 
     it("lists the tokens of the permutation an input names", () => {
-        expect(paths(tokensIn(doc, "", { theme: "dark" }))).toContain("glow");
+        expect(valueOf(tokensIn(doc, "space", { density: "compact" })[1])).toBe(2);
     });
 
     it("is empty for a path that is not a group, or an input that matches nothing", () => {
@@ -292,7 +293,6 @@ describe("tokensIn", () => {
     it("lists the tokens of a permutation already in hand", () => {
         const dark = permutation(doc, { theme: "dark" });
         if (!dark) throw new Error("no dark permutation");
-        expect(paths(tokensIn(dark, ""))).toContain("glow");
         expect(paths(tokensIn(dark, "space"))).toStrictEqual([
             "space.$root",
             "space.sm",

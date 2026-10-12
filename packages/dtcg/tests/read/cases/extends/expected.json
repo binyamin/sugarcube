@@ -85,13 +85,13 @@
           }
         },
         {
-          "path": "button-large.text",
+          "path": "button-large.state.focus",
           "inherited": {
             "from": "button-primary"
           }
         },
         {
-          "path": "button-large.state.focus",
+          "path": "button-large.text",
           "inherited": {
             "from": "button-primary"
           }

@@ -24,7 +24,7 @@ const refusalReasons: {
 } = {
     "not-found": ({ path }) => `there is no token or group \`${path}\``,
     "generated": ({ path, from, extension }) => {
-        const where = from === "" ? "at the top of its file" : `on \`${from}\``;
+        const where = from === undefined ? "at the top of its file" : `on \`${from}\``;
         return `\`${path}\` is generated from \`${extension.join(".")}\` ${where}; change the extension instead`;
     },
     "not-a-group": ({ path }) => `\`${path}\` is a token, so nothing can be made inside it`,

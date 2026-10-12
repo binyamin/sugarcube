@@ -38,7 +38,8 @@ export function token(from: Document | Permutation, path: string, input?: Input)
 }
 
 /**
- * The group at a path, in a permutation as {@link token} takes it.
+ * The group at a path, in a permutation as {@link token} takes it. `""` is the group named `""`
+ * (Format 5.1); the top level of the files has no path, and is {@link Permutation.root}.
  */
 export function group(doc: Document, path: string, input?: Input): Group | undefined;
 export function group(permutation: Permutation, path: string): Group | undefined;
@@ -50,7 +51,8 @@ export function group(from: Document | Permutation, path: string, input?: Input)
 /**
  * The tokens in a group, and in its subgroups, in file order, in a permutation as {@link token}
  * takes it. The group's own `$root` token is included; a sibling whose name merely starts the same
- * way is not. The path `""` is the top level, so every token.
+ * way is not. `""` is the group named `""`; for every token, read a permutation's
+ * {@link Permutation.tokens | tokens}.
  *
  * @example
  * tokensIn(doc, "space")   // space.xs, space.sm, … but not spacer.x

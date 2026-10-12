@@ -28,7 +28,7 @@ export interface CheckedExtension {
     messages?: ExtensionMessages | undefined;
     json: JsonFile;
     node: Node;
-    path: string;
+    path?: string | undefined;
     permutation: number;
 }
 
@@ -64,12 +64,15 @@ export function extensionDiagnostic(
     const at = ["$extensions", ...within, ...problem.path];
     if ("kind" in problem && problem.kind === "unknown-property") {
         const where = { node, steps: problem.path, json };
-        return ignoredDiagnostic(problem, at, where, { path, permutation });
+        return ignoredDiagnostic(problem, at, where, {
+            ...(path !== undefined && { path }),
+            permutation,
+        });
     }
     const found = deepestNode(node, problem.path);
     const extra = {
         at: spanOf(json.path, json.lineStarts, found.offset, found.length),
-        path,
+        ...(path !== undefined && { path }),
         permutation,
     };
     if ("kind" in problem) return valueDiagnostic(problem.detail, at, found, extra);

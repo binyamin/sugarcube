@@ -464,12 +464,12 @@ export interface TokenBase<T extends TokenType> {
     authored?: { value: unknown; typeDeclared: boolean; deprecatedDeclared: boolean };
     /**
      * Set when a {@link Generator} makes the token from an extension on the group at `from`, whether
-     * a file writes the token or it was added. `from` is `""` for an extension on the top level of a
-     * file, and `extension` is where the extension sits in the group's `$extensions`, as the
+     * a file writes the token or it was added. `from` is absent for an extension on the top level of
+     * a file, and `extension` is where the extension sits in the group's `$extensions`, as the
      * generator names it. An added token has no {@link TokenBase.authored | authored}, and its
      * {@link TokenBase.source | source} is the extension.
      */
-    generated?: { from: string; extension: [string, ...string[]] };
+    generated?: { from?: string; extension: [string, ...string[]] };
     /** Set when the token is here only because of `$extends`, or a `$ref` to another group, at `from`. */
     inherited?: { from: string };
 }
@@ -503,6 +503,31 @@ export interface Group {
     declaredIn: Span[];
     /** Set when the group is here only because of `$extends`, or a `$ref` to another group, at `from`. */
     inherited?: { from: string };
+    /**
+     * The paths directly inside it, tokens and groups together, in the order the files write them.
+     * What a later file adds comes after what the first one wrote, and tokens it takes through
+     * `$extends` or a {@link Generator} makes come at the end. To show one, look it up.
+     *
+     * @example
+     * for (const path of group(doc, "color")?.children ?? []) show(group(doc, path) ?? token(doc, path));
+     */
+    children: string[];
+}
+
+/**
+ * The top level of a permutation's files: what is written there, `$type`, `$description`,
+ * `$deprecated` and `$extensions`, and its {@link TopLevel.children | children}. It has no path,
+ * since a group may be named `""` (Format 5.1) and so own the empty path.
+ */
+export interface TopLevel {
+    type?: TokenType;
+    description?: string;
+    deprecated?: boolean | string;
+    extensions?: Record<string, unknown>;
+    /** The top of each file that writes something there. */
+    declaredIn: Span[];
+    /** The paths written at the top of the files, tokens and groups together, in order. */
+    children: string[];
 }
 
 /**
@@ -545,6 +570,8 @@ export interface Permutation {
     label: string;
     /** Where the tokens come from, in the order they apply: a later source overrides an earlier one. */
     sources: Source[];
+    /** The top level of the files, where a tree starts. */
+    root: TopLevel;
     /**
      * Every token, in the order the files write them, invalid ones included. The files read as
      * one: a group's tokens stay together where the group is first written, whichever file adds
@@ -688,8 +715,8 @@ export interface DiagnosticDetailByKind {
         /** How many layers or stops the token holds. */
         count: number;
     };
-    /** References that lead back to where they started. */
-    "circular-reference": { chain: string[] };
+    /** References that lead back to where they started; `toTopLevel` when the last refers to the whole document. */
+    "circular-reference": { chain: string[]; toTopLevel?: true };
     /** A reference points at a token of the wrong type. */
     "type-mismatch": { ref: string; expected: TokenType; found: TokenType };
     /** A name starts or ends with a space: legal, but almost always a typo. */
@@ -994,7 +1021,8 @@ export interface ExtensionValidator {
      */
     validate?(
         on: {
-            path: string;
+            /** Absent for the top level of a file. */
+            path?: string;
             /** The token's type, or `"group"`. */
             type: TokenType | "group";
         },
@@ -1089,7 +1117,8 @@ export interface Generator {
      */
     generate(
         group: {
-            path: string;
+            /** Absent for the top level of a file. */
+            path?: string;
             /** The type declared on the group, if any. */
             type?: TokenType;
         },
@@ -1197,7 +1226,7 @@ export interface TokenView {
 }
 
 export { byToken } from "./lookup/by-token.js";
-export { forbiddenInName, movedPath, pathBelow, withoutRoot } from "./path.js";
+export { childPath, forbiddenInName, movedPath, parentOf, pathBelow, withoutRoot } from "./path.js";
 export { completeInput, defaultPermutation, permutation } from "./lookup/permutation.js";
 
 /** What {@link completeInput} gives: the full input, or the modifier or context it could not match. */

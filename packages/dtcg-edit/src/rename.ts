@@ -2,9 +2,11 @@ import {
     type Document,
     type Move,
     type Project,
+    childPath,
     forbiddenInName,
     group,
     movedReference,
+    parentOf,
     pathBelow,
     token,
 } from "@sugarcube-sh/dtcg";
@@ -40,7 +42,7 @@ export function rename(project: Project, path: string, newName: string): OpResul
         groupCopies(project, path) ??
         refused({ kind: "not-found", path });
     if ("refused" in copies) return copies;
-    const to = renamedPath(path, newName);
+    const to = childPath(parentOf(path), newName);
     if (to === path) return { ops: [], alsoAffects: copies.alsoAffects, moved: [] };
     if (taken(project.doc, to)) return refused({ kind: "taken", path: to });
 
@@ -59,11 +61,6 @@ export function rename(project: Project, path: string, newName: string): OpResul
         return [{ kind: "set", file: place.span.file, path: at, value, was: place.written }];
     });
     return { ops: [...keys, ...references], alsoAffects: copies.alsoAffects, moved };
-}
-
-function renamedPath(path: string, name: string): string {
-    const dot = path.lastIndexOf(".");
-    return dot === -1 ? name : `${path.slice(0, dot)}.${name}`;
 }
 
 function taken(doc: Document, path: string): boolean {

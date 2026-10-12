@@ -12,6 +12,7 @@ import type {
 } from "../index.js";
 import { type SchemaOutput, checkSchema, extensionDiagnostic } from "./extension-check.js";
 import { type JsonFile, member } from "./json.js";
+import { everyGroup } from "./merge.js";
 import type { NormalisedPermutation } from "./normalise.js";
 
 type Checked = Parameters<NonNullable<ExtensionValidator["validate"]>>[0];
@@ -84,7 +85,7 @@ export function validateExtensions(
                 messages: validator.messages,
                 json,
                 node,
-                path: on.path,
+                ...(on.path !== undefined && { path: on.path }),
                 permutation,
             };
             for (const problem of problems) {
@@ -92,14 +93,15 @@ export function validateExtensions(
             }
         };
 
-        for (const group of [merged.root, ...merged.groups.values()]) {
+        for (const [path, group] of everyGroup(merged)) {
             for (const validator of validators) {
                 const at = group.extensionsAt?.[validator.key];
                 if (!at || !validator.appliesTo.includes("group")) continue;
                 const node = member(at.node, validator.key);
                 if (!node) continue;
                 const value = group.extensions?.[validator.key];
-                check(validator, { path: group.path, type: "group" }, value, at.json, node);
+                const on: Checked = { ...(path !== undefined && { path }), type: "group" };
+                check(validator, on, value, at.json, node);
             }
         }
 

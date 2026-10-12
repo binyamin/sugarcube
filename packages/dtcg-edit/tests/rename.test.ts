@@ -254,7 +254,7 @@ describe("rename, in a session", () => {
     it("gives a token made at the vacated path an id of its own", () => {
         const session = createSession(demo);
         session.do(rename(session.project, "color.brand", "primary"));
-        session.do(create(session.project, "color", "brand", { $value: red }));
+        session.do(create(session.project, "color.brand", { $value: red }));
 
         expect(session.idOf("color.brand")).toMatch(/^new:/);
         expect(session.pathOf("color.brand")).toBe("color.primary");

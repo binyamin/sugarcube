@@ -1,24 +1,15 @@
 // A sidebar tree of groups and tokens, nested, in the order the files list them.
-import { defaultPermutation, type Document } from "@sugarcube-sh/dtcg";
+import { defaultPermutation, group, type Document, type Permutation } from "@sugarcube-sh/dtcg";
 
 declare const doc: Document;
 
-type Node = { name: string; path: string; token: boolean; children: Node[] };
-const root: Node = { name: "", path: "", token: false, children: [] };
-const p = defaultPermutation(doc);
+type Node = { path: string; token: boolean; children: Node[] };
 
-function place(path: string, token: boolean): void {
-    let at = root;
-    const parts = path.split(".");
-    parts.forEach((name, i) => {
-        const sub = parts.slice(0, i + 1).join(".");
-        let child = at.children.find((c) => c.path === sub);
-        if (!child) {
-            child = { name, path: sub, token: token && i === parts.length - 1, children: [] };
-            at.children.push(child);
-        }
-        at = child;
-    });
+function node(p: Permutation, path: string): Node {
+    const found = group(p, path);
+    if (!found) return { path, token: true, children: [] };
+    return { path, token: false, children: found.children.map((child) => node(p, child)) };
 }
-for (const { path } of p?.groups ?? []) place(path, false);
-for (const { path } of p?.tokens ?? []) place(path, true);
+
+const p = defaultPermutation(doc);
+export const tree = p ? p.root.children.map((path) => node(p, path)) : [];

@@ -3,6 +3,8 @@
 import {
     acrossPermutations,
     defaultPermutation,
+    group,
+    token,
     tokensIn,
     type Document,
 } from "@sugarcube-sh/dtcg";
@@ -11,14 +13,15 @@ declare const doc: Document;
 const path = "color";
 
 const base = defaultPermutation(doc);
-const isChild = (p: string) => p.startsWith(`${path}.`) && !p.slice(path.length + 1).includes(".");
+const children = (base && group(base, path)?.children) ?? [];
 
-for (const group of base?.groups ?? []) {
-    if (isChild(group.path)) row(group.path, tokensIn(doc, group.path).length);
+for (const child of children) {
+    if (base && group(base, child)) row(child, tokensIn(base, child).length);
 }
 
-for (const t of base?.tokens ?? []) {
-    if (!isChild(t.path)) continue;
+for (const child of children) {
+    const t = base && token(base, child);
+    if (!t) continue;
     const overrides = acrossPermutations(doc, t.path)
         .filter((p) => p.overrides)
         .map((p) => `${p.label} in ${p.token.source.at.file}`);

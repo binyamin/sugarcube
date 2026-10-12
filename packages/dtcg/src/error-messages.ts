@@ -226,8 +226,8 @@ export const diagnosticMessages: { [K in DiagnosticKind]: Entry<K> } = {
     },
     "circular-reference": {
         severity: "error",
-        message: ({ chain }) =>
-            `these references lead back to where they started: ${chain.map((step) => step || "the top level").join(" → ")}`,
+        message: ({ chain, toTopLevel }) =>
+            `these references lead back to where they started: ${[...chain, ...(toTopLevel ? ["the top level"] : [])].join(" → ")}`,
     },
     "type-mismatch": {
         severity: "error",

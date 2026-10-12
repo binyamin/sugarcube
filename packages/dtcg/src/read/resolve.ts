@@ -4,17 +4,19 @@ import type {
     DiagnosticDetailByKind,
     DiagnosticKind,
     Edge,
+    Group,
     ParseResult,
     Permutation,
     Span,
     Token,
     TokenBase,
     TokenType,
+    TopLevel,
     ValueByType,
 } from "../index.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { inheritedDeprecation, inheritedType } from "./inherit.js";
-import type { Merged, MergedToken } from "./merge.js";
+import type { Merged, MergedGroup, MergedToken, MergedTopLevel } from "./merge.js";
 import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
 import type { LocatedReference, ValueReader } from "./parse-value.js";
 import { malformation } from "./malformed-pointer.js";
@@ -230,14 +232,50 @@ function resolvePermutation(
         });
     }
 
-    const { input, label, sources, groups } = permutation;
-    return { input, label, sources, tokens: built, groups, edges };
+    const kept = new Set(built.map(({ path }) => path));
+    const childrenOf = (parent: string | undefined) =>
+        (merged.children.get(parent) ?? []).filter(
+            (path) => kept.has(path) || merged.groups.has(path),
+        );
+    const toGroup = (group: MergedGroup) => publicGroup(group, childrenOf(group.path));
+    const { input, label, sources } = permutation;
+    return {
+        input,
+        label,
+        sources,
+        root: publicTopLevel(merged.root, childrenOf(undefined)),
+        tokens: built,
+        groups: [...merged.groups.values()].map(toGroup),
+        edges,
+    };
 }
 
 function targetOf(use: Occurrence, merged: Merged): string {
     if (use.kind === "alias") return use.target;
     const reached = reach(use.steps, merged);
     return reached.kind === "nothing" ? use.written : reached.path;
+}
+
+function publicTopLevel(root: MergedTopLevel, children: string[]): TopLevel {
+    const { type, description, deprecated, extensions, declaredIn } = root;
+    return {
+        ...(type !== undefined && type !== "unusable" && { type }),
+        ...(description !== undefined && { description }),
+        ...(deprecated !== undefined && { deprecated }),
+        ...(extensions && { extensions }),
+        declaredIn,
+        children,
+    };
+}
+
+function publicGroup(group: MergedGroup, children: string[]): Group {
+    const { path, extendsGroup, inherited } = group;
+    return {
+        path,
+        ...publicTopLevel(group, children),
+        ...(extendsGroup !== undefined && { extends: extendsGroup }),
+        ...(inherited && { inherited }),
+    };
 }
 
 function toToken<T extends TokenType>(

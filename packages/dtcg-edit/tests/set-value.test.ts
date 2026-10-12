@@ -444,6 +444,30 @@ describe("setValue, what it can't change", () => {
         });
     });
 
+    it("is refused for a token a generator makes at the top of a file, naming no group", () => {
+        const steps = defineGenerator({
+            extension: ["com.example", "steps"],
+            generate: () => ({ ok: true, value: [{ name: "one", $value: 1 }] }),
+        });
+        const files = {
+            "tokens.resolver.json": resolver([{ $ref: "./top.json" }]),
+            "top.json": JSON.stringify({
+                $type: "number",
+                $extensions: { "com.example": { steps: 1 } },
+            }),
+        };
+
+        const result = setValue(opened(files, { generators: [steps] }), "one", 2);
+        expect(result).toEqual({
+            refused: {
+                kind: "generated",
+                path: "one",
+                extension: ["com.example", "steps"],
+                reason: expect.stringContaining("at the top of its file"),
+            },
+        });
+    });
+
     it("is refused for a token a group inherits", () => {
         const files = {
             "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),

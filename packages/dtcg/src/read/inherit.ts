@@ -1,4 +1,5 @@
 import type { TokenType } from "../index.js";
+import { parentOf } from "../path.js";
 import type { Merged, MergedToken } from "./merge.js";
 import type { Properties } from "./walk.js";
 
@@ -33,9 +34,4 @@ function closest<K extends Inheritable>(path: string, merged: Merged, property: 
         return found;
     };
     return fromGroup(parentOf(path));
-}
-
-function parentOf(path: string): string | undefined {
-    const dot = path.lastIndexOf(".");
-    return dot === -1 ? undefined : path.slice(0, dot);
 }

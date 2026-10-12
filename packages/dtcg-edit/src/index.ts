@@ -67,7 +67,7 @@ export type FileOp =
  */
 export type Decision =
     | { kind: "placement"; path: string; candidates: string[] }
-    | { kind: "generated"; path: string; from: string }
+    | { kind: "generated"; path: string; from?: string }
     | { kind: "inherited"; path: string; from: string; alsoAffects: string[] };
 
 /** What an operation returns: the edits, a question, or a refusal with its reason. */
@@ -98,9 +98,9 @@ export type OpResult =
  * - `override-instead`: the token at `path` is shared, so `context` gets its own value by
  *   changing it for that context ({@link setValue}), not by making it again.
  * - `invalid-name`: `name` can't be a name: `character` is the one the spec forbids (Format
- *   5.1.1), and an empty name has none, since no path reaches it.
+ *   5.1.1). An empty name has none: the spec doesn't forbid it, but leaves it unclear.
  * - `generated`: a generator makes the token, from the extension at `extension` on the group at
- *   `from` (`""` for the top level of a file).
+ *   `from` (absent for the top level of a file).
  * - `inherited`: the token or group comes from the group at `from`, through `$extends`.
  * - `no-permutation`: there is no permutation for `context`; `why` says whether a modifier or
  *   context isn't declared, a modifier with no default was left out, or the read didn't build it.
@@ -117,7 +117,7 @@ export type Refusal = { reason: string } & (
     | { kind: "taken"; path: string }
     | { kind: "override-instead"; path: string; context: Input }
     | { kind: "invalid-name"; name: string; character?: "$" | "." | "{" | "}" }
-    | { kind: "generated"; path: string; from: string; extension: [string, ...string[]] }
+    | { kind: "generated"; path: string; from?: string; extension: [string, ...string[]] }
     | { kind: "inherited"; path: string; from: string }
     | {
           kind: "no-permutation";

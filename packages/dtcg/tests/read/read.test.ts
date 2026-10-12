@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { type ReadOptions, filePath, read, readFromMemory } from "../../src/index.js";
+import {
+    type ReadOptions,
+    defineExtensionValidator,
+    defineGenerator,
+    filePath,
+    read,
+    readFromMemory,
+    token,
+} from "../../src/index.js";
 
 const valid = '{ "a": { "$type": "number", "$value": 1 } }';
 
@@ -528,10 +536,31 @@ describe("a group referring to the whole document", () => {
         expect(found).toStrictEqual([
             {
                 kind: "circular-reference",
-                detail: { chain: ["g", ""] },
+                detail: { chain: ["g"], toTopLevel: true },
                 message: "these references lead back to where they started: g → the top level",
             },
         ]);
+    });
+
+    it('is told apart from a group named "", which #/ reaches (RFC 6901)', () => {
+        const files = {
+            "tokens.json": JSON.stringify({
+                "": { $type: "number", x: { $value: 1 } },
+                "g": { $ref: "#/" },
+            }),
+        };
+        const doc = readFromMemory({ files });
+        expect(doc.diagnostics).toStrictEqual([]);
+        expect(token(doc, "g.x")?.inherited).toStrictEqual({ from: "" });
+    });
+    it('never reaches a token named "" through #, the whole document', () => {
+        const files = {
+            "tokens.json": JSON.stringify({
+                "": { $type: "number", $value: 1 },
+                "t": { $type: "number", $value: { $ref: "#" } },
+            }),
+        };
+        expect(token(readFromMemory({ files }), "t")?.resolved).toBeUndefined();
     });
 });
 
@@ -588,5 +617,56 @@ describe("what a Document holds", () => {
             "parseOptions",
             "diagnostics",
         ]);
+    });
+});
+
+describe("the top level of a file, to a generator or an extension check", () => {
+    const seen: { generator?: unknown; validator?: unknown[] } = { validator: [] };
+    const steps = defineGenerator({
+        extension: ["com.example", "steps"],
+        generate: (group) => {
+            seen.generator = group;
+            return { ok: false, errors: [{ path: [], reason: "nope" }] };
+        },
+        messages: { nope: () => "not this time" },
+    });
+    const notes = defineExtensionValidator({
+        key: "com.example",
+        appliesTo: ["group"],
+        validate: (on) => {
+            seen.validator?.push(on);
+            return [];
+        },
+    });
+    const doc = readFromMemory(
+        {
+            files: {
+                "tokens.json": JSON.stringify({
+                    $type: "number",
+                    $extensions: { "com.example": { steps: 1, note: true } },
+                }),
+            },
+        },
+        { generators: [steps], extensionValidators: [notes] },
+    );
+
+    it('is handed with no path, so it can\'t be taken for a group named ""', () => {
+        expect(seen.generator).toStrictEqual({ type: "number" });
+        expect(seen.validator).toContainEqual({ type: "group" });
+    });
+
+    it("names no path in a problem with its $type", () => {
+        const typo = readFromMemory({
+            files: { "tokens.json": JSON.stringify({ $type: "colour", a: { $value: 1 } }) },
+        });
+        const problem = typo.diagnostics.find(({ kind }) => kind === "unknown-type");
+        expect(problem).toBeDefined();
+        expect(problem && "path" in problem).toBe(false);
+    });
+
+    it("names no path in a problem about it", () => {
+        const problem = doc.diagnostics.find(({ kind }) => kind === "extension-invalid");
+        expect(problem).toBeDefined();
+        expect(problem && "path" in problem).toBe(false);
     });
 });

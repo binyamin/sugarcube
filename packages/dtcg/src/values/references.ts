@@ -78,6 +78,7 @@ export function movedReference(ref: Alias | Pointer, moved: readonly Move[]): Al
     const steps = refSteps(ref.pointer);
     if (!steps) return ref;
     const { path, inside } = pointerParts(steps);
+    if (path === undefined) return ref;
     const now = movedPath(path, moved);
     if (now === path) return ref;
     return {

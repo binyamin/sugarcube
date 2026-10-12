@@ -10,7 +10,7 @@ const refusal = (kind: string, facts: object) => ({
 
 describe("create, which file", () => {
     it("puts a shared token in the one file that writes its group", () => {
-        const result = create(demo, "color.brand", "950", { $value: "#0a1f44" });
+        const result = create(demo, "color.brand.950", { $value: "#0a1f44" });
 
         expect(opsOf(result)).toEqual([
             {
@@ -27,9 +27,7 @@ describe("create, which file", () => {
     });
 
     it("leaves out a file only one context reads, for a shared token", () => {
-        expect(
-            opsOf(create(demo, "color.text", "accent", { $value: "{color.brand.600}" })),
-        ).toEqual([
+        expect(opsOf(create(demo, "color.text.accent", { $value: "{color.brand.600}" }))).toEqual([
             {
                 kind: "add",
                 file: "color.json",
@@ -50,7 +48,7 @@ describe("create, which file", () => {
             "dark.json": '{ "color": { "bg": { "$value": "#000000" } } }',
         };
 
-        expect(opsOf(create(opened(files), "color", "accent", { $value: "#f59e0b" }))).toEqual([
+        expect(opsOf(create(opened(files), "color.accent", { $value: "#f59e0b" }))).toEqual([
             {
                 kind: "add",
                 file: "color.json",
@@ -62,7 +60,7 @@ describe("create, which file", () => {
 
     it("puts a token for one context in that context's file", () => {
         expect(
-            opsOf(create(demo, "color.text", "accent", { $value: "{color.brand.300}" }, dark)),
+            opsOf(create(demo, "color.text.accent", { $value: "{color.brand.300}" }, dark)),
         ).toEqual([
             {
                 kind: "add",
@@ -75,7 +73,7 @@ describe("create, which file", () => {
 
     it("makes the group around it when no file the context may write has the group", () => {
         const value = { $value: { value: 1, unit: "rem" } };
-        const result = create(demo, "radius", "xl", value, dark);
+        const result = create(demo, "radius.xl", value, dark);
 
         expect(opsOf(result)).toEqual([
             { kind: "add", file: "dark.json", path: ["radius", "xl"], value },
@@ -98,7 +96,7 @@ describe("create, which file", () => {
     it("asks which file when several write the group, and takes the answer", () => {
         const project = opened(split);
 
-        expect(create(project, "color", "accent", { $value: "#f59e0b" })).toEqual({
+        expect(create(project, "color.accent", { $value: "#f59e0b" })).toEqual({
             decision: {
                 kind: "placement",
                 path: "color.accent",
@@ -106,9 +104,7 @@ describe("create, which file", () => {
             },
         });
         expect(
-            opsOf(
-                create(project, "color", "accent", { $value: "#f59e0b" }, { place: "roles.json" }),
-            ),
+            opsOf(create(project, "color.accent", { $value: "#f59e0b" }, { place: "roles.json" })),
         ).toEqual([
             {
                 kind: "add",
@@ -120,7 +116,7 @@ describe("create, which file", () => {
     });
 
     it("doesn't ask when only one of them writes the deeper group", () => {
-        expect(opsOf(create(opened(split), "color.brand", "600", { $value: "#0c6ade" }))).toEqual([
+        expect(opsOf(create(opened(split), "color.brand.600", { $value: "#0c6ade" }))).toEqual([
             {
                 kind: "add",
                 file: "palette.json",
@@ -130,13 +126,23 @@ describe("create, which file", () => {
         ]);
     });
 
+    it('makes a token inside the group named "" when asked for "", never at the top level', () => {
+        const project = opened({
+            "tokens.resolver.json": resolver([{ $ref: "./a.json" }]),
+            "a.json": JSON.stringify({ "": { $type: "number", x: { $value: 1 } } }),
+        });
+        expect(opsOf(create(project, ".y", { $value: 2 }))).toEqual([
+            { kind: "add", file: "a.json", path: ["", "y"], value: { $value: 2 } },
+        ]);
+    });
+
     it("adds to a project of one token file, read without a resolver", () => {
         const project = openFromMemory({
             files: { "tokens.json": '{ "a": { "$type": "number", "$value": 1 } }' },
             entry: "tokens.json",
         });
 
-        expect(opsOf(create(project, "", "b", { $type: "number", $value: 2 }))).toEqual([
+        expect(opsOf(create(project, "b", { $type: "number", $value: 2 }))).toEqual([
             {
                 kind: "add",
                 file: "tokens.json",
@@ -155,7 +161,7 @@ describe("create, which file", () => {
             "base.json": '{ "b": { "$type": "number", "$value": 2 } }',
         };
 
-        expect(opsOf(create(opened(files), "", "c", { $type: "number", $value: 3 }))).toEqual([
+        expect(opsOf(create(opened(files), "c", { $type: "number", $value: 3 }))).toEqual([
             { kind: "add", file: "base.json", path: ["c"], value: { $type: "number", $value: 3 } },
         ]);
     });
@@ -170,7 +176,7 @@ describe("create, which file", () => {
             "base.json": '{ "b": { "$type": "number", "$value": 2 } }',
         };
 
-        expect(opsOf(create(opened(files), "", "c", { $type: "number", $value: 3 }))).toEqual([
+        expect(opsOf(create(opened(files), "c", { $type: "number", $value: 3 }))).toEqual([
             { kind: "add", file: "base.json", path: ["c"], value: { $type: "number", $value: 3 } },
         ]);
     });
@@ -178,13 +184,13 @@ describe("create, which file", () => {
 
 describe("create, groups", () => {
     it("writes a new group as {}, and a token inside it goes in the same file", () => {
-        const group = create(demo, "color", "raw", { group: true });
+        const group = create(demo, "color.raw", { group: true });
 
         expect(opsOf(group)).toEqual([
             { kind: "add", file: "color.json", path: ["color", "raw"], value: {} },
         ]);
         const after = committed(demo, group);
-        expect(opsOf(create(after, "color.raw", "blue", { $value: "#0000ff" }))).toEqual([
+        expect(opsOf(create(after, "color.raw.blue", { $value: "#0000ff" }))).toEqual([
             {
                 kind: "add",
                 file: "color.json",
@@ -197,38 +203,38 @@ describe("create, groups", () => {
 
 describe("create, what it refuses", () => {
     it("is refused for a name already taken", () => {
-        expect(create(demo, "color", "brand", { group: true })).toEqual(
+        expect(create(demo, "color.brand", { group: true })).toEqual(
             refusal("taken", { path: "color.brand" }),
         );
-        expect(create(demo, "color.brand", "500", { $value: "#000" })).toEqual(
+        expect(create(demo, "color.brand.500", { $value: "#000" })).toEqual(
             refusal("taken", { path: "color.brand.500" }),
         );
     });
 
     it("is refused for a name the spec forbids, naming the character", () => {
         for (const [name, character] of [
-            ["a.b", "."],
             ["$x", "$"],
             ["{x}", "{"],
             ["x}", "}"],
         ]) {
-            expect(create(demo, "color", name ?? "", { group: true })).toEqual(
+            expect(create(demo, `color.${name}`, { group: true })).toEqual(
                 refusal("invalid-name", { name, character }),
             );
         }
     });
 
-    it("is refused for an empty name, which no path can reach", () => {
-        expect(create(demo, "color", "", { group: true })).toEqual(
+    it("is refused for an empty name, which the spec leaves unclear", () => {
+        expect(create(demo, "color.", { group: true })).toEqual(
             refusal("invalid-name", { name: "" }),
         );
+        expect(create(demo, "", { group: true })).toEqual(refusal("invalid-name", { name: "" }));
     });
 
     it("is refused under a group that doesn't exist, or under a token", () => {
-        expect(create(demo, "color.nope", "x", { $value: "#000" })).toEqual(
+        expect(create(demo, "color.nope.x", { $value: "#000" })).toEqual(
             refusal("not-found", { path: "color.nope" }),
         );
-        expect(create(demo, "color.brand.500", "x", { $value: "#000" })).toEqual(
+        expect(create(demo, "color.brand.500.x", { $value: "#000" })).toEqual(
             refusal("not-a-group", { path: "color.brand.500" }),
         );
     });
@@ -238,7 +244,7 @@ describe("create, what it refuses", () => {
             "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),
             "base.json": '{ "misc": { "y": { "$type": "number", "$value": 1 } } }',
         });
-        const result = create(project, "misc", "x", { $value: 2 });
+        const result = create(project, "misc.x", { $value: 2 });
 
         expect(opsOf(result)).toEqual([
             { kind: "add", file: "base.json", path: ["misc", "x"], value: { $value: 2 } },
@@ -248,10 +254,10 @@ describe("create, what it refuses", () => {
     });
 
     it("is refused for a context's own token when the token is shared, to be overridden instead", () => {
-        expect(create(demo, "radius", "md", { $value: { value: 1, unit: "rem" } }, dark)).toEqual(
+        expect(create(demo, "radius.md", { $value: { value: 1, unit: "rem" } }, dark)).toEqual(
             refusal("override-instead", { path: "radius.md", context: { mode: "dark" } }),
         );
-        expect(create(demo, "color.text", "brand", { $value: "{color.brand.200}" }, dark)).toEqual(
+        expect(create(demo, "color.text.brand", { $value: "{color.brand.200}" }, dark)).toEqual(
             refusal("taken", { path: "color.text.brand" }),
         );
     });

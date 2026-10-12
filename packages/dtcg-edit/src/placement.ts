@@ -9,6 +9,7 @@ import {
     type Token,
     completeInput,
     group,
+    parentOf,
     permutation,
     token,
 } from "@sugarcube-sh/dtcg";
@@ -25,7 +26,7 @@ type Placement =
 type Declared = { at: Place; alsoAffects: Input[] } | { refused: Refusal };
 
 type NewPlace =
-    | { into: string; path: string; alsoAffects: Input[] }
+    | { into: string; alsoAffects: Input[] }
     | { decision: Decision }
     | { refused: Refusal };
 
@@ -93,21 +94,18 @@ function inputsOf(doc: Document, affected: (perm: Permutation) => boolean): Inpu
         .map((perm) => perm.input);
 }
 
-export function newPlace(
-    project: Project,
-    parent: string,
-    name: string,
-    where: Where = {},
-): NewPlace {
+export function newPlace(project: Project, path: string, where: Where = {}): NewPlace {
     const { doc } = project;
-    const path = parent === "" ? name : `${parent}.${name}`;
+    const parent = parentOf(path);
     const chosen = chosenContext(doc, where.context ?? {});
     if (chosen && "refused" in chosen) return chosen;
     const perm = chosen?.perm ?? permutation(doc) ?? doc.permutations[0];
-    if (!perm) return refused({ kind: "not-found", path: parent });
-    if (parent !== "" && token(perm, parent)) return refused({ kind: "not-a-group", path: parent });
-    const declaredIn = parent === "" ? [] : group(perm, parent)?.declaredIn;
-    if (!declaredIn) return refused({ kind: "not-found", path: parent });
+    if (!perm) return refused({ kind: "not-found", path: parent ?? path });
+    if (parent !== undefined && token(perm, parent)) {
+        return refused({ kind: "not-a-group", path: parent });
+    }
+    const declaredIn = parent === undefined ? [] : group(perm, parent)?.declaredIn;
+    if (!declaredIn) return refused({ kind: "not-found", path: parent ?? path });
     const existing = token(perm, path);
     if (chosen && existing && !isFrom(perm.sources[existing.source.index], chosen)) {
         return refused({ kind: "override-instead", path, context: contextOf(chosen) });
@@ -122,7 +120,7 @@ export function newPlace(
     }
     const into = chosenFile(path, files, declaredIn, where.place);
     if (typeof into !== "string") return into;
-    return { into, path, alsoAffects: seenBy(doc, path, into, chosen) };
+    return { into, alsoAffects: seenBy(doc, path, into, chosen) };
 }
 
 function chosenContext(doc: Document, input: Input): Chosen | { refused: Refusal } | undefined {
@@ -192,8 +190,8 @@ function contextPlace(
     }
 
     const candidates = [...new Set(winning.map((each) => each.file))];
-    const parent = path.split(".").slice(0, -1).join(".");
-    const declaredIn = parent === "" ? [] : (group(perm, parent)?.declaredIn ?? []);
+    const parent = parentOf(path);
+    const declaredIn = parent === undefined ? [] : (group(perm, parent)?.declaredIn ?? []);
     const into = chosenFile(path, candidates, declaredIn, place);
     if (typeof into !== "string") return into;
     return { token: written, into, alsoAffects: seenBy(doc, path, into, chosen) };

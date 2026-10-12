@@ -48,6 +48,11 @@ export function applyExtends(merged: Merged, permutation: number, diagnostics: D
     const extend = (group: Extending, chain: Extending[]): void => {
         const { keyword, written, steps } = group.extends;
         const direct = steps && pointerParts(steps).path;
+        if (steps && direct === undefined) {
+            report("circular-reference", { chain: [group.path], toTopLevel: true }, group);
+            state.set(group.path, "in-a-loop");
+            return;
+        }
         if (direct !== undefined && within(group.path, direct)) {
             report("circular-reference", { chain: [group.path, direct] }, group);
             state.set(group.path, "in-a-loop");
@@ -105,9 +110,20 @@ function inherit(merged: Merged, group: MergedGroup, from: string): void {
         return false;
     };
 
-    for (const each of Array.from(merged.groups.values())) {
-        const path = moved(each.path);
+    for (const appeared of Array.from(merged.order)) {
+        const path = moved(appeared);
         if (path === undefined) continue;
+        const each = merged.groups.get(appeared);
+        const token = merged.tokens.get(appeared);
+        if (token) {
+            if (merged.tokens.has(path) || merged.groups.has(path) || underLocalToken(path))
+                continue;
+            const { replaces: _replaces, ...copied } = token;
+            merged.tokens.set(path, { ...copied, path, inherited: { from } });
+            merged.order.add(path);
+            continue;
+        }
+        if (!each) continue;
         const existing = merged.groups.get(path);
         if (existing) fillIn(existing, each);
         else if (!merged.tokens.has(path) && !underLocalToken(path)) {
@@ -122,14 +138,8 @@ function inherit(merged: Merged, group: MergedGroup, from: string): void {
                 declaredIn: [],
                 inherited: { from },
             });
+            merged.order.add(path);
         }
-    }
-    for (const token of Array.from(merged.tokens.values())) {
-        const path = moved(token.path);
-        if (path === undefined) continue;
-        if (merged.tokens.has(path) || merged.groups.has(path) || underLocalToken(path)) continue;
-        const { replaces: _replaces, ...copied } = token;
-        merged.tokens.set(path, { ...copied, path, inherited: { from } });
     }
 }
 
