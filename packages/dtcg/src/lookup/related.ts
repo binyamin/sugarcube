@@ -1,11 +1,10 @@
 import type { Document, Edge, Input, Permutation, Related, Token } from "../index.js";
-import { permutation as permutationFor } from "./permutation.js";
 
 export type Index = (permutation: Permutation) => Map<string, Set<string>>;
 
 export type OnPermutation<O> = [permutation: Permutation, path: string | string[], options?: O];
 
-export type OnDocument<O> = [doc: Document, path: string | string[], input?: Input, options?: O];
+export type OnDocument<O> = [doc: Document, path: string | string[], options?: O];
 
 export function indexBy(pair: (edge: Edge) => [key: string, value: string]): Index {
     const built = new WeakMap<Permutation, Map<string, Set<string>>>();
@@ -32,11 +31,9 @@ export function related<O extends { transitive?: boolean }>(
         const [permutation, path, options] = args;
         return inPermutation(index, permutation, path, options?.transitive ?? false);
     }
-    const [doc, path, input, options] = args;
-    const named = input === undefined ? undefined : permutationFor(doc, input);
-    const chosen = input === undefined ? doc.permutations : named ? [named] : [];
+    const [doc, path, options] = args;
     const found = new Map<string, Input[]>();
-    for (const permutation of chosen) {
+    for (const permutation of doc.permutations) {
         for (const each of inPermutation(index, permutation, path, options?.transitive ?? false)) {
             const inputs = found.get(each.path) ?? [];
             inputs.push(permutation.input);

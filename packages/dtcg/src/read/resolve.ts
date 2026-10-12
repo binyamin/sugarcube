@@ -22,7 +22,7 @@ import type { Properties } from "./walk.js";
 import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
 import type { LocatedReference, ValueReader } from "./parse-value.js";
 import { malformation } from "./malformed-pointer.js";
-import { reach } from "./ref-meaning.js";
+import { reach, wholeValueTarget } from "./ref-meaning.js";
 import { similarName } from "./similar.js";
 import { type Occurrence, wholeReference } from "./occurrence.js";
 import { type Resolving, UNRESOLVED, resolveValue } from "./resolve-value.js";
@@ -139,12 +139,13 @@ function resolvePermutation(
             const outcome = outcomeOf(whole.target, token.path, whole.at);
             return { kind: "token", path: whole.target, outcome };
         }
-        const reached = reach(whole.steps, merged);
-        if (reached.kind === "token" || (reached.kind === "part" && reached.inside.length === 0)) {
-            const { path } = reached;
+        const path = whole.steps && wholeValueTarget(whole.steps);
+        if (path !== undefined && merged.tokens.has(path)) {
             return { kind: "token", path, outcome: outcomeOf(path, token.path, whole.at) };
         }
-        return reached.kind === "part" ? { kind: "part" } : { kind: "unreachable" };
+        return reach(whole.steps, merged).kind === "part"
+            ? { kind: "part" }
+            : { kind: "unreachable" };
     };
 
     const compute = (entry: NormalisedToken): Outcome => {

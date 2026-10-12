@@ -33,7 +33,7 @@ function indexOf(permutation: Permutation): Index {
 export function token(doc: Document, path: string, input?: Input): Token | undefined;
 export function token(permutation: Permutation, path: string): Token | undefined;
 export function token(from: Document | Permutation, path: string, input?: Input) {
-    const found = within(from, input);
+    const found = permutationOf(from, input);
     return found && indexOf(found).tokens.get(path);
 }
 
@@ -44,7 +44,7 @@ export function token(from: Document | Permutation, path: string, input?: Input)
 export function group(doc: Document, path: string, input?: Input): Group | undefined;
 export function group(permutation: Permutation, path: string): Group | undefined;
 export function group(from: Document | Permutation, path: string, input?: Input) {
-    const found = within(from, input);
+    const found = permutationOf(from, input);
     return found && indexOf(found).groups.get(path);
 }
 
@@ -60,10 +60,13 @@ export function group(from: Document | Permutation, path: string, input?: Input)
 export function tokensIn(doc: Document, path: string, input?: Input): Token[];
 export function tokensIn(permutation: Permutation, path: string): Token[];
 export function tokensIn(from: Document | Permutation, path: string, input?: Input) {
-    const found = within(from, input);
+    const found = permutationOf(from, input);
     return (found?.tokens ?? []).filter((each) => pathBelow(each.path, path) !== undefined);
 }
 
-function within(from: Document | Permutation, input: Input | undefined): Permutation | undefined {
+export function permutationOf(
+    from: Document | Permutation,
+    input: Input | undefined,
+): Permutation | undefined {
     return "permutations" in from ? chosenPermutation(from, input) : from;
 }

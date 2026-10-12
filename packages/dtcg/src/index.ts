@@ -1334,13 +1334,7 @@ export { type ReferrersOptions, referrers } from "./lookup/referrers.js";
 
 export { type DependenciesOptions, dependencies } from "./lookup/dependencies.js";
 
-/**
- * Every token passed through on the way from this one to its final value.
- * @param input Which permutation. Defaults to the default permutation.
- */
-export function aliasChain(doc: Document, path: string, input?: Input): string[] {
-    throw new Error("not implemented yet");
-}
+export { aliasChain } from "./lookup/alias-chain.js";
 
 /** What is at a position in a file. */
 export type AtOffset =

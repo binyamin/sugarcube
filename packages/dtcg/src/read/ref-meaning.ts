@@ -28,6 +28,11 @@ export function pointerParts(steps: string[]): { path?: string; inside?: string[
     };
 }
 
+export function wholeValueTarget(steps: string[]): string | undefined {
+    const { path, inside } = pointerParts(steps);
+    return inside === undefined || inside.length === 0 ? path : undefined;
+}
+
 export function refObjectMeaning(reached: Reached): "group" | "token" | "nothing" {
     if (reached.kind === "token" || reached.kind === "part") return "token";
     return reached.kind;

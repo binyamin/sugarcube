@@ -110,14 +110,16 @@ describe("dependencies, across a document", () => {
         ]);
     });
 
-    it("only in the permutation an input names, when given one", () => {
-        expect(dependencies(doc, "brand", { theme: "dark" })).toStrictEqual([
+    it("takes its options third, however indirectly, in every permutation", () => {
+        expect(dependencies(doc, "loud", { transitive: true })).toStrictEqual([
+            { path: "red", in: [light.input] },
+            { path: "brand", in: [light.input, dark.input] },
+            { path: "danger", in: [light.input, dark.input] },
             { path: "blue", in: [dark.input] },
         ]);
-        expect(dependencies(doc, "loud", { theme: "dark" }, { transitive: true })).toStrictEqual([
-            { path: "blue", in: [dark.input] },
-            { path: "brand", in: [dark.input] },
-            { path: "danger", in: [dark.input] },
-        ]);
+    });
+
+    it("asks one permutation when given that permutation", () => {
+        expect(dependencies(dark, "brand").map(({ path }) => path)).toStrictEqual(["blue"]);
     });
 });
