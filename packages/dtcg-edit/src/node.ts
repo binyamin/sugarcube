@@ -9,10 +9,9 @@ import type { Conflict, FileOp } from "./index.js";
 /**
  * Applies edits to the files on disk of the design system at `source`, its resolver or token file
  * and the options it is read with, as `open` and `liveProject` take them. Each file is read as it
- * is now, so changes made there in the
- * meantime are kept; an edit that no longer applies, as {@link apply} decides, is returned as a
- * conflict, and so is an edit to a file the design system doesn't read, such as `package.json`,
- * or a new file nothing reads.
+ * is now, so changes made there in the meantime are kept; an edit that no longer applies, as
+ * {@link apply} decides, is returned as a conflict, and so is an edit to a file the design system
+ * doesn't read, such as `package.json`, or a new file nothing reads.
  *
  * Every edit is applied in memory before any file is written, so if one fails, nothing is
  * written. Each file is written to a temporary copy and then renamed into place, so no file is
@@ -20,7 +19,8 @@ import type { Conflict, FileOp } from "./index.js";
  * written and deleted.
  *
  * @example
- * const saved = await applyToDisk({ entry: "tokens/tokens.resolver.json", options }, session.unsaved.ops);
+ * const source = { entry: "tokens/tokens.resolver.json", options };
+ * const saved = await applyToDisk(source, session.unsaved.ops);
  * if ("project" in saved) {
  *     session.saved();
  *     session.adopt(saved.project);
