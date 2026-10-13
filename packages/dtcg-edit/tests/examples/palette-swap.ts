@@ -24,8 +24,8 @@ for (const t of tokensIn(doc, "color.button")) {
     const base = swapped(t);
     if (base) changes.push({ path: t.path, value: base });
 
-    for (const { permutation, token, from } of acrossPermutations(doc, t.path)) {
-        const value = from && "modifier" in from ? swapped(token) : undefined;
+    for (const { permutation, token } of acrossPermutations(doc, t.path)) {
+        const value = token.writtenAt.at(-1)?.source.context ? swapped(token) : undefined;
         if (value) changes.push({ path: t.path, value, context: permutation.input });
     }
 }

@@ -16,21 +16,7 @@
         "beta": "true"
       },
       "label": "debug: false, beta: true",
-      "sources": [
-        {
-          "file": "beta.json",
-          "from": {
-            "modifier": "beta",
-            "context": "true",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "beta": "true"
-            }
-          ]
-        }
-      ]
+      "sources": [0]
     },
     {
       "input": {
@@ -38,21 +24,7 @@
         "beta": "false"
       },
       "label": "debug: true, beta: false",
-      "sources": [
-        {
-          "file": "debug.json",
-          "from": {
-            "modifier": "debug",
-            "context": "true",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "debug": "true"
-            }
-          ]
-        }
-      ]
+      "sources": [1]
     },
     {
       "input": {
@@ -60,35 +32,38 @@
         "beta": "true"
       },
       "label": "debug: true, beta: true",
-      "sources": [
+      "sources": [1, 0]
+    }
+  ],
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "beta.json",
+      "context": {
+        "modifier": "beta",
+        "name": "true"
+      },
+      "sets": [],
+      "readBy": [
         {
-          "file": "debug.json",
-          "from": {
-            "modifier": "debug",
-            "context": "true",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "debug": "true"
-            }
-          ]
-        },
+          "modifier": "beta",
+          "name": "true"
+        }
+      ]
+    },
+    {
+      "file": "debug.json",
+      "context": {
+        "modifier": "debug",
+        "name": "true"
+      },
+      "sets": [],
+      "readBy": [
         {
-          "file": "beta.json",
-          "from": {
-            "modifier": "beta",
-            "context": "true",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "beta": "true"
-            }
-          ]
+          "modifier": "debug",
+          "name": "true"
         }
       ]
     }
-  ],
-  "diagnostics": []
+  ]
 }

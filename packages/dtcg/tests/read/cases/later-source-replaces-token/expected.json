@@ -8,13 +8,6 @@
           "path": "color.brand",
           "type": "color",
           "description": "The brand color",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "base.json",
-              "valueAfter": "\"brand\":"
-            }
-          },
           "authored": {
             "value": {
               "colorSpace": "srgb",
@@ -27,24 +20,35 @@
             "components": [0.882, 0.114, 0.282],
             "alpha": 1,
             "hex": "#e11d48"
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "base.json",
+                "valueAfter": "\"brand\":"
+              }
+            }
+          ]
         },
         {
           "path": "color.muted",
           "type": "color",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "base.json",
-              "valueAfter": "\"muted\":"
-            }
-          },
           "authored": {
             "value": {
               "colorSpace": "srgb",
               "components": [0.5, 0.5, 0.5]
             }
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "base.json",
+                "valueAfter": "\"muted\":"
+              }
+            }
+          ]
         }
       ],
       "groups": [
@@ -58,10 +62,10 @@
             },
             "org.other": true
           },
-          "declaredIn": [
+          "writtenAt": [
             {
-              "index": 0,
-              "at": {
+              "source": 0,
+              "span": {
                 "file": "base.json",
                 "valueAfter": "\"color\":"
               }
@@ -75,13 +79,6 @@
         {
           "path": "color.brand",
           "type": "color",
-          "source": {
-            "index": 1,
-            "at": {
-              "file": "dark.json",
-              "valueAfter": "\"brand\":"
-            }
-          },
           "authored": {
             "value": {
               "colorSpace": "oklch",
@@ -92,24 +89,51 @@
             "colorSpace": "oklch",
             "components": [0.7, 0.2, 20],
             "alpha": 1
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "base.json",
+                "offset": 158,
+                "length": 144,
+                "start": {
+                  "line": 6,
+                  "column": 14
+                },
+                "end": {
+                  "line": 9,
+                  "column": 6
+                }
+              }
+            },
+            {
+              "source": 1,
+              "span": {
+                "file": "dark.json",
+                "valueAfter": "\"brand\":"
+              }
+            }
+          ]
         },
         {
           "path": "color.muted",
           "type": "color",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "base.json",
-              "valueAfter": "\"muted\":"
-            }
-          },
           "authored": {
             "value": {
               "colorSpace": "srgb",
               "components": [0.5, 0.5, 0.5]
             }
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "base.json",
+                "valueAfter": "\"muted\":"
+              }
+            }
+          ]
         }
       ],
       "groups": [
@@ -123,17 +147,17 @@
             },
             "org.other": true
           },
-          "declaredIn": [
+          "writtenAt": [
             {
-              "index": 0,
-              "at": {
+              "source": 0,
+              "span": {
                 "file": "base.json",
                 "valueAfter": "\"color\":"
               }
             },
             {
-              "index": 1,
-              "at": {
+              "source": 1,
+              "span": {
                 "file": "dark.json",
                 "valueAfter": "\"color\":"
               }

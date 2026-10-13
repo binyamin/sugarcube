@@ -31,10 +31,9 @@ export function referencedIn(
         );
     };
     const first = reaching(path, token(permutation, path) !== undefined);
-    if (!chained) return [...first];
-    const found = new Set<Reference>();
+    const found = new Set<Reference>(first);
     const seen = new Set([path]);
-    const waiting = [first];
+    const waiting = chained ? [first] : [];
     for (const references of waiting) {
         for (const reference of references) {
             found.add(reference);

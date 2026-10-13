@@ -196,7 +196,12 @@ function toDocument(
         generating += performance.now() - started;
     };
     const normalising = performance.now();
-    const normalised = normalisePermutations(loaded.permutations, readValue, found, generate);
+    const { permutations: normalised, sources } = normalisePermutations(
+        loaded.permutations,
+        readValue,
+        found,
+        generate,
+    );
     const resolving = performance.now();
     onStage?.("generate", generating);
     onStage?.("normalise", resolving - normalising - generating);
@@ -212,6 +217,7 @@ function toDocument(
     return linkedDocument({
         files: loaded.files,
         ...(loaded.resolver && { resolver: loaded.resolver }),
+        sources,
         permutations,
         parseOptions,
         diagnostics: [

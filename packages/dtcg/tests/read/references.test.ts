@@ -374,6 +374,17 @@ describe("on the Document", () => {
         ]);
     });
 
+    it("referencedBy a group's path gives its references in the order they are written", () => {
+        const referring = oneFile({
+            size: { $type: "number", small: { $value: 1 }, large: { $value: 2 } },
+            a: { $type: "number", $value: "{size.small}" },
+            b: { $type: "number", $value: "{size.large}" },
+            c: { $type: "number", $value: "{size.small}" },
+        });
+        const reaching = referring.referencedBy("size");
+        expect(reaching.map(({ from }) => `${from}`)).toStrictEqual(["a", "b", "c"]);
+    });
+
     it("gives records that can be moved", () => {
         const [reference] = doc.referencedBy("color.red");
         expect(reference?.moved([{ from: "color.red", to: "color.crimson" }])).toBe(

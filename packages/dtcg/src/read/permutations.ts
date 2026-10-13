@@ -1,5 +1,13 @@
 import type { Node } from "jsonc-parser";
-import type { Diagnostic, DiagnosticDetailByKind, Input, SetOnRoute, Source } from "../index.js";
+import type {
+    Diagnostic,
+    DiagnosticDetailByKind,
+    Input,
+    Resolver,
+    ResolverContext,
+    SetOnRoute,
+    Source,
+} from "../index.js";
 import { permutationLabel } from "../lookup/permutation-label.js";
 import { diagnostic } from "./diagnostics.js";
 import { type JsonFile, plainObject, spanOf } from "./json.js";
@@ -7,13 +15,16 @@ import type { CheckedResolver } from "./resolver.js";
 import type { Loaded } from "./load.js";
 import type { ExpandedItem, LoadedSource, SourceEntry } from "./sources.js";
 
+export interface ListedSource {
+    source: Omit<Source, "extensions">;
+    pieces: LoadedSource[];
+}
+
 export interface LoadedPermutation {
     input: Input;
     label: string;
-    sources: {
-        source: Omit<Source, "extensions">;
-        pieces: LoadedSource[];
-    }[];
+    contexts: ResolverContext[];
+    sources: ListedSource[];
 }
 
 type Built = Pick<Loaded, "permutations">;
@@ -37,8 +48,9 @@ export function fromTokenFiles(files: { path: string; json?: JsonFile }[]): Buil
             {
                 input: {},
                 label: "",
+                contexts: [],
                 sources: files.map(({ path, json }) => ({
-                    source: { file: path, readBy: "everyone" },
+                    source: { file: path, sets: [], readBy: "everyone" },
                     pieces: [{ file: path, ...(json && { json, tree: json.root }) }],
                 })),
             },
@@ -48,6 +60,7 @@ export function fromTokenFiles(files: { path: string; json?: JsonFile }[]): Buil
 
 export function fromResolver(
     resolver: CheckedResolver,
+    part: Resolver,
     items: ExpandedItem[],
     sources: Map<SourceEntry, LoadedSource>,
     options: PermutationOptions,
@@ -55,15 +68,22 @@ export function fromResolver(
 ): Built {
     const modifiers = modifiersOf(items);
     const inputs = chooseInputs(modifiers, options, { diagnostics, file: resolver.file });
-    const readBy = whoReadsEachSource(items, sources);
+    const contextOf = (modifier: string, name: string | undefined) =>
+        part.modifiers
+            .find((each) => each.name === modifier)
+            ?.contexts.find((each) => each.name === name);
+    const listed = listedSources(items, sources, contextOf);
     return {
         permutations: inputs.map((input) => ({
             input,
             label: permutationLabel(input),
-            sources: sourcesFor(items, sources, input, readBy),
+            contexts: modifiers.flatMap(({ name }) => contextOf(name, input[name]) ?? []),
+            sources: sourcesFor(items, listed, contextOf, input),
         })),
     };
 }
+
+type ContextOf = (modifier: string, name: string | undefined) => ResolverContext | undefined;
 
 function modifiersOf(items: ExpandedItem[]): Modifier[] {
     return items.flatMap((item) =>
@@ -234,35 +254,50 @@ function withDefaults(modifiers: Modifier[], chosen: Input): Input {
     return input;
 }
 
-function sourcesFor(
+type Listed = (entry: SourceEntry, context?: ResolverContext) => ListedSource | undefined;
+
+function listedSources(
     items: ExpandedItem[],
     sources: Map<SourceEntry, LoadedSource>,
-    input: Input,
-    readBy: Map<string, Source["readBy"]>,
-): LoadedPermutation["sources"] {
-    const described = (entry: SourceEntry, from: Source["from"]) => {
+    contextOf: ContextOf,
+): Listed {
+    const readBy = whoReadsEachSource(items, sources, contextOf);
+    const listed = new Map<SourceEntry, Map<ResolverContext | undefined, ListedSource>>();
+    return (entry, context) => {
         const loaded = sources.get(entry);
-        if (!loaded) return [];
+        if (!loaded) return undefined;
         const pieces = loaded.pieces ?? [loaded];
-        if (pieces[0] !== loaded) return [];
+        if (pieces[0] !== loaded) return undefined;
+        const byContext = listed.get(entry) ?? new Map<ResolverContext | undefined, ListedSource>();
+        listed.set(entry, byContext);
+        const found = byContext.get(context);
+        if (found) return found;
         const source = {
             file: loaded.file,
             ...(loaded.pointer && { pointer: loaded.pointer }),
-            from,
+            ...(context && { context }),
+            sets: route(entry),
             readBy: readBy.get(sourceKey(loaded)) ?? "everyone",
         };
-        return [{ source, pieces }];
+        const made = { source, pieces };
+        byContext.set(context, made);
+        return made;
     };
+}
+
+function sourcesFor(
+    items: ExpandedItem[],
+    listed: Listed,
+    contextOf: ContextOf,
+    input: Input,
+): ListedSource[] {
     return items.flatMap((item) => {
-        if (item.kind === "set") {
-            return item.entries.flatMap((entry) => described(entry, { sets: route(entry) }));
-        }
-        const { name } = item.modifier;
-        const context = input[name];
-        if (context === undefined) return [];
-        return (item.contexts.get(context) ?? []).flatMap((entry) =>
-            described(entry, { modifier: name, context, sets: route(entry) }),
-        );
+        if (item.kind === "set") return item.entries.flatMap((entry) => listed(entry) ?? []);
+        const name = input[item.modifier.name];
+        if (name === undefined) return [];
+        const context = contextOf(item.modifier.name, name);
+        const entries = item.contexts.get(name) ?? [];
+        return entries.flatMap((entry) => listed(entry, context) ?? []);
     });
 }
 
@@ -276,20 +311,20 @@ function route({ route: steps }: SourceEntry): SetOnRoute[] {
 function whoReadsEachSource(
     items: ExpandedItem[],
     sources: Map<SourceEntry, LoadedSource>,
+    contextOf: ContextOf,
 ): Map<string, Source["readBy"]> {
     const readBy = new Map<string, Source["readBy"]>();
-    const read = (entry: SourceEntry, through?: { modifier: string; context: string }) => {
+    const read = (entry: SourceEntry, context?: ResolverContext) => {
         const loaded = sources.get(entry);
         if (!loaded) return;
         const key = sourceKey(loaded);
         const existing = readBy.get(key);
-        if (!through || existing === "everyone") {
+        if (!context || existing === "everyone") {
             readBy.set(key, "everyone");
             return;
         }
-        const { modifier, context } = through;
         const list = existing ?? [];
-        if (!list.some((each) => each[modifier] === context)) list.push({ [modifier]: context });
+        if (!list.includes(context)) list.push(context);
         readBy.set(key, list);
     };
     for (const item of items) {
@@ -297,9 +332,9 @@ function whoReadsEachSource(
             for (const entry of item.entries) read(entry);
             continue;
         }
-        const modifier = item.modifier.name;
-        for (const [context, entries] of item.contexts) {
-            for (const entry of entries) read(entry, { modifier, context });
+        for (const [name, entries] of item.contexts) {
+            const context = contextOf(item.modifier.name, name);
+            for (const entry of entries) read(entry, context);
         }
     }
     return readBy;

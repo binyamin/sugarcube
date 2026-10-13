@@ -3,13 +3,20 @@ import type {
     Group,
     JsonPath,
     Permutation,
+    Place,
     Reference,
     ReferenceOptions,
+    ResolverContext,
+    ResolverModifier,
+    Source,
+    Span,
     Token,
 } from "../index.js";
 import { referencedByIn, referencedIn, referencesIn } from "../lookup/references.js";
+import { writtenAtIn } from "../lookup/written-at.js";
 
 export const NO_REFERENCES: Reference[] = Object.freeze([]) as unknown as Reference[];
+export const NO_PLACES: Place[] = Object.freeze([]) as unknown as Place[];
 
 const tokenShared = {
     kind: "token",
@@ -47,7 +54,21 @@ const groupShared = {
 
 const permutationShared = {
     toJSON(this: Permutation) {
-        return { ...this, children: paths(this.children) };
+        const sources = this.sources.map(positionOf);
+        return { ...this, contexts: undefined, sources, children: paths(this.children) };
+    },
+};
+
+const modifierShared = {
+    toJSON(this: ResolverModifier) {
+        const contexts = this.contexts.map(({ name, sources, at }) => ({ name, sources, at }));
+        return { ...this, contexts };
+    },
+};
+
+const contextShared = {
+    toJSON(this: ResolverContext) {
+        return { modifier: this.modifier.name, name: this.name };
     },
 };
 
@@ -57,6 +78,9 @@ const documentShared = {
     },
     referencedBy(this: Document, path: string, options?: ReferenceOptions) {
         return referencedByIn(this, path, options);
+    },
+    writtenAt(this: Document, path: string) {
+        return writtenAtIn(this, path);
     },
 };
 
@@ -68,14 +92,13 @@ function TokenObject(this: Record<string, unknown>, fields: TokenFields): void {
     this.group = fields.group;
     this.permutation = fields.permutation;
     this.references = fields.references;
-    this.source = fields.source;
+    this.writtenAt = fields.writtenAt;
     if (fields.value !== undefined) this.value = fields.value;
     if (fields.resolved !== undefined) this.resolved = fields.resolved;
     if (fields.invalid) this.invalid = fields.invalid;
     if (fields.description !== undefined) this.description = fields.description;
     if (fields.deprecated !== undefined) this.deprecated = fields.deprecated;
     if (fields.extensions) this.extensions = fields.extensions;
-    if (fields.replaces) this.replaces = fields.replaces;
     if (fields.authored) this.authored = fields.authored;
     if (fields.generated) this.generated = fields.generated;
     if (fields.inherited) this.inherited = fields.inherited;
@@ -94,7 +117,67 @@ export function linkedPermutation(fields: Permutation): Permutation {
     return Object.assign(Object.create(permutationShared), fields);
 }
 
-export function linkedDocument(fields: Omit<Document, "references" | "referencedBy">): Document {
+export function linkedModifier(fields: ResolverModifier): ResolverModifier {
+    return Object.assign(Object.create(modifierShared), fields);
+}
+
+export function linkedContext(fields: ResolverContext): ResolverContext {
+    return Object.assign(Object.create(contextShared), fields);
+}
+
+const positions = new WeakMap<Source, number>();
+
+export function withPosition(fields: Source, position: number): Source {
+    positions.set(fields, position);
+    return fields;
+}
+
+function positionOf(source: Source): number | undefined {
+    return positions.get(source);
+}
+
+class PlaceObject {
+    readonly source: Source;
+    readonly span: Span;
+    #alone: Place[] | undefined;
+
+    constructor(source: Source, span: Span) {
+        this.source = source;
+        this.span = span;
+    }
+
+    static alone(place: PlaceObject): Place[] {
+        place.#alone ??= [place];
+        return place.#alone;
+    }
+
+    toJSON() {
+        return { source: positionOf(this.source), span: this.span };
+    }
+}
+
+export interface Places {
+    at(source: Source, span: Span): Place;
+    only(source: Source, span: Span): Place[];
+}
+
+export function placesIn(): Places {
+    const made = new Map<Span, PlaceObject[]>();
+    const at = (source: Source, span: Span): PlaceObject => {
+        const atSpan = made.get(span);
+        const found = atSpan?.find((each) => each.source === source);
+        if (found) return found;
+        const place = new PlaceObject(source, span);
+        if (atSpan) atSpan.push(place);
+        else made.set(span, [place]);
+        return place;
+    };
+    return { at, only: (source, span) => PlaceObject.alone(at(source, span)) };
+}
+
+export function linkedDocument(
+    fields: Omit<Document, "references" | "referencedBy" | "writtenAt">,
+): Document {
     return Object.assign(Object.create(documentShared), fields);
 }
 

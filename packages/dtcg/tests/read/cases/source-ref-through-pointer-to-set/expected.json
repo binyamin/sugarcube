@@ -6,47 +6,44 @@
     {
       "input": {},
       "label": "",
-      "sources": [
-        {
-          "file": "red.json",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              },
-              {
-                "name": "palette",
-                "extensions": {
-                  "sh.sugarcube": {
-                    "emit": false
-                  }
-                }
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "blue.json",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              },
-              {
-                "name": "palette",
-                "extensions": {
-                  "sh.sugarcube": {
-                    "emit": false
-                  }
-                }
-              }
-            ]
-          },
-          "readBy": "everyone"
-        }
-      ]
+      "sources": [0, 1]
     }
   ],
-  "diagnostics": []
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "red.json",
+      "sets": [
+        {
+          "name": "base"
+        },
+        {
+          "name": "palette",
+          "extensions": {
+            "sh.sugarcube": {
+              "emit": false
+            }
+          }
+        }
+      ],
+      "readBy": "everyone"
+    },
+    {
+      "file": "blue.json",
+      "sets": [
+        {
+          "name": "base"
+        },
+        {
+          "name": "palette",
+          "extensions": {
+            "sh.sugarcube": {
+              "emit": false
+            }
+          }
+        }
+      ],
+      "readBy": "everyone"
+    }
+  ]
 }

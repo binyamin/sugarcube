@@ -162,7 +162,7 @@ describe("read", () => {
         expect(readText.mock.calls).toStrictEqual([["tokens/base.json", "base.json"]]);
         expect(doc.files).toStrictEqual(["base.json"]);
         expect(doc.permutations[0]?.sources).toStrictEqual([
-            { file: "base.json", readBy: "everyone" },
+            { file: "base.json", sets: [], readBy: "everyone" },
         ]);
     });
 
@@ -521,9 +521,13 @@ describe("readFromMemory", () => {
         ]);
     });
 
-    it("returns plain data", () => {
+    it("writes its plain form with JSON.stringify, each source once and placed by position", () => {
         const doc = readFromMemory({ files: { "tokens.json": '{ "a": 1, "a": 2 }' } });
-        expect(JSON.parse(JSON.stringify(doc))).toStrictEqual(doc);
+        expect(JSON.parse(JSON.stringify(doc))).toMatchObject({
+            files: ["tokens.json"],
+            sources: [{ file: "tokens.json", sets: [], readBy: "everyone" }],
+            permutations: [{ sources: [0] }],
+        });
     });
 });
 
@@ -609,7 +613,7 @@ describe("labels", () => {
 });
 
 describe("what a Document holds", () => {
-    it("is the files, the resolver part, the permutations, how values were read and the problems", () => {
+    it("is the files, the resolver part, the sources, the permutations, how values were read and the problems", () => {
         const resolver = JSON.stringify({ version: "2025.10", resolutionOrder: [] });
         const doc = readFromMemory({
             files: { "tokens.resolver.json": resolver },
@@ -618,6 +622,7 @@ describe("what a Document holds", () => {
         expect(Object.keys(doc)).toStrictEqual([
             "files",
             "resolver",
+            "sources",
             "permutations",
             "parseOptions",
             "diagnostics",

@@ -6,10 +6,9 @@ declare const doc: Document;
 const path = "color.danger";
 
 const base = token(doc, path);
-row("Base", base?.authored?.value, base?.source.at.file);
+row("Base", base?.authored?.value, base?.writtenAt.at(-1)?.span.file);
 
-for (const { permutation, token: there, from } of acrossPermutations(doc, path)) {
-    if (from && "modifier" in from) {
-        row(permutation.label, there.authored?.value, there.source.at.file);
-    }
+for (const { permutation, token: there } of acrossPermutations(doc, path)) {
+    const place = there.writtenAt.at(-1);
+    if (place?.source.context) row(permutation.label, there.authored?.value, place.span.file);
 }

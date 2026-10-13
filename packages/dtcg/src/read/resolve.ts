@@ -7,19 +7,21 @@ import type {
     JsonPath,
     ParseResult,
     Permutation,
+    Place,
     Reference,
+    Source,
     Span,
     Token,
-    UnresolvedValue,
     TokenType,
     TopLevel,
+    UnresolvedValue,
     ValueByType,
     Written,
     WrittenReference,
 } from "../index.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { applying, inherited } from "./inherit.js";
-import type { Merged, MergedGroup, MergedToken, MergedTopLevel } from "./merge.js";
+import type { Merged, MergedGroup, MergedToken, MergedTopLevel, WrittenAt } from "./merge.js";
 import type { Properties } from "./walk.js";
 import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
 import type { LocatedReference, ValueReader } from "./parse-value.js";
@@ -29,7 +31,15 @@ import { similarName } from "./similar.js";
 import { referenceText } from "../values/references.js";
 import { type Occurrence, wholeReference } from "./occurrence.js";
 import { type Resolving, UNRESOLVED, resolveValue } from "./resolve-value.js";
-import { NO_REFERENCES, linkedGroup, linkedPermutation, linkedToken } from "./linked.js";
+import {
+    NO_PLACES,
+    NO_REFERENCES,
+    linkedGroup,
+    linkedPermutation,
+    linkedToken,
+    type Places,
+    placesIn,
+} from "./linked.js";
 import { linkedReference } from "./reference.js";
 import { withoutRoot } from "../path.js";
 
@@ -58,19 +68,21 @@ export function resolvePermutations(
     readValue: ValueReader,
     diagnostics: Diagnostic[],
 ): Permutation[] {
+    const places = placesIn();
     return permutations.map((permutation) =>
-        resolvePermutation(permutation, { readValue, diagnostics }),
+        resolvePermutation(permutation, { readValue, diagnostics, places }),
     );
 }
 
 interface Context {
     readValue: ValueReader;
     diagnostics: Diagnostic[];
+    places: Places;
 }
 
 function resolvePermutation(
     permutation: NormalisedPermutation,
-    { readValue, diagnostics }: Context,
+    { readValue, diagnostics, places }: Context,
 ): Permutation {
     const { tokens, merged } = permutation;
     const outcomes = new Map<string, Outcome | "resolving">();
@@ -218,12 +230,20 @@ function resolvePermutation(
         reportUnreachable,
     };
 
-    const { input, label, sources } = permutation;
+    const { input, label, contexts, sources } = permutation;
+    const sourceAt = (index: number) => sources[index] as Source;
+    const placed = (written: WrittenAt[]): Place[] => {
+        const [first, ...rest] = written;
+        if (!first) return NO_PLACES;
+        if (rest.length === 0) return places.only(sourceAt(first.index), first.at);
+        return written.map(({ index, at }) => places.at(sourceAt(index), at));
+    };
     const linked = linkedPermutation({
         input,
         label,
         sources,
-        root: publicTopLevel(merged.root),
+        contexts,
+        root: publicTopLevel(merged.root, placed(merged.root.declaredIn)),
         children: [],
         tokens: [],
         groups: [],
@@ -231,7 +251,8 @@ function resolvePermutation(
 
     const groups = new Map<string, Group>();
     for (const group of merged.groups.values()) {
-        groups.set(group.path, publicGroup(group, applying(merged, group)));
+        const writtenAt = placed(group.declaredIn);
+        groups.set(group.path, publicGroup(group, applying(merged, group), writtenAt));
     }
 
     const built = new Map<string, Token>();
@@ -243,7 +264,11 @@ function resolvePermutation(
             if (entry) {
                 const outcome = resolveToken(entry);
                 if (outcome === "untyped") continue;
-                const token = toToken(entry.token, outcome, merged, parent, linked);
+                const { replaces, piece, at } = entry.token;
+                const writtenAt = replaces
+                    ? [...placed(replaces), places.at(sourceAt(piece.source), at)]
+                    : places.only(sourceAt(piece.source), at);
+                const token = toToken(entry.token, outcome, merged, parent, linked, writtenAt);
                 if (parent && withoutRoot(path) === parent.path) parent.rootToken = token;
                 built.set(path, token);
                 if (outcome.references.length > 0) written.push([token, outcome.references]);
@@ -325,17 +350,17 @@ function targetOf(
     return targetProperty ? { path, targetProperty } : { path };
 }
 
-function publicTopLevel(top: MergedTopLevel): TopLevel {
-    return { ...publicProperties(top), declaredIn: top.declaredIn };
+function publicTopLevel(top: MergedTopLevel, writtenAt: Place[]): TopLevel {
+    return { ...publicProperties(top), writtenAt };
 }
 
-function publicGroup(group: MergedGroup, applies: Properties): Group {
-    const { path, declaredIn, inherited: from } = group;
+function publicGroup(group: MergedGroup, applies: Properties, writtenAt: Place[]): Group {
+    const { path, inherited: from } = group;
     const authored = publicProperties(group);
     return linkedGroup({
         path,
         ...publicProperties(applies),
-        declaredIn,
+        writtenAt,
         children: [],
         references: NO_REFERENCES,
         ...(from && { inherited: from }),
@@ -358,6 +383,7 @@ function toToken<T extends TokenType>(
     merged: Merged,
     group: Group | undefined,
     permutation: Permutation,
+    writtenAt: Place[],
 ): Token {
     const { read } = outcome;
     return linkedToken({
@@ -366,7 +392,7 @@ function toToken<T extends TokenType>(
         group,
         permutation,
         references: NO_REFERENCES,
-        source: { index: token.piece.source, at: token.at },
+        writtenAt,
         value: read.ok ? (read.value as UnresolvedValue<T>) : undefined,
         resolved:
             read.ok && "resolved" in outcome ? (outcome.resolved as ValueByType[T]) : undefined,
@@ -374,7 +400,6 @@ function toToken<T extends TokenType>(
         description: token.description,
         deprecated: inherited(token, merged, "deprecated"),
         extensions: token.extensions,
-        replaces: token.replaces,
         authored: token.added
             ? undefined
             : {

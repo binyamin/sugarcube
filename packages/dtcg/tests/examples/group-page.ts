@@ -20,8 +20,9 @@ for (const child of children) {
 
 for (const t of children) {
     if (t.kind !== "token") continue;
-    const overrides = acrossPermutations(doc, t.path)
-        .filter(({ from }) => from && "modifier" in from)
-        .map(({ permutation, token: there }) => `${permutation.label} in ${there.source.at.file}`);
-    row(t.path, t.authored?.value, t.source.at.file, overrides.join(", "));
+    const overrides = acrossPermutations(doc, t.path).flatMap(({ permutation, token: there }) => {
+        const place = there.writtenAt.at(-1);
+        return place?.source.context ? [`${permutation.label} in ${place.span.file}`] : [];
+    });
+    row(t.path, t.authored?.value, t.writtenAt.at(-1)?.span.file, overrides.join(", "));
 }

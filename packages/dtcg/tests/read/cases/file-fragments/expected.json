@@ -6,55 +6,7 @@
     {
       "input": {},
       "label": "",
-      "sources": [
-        {
-          "file": "all.json",
-          "pointer": "#/color",
-          "from": {
-            "sets": [
-              {
-                "name": "parts"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "all.json",
-          "pointer": "#/brand colors",
-          "from": {
-            "sets": [
-              {
-                "name": "parts"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "all.json",
-          "pointer": "#/my~1group",
-          "from": {
-            "sets": [
-              {
-                "name": "parts"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "all.json",
-          "from": {
-            "sets": [
-              {
-                "name": "parts"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        }
-      ]
+      "sources": [0, 1, 2, 3]
     }
   ],
   "diagnostics": [
@@ -69,6 +21,47 @@
         "file": "tokens.resolver.json",
         "text": "\"all.json#color\""
       }
+    }
+  ],
+  "sources": [
+    {
+      "file": "all.json",
+      "pointer": "#/color",
+      "sets": [
+        {
+          "name": "parts"
+        }
+      ],
+      "readBy": "everyone"
+    },
+    {
+      "file": "all.json",
+      "pointer": "#/brand colors",
+      "sets": [
+        {
+          "name": "parts"
+        }
+      ],
+      "readBy": "everyone"
+    },
+    {
+      "file": "all.json",
+      "pointer": "#/my~1group",
+      "sets": [
+        {
+          "name": "parts"
+        }
+      ],
+      "readBy": "everyone"
+    },
+    {
+      "file": "all.json",
+      "sets": [
+        {
+          "name": "parts"
+        }
+      ],
+      "readBy": "everyone"
     }
   ]
 }

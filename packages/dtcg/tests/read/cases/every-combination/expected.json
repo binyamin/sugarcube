@@ -163,19 +163,7 @@
         "brand": "house"
       },
       "label": "theme: light, brand: house",
-      "sources": [
-        {
-          "file": "base.json",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        }
-      ]
+      "sources": [0]
     },
     {
       "input": {
@@ -183,32 +171,7 @@
         "brand": "ocean"
       },
       "label": "theme: light, brand: ocean",
-      "sources": [
-        {
-          "file": "base.json",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "ocean.json",
-          "from": {
-            "modifier": "brand",
-            "context": "ocean",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "brand": "ocean"
-            }
-          ]
-        }
-      ]
+      "sources": [0, 1]
     },
     {
       "input": {
@@ -216,32 +179,7 @@
         "brand": "house"
       },
       "label": "theme: dark, brand: house",
-      "sources": [
-        {
-          "file": "base.json",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "dark.json",
-          "from": {
-            "modifier": "theme",
-            "context": "dark",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "theme": "dark"
-            }
-          ]
-        }
-      ]
+      "sources": [0, 2]
     },
     {
       "input": {
@@ -249,46 +187,47 @@
         "brand": "ocean"
       },
       "label": "theme: dark, brand: ocean",
-      "sources": [
+      "sources": [0, 2, 1]
+    }
+  ],
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "base.json",
+      "sets": [
         {
-          "file": "base.json",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
+          "name": "base"
+        }
+      ],
+      "readBy": "everyone"
+    },
+    {
+      "file": "ocean.json",
+      "context": {
+        "modifier": "brand",
+        "name": "ocean"
+      },
+      "sets": [],
+      "readBy": [
         {
-          "file": "dark.json",
-          "from": {
-            "modifier": "theme",
-            "context": "dark",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "theme": "dark"
-            }
-          ]
-        },
+          "modifier": "brand",
+          "name": "ocean"
+        }
+      ]
+    },
+    {
+      "file": "dark.json",
+      "context": {
+        "modifier": "theme",
+        "name": "dark"
+      },
+      "sets": [],
+      "readBy": [
         {
-          "file": "ocean.json",
-          "from": {
-            "modifier": "brand",
-            "context": "ocean",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "brand": "ocean"
-            }
-          ]
+          "modifier": "theme",
+          "name": "dark"
         }
       ]
     }
-  ],
-  "diagnostics": []
+  ]
 }

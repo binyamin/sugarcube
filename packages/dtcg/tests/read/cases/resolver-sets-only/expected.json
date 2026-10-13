@@ -39,20 +39,19 @@
     {
       "input": {},
       "label": "",
-      "sources": [
-        {
-          "file": "tokens.json",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        }
-      ]
+      "sources": [0]
     }
   ],
-  "diagnostics": []
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "tokens.json",
+      "sets": [
+        {
+          "name": "base"
+        }
+      ],
+      "readBy": "everyone"
+    }
+  ]
 }

@@ -17,10 +17,10 @@
         {
           "path": "",
           "type": "number",
-          "declaredIn": [
+          "writtenAt": [
             {
-              "index": 0,
-              "at": {
+              "source": 0,
+              "span": {
                 "file": "tokens.json",
                 "valueAfter": "\"\":"
               }

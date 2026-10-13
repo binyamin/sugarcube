@@ -62,7 +62,6 @@ export function describeElidedParents(
 }
 
 function modifierSetting(permutation: Permutation, path: string): string[] {
-    const found = token(permutation, path);
-    const from = found && permutation.sources[found.source.index]?.from;
-    return from && "modifier" in from ? [from.modifier] : [];
+    const context = token(permutation, path)?.writtenAt.at(-1)?.source.context;
+    return context ? [context.modifier.name] : [];
 }

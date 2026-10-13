@@ -6,12 +6,7 @@
     {
       "input": {},
       "label": "",
-      "sources": [
-        {
-          "file": "tokens.json",
-          "readBy": "everyone"
-        }
-      ]
+      "sources": [0]
     }
   ],
   "diagnostics": [
@@ -20,6 +15,13 @@
       "detail": {
         "file": "tokens.json"
       }
+    }
+  ],
+  "sources": [
+    {
+      "file": "tokens.json",
+      "sets": [],
+      "readBy": "everyone"
     }
   ]
 }

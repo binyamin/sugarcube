@@ -6,8 +6,8 @@ declare const doc: Document;
 
 const hit = atOffset(doc, "tokens.json", 214);
 if (hit.kind === "reference") {
-    const target = token(doc, hit.to, hit.permutation);
-    if (target) goTo(target.source.at);
+    const place = token(doc, hit.to, hit.permutation)?.writtenAt.at(-1);
+    if (place) goTo(place.span);
 }
 
 const here = atOffset(doc, "tokens.json", 380);

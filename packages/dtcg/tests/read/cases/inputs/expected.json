@@ -20,21 +20,7 @@
         "brand": "house"
       },
       "label": "theme: dark, brand: house",
-      "sources": [
-        {
-          "file": "dark.json",
-          "from": {
-            "modifier": "theme",
-            "context": "dark",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "theme": "dark"
-            }
-          ]
-        }
-      ]
+      "sources": [0]
     },
     {
       "input": {
@@ -45,5 +31,21 @@
       "sources": []
     }
   ],
-  "diagnostics": []
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "dark.json",
+      "context": {
+        "modifier": "theme",
+        "name": "dark"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "theme",
+          "name": "dark"
+        }
+      ]
+    }
+  ]
 }

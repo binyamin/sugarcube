@@ -47,18 +47,20 @@
             "value": 1,
             "unit": "rem"
           },
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "tokens.json",
-              "valueAfter": "\"steps\":"
-            }
-          },
           "generated": {
             "from": "space",
             "extension": ["com.example", "steps"]
           },
-          "authored": null
+          "authored": null,
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "tokens.json",
+                "valueAfter": "\"steps\":"
+              }
+            }
+          ]
         },
         {
           "path": "gap",

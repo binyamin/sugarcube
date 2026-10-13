@@ -161,26 +161,20 @@ describe("completeInput", () => {
 });
 
 describe("acrossPermutations", () => {
-    it("gives the token in each permutation that has it, with the permutation and where its value comes from", () => {
+    it("gives the token in each permutation that has it, with the permutation", () => {
         const across = acrossPermutations(doc, "2");
+        const context = ({ token: found }: (typeof across)[number]) =>
+            found.writtenAt.at(-1)?.source.context?.name;
 
-        expect(
-            across.map((each) => ({ label: each.permutation.label, from: each.from })),
-        ).toStrictEqual([
-            { label: "theme: light, density: comfy", from: { sets: [{ name: "base" }] } },
-            { label: "theme: light, density: compact", from: { sets: [{ name: "base" }] } },
-            {
-                label: "theme: dark, density: comfy",
-                from: { modifier: "theme", context: "dark", sets: [] },
-            },
-            {
-                label: "theme: dark, density: compact",
-                from: { modifier: "theme", context: "dark", sets: [] },
-            },
+        expect(across.map((each) => [each.permutation.label, context(each)])).toStrictEqual([
+            ["theme: light, density: comfy", undefined],
+            ["theme: light, density: compact", undefined],
+            ["theme: dark, density: comfy", "dark"],
+            ["theme: dark, density: compact", "dark"],
         ]);
         expect(across[2]?.permutation).toBe(permutation(doc, { theme: "dark" }));
         expect(across[2]?.token).toBe(token(doc, "2", { theme: "dark" }));
-        expect(Object.keys(across[0] ?? {})).toStrictEqual(["permutation", "token", "from"]);
+        expect(Object.keys(across[0] ?? {})).toStrictEqual(["permutation", "token"]);
     });
 
     it("leaves out permutations that don't have the token", () => {

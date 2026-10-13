@@ -55,12 +55,10 @@ function namesByPlace(projects: Project[], files: Set<string>): Map<string, stri
     for (const project of projects) {
         for (const permutation of project.doc.permutations) {
             for (const token of permutation.tokens) {
-                for (const { at } of [token.source, ...(token.replaces ?? [])]) {
-                    name(project, at, token.path);
-                }
+                for (const { span } of token.writtenAt) name(project, span, token.path);
             }
             for (const group of permutation.groups) {
-                for (const { at } of group.declaredIn) name(project, at, group.path);
+                for (const { span } of group.writtenAt) name(project, span, group.path);
             }
         }
     }

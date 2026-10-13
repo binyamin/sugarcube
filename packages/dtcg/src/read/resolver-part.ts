@@ -13,6 +13,7 @@ import { folderOf, join } from "./paths.js";
 import { encodePointer, readPointerText } from "./pointer.js";
 import type { CheckedResolver, ModifierDefinition, SetDefinition, SourceNode } from "./resolver.js";
 import { type SetsUsed, fileRef, setNamed } from "./sources.js";
+import { linkedContext, linkedModifier } from "./linked.js";
 
 export function resolverPart(
     resolver: CheckedResolver,
@@ -73,18 +74,24 @@ function publicSet(resolver: CheckedResolver, set: SetDefinition): ResolverSet {
 
 function publicModifier(resolver: CheckedResolver, modifier: ModifierDefinition): ResolverModifier {
     const extensions = modifier.extensions && plainObject(modifier.extensions);
-    return {
+    const made = linkedModifier({
         name: modifier.name,
         ...(modifier.description !== undefined && { description: modifier.description }),
         ...(extensions && { extensions }),
-        contexts: [...modifier.contexts].map(([context, { sources, declared }]) => ({
-            name: context,
-            sources: sourcesAsWritten(resolver, sources),
-            at: spanAt(resolver, declared),
-        })),
+        contexts: [],
         ...(modifier.default !== undefined && { default: modifier.default }),
         at: spanAt(resolver, modifier.declared),
-    };
+    });
+    made.contexts = [...modifier.contexts].map(([context, { sources, declared }]) =>
+        linkedContext({
+            name: context,
+            modifier: made,
+            sources: sourcesAsWritten(resolver, sources),
+            isDefault: context === modifier.default,
+            at: spanAt(resolver, declared),
+        }),
+    );
+    return made;
 }
 
 function sourcesAsWritten(resolver: CheckedResolver, sources: SourceNode[]): SourceRef[] {

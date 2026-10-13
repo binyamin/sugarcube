@@ -13,17 +13,19 @@
             "value": 4,
             "unit": "px"
           },
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "steps.json",
-              "valueAfter": "\"1\":"
-            }
-          },
           "generated": {
             "from": "space",
             "extension": ["com.example", "steps"]
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "steps.json",
+                "valueAfter": "\"1\":"
+              }
+            }
+          ]
         },
         {
           "path": "space.2",

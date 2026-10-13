@@ -31,20 +31,22 @@
           "path": "alias",
           "type": "number",
           "description": "Same as base",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "tokens.json",
-              "valueAfter": "\"alias\":"
-            }
-          },
           "authored": {
             "value": {
               "$ref": "#/base"
             },
             "type": "number"
           },
-          "resolved": 4
+          "resolved": 4,
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "tokens.json",
+                "valueAfter": "\"alias\":"
+              }
+            }
+          ]
         },
         {
           "path": "blue"
@@ -52,20 +54,22 @@
         {
           "path": "blue-red",
           "type": "number",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "tokens.json",
-              "valueAfter": "\"blue-red\":"
-            }
-          },
           "authored": {
             "value": {
               "$ref": "#/blue/$value/components/0"
             },
             "type": "number"
           },
-          "resolved": 0.2
+          "resolved": 0.2,
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "tokens.json",
+                "valueAfter": "\"blue-red\":"
+              }
+            }
+          ]
         },
         {
           "path": "untyped",

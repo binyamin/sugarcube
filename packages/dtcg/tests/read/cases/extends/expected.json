@@ -19,14 +19,16 @@
         {
           "path": "button-primary.background",
           "type": "number",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "tokens.json",
-              "valueAfter": "\"background\":",
-              "occurrence": 2
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "tokens.json",
+                "valueAfter": "\"background\":",
+                "occurrence": 2
+              }
             }
-          }
+          ]
         },
         {
           "path": "button-primary.state.hover",
@@ -45,16 +47,18 @@
         {
           "path": "button-primary.text",
           "type": "number",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "tokens.json",
-              "valueAfter": "\"text\":"
-            }
-          },
           "inherited": {
             "from": "button"
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "tokens.json",
+                "valueAfter": "\"text\":"
+              }
+            }
+          ]
         },
         {
           "path": "button-large.padding",
@@ -103,15 +107,6 @@
           "path": "button-primary",
           "type": "number",
           "description": "Buttons",
-          "declaredIn": [
-            {
-              "index": 0,
-              "at": {
-                "file": "tokens.json",
-                "valueAfter": "\"button-primary\":"
-              }
-            }
-          ],
           "references": [
             {
               "syntax": "curly-brace",
@@ -121,14 +116,23 @@
                 "valueAfter": "\"$extends\":"
               }
             }
+          ],
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "tokens.json",
+                "valueAfter": "\"button-primary\":"
+              }
+            }
           ]
         },
         {
           "path": "button-primary.state",
-          "declaredIn": [
+          "writtenAt": [
             {
-              "index": 0,
-              "at": {
+              "source": 0,
+              "span": {
                 "file": "tokens.json",
                 "valueAfter": "\"state\":",
                 "occurrence": 2
@@ -154,10 +158,10 @@
         },
         {
           "path": "button-large.state",
-          "declaredIn": [],
           "inherited": {
             "from": "button-primary"
-          }
+          },
+          "writtenAt": []
         }
       ]
     }

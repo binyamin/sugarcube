@@ -6,21 +6,20 @@
     {
       "input": {},
       "label": "",
-      "sources": [
-        {
-          "file": "tokens.resolver.json",
-          "pointer": "#/$defs/brand",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        }
-      ]
+      "sources": [0]
     }
   ],
-  "diagnostics": []
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "tokens.resolver.json",
+      "pointer": "#/$defs/brand",
+      "sets": [
+        {
+          "name": "base"
+        }
+      ],
+      "readBy": "everyone"
+    }
+  ]
 }

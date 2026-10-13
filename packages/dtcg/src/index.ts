@@ -538,17 +538,16 @@ export interface TokenBase<T extends TokenType> {
      */
     extensions?: Record<string, unknown>;
     /**
-     * Where the token was read from: which of the permutation's {@link Permutation.sources | sources}
-     * it belongs to, and exactly where it is written. That is usually in the source's file, and in
-     * the resolver for a token written beside the source's `$ref`.
+     * Every place the permutation's sources write the token, in the order they are read, the one
+     * that wins last: a later source writes a token whole (Resolver 6.2). Usually one place. A
+     * token a {@link Generator} adds is at the extension that makes it, and one inherited through
+     * `$extends` where its value is written, in the group it comes from.
+     *
+     * @example
+     * const winner = token.writtenAt.at(-1);
+     * winner?.source.context // the context whose own file writes it, if one does
      */
-    source: { index: number; at: Span };
-    /**
-     * The places earlier sources of the permutation write the token, in the order they are read,
-     * each with its source as {@link TokenBase.source | source} has it, which `source.at` replaces:
-     * a later source writes a token whole. Absent when no earlier source writes it.
-     */
-    replaces?: { index: number; at: Span }[];
+    writtenAt: Place[];
     /**
      * What the file wrote for the token: its value exactly as written, and its `$type` and
      * `$deprecated` when it writes them itself, rather than taking them from a group or, for the
@@ -561,7 +560,7 @@ export interface TokenBase<T extends TokenType> {
      * a file writes the token or it was added. `from` is absent for an extension on the top level of
      * a file, and `extension` is where the extension sits in the group's `$extensions`, as the
      * generator names it. An added token has no {@link TokenBase.authored | authored}, and its
-     * {@link TokenBase.source | source} is the extension.
+     * {@link TokenBase.writtenAt | place} is the extension.
      */
     generated?: { from?: string; extension: [string, ...string[]] };
     /** Set when the token is here only because of `$extends`, or a `$ref` to another group, at `from`. */
@@ -662,11 +661,10 @@ export interface Group {
      */
     references: Reference[];
     /**
-     * Every place the group is declared, each with the permutation's source that declares it, as
-     * {@link TokenBase.source | a token's source} has it. Groups can be spread across files, so
-     * there may be several, and a group only {@link Group.inherited | inherited} has none.
+     * Every place a source declares the group, in the order read. Groups can be spread across
+     * files, so there may be several, and a group only {@link Group.inherited | inherited} has none.
      */
-    declaredIn: { index: number; at: Span }[];
+    writtenAt: Place[];
     /** Set when the group is here only because of `$extends`, or a `$ref` to another group, at `from`. */
     inherited?: { from: string };
     /** What the files write on the group itself; absent when they write none of it. */
@@ -696,15 +694,30 @@ export interface TopLevel {
     description?: string;
     deprecated?: boolean | string;
     extensions?: Record<string, unknown>;
-    /** The top of each file that writes something there, each with its source. */
-    declaredIn: { index: number; at: Span }[];
+    /** The top of each file that writes something there. */
+    writtenAt: Place[];
 }
 
 /**
- * One source of a permutation's tokens, as the resolver lists it: a file, part of one, or tokens
- * written in the resolver. Keys written beside a source's `$ref` are part of that source, so a
- * token written there belongs to it, and its {@link TokenBase.source | source.at} is in the
- * resolver. A set in the resolver can have several sources, so the same set can appear on several.
+ * A place a token or group is written: the source that writes it and where. The same place is the
+ * same object in every permutation that reads its source.
+ */
+export interface Place {
+    source: Source;
+    span: Span;
+}
+
+/**
+ * A place, as {@link Document.writtenAt} gives it: written once, read in each of `permutations`.
+ */
+export type PlaceInPermutations = Place & { permutations: Input[] };
+
+/**
+ * One source of tokens, as the resolver lists it: a file, part of one, or tokens written in the
+ * resolver. Keys written beside a source's `$ref` are part of that source, so a token written there
+ * belongs to it, and its place is in the resolver. One object for each source the resolver lists,
+ * per context that lists it (a set several contexts pull in gives one for each), shared by every
+ * permutation that reads it: {@link Document.sources} lists each once.
  */
 export interface Source {
     /** The file its tokens are written in, or the resolver for tokens written there. */
@@ -716,15 +729,21 @@ export interface Source {
      */
     pointer?: string;
     /**
-     * How the resolver reached it: the modifier and context, when it came through one, and every
-     * set on the way, outermost first, each as it is in effect at that step. Absent when there is
-     * no resolver.
+     * The context it is listed under, when the resolver lists it under one: the context itself, as
+     * {@link Document.resolver} holds it. "Did a context's own file write this?" is this.
      *
      * @example
-     * source.from // { sets: [{ name: "base" }, { name: "palette" }] }: palette, which base names
-     * source.from // { modifier: "mode", context: "dark", sets: [] }
+     * token.writtenAt.at(-1)?.source.context?.name // "dark"
      */
-    from?: { sets: SetOnRoute[] } | { modifier: string; context: string; sets: SetOnRoute[] };
+    context?: ResolverContext;
+    /**
+     * Every set on the way to it, outermost first, each as it is in effect at that step. Empty
+     * when it is reached through none, or there is no resolver.
+     *
+     * @example
+     * source.sets // [{ name: "base" }, { name: "palette" }]: palette, which base names
+     */
+    sets: SetOnRoute[];
     /**
      * The source's own vendor data, passed through untouched: the `$extensions` written beside its
      * `$ref`, or else those at the top of its file. A set's and a modifier's stay on them, in
@@ -733,14 +752,13 @@ export interface Source {
     extensions?: Record<string, unknown>;
     /**
      * Who reads it: `"everyone"` when a set `resolutionOrder` names reaches it, otherwise each
-     * context whose permutations read it, as an input naming that one modifier. Every context the
-     * resolver declares counts, including those whose permutations the read didn't build. For
-     * deciding which file an edit belongs in.
+     * context whose permutations read it. Every context the resolver declares counts, including
+     * those whose permutations the read didn't build. For deciding which file an edit belongs in.
      *
      * @example
-     * source.readBy // [{ mode: "dark" }]
+     * source.readBy // [the context mode: dark]
      */
-    readBy: "everyone" | Input[];
+    readBy: "everyone" | ResolverContext[];
 }
 
 /**
@@ -807,9 +825,25 @@ export interface ResolverModifier {
     /** The modifier's own `$extensions`, passed through untouched. */
     extensions?: Record<string, unknown>;
     /** Its contexts, in the order they are written, each with its sources. */
-    contexts: { name: string; sources: SourceRef[]; at: Span }[];
+    contexts: ResolverContext[];
     default?: string;
     /** Where it is written: under `modifiers`, or inline in `resolutionOrder`. */
+    at: Span;
+}
+
+/** One context of a modifier: one of the values an input can choose for it (Resolver 4.1.5.1). */
+export interface ResolverContext {
+    name: string;
+    /** The modifier it belongs to. */
+    modifier: ResolverModifier;
+    /** Its sources, in order, as written. */
+    sources: SourceRef[];
+    /**
+     * Whether it is its modifier's `default` (Resolver 4.1.5.3). A modifier need not declare one,
+     * and then none of its contexts is.
+     */
+    isDefault: boolean;
+    /** Where it is written. */
     at: Span;
 }
 
@@ -837,6 +871,15 @@ export interface Permutation {
     label: string;
     /** Where the tokens come from, in the order they apply: a later source overrides an earlier one. */
     sources: Source[];
+    /**
+     * The context it picks for each modifier, in the order `resolutionOrder` names them, as its
+     * {@link Permutation.label | label} lists them: what its {@link Permutation.input | input}
+     * chooses (Resolver 5), defaults filled in. Empty without modifiers.
+     *
+     * @example
+     * permutation.contexts.filter((context) => !context.isDefault) // what sets it apart
+     */
+    contexts: ResolverContext[];
     /** What is written at the top level of the files. */
     root: TopLevel;
     /**
@@ -1171,6 +1214,11 @@ export interface Document {
     files: string[];
     /** What the resolver says about itself and how it is put together; absent with no resolver. */
     resolver?: Resolver;
+    /**
+     * Every source the read used, each once, in the order the permutations first read them. A
+     * permutation's {@link Permutation.sources | sources} are among these, the same objects.
+     */
+    sources: Source[];
     permutations: Permutation[];
     /**
      * How the values were read. To read a value from the Document again, such as one inside
@@ -1200,6 +1248,14 @@ export interface Document {
      * for (const { from, span } of doc.referencedBy("color.brand")) show(from, span);
      */
     referencedBy(path: string, options?: ReferenceOptions): ReferenceInPermutations[];
+    /**
+     * Every place the token or group at `path` is written, in any permutation, each once with the
+     * permutations that read it, in the order first met.
+     *
+     * @example
+     * for (const { span } of doc.writtenAt("color.brand")) rename(span);
+     */
+    writtenAt(path: string): PlaceInPermutations[];
 }
 
 export type { ValueErrorCode, ValueErrorDetail, ValueErrorFacts } from "./values/value-errors.js";
