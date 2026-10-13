@@ -31,21 +31,45 @@ interface Draft {
  * else project = next;
  */
 export function apply(project: Project, ops: FileOp[]): Project | { conflicts: Conflict[] } {
-    const done = applyKeepingTexts(project, ops);
-    return "conflicts" in done ? done : done.project;
+    const changes = changedFiles(project, ops);
+    return "conflicts" in changes ? changes : changes.project;
 }
 
-export function applyKeepingTexts(
+/**
+ * What saving edits would do to the files, without saving them: the new text of each file the edits
+ * change, and the files they delete, with the project as read from the result. Only a `deleteFile`
+ * edit deletes a file, so one the resolver stops naming is kept. For saving somewhere that takes
+ * whole files, such as a pull request. All or nothing, as {@link apply}: if any edit no longer
+ * applies, the answer is the conflicts.
+ *
+ * @example
+ * const changes = changedFiles(project, edits.ops);
+ * if ("conflicts" in changes) showConflicts(changes.conflicts);
+ * else await openPullRequest(changes);
+ */
+export function changedFiles(
     project: Project,
     ops: FileOp[],
-): { project: Project; files: Record<string, string> } | { conflicts: Conflict[] } {
+):
+    | { project: Project; written: Record<string, string>; deleted: string[] }
+    | { conflicts: Conflict[] } {
     const { files, conflicts } = editedFiles(project, ops);
     if (conflicts.length > 0) return { conflicts };
-
     const next = reread(project, files);
     const lost = unread(next, ops);
     if (lost.length > 0) return { conflicts: lost.map((op) => conflict(op, "unread")) };
-    return { project: next, files };
+
+    const written = Object.entries(files)
+        .filter(([file, text]) => text !== project.files[file])
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    const deleted = ops.flatMap((op) =>
+        op.kind === "deleteFile" && files[op.file] === undefined ? [op.file] : [],
+    );
+    return {
+        project: next,
+        written: Object.fromEntries(written),
+        deleted: [...new Set(deleted)].sort(),
+    };
 }
 
 export function applyWhatFits(

@@ -6,12 +6,12 @@ import { setValues, type Session, type ValueOptions } from "@sugarcube-sh/dtcg-e
 
 declare const session: Session;
 
-const from = "color.blue";
-const to = "color.violet";
+const oldPalette = "color.blue";
+const newPalette = "color.violet";
 
 function swapped(value: unknown): string | undefined {
-    if (!isAlias(value) || !value.alias.startsWith(`${from}.`)) return undefined;
-    return `{${to}${value.alias.slice(from.length)}}`;
+    if (!isAlias(value) || !value.alias.startsWith(`${oldPalette}.`)) return undefined;
+    return `{${newPalette}${value.alias.slice(oldPalette.length)}}`;
 }
 
 const doc = session.project.doc;

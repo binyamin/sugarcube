@@ -1,6 +1,6 @@
 // A bot that syncs one changed variable from Figma. It opens a pull request with just that change,
 // and lists the other themes it also shows in.
-import { setValue, apply, changedFiles } from "@sugarcube-sh/dtcg-edit";
+import { setValue, changedFiles } from "@sugarcube-sh/dtcg-edit";
 import { permutation, type Project } from "@sugarcube-sh/dtcg";
 
 declare const project: Project;
@@ -8,12 +8,12 @@ declare const project: Project;
 const result = setValue(project, "color.primary.600", figmaValue, { context: { theme: "dark" } });
 
 if ("ops" in result) {
-    const next = apply(project, result.ops);
-    if (!("conflicts" in next)) {
+    const changes = changedFiles(project, result.ops);
+    if (!("conflicts" in changes)) {
         const also = result.alsoAffects.map(
             (input) => permutation(project.doc, input)?.label ?? JSON.stringify(input),
         );
-        await openPullRequest(changedFiles(project, next), {
+        await openPullRequest(changes, {
             title: "Figma: color.primary.600 in dark",
             body: `Also shows in: ${also.join(", ") || "nothing else"}`,
         });

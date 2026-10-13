@@ -361,7 +361,7 @@ export interface Conflict {
     reason: string;
 }
 
-export { apply, commit } from "./apply.js";
+export { apply, changedFiles, commit } from "./apply.js";
 
 /** The outcome of {@link commit}. */
 export type Committed =
@@ -380,14 +380,6 @@ export type Committed =
 export interface Edits {
     ops: FileOp[];
     moved: Move[];
-}
-
-/**
- * The files that differ between two projects: each one's new text, or `null` where the file was
- * deleted. For saving somewhere that takes whole files, such as a pull request.
- */
-export function changedFiles(before: Project, after: Project): Record<string, string | null> {
-    throw new Error("not implemented yet");
 }
 
 export { isEdits } from "./is-edits.js";
