@@ -1439,6 +1439,18 @@ export interface DesignSystem {
      */
     text(file: string): string | undefined;
     /**
+     * The design system after some files change, read as this one was: from the same file, with
+     * the same options. `changed` gives each changed file's new text, a new file included, or
+     * `null` for a file deleted, by the names {@link DesignSystem.files} gives them; every other
+     * file is read as this one read it. This design system is not changed. What an editor asks
+     * after changing the text.
+     *
+     * @example
+     * const next = ds.reread({ "dark.json": edited });
+     * const without = ds.reread({ "tokens.resolver.json": withoutDim, "dim.json": null });
+     */
+    reread(changed: Readonly<Record<string, string | null>>): DesignSystem;
+    /**
      * What changed since `before`, an earlier read, and in which permutations: tokens and groups
      * added, removed, renamed, or with different properties. A token is compared by what it says,
      * not what it resolves to, so changing one value is one change, not one for every token

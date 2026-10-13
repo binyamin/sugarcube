@@ -669,6 +669,65 @@ describe("ds.text", () => {
     });
 });
 
+describe("ds.reread", () => {
+    const steps = defineGenerator({
+        extension: ["com.example", "steps"],
+        messages: {},
+        generate: () => ({ ok: true, value: [{ name: "1", $value: 1 }] }),
+    });
+    const base = (colour: string) =>
+        JSON.stringify({
+            brand: { $type: "color", $value: colour },
+            space: { $type: "number", $extensions: { "com.example": { steps: 1 } } },
+        });
+    const more = JSON.stringify({ gap: { $type: "number", $value: 2 } });
+    const files = {
+        "tokens.resolver.json": JSON.stringify({
+            version: "2025.10",
+            sets: { base: { sources: [{ $ref: "base.json" }, { $ref: "more.json" }] } },
+            resolutionOrder: [{ $ref: "#/sets/base" }],
+        }),
+        "base.json": base("#ff0000"),
+        "more.json": more,
+    };
+    const ds = readFromMemory({ files }, { generators: [steps], hexStringColors: true });
+    const changed = () => ds.reread({ "base.json": base("#00ff00") });
+
+    it("reads a changed file's new text, and every other file as this one read it", () => {
+        expect(changed().permutation().token("brand")?.authored?.value).toBe("#00ff00");
+        expect(changed().text("base.json")).toBe(base("#00ff00"));
+        expect(changed().text("more.json")).toBe(more);
+        expect(changed().permutation().token("gap")).toBeDefined();
+    });
+
+    it("reads with the same options", () => {
+        expect(changed().permutation().token("space.1")?.generated).toBeDefined();
+        expect(changed().diagnostics).toStrictEqual([]);
+    });
+
+    it("leaves out a file given as null, as if deleted", () => {
+        const deleted = ds.reread({ "more.json": null });
+        expect(deleted.text("more.json")).toBeUndefined();
+        expect(deleted.permutation().token("gap")).toBeUndefined();
+        expect(deleted.diagnostics.map(({ kind }) => kind)).toStrictEqual(["file-not-found"]);
+    });
+
+    it("starts from the same file, whatever files are added", () => {
+        const single = readFromMemory({ files: { "tokens.json": more } });
+        const added = single.reread({ "notes.json": "{}" });
+        expect(added.files).toStrictEqual(["tokens.json"]);
+        expect(added.permutation().token("gap")).toBeDefined();
+    });
+
+    it("leaves the design system it was asked of as it was", () => {
+        changed();
+        ds.reread({ "more.json": null });
+        expect(ds.permutation().token("brand")?.authored?.value).toBe("#ff0000");
+        expect(ds.text("base.json")).toBe(base("#ff0000"));
+        expect(ds.text("more.json")).toBe(more);
+    });
+});
+
 describe("the top level of a file, to a generator or an extension check", () => {
     const seen: { generator?: unknown; validator?: unknown[] } = { validator: [] };
     const steps = defineGenerator({

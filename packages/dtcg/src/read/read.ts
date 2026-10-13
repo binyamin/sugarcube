@@ -172,16 +172,14 @@ function permutationOptions({
     return { ...(inputs && { inputs }), permutations, limit: permutationLimit };
 }
 
-function toDesignSystem(
-    loaded: Loaded,
-    {
+function toDesignSystem(loaded: Loaded, options: ReadOptions): DesignSystem {
+    const {
         onStage,
         generators = [],
         extensionValidators = [],
         hexStringColors,
         ignoreUnknownProperties,
-    }: ReadOptions,
-): DesignSystem {
+    } = options;
     const found: DesignSystem["diagnostics"] = [];
     const parseOptions = {
         hexStringColors: hexStringColors ?? false,
@@ -227,6 +225,6 @@ function toDesignSystem(
                 permutations,
             ),
         },
-        loaded.texts,
+        { texts: loaded.texts, options },
     );
 }

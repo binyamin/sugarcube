@@ -9,6 +9,7 @@ import type {
     Permutation,
     Permutations,
     Place,
+    ReadOptions,
     Reference,
     ReferenceOptions,
     ResolverContext,
@@ -24,6 +25,7 @@ import { labelFor } from "../lookup/permutation-label.js";
 import { modifierIn, permutationIn } from "../lookup/permutation.js";
 import { referencedByIn, referencedIn, referencesIn } from "../lookup/references.js";
 import { writtenAtIn } from "../lookup/written-at.js";
+import { readFromMemory } from "./read.js";
 
 export const NO_REFERENCES: Reference[] = Object.freeze([]) as unknown as Reference[];
 export const NO_PLACES: Place[] = Object.freeze([]) as unknown as Place[];
@@ -160,7 +162,15 @@ const documentShared = {
         return diffIn(this, before, options);
     },
     text(this: DesignSystem, file: string): string | undefined {
-        return texts.get(this)?.[file];
+        return kept.get(this)?.texts[file];
+    },
+    reread(this: DesignSystem, changed: Readonly<Record<string, string | null>>) {
+        const files: Record<string, string> = { ...kept.get(this)?.texts };
+        for (const [file, text] of Object.entries(changed)) {
+            if (text === null) delete files[file];
+            else files[file] = text;
+        }
+        return readFromMemory({ files, entry: this.files[0] }, kept.get(this)?.options);
     },
     has(this: DesignSystem, path: string) {
         return this.permutations.some(
@@ -285,14 +295,19 @@ export function placesIn(): Places {
     return { at, only: (source, span) => PlaceObject.alone(at(source, span)) };
 }
 
-const texts = new WeakMap<DesignSystem, Readonly<Record<string, string>>>();
+interface Kept {
+    texts: Readonly<Record<string, string>>;
+    options: ReadOptions;
+}
+
+const kept = new WeakMap<DesignSystem, Kept>();
 
 export function linkedDocument(
     fields: Omit<DesignSystem, keyof typeof documentShared>,
-    read: Readonly<Record<string, string>>,
+    beside: Kept,
 ): DesignSystem {
     const ds: DesignSystem = Object.assign(Object.create(documentShared), fields);
-    texts.set(ds, read);
+    kept.set(ds, beside);
     for (const permutation of ds.permutations) designSystems.set(permutation, ds);
     return ds;
 }
