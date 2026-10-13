@@ -48,13 +48,3 @@ export function placeOf(project: Project, span: Span): Place | undefined {
 export function spanKey({ file, offset }: Span): string {
     return `${file}:${offset}`;
 }
-
-export function unique(spans: Span[]): Span[] {
-    const seen = new Set<string>();
-    return spans.filter((span) => {
-        const key = spanKey(span);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
-}

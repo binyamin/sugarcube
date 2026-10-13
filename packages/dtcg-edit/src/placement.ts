@@ -17,7 +17,7 @@ import {
 } from "@sugarcube-sh/dtcg";
 import { refused } from "./error-messages.js";
 import type { Decision, Refusal, Where } from "./index.js";
-import { type Place, placeOf, spanKey, unique, writtenAt } from "./project-text.js";
+import { type Place, placeOf, spanKey, writtenAt } from "./project-text.js";
 
 type Placement =
     | { token: Token; at: Place; alsoAffects: Input[] }
@@ -79,8 +79,7 @@ export function groupCopies(project: Project, path: string): Copies | undefined 
 }
 
 function copiesAt(project: Project, path: string): Copies {
-    const spans = project.doc.writtenAt(path).map(({ span }) => span);
-    const places = unique(spans).flatMap((span) => placeOf(project, span) ?? []);
+    const places = project.doc.writtenAt(path).flatMap(({ span }) => placeOf(project, span) ?? []);
     const alsoAffects = inputsOf(
         project.doc,
         (perm) => (token(perm, path) ?? group(perm, path)) !== undefined,

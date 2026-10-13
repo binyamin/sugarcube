@@ -154,19 +154,52 @@ describe("a group's writtenAt", () => {
 describe("on the Document", () => {
     it("writtenAt gives every place a path is written, in any permutation, each once with where", () => {
         const places = doc.writtenAt("color.bg");
-        expect(places.map(({ source, permutations }) => [source.file, permutations])).toStrictEqual(
-            [
-                ["base.json", [{ mode: "light" }, { mode: "dark" }]],
-                ["dark.json", [{ mode: "dark" }]],
-            ],
-        );
+        expect(places.map(({ span, permutations }) => [span.file, permutations])).toStrictEqual([
+            ["base.json", [{ mode: "light" }, { mode: "dark" }]],
+            ["dark.json", [{ mode: "dark" }]],
+        ]);
     });
 
     it("writtenAt gives a group's places too", () => {
-        expect(doc.writtenAt("color").map(({ source }) => source.file)).toStrictEqual([
+        expect(doc.writtenAt("color").map(({ span }) => span.file)).toStrictEqual([
             "base.json",
             "dark.json",
         ]);
+    });
+});
+
+describe("on the Document, a file several contexts list", () => {
+    const shared = readFromMemory({
+        files: {
+            "tokens.resolver.json": JSON.stringify({
+                version: "2025.10",
+                sets: { night: { sources: [{ $ref: "night.json" }] } },
+                resolutionOrder: [
+                    { type: "set", name: "base", sources: [{ $ref: "base.json" }] },
+                    {
+                        type: "modifier",
+                        name: "mode",
+                        default: "light",
+                        contexts: {
+                            light: [],
+                            dark: [{ $ref: "#/sets/night" }],
+                            dim: [{ $ref: "#/sets/night" }],
+                        },
+                    },
+                ],
+            }),
+            "base.json": JSON.stringify({ gap: { $type: "number", $value: 1 } }),
+            "night.json": JSON.stringify({ gap: { $type: "number", $value: 2 } }),
+        },
+        entry: "tokens.resolver.json",
+    });
+
+    it("writtenAt gives its place once, with each source that reads it", () => {
+        const [, night, ...rest] = shared.writtenAt("gap");
+        expect(rest).toStrictEqual([]);
+        expect(night?.span.file).toBe("night.json");
+        expect(night?.sources.map(({ context }) => context?.name)).toStrictEqual(["dark", "dim"]);
+        expect(night?.permutations).toStrictEqual([{ mode: "dark" }, { mode: "dim" }]);
     });
 });
 

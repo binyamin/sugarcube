@@ -708,9 +708,14 @@ export interface Place {
 }
 
 /**
- * A place, as {@link Document.writtenAt} gives it: written once, read in each of `permutations`.
+ * A place, as {@link Document.writtenAt} gives it: written once at `span`, read through each of
+ * `sources` (a file several contexts list is a source for each), in each of `permutations`.
  */
-export type PlaceInPermutations = Place & { permutations: Input[] };
+export interface PlaceInPermutations {
+    span: Span;
+    sources: Source[];
+    permutations: Input[];
+}
 
 /**
  * One source of tokens, as the resolver lists it: a file, part of one, or tokens written in the
@@ -1249,8 +1254,8 @@ export interface Document {
      */
     referencedBy(path: string, options?: ReferenceOptions): ReferenceInPermutations[];
     /**
-     * Every place the token or group at `path` is written, in any permutation, each once with the
-     * permutations that read it, in the order first met.
+     * Every place the token or group at `path` is written, in any permutation, each span once with
+     * the sources and permutations that read it, in the order first met.
      *
      * @example
      * for (const { span } of doc.writtenAt("color.brand")) rename(span);

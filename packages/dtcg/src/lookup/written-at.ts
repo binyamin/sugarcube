@@ -1,22 +1,23 @@
-import type { Document, Place, PlaceInPermutations } from "../index.js";
+import type { Document, PlaceInPermutations, Span } from "../index.js";
 import { group, token } from "./token.js";
 
 export function writtenAtIn(doc: Document, path: string): PlaceInPermutations[] {
-    const found = new Map<Place, PlaceInPermutations>();
+    const found = new Map<Span, PlaceInPermutations>();
     for (const permutation of doc.permutations) {
         const places = [
             ...(token(permutation, path)?.writtenAt ?? []),
             ...(group(permutation, path)?.writtenAt ?? []),
         ];
-        for (const place of places) {
-            const known = found.get(place);
-            if (known) known.permutations.push(permutation.input);
-            else
-                found.set(place, {
-                    source: place.source,
-                    span: place.span,
-                    permutations: [permutation.input],
-                });
+        for (const { source, span } of places) {
+            const known = found.get(span);
+            if (!known) {
+                found.set(span, { span, sources: [source], permutations: [permutation.input] });
+                continue;
+            }
+            if (!known.sources.includes(source)) known.sources.push(source);
+            if (!known.permutations.includes(permutation.input)) {
+                known.permutations.push(permutation.input);
+            }
         }
     }
     return [...found.values()];

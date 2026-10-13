@@ -5,6 +5,7 @@ import type {
     Reference,
     ReferenceInPermutations,
     ReferenceOptions,
+    Span,
     Token,
 } from "../index.js";
 import { within } from "../path.js";
@@ -106,13 +107,12 @@ function across(
     doc: Document,
     inPermutation: (permutation: Permutation) => Reference[],
 ): ReferenceInPermutations[] {
-    const merged = new Map<string, ReferenceInPermutations>();
+    const merged = new Map<Span, ReferenceInPermutations>();
     for (const permutation of doc.permutations) {
         for (const reference of inPermutation(permutation)) {
-            const { file, offset } = reference.span;
-            const key = `${file}\u0000${offset}`;
-            const found = merged.get(key);
-            if (!found) merged.set(key, acrossPermutations(reference, permutation.input));
+            const found = merged.get(reference.span);
+            if (!found)
+                merged.set(reference.span, acrossPermutations(reference, permutation.input));
             else if (!found.permutations.includes(permutation.input)) {
                 found.permutations.push(permutation.input);
             }

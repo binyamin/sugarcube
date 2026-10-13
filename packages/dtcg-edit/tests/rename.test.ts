@@ -240,6 +240,38 @@ describe("rename, references of every kind", () => {
     });
 });
 
+describe("rename, a file several contexts list", () => {
+    it("renames its key once", () => {
+        const project = openFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    sets: { night: { sources: [{ $ref: "night.json" }] } },
+                    resolutionOrder: [
+                        { type: "set", name: "base", sources: [{ $ref: "base.json" }] },
+                        {
+                            type: "modifier",
+                            name: "mode",
+                            default: "light",
+                            contexts: {
+                                light: [],
+                                dark: [{ $ref: "#/sets/night" }],
+                                dim: [{ $ref: "#/sets/night" }],
+                            },
+                        },
+                    ],
+                }),
+                "base.json": JSON.stringify({ gap: { $type: "number", $value: 1 } }),
+                "night.json": JSON.stringify({ gap: { $type: "number", $value: 2 } }),
+            },
+        });
+        const result = rename(project, "gap", "space");
+
+        expect(opsOf(result).map(({ file }) => file)).toStrictEqual(["base.json", "night.json"]);
+        expect(token(committed(project, result).doc, "space", { mode: "dim" })?.resolved).toBe(2);
+    });
+});
+
 describe("rename, in a session", () => {
     it("keeps a token's id, lists one rename per token, and none for what points at them", () => {
         const session = createSession(demo);
