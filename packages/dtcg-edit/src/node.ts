@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { Project } from "@sugarcube-sh/dtcg";
 import { type ProjectSource, fileOnDisk, open } from "@sugarcube-sh/dtcg/node";
-import { applyKeepingTexts } from "./apply.js";
-import type { Conflict, FileOp } from "./index.js";
+import { changedFiles } from "./apply.js";
+import type { FileOp } from "./index.js";
 
 /**
  * Applies edits to the files on disk of the design system at `source`, its resolver or token file
@@ -15,8 +14,8 @@ import type { Conflict, FileOp } from "./index.js";
  *
  * Every edit is applied in memory before any file is written, so if one fails, nothing is
  * written. Each file is written to a temporary copy and then renamed into place, so no file is
- * left half-written. Gives back the project as read from the files written, with the files
- * written and deleted.
+ * left half-written. Gives back what {@link changedFiles} gives: the project as read from the
+ * files written, each file written with its new text, and the files deleted.
  *
  * @example
  * const source = { entry: "tokens/tokens.resolver.json", options };
@@ -29,20 +28,14 @@ import type { Conflict, FileOp } from "./index.js";
 export async function applyToDisk(
     { entry, options }: ProjectSource,
     ops: FileOp[],
-): Promise<{ project: Project; written: string[]; deleted: string[] } | { conflicts: Conflict[] }> {
-    const fresh = await open(entry, options);
-    const done = applyKeepingTexts(fresh, ops);
-    if ("conflicts" in done) return done;
+): Promise<ReturnType<typeof changedFiles>> {
+    const changes = changedFiles(await open(entry, options), ops);
+    if ("conflicts" in changes) return changes;
 
-    const { files } = done;
-    const changed = Object.entries(files).filter(([file, text]) => text !== fresh.files[file]);
-    const written = changed.map(([file]) => file).sort();
-    const deleted = Object.keys(fresh.files)
-        .filter((file) => files[file] === undefined)
-        .sort();
-    await replaced(changed.map(([file, text]) => [fileOnDisk(entry, file), text]));
+    const { written, deleted } = changes;
+    await replaced(Object.entries(written).map(([file, text]) => [fileOnDisk(entry, file), text]));
     await Promise.all(deleted.map((file) => rm(fileOnDisk(entry, file), { force: true })));
-    return { project: done.project, written, deleted };
+    return changes;
 }
 
 async function replaced(texts: [path: string, text: string][]): Promise<void> {

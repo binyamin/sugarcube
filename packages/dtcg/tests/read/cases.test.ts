@@ -11,8 +11,7 @@ interface Expected {
     spec?: string;
     options?: CaseOptions;
     files?: string[];
-    modifiers?: Document["modifiers"];
-    usedBy?: Document["usedBy"];
+    resolver?: Document["resolver"];
     permutations?: Partial<Document["permutations"][number]>[];
     diagnostics: Pick<
         Document["diagnostics"][number],
@@ -31,8 +30,7 @@ function observed(doc: Document, expected: Expected) {
         spec: expected.spec,
         ...(expected.options && { options: expected.options }),
         ...(expected.files && { files: doc.files }),
-        ...(expected.modifiers && { modifiers: doc.modifiers }),
-        ...(expected.usedBy && { usedBy: doc.usedBy }),
+        ...(expected.resolver && { resolver: doc.resolver }),
         ...(expected.permutations && {
             permutations: doc.permutations.map((permutation, index) =>
                 observedPermutation(permutation, expected.permutations?.[index]),

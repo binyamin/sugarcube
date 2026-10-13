@@ -1,10 +1,69 @@
 {
   "entry": "tokens.resolver.json",
   "spec": "Resolver 4.2.2 and 4.1.5.3: local contexts replace the target's, so the target's default must be one of the new contexts",
-  "modifiers": {
-    "theme": {
-      "contexts": ["dim", "bright"]
-    }
+  "resolver": {
+    "file": "tokens.resolver.json",
+    "version": "2025.10",
+    "sets": [],
+    "modifiers": [
+      {
+        "name": "theme",
+        "contexts": [
+          {
+            "name": "dim",
+            "sources": [],
+            "at": {
+              "file": "tokens.resolver.json",
+              "offset": 204,
+              "length": 2,
+              "start": {
+                "line": 7,
+                "column": 57
+              },
+              "end": {
+                "line": 7,
+                "column": 59
+              }
+            }
+          },
+          {
+            "name": "bright",
+            "sources": [],
+            "at": {
+              "file": "tokens.resolver.json",
+              "offset": 218,
+              "length": 2,
+              "start": {
+                "line": 7,
+                "column": 71
+              },
+              "end": {
+                "line": 7,
+                "column": 73
+              }
+            }
+          }
+        ],
+        "at": {
+          "file": "tokens.resolver.json",
+          "offset": 56,
+          "length": 63,
+          "start": {
+            "line": 4,
+            "column": 14
+          },
+          "end": {
+            "line": 4,
+            "column": 77
+          }
+        }
+      }
+    ],
+    "order": [
+      {
+        "modifier": "theme"
+      }
+    ]
   },
   "diagnostics": [
     {

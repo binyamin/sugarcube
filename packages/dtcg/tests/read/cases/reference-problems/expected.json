@@ -28,7 +28,6 @@
         {
           "path": "color.wrong",
           "type": "dimension",
-          "aliasOf": "space.sm",
           "resolved": {
             "value": 4,
             "unit": "px"

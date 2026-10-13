@@ -8,7 +8,7 @@ import { encodePointer, follow, parsePointer, readPointerText } from "./pointer.
 import {
     type ModifierDefinition,
     type Reader,
-    type Resolver,
+    type CheckedResolver,
     type SetDefinition,
     type SourceNode,
     createReader,
@@ -18,12 +18,17 @@ import {
     resolverProblem,
 } from "./resolver.js";
 
+export interface RouteStep {
+    name: string;
+    extensions?: Node;
+}
+
 export type SourceEntry =
     | {
           kind: "inline";
           node: Node;
           path: JsonPath;
-          holder?: SetDefinition;
+          route: RouteStep[];
           overriddenKeys?: string[];
           pieces?: SourceEntry[];
       }
@@ -33,7 +38,7 @@ export type SourceEntry =
           fragment: string[];
           ref: Node;
           path: JsonPath;
-          holder?: SetDefinition;
+          route: RouteStep[];
           overriddenKeys?: string[];
           pieces?: SourceEntry[];
       };
@@ -51,29 +56,40 @@ export interface LoadedSource {
     pieces?: LoadedSource[];
 }
 
-export function expandSources(resolver: Resolver, diagnostics: Diagnostic[]): ExpandedItem[] {
+export interface SetsUsed {
+    reached: Set<string>;
+    pointedInto: Set<string>;
+}
+
+export function expandSources(
+    resolver: CheckedResolver,
+    diagnostics: Diagnostic[],
+): { items: ExpandedItem[]; setsUsed: SetsUsed } {
+    const setsUsed: SetsUsed = { reached: new Set(), pointedInto: new Set() };
     const expander: Expander = {
         reader: createReader(resolver.file, diagnostics),
         root: resolver.file.root,
         sets: resolver.sets,
         expanded: new Map(),
+        setsUsed,
     };
-    const expand = (sources: SourceNode[], holder?: SetDefinition) =>
-        expandList(expander, sources, holder, []);
-    return resolver.order.map((item): ExpandedItem =>
+    const expand = (sources: SourceNode[], route: RouteStep[]) =>
+        expandList(expander, sources, route, []);
+    const items = resolver.order.map((item): ExpandedItem =>
         item.kind === "set"
-            ? { kind: "set", set: item.set, entries: expand(item.set.sources, item.set) }
+            ? { kind: "set", set: item.set, entries: expand(item.set.sources, [stepOf(item.set)]) }
             : {
                   kind: "modifier",
                   modifier: item.modifier,
                   contexts: new Map(
-                      [...item.modifier.contexts].map(([context, sources]) => [
+                      [...item.modifier.contexts].map(([context, { sources }]) => [
                           context,
-                          expand(sources),
+                          expand(sources, []),
                       ]),
                   ),
               },
     );
+    return { items, setsUsed };
 }
 
 export function entriesOf(items: ExpandedItem[]): SourceEntry[] {
@@ -82,14 +98,14 @@ export function entriesOf(items: ExpandedItem[]): SourceEntry[] {
     );
 }
 
-export function filesNamedBy(resolver: Resolver, entries: SourceEntry[]): string[] {
+export function filesNamedBy(resolver: CheckedResolver, entries: SourceEntry[]): string[] {
     const folder = folderOf(resolver.file.path);
     return entries.flatMap((entry) => (entry.kind === "file" ? [join(folder, entry.file)] : []));
 }
 
 export function openSources(
     files: Files,
-    resolver: Resolver,
+    resolver: CheckedResolver,
     entries: SourceEntry[],
 ): Map<SourceEntry, LoadedSource> {
     const opened = new Map(entries.map((entry) => [entry, openSource(files, resolver, entry)]));
@@ -99,7 +115,7 @@ export function openSources(
     return opened;
 }
 
-function openSource(files: Files, resolver: Resolver, entry: SourceEntry): LoadedSource {
+function openSource(files: Files, resolver: CheckedResolver, entry: SourceEntry): LoadedSource {
     const overridden = entry.overriddenKeys && { overriddenKeys: entry.overriddenKeys };
     if (entry.kind === "inline") {
         return {
@@ -152,43 +168,47 @@ interface Expander {
     reader: Reader;
     root: Node;
     sets: Map<string, SetDefinition>;
-    expanded: Map<Node, Map<SetDefinition | undefined, SourceEntry[]>>;
+    expanded: Map<Node, Map<string, SourceEntry[]>>;
+    setsUsed: SetsUsed;
 }
 
 function expandList(
     expander: Expander,
     sources: SourceNode[],
-    holder: SetDefinition | undefined,
+    route: RouteStep[],
     seen: string[],
 ): SourceEntry[] {
-    return sources.flatMap((source) => expandSource(expander, source, holder, seen));
+    return sources.flatMap((source) => expandSource(expander, source, route, seen));
 }
 
 function expandSource(
     expander: Expander,
     source: SourceNode,
-    holder: SetDefinition | undefined,
+    route: RouteStep[],
     seen: string[],
 ): SourceEntry[] {
-    const byHolder = expander.expanded.get(source.node) ?? new Map();
-    expander.expanded.set(source.node, byHolder);
-    const cached = byHolder.get(holder);
+    const byRoute = expander.expanded.get(source.node) ?? new Map<string, SourceEntry[]>();
+    expander.expanded.set(source.node, byRoute);
+    const key = route
+        .map(({ name, extensions }) => `${name}@${extensions?.offset ?? ""}`)
+        .join(" ");
+    const cached = byRoute.get(key);
     if (cached) return cached;
-    const entries = followSource(expander, source, holder, seen);
-    byHolder.set(holder, entries);
+    const entries = followSource(expander, source, route, seen);
+    byRoute.set(key, entries);
     return entries;
 }
 
 function followSource(
     expander: Expander,
     source: SourceNode,
-    holder: SetDefinition | undefined,
+    route: RouteStep[],
     seen: string[],
     pointedFrom: SourceNode[] = [],
 ): SourceEntry[] {
-    const { reader, root, sets } = expander;
+    const { reader, root, sets, setsUsed } = expander;
     const refNode = member(source.node, "$ref");
-    if (!refNode) return [{ kind: "inline", node: source.node, path: source.path, holder }];
+    if (!refNode) return [{ kind: "inline", node: source.node, path: source.path, route }];
 
     const at = [...source.path, "$ref"];
     if (!reader.expect(refNode, "string", "$ref", at)) return [];
@@ -196,10 +216,7 @@ function followSource(
     const overriding = [source, ...pointedFrom];
 
     if (!ref.startsWith("#")) {
-        const hash = ref.indexOf("#");
-        const fragment = hash === -1 ? "" : ref.slice(hash + 1);
-        const file = hash === -1 ? ref : ref.slice(0, hash);
-        const read = fragment === "" ? undefined : readPointerText(`#${fragment}`);
+        const { file, read } = fileRef(ref);
         if (read && !read.ok) {
             const corrected = `${file}${read.corrected}`;
             const detail = malformedPointer(ref, { ...read, corrected }, true);
@@ -213,9 +230,9 @@ function followSource(
             fragment: steps,
             ref: refNode,
             path: source.path,
-            holder,
+            route,
         };
-        return withOverrides([entry], overriding, holder);
+        return withOverrides([entry], overriding, route);
     }
 
     const read = readPointerText(ref);
@@ -236,18 +253,19 @@ function followSource(
         return [];
     }
 
-    const [collection, name, ...rest] = steps;
-    if (collection === "sets" && name !== undefined && rest.length === 0) {
+    const name = setNamed(steps);
+    if (name !== undefined) {
         const target = sets.get(name);
         if (!target) {
             reader.report({ rule: "unknown-set", name, at }, refNode);
             return [];
         }
+        setsUsed.reached.add(name);
         for (const each of overriding) reader.checkKeys(each, "set", ["$ref", ...SET_KEYS]);
         const set = overriding.some((each) => keysBeside(each).length > 0)
             ? Object.assign({ ...target }, ...overriding.map((each) => readSetParts(reader, each)))
             : target;
-        return expandList(expander, set.sources, set, [...seen, ref]);
+        return expandList(expander, set.sources, [...route, stepOf(set)], [...seen, ref]);
     }
 
     const followed = follow(root, steps);
@@ -255,13 +273,32 @@ function followSource(
         reader.report({ rule: "invalid-pointer", name: ref, at }, refNode);
         return [];
     }
+    const [collection, inside] = steps;
+    if (collection === "sets" && inside !== undefined) setsUsed.pointedInto.add(inside);
     if (!reader.expect(followed.node, "object", ref, at)) return [];
     const target = { node: followed.node, path: steps };
     if (member(target.node, "$ref")) {
-        return followSource(expander, target, holder, [...seen, ref], overriding);
+        return followSource(expander, target, route, [...seen, ref], overriding);
     }
-    const entries = expandSource(expander, target, holder, [...seen, ref]);
-    return withOverrides(entries, overriding, holder);
+    const entries = expandSource(expander, target, route, [...seen, ref]);
+    return withOverrides(entries, overriding, route);
+}
+
+function stepOf({ name, extensions }: SetDefinition): RouteStep {
+    return { name, ...(extensions && { extensions }) };
+}
+
+export function setNamed(steps: string[]): string | undefined {
+    const [collection, name, ...rest] = steps;
+    return collection === "sets" && name !== undefined && rest.length === 0 ? name : undefined;
+}
+
+export function fileRef(ref: string): { file: string; read?: ReturnType<typeof readPointerText> } {
+    const hash = ref.indexOf("#");
+    if (hash === -1) return { file: ref };
+    const fragment = ref.slice(hash + 1);
+    const file = ref.slice(0, hash);
+    return fragment === "" ? { file } : { file, read: readPointerText(`#${fragment}`) };
 }
 
 function keysBeside(source: SourceNode): string[] {
@@ -273,10 +310,10 @@ function keysBeside(source: SourceNode): string[] {
 function withOverrides(
     entries: SourceEntry[],
     overriding: SourceNode[],
-    holder: SetDefinition | undefined,
+    route: RouteStep[],
 ): SourceEntry[] {
     return overriding.reduce(
-        (inner, source) => withOverride(inner, source, holder, keysBeside(source)),
+        (inner, source) => withOverride(inner, source, route, keysBeside(source)),
         entries,
     );
 }
@@ -284,7 +321,7 @@ function withOverrides(
 function withOverride(
     entries: SourceEntry[],
     source: SourceNode,
-    holder: SetDefinition | undefined,
+    route: RouteStep[],
     overridden: string[],
 ): SourceEntry[] {
     if (overridden.length === 0) return entries;
@@ -293,7 +330,7 @@ function withOverride(
             ...entry,
             overriddenKeys: [...(entry.overriddenKeys ?? []), ...overridden],
         })),
-        { kind: "inline", node: source.node, path: source.path, holder, overriddenKeys: ["$ref"] },
+        { kind: "inline", node: source.node, path: source.path, route, overriddenKeys: ["$ref"] },
     ];
     for (const piece of pieces) piece.pieces = pieces;
     return pieces;

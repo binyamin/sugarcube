@@ -1,23 +1,27 @@
-import type { TokenType } from "../index.js";
-import type { Merged, MergedToken } from "./merge.js";
+import { parentOf } from "../path.js";
+import type { Merged, MergedGroup } from "./merge.js";
+import { type Settings, settingsOf } from "./settings.js";
 import type { Properties } from "./walk.js";
 
 type Inheritable = "type" | "deprecated";
 
 const remembered = new WeakMap<Merged, { [K in Inheritable]: Map<string, Properties[K]> }>();
 
-export function inheritedType(
-    token: MergedToken,
+export function inherited<K extends Inheritable>(
+    item: Properties & { path: string },
     merged: Merged,
-): TokenType | "unusable" | undefined {
-    return token.type ?? closest(token.path, merged, "type");
+    property: K,
+): Properties[K] {
+    return item[property] ?? closest(item.path, merged, property);
 }
 
-export function inheritedDeprecation(
-    token: MergedToken,
-    merged: Merged,
-): boolean | string | undefined {
-    return token.deprecated ?? closest(token.path, merged, "deprecated");
+export function applying(merged: Merged, group: MergedGroup): Settings {
+    const settings = settingsOf(merged, group);
+    return {
+        ...settings,
+        type: settings.type ?? closest(group.path, merged, "type"),
+        deprecated: settings.deprecated ?? closest(group.path, merged, "deprecated"),
+    };
 }
 
 function closest<K extends Inheritable>(path: string, merged: Merged, property: K): Properties[K] {
@@ -28,14 +32,10 @@ function closest<K extends Inheritable>(path: string, merged: Merged, property: 
     const fromGroup = (group: string | undefined): Properties[K] => {
         if (group === undefined) return merged.root[property];
         if (cache.has(group)) return cache.get(group);
-        const found = merged.groups.get(group)?.[property] ?? fromGroup(parentOf(group));
+        const each = merged.groups.get(group);
+        const found = (each && settingsOf(merged, each)[property]) ?? fromGroup(parentOf(group));
         cache.set(group, found);
         return found;
     };
     return fromGroup(parentOf(path));
-}
-
-function parentOf(path: string): string | undefined {
-    const dot = path.lastIndexOf(".");
-    return dot === -1 ? undefined : path.slice(0, dot);
 }

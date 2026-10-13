@@ -1,9 +1,9 @@
-import type { Diagnostic, Group, Input, Source, TokenType } from "../index.js";
+import type { Diagnostic, Input, Source, TokenType } from "../index.js";
 import { diagnostic } from "./diagnostics.js";
 import { applyExtends } from "./extends.js";
-import { inheritedType } from "./inherit.js";
-import { type Merged, type MergedGroup, type MergedToken, merge } from "./merge.js";
-import { type Prefixes, inWrittenOrder } from "./order.js";
+import { inherited } from "./inherit.js";
+import { type Merged, type MergedToken, merge } from "./merge.js";
+import { inWrittenOrder } from "./order.js";
 import type { ValueRead, ValueReader } from "./parse-value.js";
 import type { LoadedPermutation } from "./permutations.js";
 import type { LoadedSource } from "./sources.js";
@@ -21,7 +21,6 @@ export interface NormalisedPermutation {
     sources: Source[];
     merged: Merged;
     tokens: Map<string, NormalisedToken>;
-    groups: Group[];
 }
 
 // Walks each piece of each source once, then merges a permutation's pieces in resolution order
@@ -30,7 +29,7 @@ export function normalisePermutations(
     permutations: LoadedPermutation[],
     readValue: ValueReader,
     diagnostics: Diagnostic[],
-    generate: (merged: Merged, permutation: number) => void,
+    generate: (merged: Merged, permutation: Input) => void,
 ): NormalisedPermutation[] {
     const walked = new Map<string, SourceContents | undefined>();
     const walk = (loaded: LoadedSource) => {
@@ -39,51 +38,33 @@ export function normalisePermutations(
         return walked.get(key);
     };
 
-    const prefixes: Prefixes = new Map();
-    return permutations.map(({ input, label, sources }, index) => {
+    return permutations.map(({ input, label, sources }) => {
         const walkedPieces = sources.flatMap((each, source) =>
             each.pieces.map((piece) => ({ contents: walk(piece), source })),
         );
-        const merged = merge(walkedPieces, index, diagnostics);
-        applyExtends(merged, index, diagnostics);
-        generate(merged, index);
-        inWrittenOrder(merged, prefixes);
+        const merged = merge(walkedPieces, input, diagnostics);
+        applyExtends(merged, input, diagnostics);
+        generate(merged, input);
+        inWrittenOrder(merged);
         const tokens = new Map<string, NormalisedToken>();
         for (const token of merged.tokens.values()) {
             if (token.type === undefined && token.reference) {
                 tokens.set(token.path, { token });
                 continue;
             }
-            const type = inheritedType(token, merged);
+            const type = inherited(token, merged, "type");
             if (type === "unusable") continue;
             if (type === undefined) {
-                const where = { at: token.at, path: token.path, permutation: index };
+                const where = { at: token.at, path: token.path, permutation: input };
                 diagnostics.push(diagnostic("missing-type", {}, where));
                 continue;
             }
             tokens.set(token.path, { token, type, read: readValue.read(token, type) });
         }
-        const groups = [...merged.groups.values()].map(toGroup);
-        const publicSources = sources.map(({ source, pieces, extensionsOfSet }) => {
-            const own = pieces.map((each) => walk(each)?.root.extensions).find(Boolean);
-            const extensions = extensionsOfSet || own ? { ...extensionsOfSet, ...own } : undefined;
+        const publicSources = sources.map(({ source, pieces }) => {
+            const extensions = pieces.map((each) => walk(each)?.root.extensions).find(Boolean);
             return { ...source, ...(extensions && { extensions }) };
         });
-        return { input, label, sources: publicSources, merged, tokens, groups };
+        return { input, label, sources: publicSources, merged, tokens };
     });
-}
-
-function toGroup(group: MergedGroup): Group {
-    const { path, type, description, deprecated, extensions, extendsGroup, declaredIn, inherited } =
-        group;
-    return {
-        path,
-        ...(type !== undefined && type !== "unusable" && { type }),
-        ...(description !== undefined && { description }),
-        ...(deprecated !== undefined && { deprecated }),
-        ...(extensions && { extensions }),
-        ...(extendsGroup !== undefined && { extends: extendsGroup }),
-        declaredIn,
-        ...(inherited && { inherited }),
-    };
 }

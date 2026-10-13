@@ -16,15 +16,14 @@ export function withoutRoot(path: string): string {
 
 /**
  * The rest of a path inside a group, or `undefined` when the path is not inside it. The group
- * itself is not inside, and neither is a sibling whose name merely starts the same way. The group
- * `""` is the top level, so every path is inside it.
+ * itself is not inside, and neither is a sibling whose name merely starts the same way. `""` is the
+ * group named `""` (Format 5.1); the top level of the files has no path.
  *
  * @example
  * pathBelow("color.brand.ink", "color") // "brand.ink"
  * pathBelow("colors.ink", "color")      // undefined
  */
 export function pathBelow(path: string, group: string): string | undefined {
-    if (group === "") return path;
     return path.startsWith(`${group}.`) ? path.slice(group.length + 1) : undefined;
 }
 
@@ -38,7 +37,7 @@ export function pathBelow(path: string, group: string): string | undefined {
 export function movedPath(path: string, moved: readonly Move[]): string {
     return moved.reduce((current, { from, to }) => {
         if (current === from) return to;
-        const rest = from === "" ? undefined : pathBelow(current, from);
+        const rest = pathBelow(current, from);
         return rest === undefined ? current : `${to}.${rest}`;
     }, path);
 }
@@ -57,6 +56,32 @@ const FORBIDDEN = [".", "{", "}"] as const;
 export function forbiddenInName(name: string): "$" | (typeof FORBIDDEN)[number] | undefined {
     if (name.startsWith("$") && name !== "$root") return "$";
     return FORBIDDEN.find((each) => name.includes(each));
+}
+
+/**
+ * The group a token or group is directly inside, or `undefined` at the top level of the files. A
+ * group may be named `""` (Format 5.1), so `""` is that group's path, never the top level.
+ *
+ * @example
+ * parentOf("color.brand.500") // "color.brand"
+ * parentOf("color")           // undefined: at the top level
+ * parentOf(".x")              // "": inside the group named ""
+ */
+export function parentOf(path: string): string | undefined {
+    const dot = path.lastIndexOf(".");
+    return dot === -1 ? undefined : path.slice(0, dot);
+}
+
+/**
+ * The path of `name` inside `parent`, built as Format 6.7.2 builds paths: joined with a dot. Leave
+ * `parent` out for the top level.
+ *
+ * @example
+ * childPath("color.brand", "500") // "color.brand.500"
+ * childPath(undefined, "color")   // "color"
+ */
+export function childPath(parent: string | undefined, name: string): string {
+    return parent === undefined ? name : `${parent}.${name}`;
 }
 
 export function within(path: string, group: string): boolean {

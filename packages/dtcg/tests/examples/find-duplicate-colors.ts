@@ -1,11 +1,17 @@
 // Finds colors with the same value under different names, and suggests pointing one at the other.
-import { byToken, sameValue, type Document, type Token } from "@sugarcube-sh/dtcg";
+import {
+    defaultPermutation,
+    isAlias,
+    sameValue,
+    type Document,
+    type Token,
+} from "@sugarcube-sh/dtcg";
 
 declare const doc: Document;
 
-const colors = byToken(doc)
-    .map((view) => view.default)
-    .filter((t): t is Extract<Token, { type: "color" }> => t?.type === "color" && !t.aliasOf);
+const colors = (defaultPermutation(doc)?.tokens ?? []).filter(
+    (t): t is Extract<Token, { type: "color" }> => t.type === "color" && !isAlias(t.value),
+);
 
 for (let i = 0; i < colors.length; i++) {
     for (let j = i + 1; j < colors.length; j++) {

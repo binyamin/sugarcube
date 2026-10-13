@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
     defineGenerator,
+    group,
     openFromMemory,
+    permutation,
     readFromMemory,
     token,
     type Span,
@@ -39,9 +41,41 @@ describe("replaces on a token", () => {
         const dark = token(doc, "bg", { mode: "dark" });
 
         expect(light?.source.at.file).toBe("brand.json");
-        expect(light?.replaces?.map(written)).toStrictEqual([color("#ffffff")]);
+        expect(light?.replaces?.map(({ at }) => written(at))).toStrictEqual([color("#ffffff")]);
         expect(dark?.source.at.file).toBe("dark.json");
-        expect(dark?.replaces?.map(({ file }) => file)).toStrictEqual(["base.json", "brand.json"]);
+        expect(dark?.replaces?.map(({ at }) => at.file)).toStrictEqual(["base.json", "brand.json"]);
+    });
+
+    it("gives a group written in two files both places, each with the source that writes it", () => {
+        const twice = readFromMemory({
+            files: {
+                ...files,
+                "base.json": `{ "brand": { "a": ${color("#000000")} } }`,
+                "brand.json": `{ "brand": { "b": ${color("#ffffff")} } }`,
+            },
+            entry: "tokens.resolver.json",
+        });
+        const sources = twice.permutations[0]?.sources ?? [];
+        const declared = group(twice, "brand")?.declaredIn ?? [];
+
+        expect(declared.map(({ index }) => sources[index]?.file)).toStrictEqual([
+            "base.json",
+            "brand.json",
+        ]);
+        expect(declared.map(({ at }) => at.file)).toStrictEqual(["base.json", "brand.json"]);
+    });
+
+    it("says which of the permutation's sources writes each place", () => {
+        const sources = permutation(doc, { mode: "dark" })?.sources ?? [];
+        const dark = token(doc, "bg", { mode: "dark" });
+        const replaced = dark?.replaces?.map(({ index }) => sources[index]);
+
+        expect(replaced?.map((source) => source?.file)).toStrictEqual(["base.json", "brand.json"]);
+        expect(sources[dark?.source.index ?? -1]?.from).toStrictEqual({
+            modifier: "mode",
+            context: "dark",
+            sets: [],
+        });
     });
 
     it("is absent for a token written once", () => {
@@ -130,11 +164,12 @@ describe("a source written in the resolver", () => {
         });
 
         expect(inline.permutations[0]?.sources).toStrictEqual([
-            { file: "base.json", from: { set: "base" } },
+            { file: "base.json", from: { sets: [{ name: "base" }] }, readBy: "everyone" },
             {
                 file: "tokens.resolver.json",
                 pointer: "#/resolutionOrder/0/sources/1",
-                from: { set: "base" },
+                from: { sets: [{ name: "base" }] },
+                readBy: "everyone",
             },
         ]);
     });

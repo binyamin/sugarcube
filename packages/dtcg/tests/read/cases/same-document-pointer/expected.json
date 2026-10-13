@@ -11,8 +11,13 @@
           "file": "tokens.resolver.json",
           "pointer": "#/$defs/brand",
           "from": {
-            "set": "base"
-          }
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
+          },
+          "readBy": "everyone"
         }
       ]
     }

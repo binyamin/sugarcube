@@ -1,7 +1,15 @@
 {
   "entry": "tokens.resolver.json",
   "spec": "Resolver 4.1, 4.4 and 4.5: $schema, $defs, name and description are accepted. A key the spec does not define is ignored, as old sugarcube does, and reported as a warning at the key",
-  "modifiers": {},
+  "resolver": {
+    "file": "tokens.resolver.json",
+    "version": "2025.10",
+    "name": "Example",
+    "description": "Resolver with metadata",
+    "sets": [],
+    "modifiers": [],
+    "order": []
+  },
   "diagnostics": [
     {
       "kind": "unknown-property",

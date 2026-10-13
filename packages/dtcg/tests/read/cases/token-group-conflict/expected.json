@@ -72,7 +72,12 @@
           }
         }
       ],
-      "permutations": [1]
+      "permutations": [
+        {
+          "theme": "dark"
+        }
+      ],
+      "path": "space.scale"
     },
     {
       "kind": "token-and-group",
@@ -93,7 +98,12 @@
           }
         }
       ],
-      "permutations": [1]
+      "permutations": [
+        {
+          "theme": "dark"
+        }
+      ],
+      "path": "radius"
     }
   ]
 }

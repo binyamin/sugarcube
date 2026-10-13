@@ -8,18 +8,14 @@
           "path": "top",
           "deprecated": true,
           "authored": {
-            "value": 1,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 1
           }
         },
         {
           "path": "old.a",
           "deprecated": "use new",
           "authored": {
-            "value": 2,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 2
           }
         },
         {
@@ -27,17 +23,14 @@
           "deprecated": "use new.b",
           "authored": {
             "value": 3,
-            "typeDeclared": false,
-            "deprecatedDeclared": true
+            "deprecated": "use new.b"
           }
         },
         {
           "path": "old.kept.c",
           "deprecated": false,
           "authored": {
-            "value": 4,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 4
           }
         },
         {
@@ -45,8 +38,7 @@
           "deprecated": true,
           "authored": {
             "value": 5,
-            "typeDeclared": false,
-            "deprecatedDeclared": true
+            "deprecated": true
           }
         }
       ],

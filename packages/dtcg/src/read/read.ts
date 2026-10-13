@@ -1,5 +1,4 @@
-import packageJson from "../../package.json" with { type: "json" };
-import type { Document, Project, ReadOptions, ReadText } from "../index.js";
+import type { Document, Input, Project, ReadOptions, ReadText } from "../index.js";
 import type { Answer, FileText, Request } from "./files.js";
 import { collapse } from "./diagnostics.js";
 import { type Loaded, load } from "./load.js";
@@ -189,7 +188,7 @@ function toDocument(
     };
     const readValue = createValueReader(found, parseOptions);
     let generating = 0;
-    const generate = (merged: Merged, permutation: number) => {
+    const generate = (merged: Merged, permutation: Input) => {
         if (generators.length === 0) return;
         const started = performance.now();
         fillGenerated(merged, generators, { permutation, parseOptions }, found);
@@ -210,12 +209,16 @@ function toDocument(
     );
 
     return {
-        version: packageJson.version,
         files: loaded.files,
-        modifiers: loaded.modifiers,
-        usedBy: loaded.usedBy,
+        ...(loaded.resolver && { resolver: loaded.resolver }),
         permutations,
         parseOptions,
-        diagnostics: [...loaded.diagnostics, ...collapse(found, permutations.length)],
+        diagnostics: [
+            ...loaded.diagnostics,
+            ...collapse(
+                found,
+                permutations.map(({ input }) => input),
+            ),
+        ],
     };
 }

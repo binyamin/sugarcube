@@ -22,7 +22,7 @@
       "$type": "border",
       "$description": "The default separator, written out in full so a composite with literal sub-values exists somewhere.",
       "$value": {
-        "color": "#d1d1d8",
+        "color": { "colorSpace": "srgb", "components": [0.8196, 0.8196, 0.8471], "hex": "#d1d1d8" },
         "width": { "value": 1, "unit": "px" },
         "style": "solid"
       }

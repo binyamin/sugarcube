@@ -1,4 +1,4 @@
-import type { Document, Input, Permutation, Related, Token } from "../index.js";
+import type { Document, Permutation, Related, Token } from "../index.js";
 import { type OnDocument, type OnPermutation, indexBy, related } from "./related.js";
 
 const referredBy = indexBy(({ from, to }) => [to, from]);
@@ -28,18 +28,18 @@ export function referrers(
     options?: ReferrersOptions,
 ): Token[];
 /**
- * The tokens that refer to this one, or to any of several, across a document: each path once,
- * with the permutations it refers in, in the order they are first met.
- * @param input Only this permutation. Left out: every permutation.
+ * The tokens that refer to this one, or to any of several, in every permutation: each path once,
+ * with the permutations it refers in, in the order they are first met. For one permutation, give
+ * that permutation.
  *
  * @example
- * referrers(doc, "palette.red.600")                     // everywhere
- * referrers(doc, "palette.red.600", { theme: "dark" })  // in dark only
+ * referrers(doc, "palette.red.600")                       // everywhere
+ * referrers(doc, "palette.red", { transitive: true })     // everything a change would reach
+ * referrers(dark, "palette.red.600")                      // in one permutation you hold
  */
 export function referrers(
     doc: Document,
     path: string | string[],
-    input?: Input,
     options?: ReferrersOptions,
 ): Related[];
 export function referrers(

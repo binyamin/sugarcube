@@ -31,8 +31,7 @@
         },
         {
           "path": "color.text",
-          "type": "color",
-          "aliasOf": "color.missing"
+          "type": "color"
         },
         {
           "path": "color.both",
@@ -78,8 +77,7 @@
         },
         {
           "path": "color.text",
-          "type": "color",
-          "aliasOf": "color.missing"
+          "type": "color"
         },
         {
           "path": "color.both",

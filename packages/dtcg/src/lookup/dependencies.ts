@@ -1,4 +1,4 @@
-import type { Document, Input, Permutation, Related, Token } from "../index.js";
+import type { Document, Permutation, Related, Token } from "../index.js";
 import { type OnDocument, type OnPermutation, indexBy, related } from "./related.js";
 
 const dependedOn = indexBy(({ from, to }) => [from, to]);
@@ -28,18 +28,17 @@ export function dependencies(
     options?: DependenciesOptions,
 ): Token[];
 /**
- * The tokens this one refers to, or any of several refer to, across a document: each path once,
- * with the permutations it is referred to in, in the order they are first met.
- * @param input Only this permutation. Left out: every permutation.
+ * The tokens this one refers to, or any of several refer to, in every permutation: each path
+ * once, with the permutations it is referred to in, in the order they are first met. For one
+ * permutation, give that permutation.
  *
  * @example
- * dependencies(doc, "color.brand")                     // palette.red in light, palette.blue in dark
- * dependencies(doc, "color.brand", { theme: "dark" })  // in dark only
+ * dependencies(doc, "color.brand")                        // palette.red in light, palette.blue in dark
+ * dependencies(doc, "color.danger", { transitive: true }) // however indirectly
  */
 export function dependencies(
     doc: Document,
     path: string | string[],
-    input?: Input,
     options?: DependenciesOptions,
 ): Related[];
 export function dependencies(

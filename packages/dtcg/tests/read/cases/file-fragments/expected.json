@@ -11,28 +11,48 @@
           "file": "all.json",
           "pointer": "#/color",
           "from": {
-            "set": "parts"
-          }
+            "sets": [
+              {
+                "name": "parts"
+              }
+            ]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "all.json",
           "pointer": "#/brand colors",
           "from": {
-            "set": "parts"
-          }
+            "sets": [
+              {
+                "name": "parts"
+              }
+            ]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "all.json",
           "pointer": "#/my~1group",
           "from": {
-            "set": "parts"
-          }
+            "sets": [
+              {
+                "name": "parts"
+              }
+            ]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "all.json",
           "from": {
-            "set": "parts"
-          }
+            "sets": [
+              {
+                "name": "parts"
+              }
+            ]
+          },
+          "readBy": "everyone"
         }
       ]
     }

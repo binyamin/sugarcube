@@ -16,7 +16,15 @@
             "steps": { "negative": 2, "positive": 5 }
           }
         }
-      }
+      },
+      "-2": { "$value": { "value": 0.694, "unit": "rem" } },
+      "-1": { "$value": { "value": 0.833, "unit": "rem" } },
+      "0": { "$value": { "value": 1, "unit": "rem" } },
+      "1": { "$value": { "value": 1.2, "unit": "rem" } },
+      "2": { "$value": { "value": 1.44, "unit": "rem" } },
+      "3": { "$value": { "value": 1.728, "unit": "rem" } },
+      "4": { "$value": { "value": 2.074, "unit": "rem" } },
+      "5": { "$value": { "value": 2.488, "unit": "rem" } }
     },
     "fluid": {
       "$type": "dimension",

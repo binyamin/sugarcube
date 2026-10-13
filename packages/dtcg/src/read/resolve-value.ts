@@ -1,6 +1,7 @@
 import type {
     DiagnosticDetailByKind,
     DiagnosticKind,
+    Input,
     JsonPath,
     Span,
     TokenType,
@@ -21,7 +22,7 @@ export type Target = "untyped" | { type: TokenType; resolved?: unknown };
 export interface Resolving {
     readValue: ValueReader;
     merged: Merged;
-    permutation: number;
+    permutation: Input;
     outcomeOf(path: string, from: string, at: Span): Target | undefined;
     report<K extends DiagnosticKind>(
         kind: K,

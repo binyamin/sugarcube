@@ -8,6 +8,8 @@ const path = "color.danger";
 const base = token(doc, path);
 row("Base", base?.authored?.value, base?.source.at.file);
 
-for (const { input, label, token, overrides } of acrossPermutations(doc, path)) {
-    if (overrides) row(label, token.authored?.value, token.source.at.file, JSON.stringify(input));
+for (const { permutation, token: there, from } of acrossPermutations(doc, path)) {
+    if (from && "modifier" in from) {
+        row(permutation.label, there.authored?.value, there.source.at.file);
+    }
 }

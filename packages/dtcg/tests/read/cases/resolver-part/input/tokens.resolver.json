@@ -1,0 +1,35 @@
+{
+  "version": "2025.10",
+  "name": "Acme",
+  "description": "Acme's tokens",
+  "sets": {
+    "base": {
+      "description": "Shared by every theme",
+      "$extensions": { "com.example": { "tier": 1 } },
+      "sources": [
+        { "$ref": "#/sets/palette" },
+        { "$ref": "all.json#/base" },
+        { "radius": { "$type": "dimension", "$value": { "value": 2, "unit": "px" } } }
+      ]
+    },
+    "palette": { "sources": [{ "$ref": "palette.json" }] },
+    "spareSet": { "sources": [] }
+  },
+  "modifiers": {
+    "mode": {
+      "description": "Colour mode",
+      "$extensions": { "com.example": { "picker": "toggle" } },
+      "contexts": { "light": [], "dark": [{ "$ref": "all.json#/dark" }] },
+      "default": "light"
+    },
+    "2025": { "contexts": { "a": [], "b": [] }, "default": "a" },
+    "spareModifier": { "contexts": { "on": [], "off": [] }, "default": "off" }
+  },
+  "resolutionOrder": [
+    { "$ref": "#/sets/base", "description": "Shared by every theme, as used here" },
+    { "$ref": "#/modifiers/mode" },
+    { "$ref": "#/modifiers/2025" },
+    { "type": "set", "name": "local", "sources": [] },
+    { "$ref": "#/sets/palette", "description": "Named here as well as inside base" }
+  ]
+}

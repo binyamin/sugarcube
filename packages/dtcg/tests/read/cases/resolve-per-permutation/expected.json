@@ -14,7 +14,6 @@
         },
         {
           "path": "color.danger",
-          "aliasOf": "color.brand",
           "resolved": {
             "colorSpace": "srgb",
             "components": [1, 0, 0],
@@ -23,7 +22,6 @@
         },
         {
           "path": "color.accent",
-          "aliasOf": "color.brand",
           "resolved": {
             "colorSpace": "srgb",
             "components": [1, 0, 0],
@@ -63,7 +61,6 @@
         },
         {
           "path": "color.danger",
-          "aliasOf": "color.brand",
           "resolved": {
             "colorSpace": "oklch",
             "components": [0.7, 0.2, 20],
@@ -111,7 +108,11 @@
         "text": "\"{color.highlight}\""
       },
       "path": "color.accent",
-      "permutations": [1]
+      "permutations": [
+        {
+          "theme": "dark"
+        }
+      ]
     }
   ]
 }

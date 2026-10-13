@@ -49,12 +49,11 @@ export function setValue(
 }
 
 function ownProperties(token: Token): Record<string, Json> {
-    const { authored, description, deprecated, extensions } = token;
+    const { authored, description, extensions } = token;
     return {
-        ...(authored?.typeDeclared && { $type: token.type }),
+        ...(authored?.type !== undefined && { $type: authored.type }),
         ...(description !== undefined && { $description: description }),
-        ...(authored?.deprecatedDeclared &&
-            deprecated !== undefined && { $deprecated: deprecated }),
+        ...(authored?.deprecated !== undefined && { $deprecated: authored.deprecated }),
         ...(extensions && { $extensions: extensions as Json }),
     };
 }

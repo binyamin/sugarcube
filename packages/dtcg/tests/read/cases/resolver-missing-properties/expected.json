@@ -43,6 +43,26 @@
           "column": 2
         }
       }
+    },
+    {
+      "kind": "not-in-resolution-order",
+      "detail": {
+        "item": "set",
+        "name": "base"
+      },
+      "at": {
+        "file": "tokens.resolver.json",
+        "offset": 46,
+        "length": 31,
+        "start": {
+          "line": 3,
+          "column": 21
+        },
+        "end": {
+          "line": 3,
+          "column": 52
+        }
+      }
     }
   ]
 }

@@ -27,4 +27,6 @@ for (const t of defaultPermutation(doc)?.tokens ?? []) {
 }
 
 for (const [group, steps] of ramps) row(group, ...steps.map((step) => swatch(step.resolved)));
-for (const role of roles) row(role.path, role.aliasOf, swatch(role.resolved));
+for (const role of roles) {
+    row(role.path, isAlias(role.value) ? role.value.alias : "", swatch(role.resolved));
+}

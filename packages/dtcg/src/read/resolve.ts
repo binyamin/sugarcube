@@ -4,21 +4,25 @@ import type {
     DiagnosticDetailByKind,
     DiagnosticKind,
     Edge,
+    Group,
     ParseResult,
     Permutation,
     Span,
     Token,
     TokenBase,
     TokenType,
+    TopLevel,
     ValueByType,
+    Written,
 } from "../index.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
-import { inheritedDeprecation, inheritedType } from "./inherit.js";
-import type { Merged, MergedToken } from "./merge.js";
+import { applying, inherited } from "./inherit.js";
+import type { Merged, MergedGroup, MergedToken, MergedTopLevel } from "./merge.js";
+import type { Properties } from "./walk.js";
 import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
 import type { LocatedReference, ValueReader } from "./parse-value.js";
 import { malformation } from "./malformed-pointer.js";
-import { reach } from "./ref-meaning.js";
+import { reach, wholeValueTarget } from "./ref-meaning.js";
 import { similarName } from "./similar.js";
 import { type Occurrence, wholeReference } from "./occurrence.js";
 import { type Resolving, UNRESOLVED, resolveValue } from "./resolve-value.js";
@@ -28,7 +32,6 @@ interface Resolved {
     read: ParseResult<unknown>;
     references: LocatedReference[];
     resolved?: unknown;
-    aliasOf?: string;
 }
 
 type Outcome = Resolved | "untyped";
@@ -49,8 +52,8 @@ export function resolvePermutations(
     readValue: ValueReader,
     diagnostics: Diagnostic[],
 ): Permutation[] {
-    return permutations.map((permutation, index) =>
-        resolvePermutation(permutation, index, { readValue, diagnostics }),
+    return permutations.map((permutation) =>
+        resolvePermutation(permutation, { readValue, diagnostics }),
     );
 }
 
@@ -61,7 +64,6 @@ interface Context {
 
 function resolvePermutation(
     permutation: NormalisedPermutation,
-    index: number,
     { readValue, diagnostics }: Context,
 ): Permutation {
     const { tokens, merged } = permutation;
@@ -75,7 +77,10 @@ function resolvePermutation(
         path: string,
         at: Span,
         extra: Omit<DiagnosticExtra, "at" | "path" | "permutation"> = {},
-    ) => diagnostics.push(diagnostic(kind, detail, { at, path, permutation: index, ...extra }));
+    ) =>
+        diagnostics.push(
+            diagnostic(kind, detail, { at, path, permutation: permutation.input, ...extra }),
+        );
 
     const recordMissing = (ref: string, from: string, at: Span) => {
         const entry = missing.get(ref) ?? { first: { from, at }, referencedBy: [], uses: [] };
@@ -136,12 +141,13 @@ function resolvePermutation(
             const outcome = outcomeOf(whole.target, token.path, whole.at);
             return { kind: "token", path: whole.target, outcome };
         }
-        const reached = reach(whole.steps, merged);
-        if (reached.kind === "token" || (reached.kind === "part" && reached.inside.length === 0)) {
-            const { path } = reached;
+        const path = whole.steps && wholeValueTarget(whole.steps);
+        if (path !== undefined && merged.tokens.has(path)) {
             return { kind: "token", path, outcome: outcomeOf(path, token.path, whole.at) };
         }
-        return reached.kind === "part" ? { kind: "part" } : { kind: "unreachable" };
+        return reach(whole.steps, merged).kind === "part"
+            ? { kind: "part" }
+            : { kind: "unreachable" };
     };
 
     const compute = (entry: NormalisedToken): Outcome => {
@@ -149,7 +155,6 @@ function resolvePermutation(
         const whole = wholeReference(token);
 
         let type = entry.type;
-        let aliasOf: string | undefined;
         if (whole) {
             const followed = followWhole(token, whole);
             if (followed.kind === "unreachable") {
@@ -168,13 +173,12 @@ function resolvePermutation(
                 if (target === undefined || target === "untyped") return fallback(entry, type);
                 if (!("resolved" in target)) return unresolved(entry, type ?? target.type);
                 type ??= target.type;
-                aliasOf = target.aliasOf ?? followed.path;
             }
         }
         if (type === undefined) return "untyped";
 
         const { result: read, references, readAgain } = entry.read ?? readValue.read(token, type);
-        const base = { type, read, references, ...(aliasOf !== undefined && { aliasOf }) };
+        const base = { type, read, references };
         if (!read.ok) return base;
         if (references.length === 0) return { ...base, resolved: read.value };
 
@@ -188,7 +192,7 @@ function resolvePermutation(
     };
 
     const groupType = (token: MergedToken): TokenType | undefined => {
-        const type = inheritedType(token, merged);
+        const type = inherited(token, merged, "type");
         return type === "unusable" ? undefined : type;
     };
 
@@ -200,7 +204,7 @@ function resolvePermutation(
     const resolving: Resolving = {
         readValue,
         merged,
-        permutation: index,
+        permutation: permutation.input,
         outcomeOf,
         report,
         recordMissing,
@@ -233,8 +237,23 @@ function resolvePermutation(
         });
     }
 
-    const { input, label, sources, groups } = permutation;
-    return { input, label, sources, tokens: built, groups, edges };
+    const kept = new Set(built.map(({ path }) => path));
+    const childrenOf = (parent: string | undefined) =>
+        (merged.children.get(parent) ?? []).filter(
+            (path) => kept.has(path) || merged.groups.has(path),
+        );
+    const toGroup = (group: MergedGroup) =>
+        publicGroup(group, applying(merged, group), childrenOf(group.path));
+    const { input, label, sources } = permutation;
+    return {
+        input,
+        label,
+        sources,
+        root: publicTopLevel(merged.root, childrenOf(undefined)),
+        tokens: built,
+        groups: [...merged.groups.values()].map(toGroup),
+        edges,
+    };
 }
 
 function targetOf(use: Occurrence, merged: Merged): string {
@@ -243,12 +262,39 @@ function targetOf(use: Occurrence, merged: Merged): string {
     return reached.kind === "nothing" ? use.written : reached.path;
 }
 
+function publicTopLevel(top: MergedTopLevel, children: string[]): TopLevel {
+    return { ...publicProperties(top), declaredIn: top.declaredIn, children };
+}
+
+function publicGroup(group: MergedGroup, applies: Properties, children: string[]): Group {
+    const { path, declaredIn, extendsGroup, inherited: from } = group;
+    const authored = publicProperties(group);
+    return {
+        path,
+        ...publicProperties(applies),
+        declaredIn,
+        children,
+        ...(extendsGroup !== undefined && { extends: extendsGroup }),
+        ...(from && { inherited: from }),
+        ...(Object.keys(authored).length > 0 && { authored }),
+    };
+}
+
+function publicProperties({ type, description, deprecated, extensions }: Properties): Written {
+    return {
+        ...(type !== undefined && type !== "unusable" && { type }),
+        ...(description !== undefined && { description }),
+        ...(deprecated !== undefined && { deprecated }),
+        ...(extensions && { extensions }),
+    };
+}
+
 function toToken<T extends TokenType>(
     token: MergedToken,
     outcome: Resolved & { type: T },
     merged: Merged,
 ): Token {
-    const deprecated = inheritedDeprecation(token, merged);
+    const deprecated = inherited(token, merged, "deprecated");
     const built: TokenBase<T> = {
         path: token.path,
         type: outcome.type,
@@ -260,13 +306,11 @@ function toToken<T extends TokenType>(
         ...(!token.added && {
             authored: {
                 value: token.authored,
-                typeDeclared: token.type !== undefined,
-                deprecatedDeclared: token.deprecated !== undefined,
+                ...publicProperties({ type: token.type, deprecated: token.deprecated }),
             },
         }),
         ...(token.generated && { generated: token.generated }),
         ...(token.inherited && { inherited: token.inherited }),
-        ...(outcome.aliasOf !== undefined && { aliasOf: outcome.aliasOf }),
     };
     if (!outcome.read.ok) built.invalid = true;
     else {

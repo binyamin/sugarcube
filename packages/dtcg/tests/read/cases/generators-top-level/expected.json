@@ -12,8 +12,7 @@
           "resolved": {
             "value": 1,
             "unit": "rem"
-          },
-          "aliasOf": "1"
+          }
         },
         {
           "path": "2",
@@ -30,7 +29,6 @@
             }
           },
           "generated": {
-            "from": "",
             "extension": ["com.example", "steps"]
           },
           "authored": null
@@ -38,7 +36,6 @@
         {
           "path": "1",
           "generated": {
-            "from": "",
             "extension": ["com.example", "steps"]
           }
         }

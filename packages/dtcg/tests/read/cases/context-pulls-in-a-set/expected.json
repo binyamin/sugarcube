@@ -1,47 +1,6 @@
 {
   "entry": "tokens.resolver.json",
   "spec": "Resolver 4.1.5.1, Example 4: a context may name a set, which stands for that set's sources; the route records the set",
-  "usedBy": {
-    "size/base.json": [
-      {
-        "size": "small"
-      },
-      {
-        "size": "medium"
-      },
-      {
-        "size": "large"
-      }
-    ],
-    "device/mobile.json": [
-      {
-        "size": "small"
-      }
-    ],
-    "typography/mobile.json": [
-      {
-        "size": "small"
-      }
-    ],
-    "device/tablet.json": [
-      {
-        "size": "medium"
-      }
-    ],
-    "typography/base.json": [
-      {
-        "size": "medium"
-      },
-      {
-        "size": "large"
-      }
-    ],
-    "device/desktop.json": [
-      {
-        "size": "large"
-      }
-    ]
-  },
   "permutations": [
     {
       "input": {
@@ -54,22 +13,49 @@
           "from": {
             "modifier": "size",
             "context": "small",
-            "set": "baseSize"
-          }
+            "sets": [
+              {
+                "name": "baseSize"
+              }
+            ]
+          },
+          "readBy": [
+            {
+              "size": "small"
+            },
+            {
+              "size": "medium"
+            },
+            {
+              "size": "large"
+            }
+          ]
         },
         {
           "file": "device/mobile.json",
           "from": {
             "modifier": "size",
-            "context": "small"
-          }
+            "context": "small",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "size": "small"
+            }
+          ]
         },
         {
           "file": "typography/mobile.json",
           "from": {
             "modifier": "size",
-            "context": "small"
-          }
+            "context": "small",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "size": "small"
+            }
+          ]
         }
       ]
     },
@@ -84,22 +70,52 @@
           "from": {
             "modifier": "size",
             "context": "medium",
-            "set": "baseSize"
-          }
+            "sets": [
+              {
+                "name": "baseSize"
+              }
+            ]
+          },
+          "readBy": [
+            {
+              "size": "small"
+            },
+            {
+              "size": "medium"
+            },
+            {
+              "size": "large"
+            }
+          ]
         },
         {
           "file": "device/tablet.json",
           "from": {
             "modifier": "size",
-            "context": "medium"
-          }
+            "context": "medium",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "size": "medium"
+            }
+          ]
         },
         {
           "file": "typography/base.json",
           "from": {
             "modifier": "size",
-            "context": "medium"
-          }
+            "context": "medium",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "size": "medium"
+            },
+            {
+              "size": "large"
+            }
+          ]
         }
       ]
     },
@@ -114,22 +130,52 @@
           "from": {
             "modifier": "size",
             "context": "large",
-            "set": "baseSize"
-          }
+            "sets": [
+              {
+                "name": "baseSize"
+              }
+            ]
+          },
+          "readBy": [
+            {
+              "size": "small"
+            },
+            {
+              "size": "medium"
+            },
+            {
+              "size": "large"
+            }
+          ]
         },
         {
           "file": "device/desktop.json",
           "from": {
             "modifier": "size",
-            "context": "large"
-          }
+            "context": "large",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "size": "large"
+            }
+          ]
         },
         {
           "file": "typography/base.json",
           "from": {
             "modifier": "size",
-            "context": "large"
-          }
+            "context": "large",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "size": "medium"
+            },
+            {
+              "size": "large"
+            }
+          ]
         }
       ]
     }

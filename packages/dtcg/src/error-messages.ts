@@ -1,4 +1,5 @@
 import type {
+    Diagnostic,
     DiagnosticDetailByKind,
     DiagnosticKind,
     JsonErrorReason,
@@ -12,7 +13,7 @@ import {
     valueErrorMessages,
 } from "./values/value-errors.js";
 
-type Severity = "error" | "warning";
+type Severity = Diagnostic["severity"];
 
 type Entry<K extends DiagnosticKind> = {
     severity: Severity | ((detail: DiagnosticDetailByKind[K]) => Severity);
@@ -226,8 +227,8 @@ export const diagnosticMessages: { [K in DiagnosticKind]: Entry<K> } = {
     },
     "circular-reference": {
         severity: "error",
-        message: ({ chain }) =>
-            `these references lead back to where they started: ${chain.map((step) => step || "the top level").join(" → ")}`,
+        message: ({ chain, toTopLevel }) =>
+            `these references lead back to where they started: ${[...chain, ...(toTopLevel ? ["the top level"] : [])].join(" → ")}`,
     },
     "type-mismatch": {
         severity: "error",
@@ -259,6 +260,11 @@ export const diagnosticMessages: { [K in DiagnosticKind]: Entry<K> } = {
         severity: "warning",
         message: ({ modifiers }) =>
             `${modifiers.map((name) => `\`${name}\``).join(", ")} ${modifiers.length === 1 ? "has" : "have"} no default, so contexts of the other modifiers could not be built on their own`,
+    },
+    "not-in-resolution-order": {
+        severity: "hint",
+        message: ({ item, name }) =>
+            `the ${item} \`${name}\` is never read: nothing in \`resolutionOrder\` reaches it`,
     },
     "deprecated-reference": {
         severity: "warning",

@@ -11,9 +11,9 @@
     "fade": {
       "$description": "Three stops with literal colours, so the list has a length worth editing.",
       "$value": [
-        { "color": "#fafafb", "position": 0 },
-        { "color": "#e5e5ea", "position": 0.5 },
-        { "color": "#a2a2af", "position": 1 }
+        { "color": { "colorSpace": "srgb", "components": [0.9804, 0.9804, 0.9843], "hex": "#fafafb" }, "position": 0 },
+        { "color": { "colorSpace": "srgb", "components": [0.898, 0.898, 0.9176], "hex": "#e5e5ea" }, "position": 0.5 },
+        { "color": { "colorSpace": "srgb", "components": [0.6353, 0.6353, 0.6863], "hex": "#a2a2af" }, "position": 1 }
       ]
     }
   }

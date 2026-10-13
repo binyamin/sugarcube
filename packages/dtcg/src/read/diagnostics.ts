@@ -1,8 +1,8 @@
 import { diagnosticMessages } from "../error-messages.js";
-import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind } from "../index.js";
+import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind, Input } from "../index.js";
 
 export type DiagnosticExtra = Partial<Pick<Diagnostic, "at" | "path" | "related" | "tags">> & {
-    permutation?: number;
+    permutation?: Input;
 };
 
 export function diagnostic<K extends DiagnosticKind>(
@@ -28,19 +28,30 @@ function docsFor<K extends DiagnosticKind>(kind: K, detail: DiagnosticDetailByKi
     return `${page}#${(detail as DiagnosticDetailByKind["invalid-value"]).reason}`;
 }
 
-export function collapse(diagnostics: Diagnostic[], permutations: number): Diagnostic[] {
+export function onceEach(diagnostics: Diagnostic[]): Diagnostic[] {
+    const seen = new Set<string>();
+    return diagnostics.filter((found) => {
+        const key = JSON.stringify(found);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+export function collapse(diagnostics: Diagnostic[], inputs: Input[]): Diagnostic[] {
     const alike = new Map<string, Diagnostic>();
     for (const found of diagnostics) {
         const key = JSON.stringify({ ...found, permutations: undefined });
         const earlier = alike.get(key);
         if (!earlier) alike.set(key, found);
         else if (earlier.permutations && found.permutations) {
-            earlier.permutations = [...new Set([...earlier.permutations, ...found.permutations])];
+            const both = new Set([...earlier.permutations, ...found.permutations]);
+            earlier.permutations = inputs.filter((input) => both.has(input));
         }
     }
     const collapsed = [...alike.values()];
     for (const found of collapsed) {
-        if (found.permutations?.length === permutations) delete found.permutations;
+        if (found.permutations?.length === inputs.length) delete found.permutations;
     }
     return collapsed;
 }

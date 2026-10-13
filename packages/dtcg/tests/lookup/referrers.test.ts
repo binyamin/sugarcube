@@ -104,11 +104,18 @@ describe("referrers, across a document", () => {
         ]);
     });
 
-    it("only in the permutation an input names, when given one", () => {
-        expect(referrers(doc, "blue", { theme: "light" })).toStrictEqual([
-            { path: "tint", in: [light.input] },
+    it("takes its options third, however indirectly, in every permutation", () => {
+        expect(referrers(doc, "red", { transitive: true })).toStrictEqual([
+            { path: "brand", in: [light.input] },
+            { path: "danger", in: [light.input] },
+            { path: "edge", in: [light.input] },
+            { path: "loud", in: [light.input] },
         ]);
-        expect(referrers(doc, "red", { theme: "dark" }, { transitive: true })).toStrictEqual([]);
+    });
+
+    it("asks one permutation when given that permutation", () => {
+        expect(paths(referrers(light, "blue"))).toStrictEqual(["tint"]);
+        expect(referrers(dark, "red", { transitive: true })).toStrictEqual([]);
     });
 });
 

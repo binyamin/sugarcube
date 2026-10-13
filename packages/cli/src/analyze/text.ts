@@ -1,5 +1,5 @@
 import { plural } from "@sugarcube-sh/core";
-import { withoutRoot } from "@sugarcube-sh/dtcg";
+import { parentOf, withoutRoot } from "@sugarcube-sh/dtcg";
 import { extname } from "pathe";
 import color from "picocolors";
 import { ERROR_MESSAGES } from "../constants/error-messages.js";
@@ -63,8 +63,8 @@ function truncate(text: string, max: number): string {
 
 function groupAndName(path: string): [group: string, name: string] {
     const shown = withoutRoot(path);
-    const lastDot = shown.lastIndexOf(".");
-    return lastDot === -1 ? ["(root)", shown] : [shown.slice(0, lastDot), shown.slice(lastDot + 1)];
+    const group = parentOf(shown);
+    return group === undefined ? ["(root)", shown] : [group, shown.slice(group.length + 1)];
 }
 
 export function unusedLines({ unused }: Unused, tokens: Iterable<string>): string[] {

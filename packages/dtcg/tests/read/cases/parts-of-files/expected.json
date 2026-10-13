@@ -27,9 +27,7 @@
             }
           },
           "authored": {
-            "value": 2,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 2
           }
         },
         {
@@ -49,8 +47,11 @@
           "path": "size",
           "declaredIn": [
             {
-              "file": "base.json",
-              "valueAfter": "\"size\":"
+              "index": 1,
+              "at": {
+                "file": "base.json",
+                "valueAfter": "\"size\":"
+              }
             }
           ]
         },
@@ -58,8 +59,11 @@
           "path": "space",
           "declaredIn": [
             {
-              "file": "tokens.resolver.json",
-              "valueAfter": "\"space\":"
+              "index": 1,
+              "at": {
+                "file": "tokens.resolver.json",
+                "valueAfter": "\"space\":"
+              }
             }
           ]
         }

@@ -2,9 +2,38 @@
   "entry": "tokens.resolver.json",
   "spec": "Resolver 4.1.4 and 4.1.6: a resolver with one set and no modifiers is one permutation",
   "files": ["tokens.resolver.json", "tokens.json"],
-  "modifiers": {},
-  "usedBy": {
-    "tokens.json": "everyone"
+  "resolver": {
+    "file": "tokens.resolver.json",
+    "version": "2025.10",
+    "sets": [
+      {
+        "name": "base",
+        "sources": [
+          {
+            "file": "tokens.json"
+          }
+        ],
+        "at": {
+          "file": "tokens.resolver.json",
+          "offset": 46,
+          "length": 42,
+          "start": {
+            "line": 3,
+            "column": 21
+          },
+          "end": {
+            "line": 3,
+            "column": 63
+          }
+        }
+      }
+    ],
+    "modifiers": [],
+    "order": [
+      {
+        "set": "base"
+      }
+    ]
   },
   "permutations": [
     {
@@ -14,8 +43,13 @@
         {
           "file": "tokens.json",
           "from": {
-            "set": "base"
-          }
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
+          },
+          "readBy": "everyone"
         }
       ]
     }

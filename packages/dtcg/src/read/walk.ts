@@ -48,17 +48,21 @@ export interface ExtensionsAt {
     node: Node;
 }
 
-export interface SourceGroup extends Properties {
-    path: string;
+export interface SourceTopLevel extends Properties {
     at: Span;
-    extends?: GroupReference;
     extensionsAt?: ExtensionsAt;
 }
 
+export interface SourceGroup extends SourceTopLevel {
+    path: string;
+    extends?: GroupReference;
+}
+
+export type SourceMember = { token: SourceToken } | { group: SourceGroup };
+
 export interface SourceContents {
-    root: SourceGroup;
-    tokens: SourceToken[];
-    groups: SourceGroup[];
+    root: SourceTopLevel;
+    members: SourceMember[];
 }
 
 type NonObjectKind = DiagnosticDetailByKind["invalid-member"]["found"];
@@ -98,7 +102,7 @@ export function walkSource(
     if (!json || !tree) return undefined;
 
     const at = (node: Node) => spanOf(json.path, json.lineStarts, node.offset, node.length);
-    const contents: SourceContents = { root: { path: "", at: at(tree) }, tokens: [], groups: [] };
+    const contents: SourceContents = { root: { at: at(tree) }, members: [] };
     const overridden = new Set(source.overriddenKeys);
     const report = <K extends DiagnosticKind>(
         kind: K,
@@ -107,15 +111,15 @@ export function walkSource(
         extra: Omit<DiagnosticExtra, "at"> = {},
     ) => diagnostics.push(diagnostic(kind, detail, { at: at(node), ...extra }));
 
-    const readType = (path: string, node: Node, name: string) => {
+    const readType = (path: string | undefined, node: Node, name: string) => {
         if (isTokenType(name)) return name;
         const similar = similarName(name, tokenTypes);
         const detail = { type: name, ...(similar !== undefined && { similar }) };
-        report("unknown-type", detail, node, { path });
+        report("unknown-type", detail, node, path === undefined ? {} : { path });
         return "unusable";
     };
 
-    const readProperties = (path: string, entries: readonly Member[]): Properties => {
+    const readProperties = (path: string | undefined, entries: readonly Member[]): Properties => {
         const properties: Properties = {};
         for (const { key, value } of entries) {
             const raw: unknown = value.value;
@@ -138,7 +142,7 @@ export function walkSource(
         return properties;
     };
 
-    const readGroupProperties = (path: string, entries: readonly Member[]) => {
+    const readGroupProperties = (path: string | undefined, entries: readonly Member[]) => {
         const properties = readProperties(path, entries);
         const extensions = entries.find(({ key }) => key === "$extensions")?.value;
         return {
@@ -179,25 +183,29 @@ export function walkSource(
         const child = entries.find(({ key }) => !key.startsWith("$"));
         if (child) report("token-and-group", { reason: "child", child: child.key }, child.keyNode);
         const authored = plainValue(value);
-        contents.tokens.push({
-            path,
-            json,
-            value,
-            authored,
-            reference: readReference(authored),
-            at: at(node),
-            ...readProperties(path, entries),
+        contents.members.push({
+            token: {
+                path,
+                json,
+                value,
+                authored,
+                reference: readReference(authored),
+                at: at(node),
+                ...readProperties(path, entries),
+            },
         });
     };
 
     const visitGroup = (node: Node, segments: string[], entries: readonly Member[]) => {
         const path = segments.join(".");
         const extending = readExtends(node, entries);
-        contents.groups.push({
-            path,
-            at: at(node),
-            ...readGroupProperties(path, entries),
-            ...(extending && { extends: extending }),
+        contents.members.push({
+            group: {
+                path,
+                at: at(node),
+                ...readGroupProperties(path, entries),
+                ...(extending && { extends: extending }),
+            },
         });
         visitMembers(segments, entries);
     };
@@ -277,7 +285,7 @@ export function walkSource(
         members(tree).filter(({ key }) => !overridden.has(key)),
         true,
     );
-    contents.root = { path: "", at: at(tree), ...readGroupProperties("", rootEntries) };
+    contents.root = { at: at(tree), ...readGroupProperties(undefined, rootEntries) };
     visitMembers([], rootEntries);
     return contents;
 }

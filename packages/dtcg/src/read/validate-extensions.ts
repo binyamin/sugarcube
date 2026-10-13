@@ -12,6 +12,8 @@ import type {
 } from "../index.js";
 import { type SchemaOutput, checkSchema, extensionDiagnostic } from "./extension-check.js";
 import { type JsonFile, member } from "./json.js";
+import { everyGroup } from "./merge.js";
+import { settingsOf } from "./settings.js";
 import type { NormalisedPermutation } from "./normalise.js";
 
 type Checked = Parameters<NonNullable<ExtensionValidator["validate"]>>[0];
@@ -62,7 +64,7 @@ export function validateExtensions(
 ): void {
     if (validators.length === 0) return;
 
-    normalised.forEach(({ merged }, permutation) => {
+    normalised.forEach(({ merged, input: permutation }, index) => {
         const checked = new Map<ExtensionValidator, Set<Node>>();
         const check = (
             validator: ExtensionValidator,
@@ -84,7 +86,7 @@ export function validateExtensions(
                 messages: validator.messages,
                 json,
                 node,
-                path: on.path,
+                ...(on.path !== undefined && { path: on.path }),
                 permutation,
             };
             for (const problem of problems) {
@@ -92,20 +94,20 @@ export function validateExtensions(
             }
         };
 
-        for (const group of [merged.root, ...merged.groups.values()]) {
+        for (const [path, group] of everyGroup(merged)) {
+            const settings = settingsOf(merged, group);
             for (const validator of validators) {
-                const at = group.extensionsAt?.[validator.key];
+                const at = settings.extensionsAt?.[validator.key];
                 if (!at || !validator.appliesTo.includes("group")) continue;
                 const node = member(at.node, validator.key);
                 if (!node) continue;
-                const value = group.extensions?.[validator.key];
-                check(validator, { path: group.path, type: "group" }, value, at.json, node);
+                const value = settings.extensions?.[validator.key];
+                const on: Checked = { ...(path !== undefined && { path }), type: "group" };
+                check(validator, on, value, at.json, node);
             }
         }
 
-        const types = new Map(
-            permutations[permutation]?.tokens.map(({ path, type }) => [path, type]),
-        );
+        const types = new Map(permutations[index]?.tokens.map(({ path, type }) => [path, type]));
         for (const token of merged.tokens.values()) {
             const type = types.get(token.path);
             const object = token.value.parent?.parent;

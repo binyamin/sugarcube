@@ -5,6 +5,6 @@ import { create, commit } from "@sugarcube-sh/dtcg-edit";
 declare let project: Project;
 
 const colors = group(project.doc, "color");
-const done = commit(project, create(project, "color", "info", { $value: "#0ea5e9" }));
+const done = commit(project, create(project, "color.info", { $value: "#0ea5e9" }));
 if ("project" in done) project = done.project;
 if (!colors?.type) showMessage("This group has no type; choose one");

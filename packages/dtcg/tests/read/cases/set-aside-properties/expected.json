@@ -48,7 +48,6 @@
         },
         {
           "path": "heading-copy",
-          "aliasOf": "heading",
           "resolved": {
             "fontFamily": ["Inter"],
             "fontSize": {

@@ -32,9 +32,7 @@
           "path": "button-primary.state.hover",
           "type": "number",
           "authored": {
-            "value": 30,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 30
           }
         },
         {
@@ -65,9 +63,7 @@
         {
           "path": "button-large.background",
           "authored": {
-            "value": 9,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 9
           },
           "inherited": {
             "from": "button-primary"
@@ -76,22 +72,20 @@
         {
           "path": "button-large.state.hover",
           "authored": {
-            "value": 30,
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            "value": 30
           },
           "inherited": {
             "from": "button-primary"
           }
         },
         {
-          "path": "button-large.text",
+          "path": "button-large.state.focus",
           "inherited": {
             "from": "button-primary"
           }
         },
         {
-          "path": "button-large.state.focus",
+          "path": "button-large.text",
           "inherited": {
             "from": "button-primary"
           }
@@ -118,8 +112,11 @@
           "description": "Buttons",
           "declaredIn": [
             {
-              "file": "tokens.json",
-              "valueAfter": "\"button-primary\":"
+              "index": 0,
+              "at": {
+                "file": "tokens.json",
+                "valueAfter": "\"button-primary\":"
+              }
             }
           ]
         },
@@ -127,9 +124,12 @@
           "path": "button-primary.state",
           "declaredIn": [
             {
-              "file": "tokens.json",
-              "valueAfter": "\"state\":",
-              "occurrence": 2
+              "index": 0,
+              "at": {
+                "file": "tokens.json",
+                "valueAfter": "\"state\":",
+                "occurrence": 2
+              }
             }
           ]
         },

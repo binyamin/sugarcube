@@ -2,13 +2,9 @@ import type { Reported } from "../src/types/diagnostics.js";
 import { describe, expect, it } from "vitest";
 import { type Where, problemCount, problemLines, problemsText } from "../src/shared/problems.js";
 
-const themes = (...names: string[]) =>
-    names.map((theme) => ({ input: { theme }, label: `theme: ${theme}` }));
-
 const where: Where = {
     cwd: "/project",
     folder: "/project/tokens",
-    permutations: themes("light", "dark", "dim"),
     configFile: "/project/sugarcube.config.ts",
 };
 
@@ -53,7 +49,7 @@ const hex = value("`#000` is not a six-digit hex color", at("base.json", 6, 81))
 const missing = missingReference("color.inc", at("base.json", 7, 25));
 const darkOnly = {
     ...missingReference("color.brnd", at("dark.json", 1, 54)),
-    permutations: [1, 2],
+    permutations: [{ theme: "dark" }, { theme: "dim" }],
 };
 const polyfill: Reported = {
     kind: "option-deprecated",
@@ -81,50 +77,22 @@ describe("problemLines", () => {
         ]);
     });
 
-    it("names the permutations when only some have the problem", () => {
+    it("names the permutations when only some have the problem, each by its label", () => {
         expect(problemLines([darkOnly], where, { colors: false })).toStrictEqual([
-            "tokens/dark.json:1:54  error  `color.brnd` does not exist  in theme: dark and dim  missing-reference",
+            "tokens/dark.json:1:54  error  `color.brnd` does not exist  in theme: dark; theme: dim  missing-reference",
         ]);
     });
 
-    it("names three or more permutations as a list", () => {
-        const four = { ...where, permutations: themes("light", "dark", "dim", "contrast") };
-        const some = { ...darkOnly, permutations: [1, 2, 3] };
-        expect(problemLines([some], four, { colors: false })[0]).toContain(
-            "in theme: dark, dim and contrast",
-        );
-    });
-
-    const sizes = {
-        ...where,
-        permutations: [
-            ["light", "large"],
-            ["dark", "large"],
-            ["light", "default"],
-            ["dark", "default"],
-        ].map(([theme = "", size = ""]) => ({
-            input: { theme, size },
-            label: `theme: ${theme}, size: ${size}`,
-        })),
-    };
-    const inPermutations = (...permutations: number[]) => ({ ...darkOnly, permutations });
-
-    it("leaves out a modifier whose every context has the problem", () => {
-        expect(problemLines([inPermutations(1, 3)], sizes, { colors: false })[0]).toContain(
-            "in theme: dark  ",
-        );
-    });
-
-    it("names each permutation when the ones with the problem aren't contexts of modifiers", () => {
-        expect(problemLines([inPermutations(1, 2)], sizes, { colors: false })[0]).toContain(
-            "in theme: dark, size: large and theme: light, size: default",
-        );
-    });
-
-    it("names every modifier for one permutation of several", () => {
-        const eachContext = { ...sizes, permutations: sizes.permutations.slice(0, 3) };
-        expect(problemLines([inPermutations(1)], eachContext, { colors: false })[0]).toContain(
-            "in theme: dark, size: large  ",
+    it("names a permutation by its whole label, every modifier included", () => {
+        const some = {
+            ...darkOnly,
+            permutations: [
+                { theme: "dark", size: "large" },
+                { theme: "light", size: "default" },
+            ],
+        };
+        expect(problemLines([some], where, { colors: false })[0]).toContain(
+            "in theme: dark, size: large; theme: light, size: default  ",
         );
     });
 

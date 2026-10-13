@@ -1,14 +1,14 @@
-import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind } from "../index.js";
+import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind, Input } from "../index.js";
 import { relatedMessages } from "../error-messages.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { malformation } from "./malformed-pointer.js";
-import { type Merged, type MergedGroup, mergeProperties, removeGroup } from "./merge.js";
+import { type Merged, type MergedGroup, removeGroup } from "./merge.js";
 import { pathBelow, within } from "../path.js";
 import { pointerParts, reach, refObjectMeaning } from "./ref-meaning.js";
 
 type Extending = MergedGroup & { extends: NonNullable<MergedGroup["extends"]> };
 
-export function applyExtends(merged: Merged, permutation: number, diagnostics: Diagnostic[]): void {
+export function applyExtends(merged: Merged, permutation: Input, diagnostics: Diagnostic[]): void {
     const state = new Map<string, "extending" | "done" | "in-a-loop">();
     const report = <K extends DiagnosticKind>(
         kind: K,
@@ -48,6 +48,11 @@ export function applyExtends(merged: Merged, permutation: number, diagnostics: D
     const extend = (group: Extending, chain: Extending[]): void => {
         const { keyword, written, steps } = group.extends;
         const direct = steps && pointerParts(steps).path;
+        if (steps && direct === undefined) {
+            report("circular-reference", { chain: [group.path], toTopLevel: true }, group);
+            state.set(group.path, "in-a-loop");
+            return;
+        }
         if (direct !== undefined && within(group.path, direct)) {
             report("circular-reference", { chain: [group.path, direct] }, group);
             state.set(group.path, "in-a-loop");
@@ -88,8 +93,7 @@ function isExtending(group: MergedGroup): group is Extending {
 }
 
 function inherit(merged: Merged, group: MergedGroup, from: string): void {
-    const target = merged.groups.get(from);
-    if (target) fillIn(group, target);
+    group.takesFrom ??= from;
     const moved = (path: string) => {
         const rest = pathBelow(path, from);
         return rest === undefined ? undefined : `${group.path}.${rest}`;
@@ -105,49 +109,38 @@ function inherit(merged: Merged, group: MergedGroup, from: string): void {
         return false;
     };
 
-    for (const each of Array.from(merged.groups.values())) {
-        const path = moved(each.path);
+    for (const appeared of Array.from(merged.order)) {
+        const path = moved(appeared);
         if (path === undefined) continue;
+        const each = merged.groups.get(appeared);
+        const token = merged.tokens.get(appeared);
+        if (token) {
+            if (merged.tokens.has(path) || merged.groups.has(path) || underLocalToken(path))
+                continue;
+            const { replaces: _replaces, ...copied } = token;
+            merged.tokens.set(path, { ...copied, path, inherited: { from } });
+            merged.order.add(path);
+            continue;
+        }
+        if (!each) continue;
         const existing = merged.groups.get(path);
-        if (existing) fillIn(existing, each);
+        if (existing) existing.takesFrom ??= appeared;
         else if (!merged.tokens.has(path) && !underLocalToken(path)) {
-            const { type, description, deprecated, extensions, extensionsAt } = each;
             merged.groups.set(path, {
                 path,
-                ...(type !== undefined && { type }),
-                ...(description !== undefined && { description }),
-                ...(deprecated !== undefined && { deprecated }),
-                ...(extensions && { extensions }),
-                ...(extensionsAt && { extensionsAt }),
                 declaredIn: [],
+                takesFrom: appeared,
                 inherited: { from },
             });
+            merged.order.add(path);
         }
     }
-    for (const token of Array.from(merged.tokens.values())) {
-        const path = moved(token.path);
-        if (path === undefined) continue;
-        if (merged.tokens.has(path) || merged.groups.has(path) || underLocalToken(path)) continue;
-        const { replaces: _replaces, ...copied } = token;
-        merged.tokens.set(path, { ...copied, path, inherited: { from } });
-    }
-}
-
-function fillIn(local: MergedGroup, inherited: MergedGroup): void {
-    const { type, description, deprecated, extensions, extensionsAt } = inherited;
-    if (extensionsAt) local.extensionsAt = { ...extensionsAt, ...local.extensionsAt };
-    mergeProperties(local, {
-        ...(local.type === undefined && type !== undefined && { type }),
-        ...(local.description === undefined && description !== undefined && { description }),
-        ...(local.deprecated === undefined && deprecated !== undefined && { deprecated }),
-        ...(extensions && { extensions: { ...extensions, ...local.extensions } }),
-    });
 }
 
 function becomeToken(
     merged: Merged,
     group: Extending,
-    permutation: number,
+    permutation: Input,
     diagnostics: Diagnostic[],
 ): void {
     const { path, extends: extending, type, description, deprecated, extensions } = group;

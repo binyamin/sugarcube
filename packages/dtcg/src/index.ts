@@ -435,8 +435,6 @@ export interface TokenBase<T extends TokenType> {
     resolved?: ValueByType[T];
     /** Set when the value could not be read. The reasons are in {@link Document.diagnostics}, under this token's path. */
     invalid?: true;
-    /** The token this one finally points at, when its whole value is a reference. */
-    aliasOf?: string;
     description?: string;
     /** `true`, or a message explaining what to use instead. */
     deprecated?: boolean | string;
@@ -453,25 +451,25 @@ export interface TokenBase<T extends TokenType> {
     source: { index: number; at: Span };
     /**
      * The places earlier sources of the permutation write the token, in the order they are read,
-     * which {@link TokenBase.source | source.at} replaces: a later source writes a token whole.
-     * Absent when no earlier source writes it.
+     * each with its source as {@link TokenBase.source | source} has it, which `source.at` replaces:
+     * a later source writes a token whole. Absent when no earlier source writes it.
      */
-    replaces?: Span[];
+    replaces?: { index: number; at: Span }[];
     /**
-     * The value exactly as the file wrote it, and whether the file declared `$type` and
-     * `$deprecated` on this token, rather than the token taking them from a group or, for the
+     * What the file wrote for the token: its value exactly as written, and its `$type` and
+     * `$deprecated` when it writes them itself, rather than taking them from a group or, for the
      * type, from the token it refers to. Absent when no file writes the token: one a
      * {@link Generator} added.
      */
-    authored?: { value: unknown; typeDeclared: boolean; deprecatedDeclared: boolean };
+    authored?: { value: unknown } & Pick<Written, "type" | "deprecated">;
     /**
      * Set when a {@link Generator} makes the token from an extension on the group at `from`, whether
-     * a file writes the token or it was added. `from` is `""` for an extension on the top level of a
-     * file, and `extension` is where the extension sits in the group's `$extensions`, as the
+     * a file writes the token or it was added. `from` is absent for an extension on the top level of
+     * a file, and `extension` is where the extension sits in the group's `$extensions`, as the
      * generator names it. An added token has no {@link TokenBase.authored | authored}, and its
      * {@link TokenBase.source | source} is the extension.
      */
-    generated?: { from: string; extension: [string, ...string[]] };
+    generated?: { from?: string; extension: [string, ...string[]] };
     /** Set when the token is here only because of `$extends`, or a `$ref` to another group, at `from`. */
     inherited?: { from: string };
 }
@@ -484,13 +482,31 @@ export interface TokenBase<T extends TokenType> {
  */
 export type Token = { [T in TokenType]: TokenBase<T> }[TokenType];
 
-/** A group of tokens. */
-export interface Group {
-    path: string;
-    /** The type its tokens take, when the group declares one. */
+/**
+ * What a token or group writes itself, beside what applies to it: a group may take its `$type` and
+ * `$deprecated` from the group it is inside (Format 6.7.3, 6.3.1), and all four from the group it
+ * extends (6.4).
+ */
+export interface Written {
     type?: TokenType;
     description?: string;
     deprecated?: boolean | string;
+    extensions?: Record<string, unknown>;
+}
+
+/** A group of tokens. */
+export interface Group {
+    path: string;
+    /**
+     * The type its tokens take: its own, else the group it extends, else the group it is inside
+     * (Format 6.7.3).
+     */
+    type?: TokenType;
+    /** Its own, else the group it extends. */
+    description?: string;
+    /** Its own, else the group it extends, else the group it is inside (Format 6.3.1). */
+    deprecated?: boolean | string;
+    /** Its own, over those of the group it extends. */
     extensions?: Record<string, unknown>;
     /**
      * The group this one takes tokens from, through `$extends` or a `$ref` to another group
@@ -499,12 +515,40 @@ export interface Group {
      */
     extends?: { path: string; at: Span };
     /**
-     * Every place the group is declared. Groups can be spread across files, so there may be
-     * several, and a group only {@link Group.inherited | inherited} has none.
+     * Every place the group is declared, each with the permutation's source that declares it, as
+     * {@link TokenBase.source | a token's source} has it. Groups can be spread across files, so
+     * there may be several, and a group only {@link Group.inherited | inherited} has none.
      */
-    declaredIn: Span[];
+    declaredIn: { index: number; at: Span }[];
     /** Set when the group is here only because of `$extends`, or a `$ref` to another group, at `from`. */
     inherited?: { from: string };
+    /** What the files write on the group itself; absent when they write none of it. */
+    authored?: Written;
+    /**
+     * The paths directly inside it, tokens and groups together, in the order the files write them.
+     * What a later file adds comes after what the first one wrote, and tokens it takes through
+     * `$extends` or a {@link Generator} makes come at the end. To show one, look it up.
+     *
+     * @example
+     * for (const path of group(doc, "color")?.children ?? []) show(group(doc, path) ?? token(doc, path));
+     */
+    children: string[];
+}
+
+/**
+ * The top level of a permutation's files: what is written there, `$type`, `$description`,
+ * `$deprecated` and `$extensions`, and its {@link TopLevel.children | children}. It has no path,
+ * since a group may be named `""` (Format 5.1) and so own the empty path.
+ */
+export interface TopLevel {
+    type?: TokenType;
+    description?: string;
+    deprecated?: boolean | string;
+    extensions?: Record<string, unknown>;
+    /** The top of each file that writes something there, each with its source. */
+    declaredIn: { index: number; at: Span }[];
+    /** The paths written at the top of the files, tokens and groups together, in order. */
+    children: string[];
 }
 
 /**
@@ -523,17 +567,114 @@ export interface Source {
      */
     pointer?: string;
     /**
-     * How the resolver reached it: straight from a set, or through a modifier's context, possibly
-     * by way of a set that context names. Absent when there is no resolver.
+     * How the resolver reached it: the modifier and context, when it came through one, and every
+     * set on the way, outermost first, each as it is in effect at that step. Absent when there is
+     * no resolver.
+     *
+     * @example
+     * source.from // { sets: [{ name: "base" }, { name: "palette" }] }: palette, which base names
+     * source.from // { modifier: "mode", context: "dark", sets: [] }
      */
-    from?: { set: string } | { modifier: string; context: string; set?: string };
+    from?: { sets: SetOnRoute[] } | { modifier: string; context: string; sets: SetOnRoute[] };
     /**
-     * Vendor data for the source as a whole, passed through untouched: the `$extensions` of the
-     * set that lists it, then those at the top of the source, with the source's keys winning.
-     * `$extensions` written beside the source's `$ref` replace the ones at the top of the file.
+     * The source's own vendor data, passed through untouched: the `$extensions` written beside its
+     * `$ref`, or else those at the top of its file. A set's and a modifier's stay on them, in
+     * {@link Document.resolver}.
      */
     extensions?: Record<string, unknown>;
+    /**
+     * Who reads it: `"everyone"` when a set `resolutionOrder` names reaches it, otherwise each
+     * context whose permutations read it, as an input naming that one modifier. Every context the
+     * resolver declares counts, including those whose permutations the read didn't build. For
+     * deciding which file an edit belongs in.
+     *
+     * @example
+     * source.readBy // [{ mode: "dark" }]
+     */
+    readBy: "everyone" | Input[];
 }
+
+/**
+ * A set a source was reached through, as it is in effect at that step of the route: its name, which
+ * finds its entry in {@link Document.resolver}, and its `$extensions`, those written beside the
+ * `$ref` that named it there when there are any, as keys beside a `$ref` replace the target's
+ * (Resolver 4.2.2), otherwise its own.
+ *
+ * @example
+ * // base's sources: [{ "$ref": "#/sets/palette", "$extensions": { "sh.sugarcube": { "emit": false } } }]
+ * { name: "palette", extensions: { "sh.sugarcube": { emit: false } } }
+ */
+export interface SetOnRoute {
+    name: string;
+    extensions?: Record<string, unknown>;
+}
+
+/**
+ * What the resolver says about itself and how it is put together (Resolver 4): its name and
+ * description, the spec version it declares, and the sets and modifiers that take part, each as it
+ * is in effect where `resolutionOrder` names it, with keys written beside that `$ref` applied
+ * (Resolver 4.2.2), and where it is written. A set named inside another set with keys beside its
+ * `$ref` is listed as it is defined; what those keys change is on each source's route
+ * ({@link SetOnRoute}), since each such reference can change it differently.
+ * A set or modifier `resolutionOrder` never reaches takes no part (Resolver 4.1.6): it is left out
+ * here and reported as a hint. A set a source points inside of, such as `#/sets/palette/sources/0`,
+ * is left out too, as it doesn't take part as a set, but isn't reported, as part of it is read.
+ *
+ * @example
+ * doc.resolver?.name                         // "Acme"
+ * doc.resolver?.modifiers.map(({ name }) => name) // ["mode", "density"]
+ */
+export interface Resolver {
+    /** The resolver, as {@link Document.files} names it. */
+    file: string;
+    /** The spec version the resolver declares, such as `"2025.10"`. */
+    version?: string;
+    name?: string;
+    description?: string;
+    /** The sets that take part, in the order they are written. */
+    sets: ResolverSet[];
+    /** The modifiers that take part, in the order they are written. */
+    modifiers: ResolverModifier[];
+    /** `resolutionOrder`, each item by its name. */
+    order: ({ set: string } | { modifier: string })[];
+}
+
+/** A set that takes part, as it is in effect. */
+export interface ResolverSet {
+    name: string;
+    description?: string;
+    /** The set's own `$extensions`, passed through untouched. */
+    extensions?: Record<string, unknown>;
+    /** Its sources, in order, as written. */
+    sources: SourceRef[];
+    /** Where it is written: under `sets`, or inline in `resolutionOrder`. */
+    at: Span;
+}
+
+/** A modifier that takes part, as it is in effect. */
+export interface ResolverModifier {
+    name: string;
+    description?: string;
+    /** The modifier's own `$extensions`, passed through untouched. */
+    extensions?: Record<string, unknown>;
+    /** Its contexts, in the order they are written, each with its sources. */
+    contexts: { name: string; sources: SourceRef[]; at: Span }[];
+    default?: string;
+    /** Where it is written: under `modifiers`, or inline in `resolutionOrder`. */
+    at: Span;
+}
+
+/**
+ * A source as the resolver writes it: a file, or part of one, as {@link Document.files} names it,
+ * or a set it names. Tokens written in the resolver are part of the resolver, with a pointer to
+ * where they sit.
+ *
+ * @example
+ * { file: "dark.json" }
+ * { file: "all.json", pointer: "#/dark" }
+ * { set: "palette" }
+ */
+export type SourceRef = { file: string; pointer?: string } | { set: string };
 
 /** The tokens that result from one input. */
 export interface Permutation {
@@ -547,6 +688,8 @@ export interface Permutation {
     label: string;
     /** Where the tokens come from, in the order they apply: a later source overrides an earlier one. */
     sources: Source[];
+    /** The top level of the files, where a tree starts. */
+    root: TopLevel;
     /**
      * Every token, in the order the files write them, invalid ones included. The files read as
      * one: a group's tokens stay together where the group is first written, whichever file adds
@@ -690,8 +833,8 @@ export interface DiagnosticDetailByKind {
         /** How many layers or stops the token holds. */
         count: number;
     };
-    /** References that lead back to where they started. */
-    "circular-reference": { chain: string[] };
+    /** References that lead back to where they started; `toTopLevel` when the last refers to the whole document. */
+    "circular-reference": { chain: string[]; toTopLevel?: true };
     /** A reference points at a token of the wrong type. */
     "type-mismatch": { ref: string; expected: TokenType; found: TokenType };
     /** A name starts or ends with a space: legal, but almost always a typo. */
@@ -741,6 +884,12 @@ export interface DiagnosticDetailByKind {
      * none, some contexts could not be built on their own.
      */
     "no-default": { modifiers: string[] };
+    /**
+     * A set or modifier the resolver declares that `resolutionOrder` never reaches, so it takes no
+     * part (Resolver 4.1.6). A hint at where it is written, tagged `unnecessary` so an editor can
+     * fade it.
+     */
+    "not-in-resolution-order": { item: "set" | "modifier"; name: string };
 }
 
 /**
@@ -842,11 +991,14 @@ export type DiagnosticOf<DetailByKind> = {
         /** The token or group it concerns. */
         path?: string;
         /**
-         * Indexes into {@link Document.permutations}, in order, when only some permutations have
-         * it. Absent when every permutation has it, or it concerns none, such as a file that is not
-         * valid JSON.
+         * The inputs of the permutations that have it, in the order of
+         * {@link Document.permutations}, when only some do. Absent when every permutation has it,
+         * or it concerns none, such as a file that is not valid JSON.
+         *
+         * @example
+         * diagnostic.permutations // [{ mode: "dark" }]
          */
-        permutations?: number[];
+        permutations?: Input[];
         /** Other places involved, such as every token that uses a missing one. */
         related?: { message: string; at: Span }[];
         /** How an editor may show it: struck through for a deprecated reference. */
@@ -859,17 +1011,7 @@ export type DiagnosticOf<DetailByKind> = {
 
 export { errors } from "./lookup/errors.js";
 
-/**
- * The diagnostics about one token or group, for showing on its own page: those at its path, and
- * those about a reference it holds. A reference to a token that does not exist is reported once,
- * naming every token that uses it, so it appears here for each of them.
- *
- * @example
- * diagnosticsFor(doc, "color.brand") // includes "color.missing does not exist" if it refers to it
- */
-export function diagnosticsFor(doc: Document, path: string): Diagnostic[] {
-    throw new Error("not implemented yet");
-}
+export { diagnosticsFor } from "./lookup/diagnostics-for.js";
 
 /**
  * A design system as the DTCG specifications define it: every permutation, with every value in
@@ -877,30 +1019,23 @@ export function diagnosticsFor(doc: Document, path: string): Diagnostic[] {
  * changes it after {@link read} returns it.
  */
 export interface Document {
-    /** The version of this package that produced it. */
-    version: string;
     /**
      * Every file the read used, the entry first, in the order they were read. For watching and
      * reloading. Paths are as described at {@link ReadText}.
      */
     files: string[];
-    /** The modifiers the resolver declares, with their contexts and defaults. */
-    modifiers: Record<string, { contexts: string[]; default?: string }>;
-    /**
-     * Which permutations use each file: `"everyone"` for a file in a set, otherwise the contexts
-     * whose permutations read it. For deciding which file an edit belongs in.
-     *
-     * @example
-     * doc.usedBy["dark.json"] // [{ theme: "dark" }]
-     */
-    usedBy: Record<string, "everyone" | Input[]>;
+    /** What the resolver says about itself and how it is put together; absent with no resolver. */
+    resolver?: Resolver;
     permutations: Permutation[];
     /**
      * How the values were read. To read a value from the Document again, such as one inside
      * `$extensions`, the same way, give these to `parseValue` or `extensionReader`.
      */
     parseOptions: Required<ParseOptions>;
-    /** Every error, warning and note, in file order. {@link errors} picks out the errors. */
+    /**
+     * Every error, warning and note, in the order the read found them; sort by `at` for file order.
+     * {@link errors} picks out the errors.
+     */
     diagnostics: Diagnostic[];
 }
 
@@ -998,7 +1133,8 @@ export interface ExtensionValidator {
      */
     validate?(
         on: {
-            path: string;
+            /** Absent for the top level of a file. */
+            path?: string;
             /** The token's type, or `"group"`. */
             type: TokenType | "group";
         },
@@ -1093,7 +1229,8 @@ export interface Generator {
      */
     generate(
         group: {
-            path: string;
+            /** Absent for the top level of a file. */
+            path?: string;
             /** The type declared on the group, if any. */
             type?: TokenType;
         },
@@ -1189,20 +1326,9 @@ export interface Project {
     readonly options: ReadOptions;
 }
 
-/** One token across every permutation. */
-export interface TokenView {
-    path: string;
-    /** The type in the default permutation, or in the first permutation that has the token. */
-    type: TokenType;
-    /** The token in each permutation that has it, in order, with the permutation's input and label. */
-    permutations: { input: Input; label: string; token: Token }[];
-    /** The token in the default permutation. */
-    default?: Token;
-}
-
-export { byToken } from "./lookup/by-token.js";
-export { forbiddenInName, movedPath, pathBelow, withoutRoot } from "./path.js";
-export { completeInput, defaultPermutation, permutation } from "./lookup/permutation.js";
+export { childPath, forbiddenInName, movedPath, parentOf, pathBelow, withoutRoot } from "./path.js";
+export { completeInput, defaultPermutation, modifier, permutation } from "./lookup/permutation.js";
+export { permutationLabel } from "./lookup/permutation-label.js";
 
 /** What {@link completeInput} gives: the full input, or the modifier or context it could not match. */
 export type CompleteInput =
@@ -1213,6 +1339,7 @@ export type CompleteInput =
 export { group, token, tokensIn } from "./lookup/token.js";
 
 export { acrossPermutations } from "./lookup/across-permutations.js";
+export { tokenPaths } from "./lookup/token-paths.js";
 
 /** A token or group whose path changed, such as after a rename. */
 export interface Move {
@@ -1228,6 +1355,9 @@ export type TokenProperty = "value" | "type" | "description" | "deprecated" | "e
  * the group it takes tokens from, {@link Group.extends}.
  */
 export type GroupProperty = "type" | "description" | "deprecated" | "extensions" | "extends";
+
+/** A property a file can set on its top level. */
+export type TopLevelProperty = "type" | "description" | "deprecated" | "extensions";
 
 /**
  * One difference between two reads of a design system. `changed`, `renamed`, `group-changed` and
@@ -1272,6 +1402,15 @@ export type Change =
           properties: GroupProperty[];
           before: Group;
           after: Group;
+      }
+    | {
+          kind: "top-level-changed";
+          /** The top level has no path. */
+          path?: undefined;
+          in: Input[];
+          properties: TopLevelProperty[];
+          before: TopLevel;
+          after: TopLevel;
       };
 
 export { diff } from "./lookup/diff.js";
@@ -1288,13 +1427,7 @@ export { type ReferrersOptions, referrers } from "./lookup/referrers.js";
 
 export { type DependenciesOptions, dependencies } from "./lookup/dependencies.js";
 
-/**
- * Every token passed through on the way from this one to its final value.
- * @param input Which permutation. Defaults to the default permutation.
- */
-export function aliasChain(doc: Document, path: string, input?: Input): string[] {
-    throw new Error("not implemented yet");
-}
+export { aliasChain } from "./lookup/alias-chain.js";
 
 /** What is at a position in a file. */
 export type AtOffset =

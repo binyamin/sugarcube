@@ -17,9 +17,7 @@
             "value": {
               "value": 20,
               "unit": "px"
-            },
-            "typeDeclared": false,
-            "deprecatedDeclared": false
+            }
           },
           "generated": {
             "from": "space",
@@ -67,8 +65,7 @@
           "resolved": {
             "value": 3,
             "unit": "rem"
-          },
-          "aliasOf": "space.3"
+          }
         }
       ]
     }

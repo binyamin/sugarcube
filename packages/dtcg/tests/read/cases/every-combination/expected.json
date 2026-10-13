@@ -2,26 +2,157 @@
   "entry": "tokens.resolver.json",
   "spec": "Resolver 4.1.5.4, Example 5: two modifiers of two contexts make four combinations; with no inputs every one is built, the default first (contract 2, rule 2)",
   "files": ["tokens.resolver.json", "base.json", "dark.json", "ocean.json"],
-  "modifiers": {
-    "theme": {
-      "contexts": ["light", "dark"],
-      "default": "light"
-    },
-    "brand": {
-      "contexts": ["house", "ocean"],
-      "default": "house"
-    }
-  },
-  "usedBy": {
-    "base.json": "everyone",
-    "dark.json": [
+  "resolver": {
+    "file": "tokens.resolver.json",
+    "version": "2025.10",
+    "sets": [
       {
-        "theme": "dark"
+        "name": "base",
+        "sources": [
+          {
+            "file": "base.json"
+          }
+        ],
+        "at": {
+          "file": "tokens.resolver.json",
+          "offset": 50,
+          "length": 84,
+          "start": {
+            "line": 4,
+            "column": 13
+          },
+          "end": {
+            "line": 10,
+            "column": 6
+          }
+        }
       }
     ],
-    "ocean.json": [
+    "modifiers": [
       {
-        "brand": "ocean"
+        "name": "theme",
+        "contexts": [
+          {
+            "name": "light",
+            "sources": [],
+            "at": {
+              "file": "tokens.resolver.json",
+              "offset": 209,
+              "length": 2,
+              "start": {
+                "line": 15,
+                "column": 18
+              },
+              "end": {
+                "line": 15,
+                "column": 20
+              }
+            }
+          },
+          {
+            "name": "dark",
+            "sources": [
+              {
+                "file": "dark.json"
+              }
+            ],
+            "at": {
+              "file": "tokens.resolver.json",
+              "offset": 229,
+              "length": 67,
+              "start": {
+                "line": 16,
+                "column": 17
+              },
+              "end": {
+                "line": 20,
+                "column": 10
+              }
+            }
+          }
+        ],
+        "default": "light",
+        "at": {
+          "file": "tokens.resolver.json",
+          "offset": 170,
+          "length": 166,
+          "start": {
+            "line": 13,
+            "column": 14
+          },
+          "end": {
+            "line": 23,
+            "column": 6
+          }
+        }
+      },
+      {
+        "name": "brand",
+        "contexts": [
+          {
+            "name": "house",
+            "sources": [],
+            "at": {
+              "file": "tokens.resolver.json",
+              "offset": 390,
+              "length": 2,
+              "start": {
+                "line": 26,
+                "column": 18
+              },
+              "end": {
+                "line": 26,
+                "column": 20
+              }
+            }
+          },
+          {
+            "name": "ocean",
+            "sources": [
+              {
+                "file": "ocean.json"
+              }
+            ],
+            "at": {
+              "file": "tokens.resolver.json",
+              "offset": 411,
+              "length": 68,
+              "start": {
+                "line": 27,
+                "column": 18
+              },
+              "end": {
+                "line": 31,
+                "column": 10
+              }
+            }
+          }
+        ],
+        "default": "house",
+        "at": {
+          "file": "tokens.resolver.json",
+          "offset": 351,
+          "length": 168,
+          "start": {
+            "line": 24,
+            "column": 14
+          },
+          "end": {
+            "line": 34,
+            "column": 6
+          }
+        }
+      }
+    ],
+    "order": [
+      {
+        "set": "base"
+      },
+      {
+        "modifier": "theme"
+      },
+      {
+        "modifier": "brand"
       }
     ]
   },
@@ -36,8 +167,13 @@
         {
           "file": "base.json",
           "from": {
-            "set": "base"
-          }
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
+          },
+          "readBy": "everyone"
         }
       ]
     },
@@ -51,15 +187,26 @@
         {
           "file": "base.json",
           "from": {
-            "set": "base"
-          }
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "ocean.json",
           "from": {
             "modifier": "brand",
-            "context": "ocean"
-          }
+            "context": "ocean",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "brand": "ocean"
+            }
+          ]
         }
       ]
     },
@@ -73,15 +220,26 @@
         {
           "file": "base.json",
           "from": {
-            "set": "base"
-          }
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "dark.json",
           "from": {
             "modifier": "theme",
-            "context": "dark"
-          }
+            "context": "dark",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "theme": "dark"
+            }
+          ]
         }
       ]
     },
@@ -95,22 +253,39 @@
         {
           "file": "base.json",
           "from": {
-            "set": "base"
-          }
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
+          },
+          "readBy": "everyone"
         },
         {
           "file": "dark.json",
           "from": {
             "modifier": "theme",
-            "context": "dark"
-          }
+            "context": "dark",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "theme": "dark"
+            }
+          ]
         },
         {
           "file": "ocean.json",
           "from": {
             "modifier": "brand",
-            "context": "ocean"
-          }
+            "context": "ocean",
+            "sets": []
+          },
+          "readBy": [
+            {
+              "brand": "ocean"
+            }
+          ]
         }
       ]
     }

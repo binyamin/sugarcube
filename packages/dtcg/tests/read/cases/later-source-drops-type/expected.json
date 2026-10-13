@@ -23,7 +23,7 @@
         "valueAfter": "\"md\":"
       },
       "path": "space.md",
-      "permutations": [1]
+      "permutations": [{ "theme": "dark" }]
     }
   ]
 }

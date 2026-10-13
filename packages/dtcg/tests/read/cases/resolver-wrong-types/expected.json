@@ -67,6 +67,46 @@
           "column": 74
         }
       }
+    },
+    {
+      "kind": "not-in-resolution-order",
+      "detail": {
+        "item": "set",
+        "name": "brand"
+      },
+      "at": {
+        "file": "tokens.resolver.json",
+        "offset": 105,
+        "length": 30,
+        "start": {
+          "line": 5,
+          "column": 14
+        },
+        "end": {
+          "line": 5,
+          "column": 44
+        }
+      }
+    },
+    {
+      "kind": "not-in-resolution-order",
+      "detail": {
+        "item": "modifier",
+        "name": "theme"
+      },
+      "at": {
+        "file": "tokens.resolver.json",
+        "offset": 171,
+        "length": 64,
+        "start": {
+          "line": 8,
+          "column": 14
+        },
+        "end": {
+          "line": 8,
+          "column": 78
+        }
+      }
     }
   ]
 }

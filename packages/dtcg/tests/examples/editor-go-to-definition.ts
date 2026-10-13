@@ -1,6 +1,6 @@
 // A code editor feature. Click a reference like `{color.brand}` to jump to that token, and get
 // suggestions of tokens of the right type as you type one.
-import { atOffset, token, byToken, type Document } from "@sugarcube-sh/dtcg";
+import { atOffset, defaultPermutation, token, type Document } from "@sugarcube-sh/dtcg";
 
 declare const doc: Document;
 
@@ -12,4 +12,6 @@ if (hit.kind === "reference") {
 
 const here = atOffset(doc, "tokens.json", 380);
 const expects = here.kind === "reference" || here.kind === "token" ? here.expects : undefined;
-export const options = byToken(doc).filter((t) => !expects || t.type === expects);
+export const options = (defaultPermutation(doc)?.tokens ?? []).filter(
+    (t) => !expects || t.type === expects,
+);

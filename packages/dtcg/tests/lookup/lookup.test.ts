@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
     type Document,
     acrossPermutations,
-    byToken,
+    tokenPaths,
     completeInput,
     defaultPermutation,
     errors,
     group,
+    modifier,
     permutation,
+    permutationLabel,
     readFromMemory,
     token,
     tokensIn,
@@ -159,35 +161,83 @@ describe("completeInput", () => {
 });
 
 describe("acrossPermutations", () => {
-    it("gives the token in each permutation that has it, saying where its value comes from", () => {
+    it("gives the token in each permutation that has it, with the permutation and where its value comes from", () => {
         const across = acrossPermutations(doc, "2");
 
         expect(
-            across.map(({ label, overrides, from }) => ({ label, overrides, from })),
+            across.map((each) => ({ label: each.permutation.label, from: each.from })),
         ).toStrictEqual([
-            { label: "theme: light, density: comfy", overrides: false, from: { set: "base" } },
-            { label: "theme: light, density: compact", overrides: false, from: { set: "base" } },
+            { label: "theme: light, density: comfy", from: { sets: [{ name: "base" }] } },
+            { label: "theme: light, density: compact", from: { sets: [{ name: "base" }] } },
             {
                 label: "theme: dark, density: comfy",
-                overrides: true,
-                from: { modifier: "theme", context: "dark" },
+                from: { modifier: "theme", context: "dark", sets: [] },
             },
             {
                 label: "theme: dark, density: compact",
-                overrides: true,
-                from: { modifier: "theme", context: "dark" },
+                from: { modifier: "theme", context: "dark", sets: [] },
             },
         ]);
-        expect(across[2]?.token).toStrictEqual(token(doc, "2", { theme: "dark" }));
-        expect(across[2]?.input).toStrictEqual({ theme: "dark", density: "comfy" });
+        expect(across[2]?.permutation).toBe(permutation(doc, { theme: "dark" }));
+        expect(across[2]?.token).toBe(token(doc, "2", { theme: "dark" }));
+        expect(Object.keys(across[0] ?? {})).toStrictEqual(["permutation", "token", "from"]);
     });
 
     it("leaves out permutations that don't have the token", () => {
-        expect(acrossPermutations(doc, "glow").map(({ input }) => input)).toStrictEqual([
-            { theme: "dark", density: "comfy" },
-            { theme: "dark", density: "compact" },
-        ]);
+        expect(acrossPermutations(doc, "glow").map((each) => each.permutation.input)).toStrictEqual(
+            [
+                { theme: "dark", density: "comfy" },
+                { theme: "dark", density: "compact" },
+            ],
+        );
         expect(acrossPermutations(doc, "nope")).toStrictEqual([]);
+    });
+});
+
+describe("tokenPaths", () => {
+    it("lists every token in any permutation once, in the order the permutations list them", () => {
+        expect(tokenPaths(doc)).toStrictEqual([
+            "px",
+            "2",
+            "1",
+            "space.$root",
+            "space.sm",
+            "space.inset.lg",
+            "spacer.x",
+            "glow",
+        ]);
+    });
+
+    it("is a list the caller may change", () => {
+        const listed = tokenPaths(doc);
+        listed.reverse();
+        expect(tokenPaths(doc)[0]).toBe("px");
+    });
+});
+
+describe("modifier", () => {
+    it("finds a modifier that takes part by its name, whatever its case", () => {
+        expect(modifier(doc, "Theme")).toMatchObject({ name: "theme", default: "light" });
+        expect(modifier(doc, "theme")?.contexts.map(({ name }) => name)).toStrictEqual([
+            "light",
+            "dark",
+        ]);
+    });
+
+    it("is undefined for a name the resolver doesn't use", () => {
+        expect(modifier(doc, "brand")).toBeUndefined();
+    });
+});
+
+describe("permutationLabel", () => {
+    it("names each modifier and its context, in the order the resolver declares them", () => {
+        expect(permutationLabel({ theme: "dark", density: "compact" })).toBe(
+            "theme: dark, density: compact",
+        );
+    });
+
+    it("is the label the read gives each permutation", () => {
+        for (const each of doc.permutations) expect(permutationLabel(each.input)).toBe(each.label);
     });
 });
 
@@ -268,20 +318,21 @@ describe("tokensIn", () => {
         expect(paths(tokensIn(doc, "space"))).not.toContain("spacer.x");
     });
 
-    it("lists every token for the top level, whole-number names where the file writes them", () => {
-        expect(paths(tokensIn(doc, ""))).toStrictEqual([
-            "px",
-            "2",
-            "1",
-            "space.$root",
-            "space.sm",
-            "space.inset.lg",
-            "spacer.x",
-        ]);
+    it('takes "" as the group named "", never the top level of the files (Format 5.1)', () => {
+        expect(tokensIn(doc, "")).toStrictEqual([]);
+        const named = readFromMemory({
+            files: {
+                "tokens.json": JSON.stringify({
+                    "": { $type: "number", x: { $value: 1 } },
+                    "top": { $type: "number", $value: 2 },
+                }),
+            },
+        });
+        expect(paths(tokensIn(named, ""))).toStrictEqual([".x"]);
     });
 
     it("lists the tokens of the permutation an input names", () => {
-        expect(paths(tokensIn(doc, "", { theme: "dark" }))).toContain("glow");
+        expect(valueOf(tokensIn(doc, "space", { density: "compact" })[1])).toBe(2);
     });
 
     it("is empty for a path that is not a group, or an input that matches nothing", () => {
@@ -292,59 +343,11 @@ describe("tokensIn", () => {
     it("lists the tokens of a permutation already in hand", () => {
         const dark = permutation(doc, { theme: "dark" });
         if (!dark) throw new Error("no dark permutation");
-        expect(paths(tokensIn(dark, ""))).toContain("glow");
         expect(paths(tokensIn(dark, "space"))).toStrictEqual([
             "space.$root",
             "space.sm",
             "space.inset.lg",
         ]);
-    });
-});
-
-describe("byToken", () => {
-    const twoThemes = readWith([{ theme: "light" }, { theme: "dark" }]);
-
-    it("lists every token once, in file order, whole-number names included", () => {
-        expect(paths(byToken(twoThemes))).toStrictEqual([
-            "px",
-            "2",
-            "1",
-            "space.$root",
-            "space.sm",
-            "space.inset.lg",
-            "spacer.x",
-            "glow",
-        ]);
-    });
-
-    it("places a token the default permutation lacks after the ones it has", () => {
-        const darkFirst = readWith([{ theme: "dark" }, { theme: "light" }]);
-        expect(paths(byToken(darkFirst))?.at(-1)).toBe("glow");
-    });
-
-    it("holds each token as it is in every permutation, by input", () => {
-        const two = byToken(twoThemes).find(({ path }) => path === "2");
-        expect(two?.type).toBe("dimension");
-        expect(two?.permutations.map(({ input }) => input.theme)).toStrictEqual(["light", "dark"]);
-        expect(valueOf(two?.permutations[1]?.token)).toBe(3);
-        expect(two?.permutations[1]?.label).toBe(permutation(twoThemes, { theme: "dark" })?.label);
-        expect(valueOf(two?.default)).toBe(2);
-    });
-
-    it("has no default for a token the default permutation lacks", () => {
-        const glow = byToken(twoThemes).find(({ path }) => path === "glow");
-        expect(glow?.permutations.map(({ input }) => input.theme)).toStrictEqual(["dark"]);
-        expect(glow?.default).toBeUndefined();
-    });
-
-    it("is computed once per Document", () => {
-        expect(byToken(twoThemes)).toBe(byToken(twoThemes));
-    });
-
-    it("cannot be sorted in place, since every caller shares it", () => {
-        // @ts-expect-error
-        const sortInPlace = () => byToken(twoThemes).sort();
-        expect(sortInPlace).toBeTypeOf("function");
     });
 });
 

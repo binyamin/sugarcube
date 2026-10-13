@@ -76,7 +76,7 @@ describe("createSession", () => {
     it("puts every file back exactly on discard", () => {
         const session = createSession(demo);
         session.do(setValue(session.project, "color.brand.500", red));
-        session.do(create(session.project, "color", "highlight", { $type: "color", $value: red }));
+        session.do(create(session.project, "color.highlight", { $type: "color", $value: red }));
         session.discard();
 
         expect(session.project).toBe(demo);
@@ -128,8 +128,8 @@ describe("createSession", () => {
                 },
             ),
         );
-        session.do(create(session.project, "color", "highlight", { $type: "color", $value: red }));
-        session.do(create(session.project, "", "motion2", { group: true }));
+        session.do(create(session.project, "color.highlight", { $type: "color", $value: red }));
+        session.do(create(session.project, "motion2", { group: true }));
         session.do(remove(session.project, "color.brand.50"));
         session.do(rename(session.project, "color.brand", "primary"));
         const replayed = apply(demo, session.unsaved.ops);
@@ -167,7 +167,7 @@ describe("ids", () => {
 
     it("gives a token made in the session an id of its own", () => {
         const session = createSession(demo);
-        session.do(create(session.project, "color", "highlight", { $type: "color", $value: red }));
+        session.do(create(session.project, "color.highlight", { $type: "color", $value: red }));
         const id = session.idOf("color.highlight");
 
         expect(id).toMatch(/^new:/);
@@ -181,7 +181,7 @@ describe("ids", () => {
         expect(session.pathOf("color.brand.50")).toBeUndefined();
         expect(session.idOf("color.brand.50")).toBeUndefined();
 
-        session.do(create(session.project, "color.brand", "50", { $value: red }));
+        session.do(create(session.project, "color.brand.50", { $value: red }));
         expect(session.idOf("color.brand.50")).toMatch(/^new:/);
         expect(session.pathOf("color.brand.50")).toBeUndefined();
     });
@@ -189,7 +189,7 @@ describe("ids", () => {
     it("doesn't give a renamed-away path's id to what is made there next", () => {
         const session = createSession(demo);
         session.do(rename(session.project, "color.brand.500", "550"));
-        session.do(create(session.project, "color.brand", "500", { $value: red }));
+        session.do(create(session.project, "color.brand.500", { $value: red }));
 
         expect(session.idOf("color.brand.500")).toMatch(/^new:/);
         expect(session.pathOf("color.brand.500")).toBe("color.brand.550");
@@ -209,7 +209,7 @@ describe("ids", () => {
     it("never gives a made token the id of one whose name looks like a new id", () => {
         const files = { "tokens.json": '{ "new:1": { "$type": "number", "$value": 1 } }' };
         const session = createSession(openFromMemory({ files }));
-        session.do(create(session.project, "", "made", { $type: "number", $value: 2 }));
+        session.do(create(session.project, "made", { $type: "number", $value: 2 }));
 
         expect(session.idOf("made")).not.toBe("new:1");
         expect(session.pathOf("new:1")).toBe("new:1");
@@ -217,10 +217,10 @@ describe("ids", () => {
 
     it("never gives two tokens the same new id, even after a discard", () => {
         const session = createSession(demo);
-        session.do(create(session.project, "color", "a", { $type: "color", $value: red }));
+        session.do(create(session.project, "color.a", { $type: "color", $value: red }));
         const first = session.idOf("color.a");
         session.discard();
-        session.do(create(session.project, "color", "b", { $type: "color", $value: red }));
+        session.do(create(session.project, "color.b", { $type: "color", $value: red }));
 
         expect(session.idOf("color.b")).not.toBe(first);
         expect(session.pathOf(first ?? "")).toBeUndefined();

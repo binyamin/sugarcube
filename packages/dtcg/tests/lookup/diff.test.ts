@@ -375,6 +375,37 @@ describe("diff", () => {
         expect(changes[1]).toMatchObject({ after: { inherited: { from: "button.base" } } });
     });
 
+    it("leaves out a group whose setting changed only in the group it extends", () => {
+        const version = (description: string) =>
+            readFromMemory({
+                files: {
+                    "tokens.json": JSON.stringify({
+                        button: { $type: "number", $description: description, pad: { $value: 1 } },
+                        primary: { $extends: "{button}" },
+                    }),
+                },
+            });
+        const changes = diff(version("Base"), version("Base button"));
+        expect(changes.map((change) => [change.kind, change.path])).toEqual([
+            ["group-changed", "button"],
+        ]);
+    });
+
+    it("gives the top of a file changing what it writes", () => {
+        const version = (description: string) =>
+            readFromMemory({
+                files: {
+                    "tokens.json": JSON.stringify({
+                        $description: description,
+                        a: { $type: "number", $value: 1 },
+                    }),
+                },
+            });
+        expect(diff(version("One"), version("Two"))).toMatchObject([
+            { kind: "top-level-changed", properties: ["description"] },
+        ]);
+    });
+
     it("gives a group's own type changing, and a token now writing the type itself", () => {
         const after = read({
             base: changed(["text"], { size: { $type: "dimension", $value: "{typography.body}" } }),
