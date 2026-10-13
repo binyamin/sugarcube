@@ -101,7 +101,7 @@ function read(syntax: Syntax, raw: unknown, where: Where, reading: Reading): unk
             return keep(curly, syntax, where, reading);
         }
         if (curly)
-            return fail(where, { reason: "alias-not-allowed-here", reference: raw }, reading);
+            return fail(where, { reason: "curly-brace-not-allowed-here", reference: raw }, reading);
     }
 
     return readSyntax(syntax, raw, where, reading);

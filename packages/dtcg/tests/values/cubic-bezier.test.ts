@@ -98,7 +98,7 @@ describe("parseCubicBezier", () => {
                     jsonPath: ["$value", 0],
                     detail: {
                         type: "cubicBezier",
-                        reason: "alias-not-allowed-here",
+                        reason: "curly-brace-not-allowed-here",
                         reference: "{easing.x}",
                     },
                 },

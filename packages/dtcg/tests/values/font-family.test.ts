@@ -81,7 +81,7 @@ describe("parseFontFamily", () => {
                     jsonPath: ["$value", 0],
                     detail: {
                         type: "fontFamily",
-                        reason: "alias-not-allowed-here",
+                        reason: "curly-brace-not-allowed-here",
                         reference: "{font.brand}",
                     },
                 },

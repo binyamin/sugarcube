@@ -2,7 +2,7 @@
 // sends their text. The browser opens the same design system from that text and edits it. A save
 // sends back only the edits; the server checks they are edits and writes them, and an edit to a
 // file that isn't one of the token files is a conflict. If a file breaks mid-edit, the browser keeps the last version that read cleanly.
-import { errors, openFromMemory, type Project } from "@sugarcube-sh/dtcg";
+import { openFromMemory, type Project } from "@sugarcube-sh/dtcg";
 import { type ProjectSource, open } from "@sugarcube-sh/dtcg/node";
 import { isEdits } from "@sugarcube-sh/dtcg-edit";
 import { applyToDisk } from "@sugarcube-sh/dtcg-edit/node";
@@ -14,7 +14,7 @@ let serving: Project | undefined;
 
 export async function serve(): Promise<void> {
     const next = await open(source.entry, source.options);
-    const unreadable = errors(next.doc).some(
+    const unreadable = next.doc.diagnostics.some(
         (d) => d.kind === "invalid-json" || d.kind === "file-not-found",
     );
     if (unreadable && serving) return;

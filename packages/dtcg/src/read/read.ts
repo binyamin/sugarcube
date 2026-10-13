@@ -1,6 +1,6 @@
 import type { DesignSystem, Input, Project, ReadOptions, ReadText } from "../index.js";
 import type { Answer, FileText, Request } from "./files.js";
-import { collapse } from "./diagnostics.js";
+import { collapse, inReadingPermutations } from "./diagnostics.js";
 import { type Loaded, load } from "./load.js";
 import { normalisePermutations } from "./normalise.js";
 import { fillGenerated } from "./generate.js";
@@ -221,6 +221,9 @@ function toDesignSystem(
         sources,
         permutations,
         parseOptions,
-        diagnostics: [...loaded.diagnostics, ...collapse(found, permutations)],
+        diagnostics: inReadingPermutations(
+            [...loaded.diagnostics, ...collapse(found, permutations)],
+            permutations,
+        ),
     });
 }

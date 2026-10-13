@@ -79,7 +79,7 @@ describe("parseShadow", () => {
                     jsonPath: ["$value", "inset"],
                     detail: {
                         type: "shadow",
-                        reason: "alias-not-allowed-here",
+                        reason: "curly-brace-not-allowed-here",
                         reference: "{shadow.inset}",
                     },
                 },

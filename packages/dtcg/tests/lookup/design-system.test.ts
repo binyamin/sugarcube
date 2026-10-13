@@ -4,7 +4,6 @@ import {
     type Input,
     PermutationError,
     completeInput,
-    errors,
     permutationLabel,
     readFromMemory,
 } from "../../src/index.js";
@@ -349,28 +348,5 @@ describe("the plain form", () => {
         expect(token).not.toHaveProperty("valueFrom");
         expect(token).not.toHaveProperty("parts");
         expect(written.permutations[0].groups[0]).not.toHaveProperty("tokens");
-    });
-});
-
-describe("errors", () => {
-    it("keeps the errors and leaves out warnings, in the order they were found", () => {
-        const checked = readFromMemory({
-            files: {
-                "tokens.json": JSON.stringify({
-                    " spaced": { $type: "number", $value: 1 },
-                    "first": { $type: "number", $value: "{missing.one}" },
-                    "second": { $type: "number", $value: "{missing.two}" },
-                }),
-            },
-        });
-        expect(checked.diagnostics.map(({ kind }) => kind)).toContain("whitespace-in-name");
-        expect(errors(checked).map(({ kind, path }) => [kind, path])).toStrictEqual([
-            ["missing-reference", "first"],
-            ["missing-reference", "second"],
-        ]);
-    });
-
-    it("is empty when nothing stops the design system from being used", () => {
-        expect(errors(readFromMemory({ files: { "tokens.json": "{}" } }))).toStrictEqual([]);
     });
 });

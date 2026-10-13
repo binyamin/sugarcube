@@ -42,7 +42,7 @@
       "detail": {
         "jsonPath": ["$value", 0],
         "type": "fontFamily",
-        "reason": "alias-not-allowed-here",
+        "reason": "curly-brace-not-allowed-here",
         "reference": "{font.brand}"
       },
       "span": { "file": "tokens.json", "text": "\"{font.brand}\"" },

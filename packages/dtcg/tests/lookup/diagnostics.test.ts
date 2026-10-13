@@ -1,0 +1,181 @@
+import { describe, expect, it } from "vitest";
+import { readFromMemory } from "../../src/index.js";
+
+const resolver = {
+    version: "2025.10",
+    sets: { base: { sources: [{ $ref: "base.json" }] } },
+    modifiers: {
+        mode: { contexts: { light: [], dark: [{ $ref: "dark.json" }] }, default: "light" },
+    },
+    resolutionOrder: [{ $ref: "#/sets/base" }, { $ref: "#/modifiers/mode" }],
+};
+
+const base = JSON.stringify({
+    color: {
+        $type: "color",
+        ok: { $value: "#ffffff" },
+        bad: { $value: "nope" },
+        a: { $value: "{color.missing}" },
+        b: { $value: "{color.missing}" },
+    },
+    loop: { $type: "number", x: { $value: "{loop.y}" }, y: { $value: "{loop.x}" } },
+    space: { $type: "dimension", sm: { $value: { value: 4, unit: "px" } } },
+});
+
+const dark = JSON.stringify({
+    color: { ok: { $value: "wrong" } },
+    space: { $type: "dimension", $value: { value: 8, unit: "px" } },
+});
+
+const files = {
+    "tokens.resolver.json": JSON.stringify(resolver),
+    "base.json": base,
+    "dark.json": dark,
+};
+const ds = readFromMemory({ files, entry: "tokens.resolver.json" }, { hexStringColors: true });
+const light = ds.permutation();
+const darkMode = ds.permutation({ mode: "dark" });
+
+const kinds = (path: string) => ds.diagnosticsFor(path).map(({ kind }) => kind);
+
+describe("ds.diagnosticsFor", () => {
+    it("gives a token's own problems", () => {
+        expect(kinds("color.bad")).toStrictEqual(["invalid-value"]);
+    });
+
+    it("gives a missing reference to every token that uses it, though it is reported once", () => {
+        expect(kinds("color.a")).toStrictEqual(["missing-reference"]);
+        expect(kinds("color.b")).toStrictEqual(["missing-reference"]);
+        expect(ds.diagnostics.filter(({ kind }) => kind === "missing-reference")).toHaveLength(1);
+    });
+
+    it("gives a reference loop to every token in it", () => {
+        expect(kinds("loop.x")).toStrictEqual(["circular-reference"]);
+        expect(kinds("loop.y")).toStrictEqual(["circular-reference"]);
+    });
+
+    it("gives a group its own problems", () => {
+        expect(kinds("space")).toStrictEqual(["token-and-group"]);
+    });
+
+    it("gives each problem with the permutations it is in", () => {
+        const [problem] = ds.diagnosticsFor("color.ok");
+        expect(problem?.kind).toBe("invalid-value");
+        expect(problem?.permutations?.label).toBe("mode: dark");
+    });
+
+    it("gives a token or group with no problems of its own none", () => {
+        expect(kinds("space.sm")).toStrictEqual([]);
+        expect(kinds("loop")).toStrictEqual([]);
+    });
+
+    it("gives no token a file's problem", () => {
+        const broken = readFromMemory({ files: { "tokens.json": '{ "a": ' } });
+        expect(broken.diagnostics.length).toBeGreaterThan(0);
+        expect(broken.diagnosticsFor("a")).toStrictEqual([]);
+    });
+});
+
+describe("token.diagnostics", () => {
+    it("gives the problems about the token in its own permutation", () => {
+        expect(darkMode.token("color.ok")?.diagnostics.map(({ kind }) => kind)).toStrictEqual([
+            "invalid-value",
+        ]);
+        expect(light.token("color.ok")?.diagnostics).toStrictEqual([]);
+    });
+
+    it("gives a problem in a value every permutation reads to each of them", () => {
+        expect(ds.diagnosticsFor("color.bad")[0]?.permutations).toBeUndefined();
+        expect(darkMode.token("color.bad")?.diagnostics.map(({ kind }) => kind)).toStrictEqual([
+            "invalid-value",
+        ]);
+        expect(light.token("color.bad")?.diagnostics.map(({ kind }) => kind)).toStrictEqual([
+            "invalid-value",
+        ]);
+    });
+
+    it("gives the problems every permutation shares too", () => {
+        expect(light.token("color.a")?.diagnostics.map(({ kind }) => kind)).toStrictEqual([
+            "missing-reference",
+        ]);
+        expect(darkMode.token("loop.x")?.diagnostics.map(({ kind }) => kind)).toStrictEqual([
+            "circular-reference",
+        ]);
+    });
+
+    it("is not written in the plain form", () => {
+        expect(JSON.parse(JSON.stringify(light.token("color.a")))).not.toHaveProperty(
+            "diagnostics",
+        );
+    });
+});
+
+describe("a problem in a file only some permutations read", () => {
+    const walked = readFromMemory({
+        files: {
+            ...files,
+            "dark.json": JSON.stringify({ gap: { $type: "number", $value: 2, $unknwn: 1 } }),
+            "base.json": JSON.stringify({ gap: { $type: "number", $value: 1 } }),
+        },
+        entry: "tokens.resolver.json",
+    });
+
+    it("names the permutations that read the file", () => {
+        const [ignored] = walked.diagnosticsFor("gap");
+        expect(ignored?.kind).toBe("unknown-property");
+        expect(ignored?.permutations?.label).toBe("mode: dark");
+    });
+
+    it("is not given to the token in a permutation that does not read it", () => {
+        expect(walked.permutation().token("gap")?.diagnostics).toStrictEqual([]);
+    });
+
+    it("names none when every permutation reads the file, or none does", () => {
+        const resolverProblem = readFromMemory({
+            files: { ...files, "tokens.resolver.json": JSON.stringify({ ...resolver, extra: 1 }) },
+            entry: "tokens.resolver.json",
+        }).diagnostics.find(({ span }) => span?.file === "tokens.resolver.json");
+        expect(resolverProblem).toBeDefined();
+        expect(resolverProblem?.permutations).toBeUndefined();
+    });
+});
+
+describe("ds.diagnosticsAt", () => {
+    const bad = ds.diagnosticsFor("color.bad")[0];
+    const at = bad?.span;
+
+    it("gives the problems written at a place", () => {
+        if (!at) throw new Error("the problem has a place");
+        expect(ds.diagnosticsAt(at)).toStrictEqual([bad]);
+    });
+
+    it("gives the problems a place overlaps, a point inside one included", () => {
+        if (!at) throw new Error("the problem has a place");
+        expect(ds.diagnosticsAt({ file: at.file, offset: at.offset + 1, length: 0 })).toStrictEqual(
+            [bad],
+        );
+        expect(
+            ds
+                .diagnosticsAt({ file: at.file, offset: at.offset - 2, length: 3 })
+                .map(({ kind }) => kind),
+        ).toContain("invalid-value");
+    });
+
+    it("gives none for a place in another file, or where nothing is wrong", () => {
+        if (!at) throw new Error("the problem has a place");
+        expect(ds.diagnosticsAt({ file: "dark.json", offset: at.offset, length: 1 })).not.toContain(
+            bad,
+        );
+        expect(ds.diagnosticsAt({ file: "base.json", offset: 0, length: 1 })).toStrictEqual([]);
+    });
+});
+
+describe("a missing reference's problem", () => {
+    it("names the tokens it is written in as `from`", () => {
+        const missing = ds.diagnostics.find(({ kind }) => kind === "missing-reference");
+        expect(missing?.kind === "missing-reference" && missing.detail).toMatchObject({
+            ref: "color.missing",
+            from: ["color.a", "color.b"],
+        });
+    });
+});

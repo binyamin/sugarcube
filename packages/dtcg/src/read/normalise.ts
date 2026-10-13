@@ -73,7 +73,7 @@ export function normalisePermutations(
                 );
                 continue;
             }
-            tokens.set(token.path, { token, type, read: readValue.read(token, type) });
+            tokens.set(token.path, { token, type, read: readValue.read(token, type, input) });
         }
         return { input, label, contexts, sources: sources.map(publish), merged, tokens };
     });

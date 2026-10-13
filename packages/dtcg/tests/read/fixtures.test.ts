@@ -46,7 +46,7 @@ const oldForms: OldForm[] = [
     {
         form: "a reference as part of a value",
         inRepo: false,
-        matches: (d) => reason(d) === "alias-not-allowed-here",
+        matches: (d) => reason(d) === "curly-brace-not-allowed-here",
     },
     {
         form: "an unknown property in a value",

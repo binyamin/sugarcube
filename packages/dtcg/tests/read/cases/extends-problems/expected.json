@@ -55,7 +55,7 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "nothing.here",
-        "referencedBy": ["missing"]
+        "from": ["missing"]
       },
       "span": {
         "file": "tokens.json",

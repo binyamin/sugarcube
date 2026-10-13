@@ -1,12 +1,12 @@
 {
   "entry": "tokens.resolver.json",
-  "spec": "A problem only some permutations have is reported once, listing them by index into the design system's permutations; one every permutation has lists none",
+  "spec": "A problem only some permutations have is reported once, listing their inputs; one every permutation has lists none",
   "diagnostics": [
     {
       "kind": "missing-reference",
       "detail": {
         "ref": "color.ink",
-        "referencedBy": ["color.text"]
+        "from": ["color.text"]
       },
       "span": {
         "file": "base.json",

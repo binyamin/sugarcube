@@ -200,8 +200,8 @@ export type WrittenReference = CurlyBraceReference | JsonPointerReference;
 
 /**
  * A reference a token or group writes, in the permutation that holds it: what is written, where,
- * and the token it references. Each is listed in its token's {@link TokenBase.references |
- * references} and its group's {@link Group.references | references}.
+ * and the token it references. Each is listed in its token's
+ * {@link TokenBase.references | references} and its group's {@link Group.references | references}.
  *
  * @example
  * // in mode: dark, "text": { "$value": "{color.brand}" }
@@ -648,6 +648,14 @@ export interface TokenBase<T extends TokenType> {
      * }
      */
     readonly parts: Part | undefined;
+    /**
+     * The problems about it in its permutation: its own, a missing reference it writes, a loop it
+     * is part of. Those only another permutation has are left out.
+     *
+     * @example
+     * for (const problem of dark.token("color.brand")?.diagnostics ?? []) show(problem.message);
+     */
+    readonly diagnostics: Diagnostic[];
 }
 
 /**
@@ -1093,8 +1101,11 @@ export interface DiagnosticDetailByKind {
     "missing-reference": {
         /** The reference as written, without braces: a path such as `color.brnad`, or a pointer. */
         ref: string;
-        /** Every token or group that refers to it. */
-        referencedBy: string[];
+        /**
+         * Every token or group that writes it, each as a reference's
+         * {@link ReferenceBase.from | from}.
+         */
+        from: string[];
         /** A token with a similar path, when exactly one is close. */
         similar?: string;
     };
@@ -1314,10 +1325,6 @@ export type DiagnosticOf<DetailByKind> = {
     };
 }[keyof DetailByKind];
 
-export { errors } from "./lookup/errors.js";
-
-export { diagnosticsFor } from "./lookup/diagnostics-for.js";
-
 /**
  * A design system as the DTCG specifications define it: every permutation, with every value in one
  * shape and every reference followed. Its tokens and groups link to each other: a token's
@@ -1349,8 +1356,12 @@ export interface DesignSystem {
     parseOptions: Required<ParseOptions>;
     /**
      * Every error, warning and note, in the order the read found them; sort by `span` for file
-     * order.
-     * {@link errors} picks out the errors.
+     * order. For those about one token or group,
+     * {@link DesignSystem.diagnosticsFor | diagnosticsFor}; for those at a place in a file,
+     * {@link DesignSystem.diagnosticsAt | diagnosticsAt}.
+     *
+     * @example
+     * const errors = ds.diagnostics.filter((d) => d.severity === "error");
      */
     diagnostics: Diagnostic[];
     /**
@@ -1418,6 +1429,25 @@ export interface DesignSystem {
      * if (ds.has("color.danger")) refuse("taken");
      */
     has(path: string): boolean;
+    /**
+     * The problems about the token or group at `path`, in every permutation, each with the
+     * permutations it is in: its own, a missing reference it writes (reported once however many
+     * write it), a loop it is part of.
+     *
+     * @example
+     * for (const { message, permutations } of ds.diagnosticsFor("color.brand")) {
+     *   show(message, permutations?.label);
+     * }
+     */
+    diagnosticsFor(path: string): Diagnostic[];
+    /**
+     * The problems written at a place in a file, or overlapping it: a place of length 0 is a point,
+     * such as an editor's cursor.
+     *
+     * @example
+     * const here = ds.diagnosticsAt({ file: "tokens.json", offset: cursor, length: 0 });
+     */
+    diagnosticsAt(place: Pick<Span, "file" | "offset" | "length">): Diagnostic[];
 }
 
 /**

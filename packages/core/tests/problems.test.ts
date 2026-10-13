@@ -31,7 +31,7 @@ function missingReference(ref: string, place: ReturnType<typeof spanAt>): Report
         message: `\`${ref}\` does not exist`,
         span: place,
         docs: "",
-        detail: { ref, referencedBy: [] },
+        detail: { ref, from: [] },
     };
 }
 

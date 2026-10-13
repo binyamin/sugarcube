@@ -60,7 +60,7 @@ type Whole =
 
 interface Missing {
     first: { from: string; span: Span };
-    referencedBy: string[];
+    from: string[];
     uses: Span[];
 }
 
@@ -102,8 +102,8 @@ function resolvePermutation(
         );
 
     const recordMissing = (ref: string, from: string, span: Span) => {
-        const entry = missing.get(ref) ?? { first: { from, span }, referencedBy: [], uses: [] };
-        if (!entry.referencedBy.includes(from)) entry.referencedBy.push(from);
+        const entry = missing.get(ref) ?? { first: { from, span }, from: [], uses: [] };
+        if (!entry.from.includes(from)) entry.from.push(from);
         entry.uses.push(span);
         missing.set(ref, entry);
     };
@@ -197,7 +197,11 @@ function resolvePermutation(
         }
         if (type === undefined) return "untyped";
 
-        const { result: read, references, readAgain } = entry.read ?? readValue.read(token, type);
+        const {
+            result: read,
+            references,
+            readAgain,
+        } = entry.read ?? readValue.read(token, type, input);
         const base = { type, read, references };
         if (!read.ok) return base;
         if (references.length === 0) return { ...base, resolved: read.value };
@@ -217,7 +221,7 @@ function resolvePermutation(
     };
 
     const unresolved = (entry: NormalisedToken, type: TokenType): Outcome => {
-        const { result: read, references } = entry.read ?? readValue.read(entry.token, type);
+        const { result: read, references } = entry.read ?? readValue.read(entry.token, type, input);
         return { type, read, references };
     };
 
@@ -319,15 +323,15 @@ function resolvePermutation(
     }
 
     const knownPaths = [...tokens.keys()];
-    for (const [ref, { first, referencedBy, uses }] of missing) {
+    for (const [ref, { first, from, uses }] of missing) {
         const similar = similarName(
             ref,
-            knownPaths.filter((path) => !referencedBy.includes(path)),
+            knownPaths.filter((path) => !from.includes(path)),
         );
         const related = uses
             .filter((span) => span !== first.span)
             .map((span) => ({ message: relatedMessages.alsoUsedHere, span }));
-        const detail = { ref, referencedBy, ...(similar !== undefined && { similar }) };
+        const detail = { ref, from, ...(similar !== undefined && { similar }) };
         report("missing-reference", detail, first.from, first.span, {
             ...(related.length > 0 && { related }),
         });

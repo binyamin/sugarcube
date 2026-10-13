@@ -74,7 +74,7 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "space.missing",
-        "referencedBy": ["lifted"]
+        "from": ["lifted"]
       },
       "span": {
         "file": "tokens.json",

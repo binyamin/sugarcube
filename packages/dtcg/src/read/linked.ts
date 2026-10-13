@@ -1,5 +1,6 @@
 import type {
     DesignSystem,
+    Diagnostic,
     Group,
     Input,
     JsonPath,
@@ -15,6 +16,7 @@ import type {
     Span,
     Token,
 } from "../index.js";
+import { diagnosticsAtIn, diagnosticsForIn, diagnosticsOf } from "../lookup/diagnostics.js";
 import { partsOf } from "../lookup/parts.js";
 import { labelFor } from "../lookup/permutation-label.js";
 import { modifierIn, permutationIn } from "../lookup/permutation.js";
@@ -23,6 +25,8 @@ import { writtenAtIn } from "../lookup/written-at.js";
 
 export const NO_REFERENCES: Reference[] = Object.freeze([]) as unknown as Reference[];
 export const NO_PLACES: Place[] = Object.freeze([]) as unknown as Place[];
+
+const designSystems = new WeakMap<Permutation, DesignSystem>();
 
 const tokenShared = {
     kind: "token",
@@ -49,6 +53,10 @@ const tokenShared = {
     },
     get parts(): Part | undefined {
         return partsOf(this as unknown as Token);
+    },
+    get diagnostics(): Diagnostic[] {
+        const token = this as unknown as Token;
+        return diagnosticsOf(designSystems.get(token.permutation) as DesignSystem, token);
     },
     toJSON(this: Token) {
         return { ...this, group: undefined, permutation: undefined };
@@ -139,6 +147,12 @@ const documentShared = {
     },
     toJSON(this: DesignSystem) {
         return { ...this, permutations: [...this.permutations] };
+    },
+    diagnosticsFor(this: DesignSystem, path: string) {
+        return diagnosticsForIn(this, path);
+    },
+    diagnosticsAt(this: DesignSystem, place: Pick<Span, "file" | "offset" | "length">) {
+        return diagnosticsAtIn(this, place);
     },
     has(this: DesignSystem, path: string) {
         return this.permutations.some(
@@ -266,7 +280,9 @@ export function placesIn(): Places {
 export function linkedDocument(
     fields: Omit<DesignSystem, keyof typeof documentShared>,
 ): DesignSystem {
-    return Object.assign(Object.create(documentShared), fields);
+    const ds: DesignSystem = Object.assign(Object.create(documentShared), fields);
+    for (const permutation of ds.permutations) designSystems.set(permutation, ds);
+    return ds;
 }
 
 function pathsIn(ds: DesignSystem, kind: "tokens" | "groups"): string[] {

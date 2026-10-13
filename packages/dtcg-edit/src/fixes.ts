@@ -122,7 +122,7 @@ function valueFix(
             if (written !== value) return undefined;
             return safe(fixTitles.fullHex(expanded), replacing(span, expanded));
         }
-        case "alias-not-allowed-here": {
+        case "curly-brace-not-allowed-here": {
             const reference = readReference(detail.reference);
             if (written !== detail.reference || reference?.syntax !== "curly-brace") {
                 return undefined;
@@ -152,10 +152,7 @@ function readsClean(project: Project, edits: TextEdit[]): boolean {
     const start = Math.min(...edits.map(({ offset }) => offset));
     const grown = edits.reduce((acc, { length, text }) => acc + text.length - length, 0);
     const end = Math.max(...edits.map(({ offset, length }) => offset + length)) + grown;
-    return !doc.diagnostics.some(
-        ({ span }) =>
-            span?.file === file && span.offset <= end && start <= span.offset + span.length,
-    );
+    return doc.diagnosticsAt({ file, offset: start, length: end - start }).length === 0;
 }
 
 function writesCurlyBrace(written: unknown, ref: string): boolean {

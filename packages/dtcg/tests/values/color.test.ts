@@ -191,7 +191,7 @@ describe("parseColor", () => {
                         jsonPath: ["$value", part],
                         detail: {
                             type: "color",
-                            reason: "alias-not-allowed-here",
+                            reason: "curly-brace-not-allowed-here",
                             reference: "{color.part}",
                         },
                     },
@@ -207,7 +207,7 @@ describe("parseColor", () => {
                     jsonPath: ["$value", "components", 0],
                     detail: {
                         type: "color",
-                        reason: "alias-not-allowed-here",
+                        reason: "curly-brace-not-allowed-here",
                         reference: "{color.red}",
                     },
                 },

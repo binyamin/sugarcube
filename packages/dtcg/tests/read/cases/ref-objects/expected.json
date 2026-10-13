@@ -122,7 +122,7 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "#/no/such/thing",
-        "referencedBy": ["nowhere"]
+        "from": ["nowhere"]
       },
       "span": {
         "file": "tokens.json",
@@ -134,7 +134,7 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "other.json#/base",
-        "referencedBy": ["elsewhere"]
+        "from": ["elsewhere"]
       },
       "span": {
         "file": "tokens.json",

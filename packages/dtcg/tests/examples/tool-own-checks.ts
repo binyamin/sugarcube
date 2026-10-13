@@ -25,6 +25,6 @@ for (const d of reported) {
     if (d.severity !== "error") continue;
     if (d.kind === "selector-empty") showMessage(`permutations[${d.detail.entry}]: ${d.message}`);
     else if (d.kind === "default-required") showMessage(d.detail.modifiers.join(", "));
-    else if (d.kind === "missing-reference") showMessage(d.detail.referencedBy.join(", "));
+    else if (d.kind === "missing-reference") showMessage(d.detail.from.join(", "));
     else showMessage(d.message);
 }

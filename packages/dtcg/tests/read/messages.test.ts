@@ -118,7 +118,7 @@ const examples: { [K in DiagnosticKind]: DiagnosticDetailByKind[K][] } = {
         {
             jsonPath: ["$value", 0],
             type: "fontFamily",
-            reason: "alias-not-allowed-here",
+            reason: "curly-brace-not-allowed-here",
             reference: "{font.brand}",
         },
         {
@@ -327,8 +327,8 @@ const examples: { [K in DiagnosticKind]: DiagnosticDetailByKind[K][] } = {
         },
     ],
     "missing-reference": [
-        { ref: "color.brnad", referencedBy: ["color.danger"] },
-        { ref: "color.brnad", referencedBy: ["color.danger"], similar: "color.brand" },
+        { ref: "color.brnad", from: ["color.danger"] },
+        { ref: "color.brnad", from: ["color.danger"], similar: "color.brand" },
     ],
     "not-a-group": [{ ref: "color.brand" }],
     "malformed-pointer": [
@@ -402,7 +402,7 @@ describe("diagnostic messages that say what would mend the problem", () => {
         {
             found: {
                 kind: "missing-reference",
-                detail: { ref: "color.inc", referencedBy: ["color.muted"], similar: "color.ink" },
+                detail: { ref: "color.inc", from: ["color.muted"], similar: "color.ink" },
             },
             message: "`color.inc` does not exist; did you mean `color.ink`?",
         },

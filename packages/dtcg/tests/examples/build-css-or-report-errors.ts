@@ -1,6 +1,5 @@
 // A build command. If the tokens have errors, it prints each with its file, line and surrounding
 // source, and stops. Otherwise it writes the CSS.
-import { errors } from "@sugarcube-sh/dtcg";
 import { read } from "@sugarcube-sh/dtcg/node";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -10,7 +9,7 @@ declare function emitCSS(ds: unknown): Promise<void>;
 
 const entry = "tokens/tokens.resolver.json";
 const ds = await read(entry);
-const problems = errors(ds);
+const problems = ds.diagnostics.filter((d) => d.severity === "error");
 if (problems.length) {
     for (const d of problems) {
         const where = d.span ? `${d.span.file}:${d.span.start.line}:${d.span.start.column}` : "";

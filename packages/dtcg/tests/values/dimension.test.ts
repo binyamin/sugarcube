@@ -155,7 +155,7 @@ describe("parseDimension", () => {
                     jsonPath: ["$value", part],
                     detail: {
                         type: "dimension",
-                        reason: "alias-not-allowed-here",
+                        reason: "curly-brace-not-allowed-here",
                         reference: "{space.small}",
                     },
                 },

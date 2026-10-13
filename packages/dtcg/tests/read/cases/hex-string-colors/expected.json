@@ -62,7 +62,8 @@
         "file": "base.json",
         "text": "\"#e11d48\""
       },
-      "path": "color.brand"
+      "path": "color.brand",
+      "permutations": [{ "theme": "light" }]
     },
     {
       "kind": "hex-string-color",

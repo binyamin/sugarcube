@@ -91,7 +91,7 @@ describe("parseStrokeStyle", () => {
                         jsonPath: ["$value", part],
                         detail: {
                             type: "strokeStyle",
-                            reason: "alias-not-allowed-here",
+                            reason: "curly-brace-not-allowed-here",
                             reference: "{stroke.cap}",
                         },
                     },

@@ -50,7 +50,7 @@ export interface LiveProject {
      * function that stops it.
      *
      * @example
-     * const stop = live.onRead(({ doc }, { file, ms }) => console.log(file, ms, errors(doc).length));
+     * const stop = live.onRead(({ doc }, { file, ms }) => console.log(file, ms, doc.diagnostics.length));
      */
     onRead(listener: (project: Project, event: ReadEvent) => void): () => void;
     /**
@@ -90,7 +90,7 @@ export interface LiveProject {
  * @example
  * const live = liveProject({ entry: "tokens/tokens.resolver.json" }, { onError: console.error });
  * live.watch(watcher);
- * live.onRead(({ doc }, { file }) => console.log(`${file} saved`, errors(doc).length));
+ * live.onRead(({ doc }, { file }) => console.log(`${file} saved`, doc.diagnostics.length));
  */
 export function liveProject(
     source: ProjectSource | (() => ProjectSource),

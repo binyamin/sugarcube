@@ -8,7 +8,7 @@ for (const d of ds.diagnostics) {
     switch (d.kind) {
         case "missing-reference":
             showMessage(
-                `Le jeton ${d.detail.ref} n'existe pas (utilisé par ${d.detail.referencedBy.join(", ")})`,
+                `Le jeton ${d.detail.ref} n'existe pas (utilisé par ${d.detail.from.join(", ")})`,
             );
             break;
         case "unknown-type":

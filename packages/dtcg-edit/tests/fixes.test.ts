@@ -52,13 +52,7 @@ function leftAfter(project: Project, { edits: [edit] }: Fix): string[] {
         [file]: before.slice(0, offset) + text + before.slice(offset + length),
     };
     const doc = readFromMemory({ files, entry: project.doc.files[0] }, project.options);
-    const end = offset + text.length;
-    return doc.diagnostics
-        .filter(
-            ({ span }) =>
-                span?.file === file && span.offset <= end && offset <= span.offset + span.length,
-        )
-        .map(({ message }) => message);
+    return doc.diagnosticsAt({ file, offset, length: text.length }).map(({ message }) => message);
 }
 
 async function projectOf(files: Record<string, string>): Promise<Project> {

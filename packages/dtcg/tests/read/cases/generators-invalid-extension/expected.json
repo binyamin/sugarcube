@@ -33,7 +33,7 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "space.1",
-        "referencedBy": ["gap"]
+        "from": ["gap"]
       },
       "span": {
         "file": "tokens.json",

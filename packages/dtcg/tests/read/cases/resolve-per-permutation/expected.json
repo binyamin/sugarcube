@@ -106,7 +106,7 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "color.highlight",
-        "referencedBy": ["color.accent"]
+        "from": ["color.accent"]
       },
       "span": {
         "file": "dark.json",

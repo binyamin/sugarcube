@@ -27,7 +27,7 @@ export interface ValueErrorFacts {
     /** A number is needed, and the value is not one. */
     "not-a-number": { value: unknown };
     /** A `"{token}"` reference is written inside a value, where only a JSON Pointer can be. */
-    "alias-not-allowed-here": { reference: string };
+    "curly-brace-not-allowed-here": { reference: string };
     /** A color is written as a hex string. Through `read`, this is `hex-string-color`. */
     "hex-string": {
         value: string;
@@ -202,7 +202,7 @@ export const valueErrorMessages: {
     "pointer-not-alone": ({ type }) => `\`$ref\` is not a property of ${typeWords[type]}`,
     "missing-property": ({ type, property }) => `${typeWords[type]} needs \`${property}\``,
     "not-a-number": ({ value }) => `a number is needed, not ${found(value)}`,
-    "alias-not-allowed-here": ({ reference }) =>
+    "curly-brace-not-allowed-here": ({ reference }) =>
         `\`${reference}\` is a reference, which stands for a whole value and cannot be part of one`,
     "hex-string": ({ value }) => `\`${value}\` is a hex string, and a color must be an object`,
     "unknown-color-space": ({ value }) =>

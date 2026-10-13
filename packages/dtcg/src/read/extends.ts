@@ -68,7 +68,7 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
         if (malformed) {
             report("malformed-pointer", malformed, group);
         } else if (reached.kind === "nothing") {
-            report("missing-reference", { ref: written, referencedBy: [group.path] }, group);
+            report("missing-reference", { ref: written, from: [group.path] }, group);
         } else if (reached.kind === "group") {
             group.extendsGroup = reached.path;
             inherit(merged, group, reached.path);

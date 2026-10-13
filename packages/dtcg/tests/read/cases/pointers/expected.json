@@ -185,7 +185,7 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "#/base/card/$value/0/color",
-        "referencedBy": ["semantic.shadow-listed"]
+        "from": ["semantic.shadow-listed"]
       },
       "span": {
         "file": "tokens.json",
@@ -197,7 +197,7 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "#/base/alias/$value/components/0",
-        "referencedBy": ["semantic.through-alias"]
+        "from": ["semantic.through-alias"]
       },
       "span": {
         "file": "tokens.json",

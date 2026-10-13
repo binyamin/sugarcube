@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { type DesignSystem, read, readFromMemory } from "../../src/index.js";
+import { type DesignSystem, type Permutation, read, readFromMemory } from "../../src/index.js";
 import { type CaseOptions, inputFiles, readOptions } from "./case-options.js";
 import { withSpans } from "./positions.js";
 
@@ -99,5 +99,57 @@ describe.each(cases)("%s", (name) => {
             readOptions(expected.options),
         );
         expect(observed(doc, expected)).toStrictEqual(expected);
+    });
+
+    it("names each problem's permutations among those that read its file", () => {
+        const doc = readFromMemory(
+            { files: inputFiles(input), entry: expected.entry },
+            readOptions(expected.options),
+        );
+        const reads = (permutation: Permutation, file: string) =>
+            permutation.sources.some((source) => source.file === file);
+        const misplaced = doc.diagnostics.flatMap((problem) => {
+            const file = problem.span?.file;
+            if (file === undefined) return [];
+            const readers = doc.permutations.filter((each) => reads(each, file));
+            const fits = problem.permutations
+                ? problem.permutations.every((each) => reads(each, file))
+                : readers.length === 0 || readers.length === doc.permutations.length;
+            return fits ? [] : [`${problem.kind} in ${file}`];
+        });
+        expect(misplaced).toStrictEqual([]);
+    });
+
+    it("names a value's problem in exactly the permutations whose token takes that value", () => {
+        const doc = readFromMemory(
+            { files: inputFiles(input), entry: expected.entry },
+            readOptions(expected.options),
+        );
+        const inValue = (problem: DesignSystem["diagnostics"][number]) =>
+            problem.kind === "invalid-value" ||
+            problem.kind === "hex-string-color" ||
+            (problem.kind === "unknown-property" &&
+                "jsonPath" in problem.detail &&
+                problem.detail.jsonPath[0] === "$value");
+        const misplaced = doc.diagnostics.flatMap((problem) => {
+            const { path, span } = problem;
+            if (!inValue(problem) || path === undefined || span === undefined) return [];
+            if (!doc.permutations.some((each) => each.token(path))) return [];
+            const takes = (permutation: Permutation) => {
+                const from = permutation.token(path)?.valueFrom.span;
+                return (
+                    from !== undefined &&
+                    from.file === span.file &&
+                    from.offset <= span.offset &&
+                    span.offset + span.length <= from.offset + from.length
+                );
+            };
+            const named = problem.permutations ?? doc.permutations;
+            const taking = doc.permutations.filter(takes);
+            const exact =
+                named.length === taking.length && named.every((each) => taking.includes(each));
+            return exact ? [] : [`${problem.kind} at ${path}`];
+        });
+        expect(misplaced).toStrictEqual([]);
     });
 });

@@ -170,7 +170,7 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "color.brnad",
-        "referencedBy": ["color.danger", "color.warning"],
+        "from": ["color.danger", "color.warning"],
         "similar": "color.brand"
       },
       "span": {
@@ -193,7 +193,7 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "nowhere",
-        "referencedBy": ["loose"]
+        "from": ["loose"]
       },
       "span": {
         "file": "tokens.json",

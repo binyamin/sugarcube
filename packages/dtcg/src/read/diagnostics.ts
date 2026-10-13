@@ -48,6 +48,28 @@ export function onceEach(diagnostics: Diagnostic[]): Diagnostic[] {
     });
 }
 
+export function inReadingPermutations(
+    diagnostics: Diagnostic[],
+    permutations: Permutations,
+): Diagnostic[] {
+    for (const found of diagnostics) {
+        const file = found.span?.file;
+        if (file === undefined || foundIn.has(found)) continue;
+        const reading = permutations.filter(({ sources }) =>
+            sources.some((each) => each.file === file),
+        );
+        if (reading.length > 0 && reading.length < permutations.length) {
+            found.permutations = permutationsOf(reading, permutations);
+        }
+    }
+    return diagnostics;
+}
+
+export function alsoFoundIn(found: Diagnostic, permutation: Input): void {
+    const inputs = foundIn.get(found);
+    if (inputs && !inputs.includes(permutation)) inputs.push(permutation);
+}
+
 export function collapse(diagnostics: Diagnostic[], permutations: Permutations): Diagnostic[] {
     const alike = new Map<string, Diagnostic>();
     for (const found of diagnostics) {
