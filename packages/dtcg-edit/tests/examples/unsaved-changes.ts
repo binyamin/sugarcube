@@ -1,41 +1,38 @@
 // The list of unsaved changes in a token editor: what was added, removed, renamed or changed since
-// the files were opened, and in which themes. A change made in every theme is shown once, without
-// naming them all, and the steps a generator makes are folded under the change to its setting.
+// the files were opened, and in which permutations. A change made in every permutation is shown
+// without naming them, and the steps a generator makes are folded under the change to its setting.
 import type { Session } from "@sugarcube-sh/dtcg-edit";
 
 declare const session: Session;
 
-const everyTheme = session.project.doc.permutations.length;
-const themes = (inputs: Record<string, string>[]) =>
-    inputs.length === everyTheme ? "" : inputs.map((input) => JSON.stringify(input)).join(", ");
-
 for (const change of session.changes()) {
+    const where = change.permutations.label ?? "";
     switch (change.kind) {
         case "added":
-            if (!change.after.generated) row("added", change.path, themes(change.in));
+            if (!change.generated) row("added", change.path, where);
             break;
         case "removed":
-            if (!change.before.generated) row("removed", change.path, themes(change.in));
+            if (!change.generated) row("removed", change.path, where);
             break;
         case "changed":
-            if (change.after.generated) break;
+            if (change.generated) break;
             row(
                 change.path,
                 change.properties.join(", "),
-                change.before.authored?.value,
-                change.after.authored?.value,
-                themes(change.in),
+                change.before.value,
+                change.after.value,
+                where,
             );
             break;
         case "renamed":
-            row(`${change.from} → ${change.path}`, change.properties.join(", "), themes(change.in));
+            row(`${change.from} → ${change.path}`, change.properties.join(", "), where);
             break;
         case "group-added":
         case "group-removed":
             row(change.kind, change.path);
             break;
         case "group-changed":
-            row(change.path, change.properties.join(", "), themes(change.in));
+            row(change.path, change.properties.join(", "), where);
             break;
     }
 }

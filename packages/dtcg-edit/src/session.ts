@@ -1,4 +1,4 @@
-import { type DesignSystem, type Move, type Project, diff, movedPath } from "@sugarcube-sh/dtcg";
+import { type DesignSystem, type Move, type Project, movedPath } from "@sugarcube-sh/dtcg";
 import { applyWhatFits, commit } from "./apply.js";
 import { clashesOf } from "./clashes.js";
 import type { Committed, Edits, OpResult, Session } from "./index.js";
@@ -58,7 +58,7 @@ export function createSession(project: Project): Session {
             throw new Error("not implemented yet");
         },
         changes() {
-            return diff(opened.doc, current.doc, { moved: unsaved.moved });
+            return current.doc.diff(opened.doc, { moved: unsaved.moved });
         },
         saved() {
             opened = current;

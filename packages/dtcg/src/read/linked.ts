@@ -4,6 +4,7 @@ import type {
     Group,
     Input,
     JsonPath,
+    Move,
     Part,
     Permutation,
     Permutations,
@@ -17,6 +18,7 @@ import type {
     Token,
 } from "../index.js";
 import { diagnosticsAtIn, diagnosticsForIn, diagnosticsOf } from "../lookup/diagnostics.js";
+import { diffIn } from "../lookup/diff.js";
 import { partsOf } from "../lookup/parts.js";
 import { labelFor } from "../lookup/permutation-label.js";
 import { modifierIn, permutationIn } from "../lookup/permutation.js";
@@ -153,6 +155,9 @@ const documentShared = {
     },
     diagnosticsAt(this: DesignSystem, place: Pick<Span, "file" | "offset" | "length">) {
         return diagnosticsAtIn(this, place);
+    },
+    diff(this: DesignSystem, before: DesignSystem, options?: { moved?: Move[] }) {
+        return diffIn(this, before, options);
     },
     text(this: DesignSystem, file: string): string | undefined {
         return texts.get(this)?.[file];

@@ -4,7 +4,6 @@ import {
     type DesignSystem,
     type Move,
     defineGenerator,
-    diff,
     readFromMemory,
     sameValue,
 } from "../../src/index.js";
@@ -63,38 +62,43 @@ function changed(path: (string | number)[], value: unknown, from: object = base)
 }
 
 function brief(before: DesignSystem, after: DesignSystem, moved?: Move[]) {
-    return diff(before, after, moved && { moved }).map((change) => {
+    return after.diff(before, moved && { moved }).map((change) => {
         const shown: Record<string, unknown> = { kind: change.kind, path: change.path };
         if ("from" in change) shown.from = change.from;
         if ("properties" in change) shown.properties = change.properties;
-        shown.in = change.in;
+        shown.permutations = change.permutations.inputs;
         return shown;
     });
 }
 
 describe("diff", () => {
     it("gives nothing when nothing changed", () => {
-        expect(diff(read(), read())).toEqual([]);
+        expect(read().diff(read())).toEqual([]);
     });
 
     it("gives a value changed in a file every permutation reads once, in each permutation it shows in", () => {
         const after = read({ base: changed(["space", "sm"], px(5)) });
         expect(brief(read(), after)).toEqual([
-            { kind: "changed", path: "space.sm", properties: ["value"], in: [light, darkTheme] },
+            {
+                kind: "changed",
+                path: "space.sm",
+                properties: ["value"],
+                permutations: [light, darkTheme],
+            },
         ]);
     });
 
     it("gives a value changed in one context's file only in that context", () => {
         const after = read({ dark: changed(["space", "md"], px(12), dark) });
         expect(brief(read(), after)).toEqual([
-            { kind: "changed", path: "space.md", properties: ["value"], in: [darkTheme] },
+            { kind: "changed", path: "space.md", properties: ["value"], permutations: [darkTheme] },
         ]);
     });
 
     it("leaves out a permutation where a later file still writes the token", () => {
         const after = read({ base: changed(["space", "md"], px(9)) });
         expect(brief(read(), after)).toEqual([
-            { kind: "changed", path: "space.md", properties: ["value"], in: [light] },
+            { kind: "changed", path: "space.md", properties: ["value"], permutations: [light] },
         ]);
     });
 
@@ -103,20 +107,38 @@ describe("diff", () => {
             base: changed(["space", "md"], px(9)),
             dark: changed(["space", "md"], px(11), dark),
         });
-        const changes = diff(read(), after);
-        expect(changes.map((change) => [change.path, change.in])).toEqual([
+        const changes = after.diff(read());
+        expect(changes.map((change) => [change.path, change.permutations.inputs])).toEqual([
             ["space.md", [light]],
             ["space.md", [darkTheme]],
         ]);
     });
 
-    it("gives the before and after tokens", () => {
+    it("gives what the file wrote for the token before and after, the same in every permutation", () => {
         const after = read({ base: changed(["space", "sm"], px(5)) });
-        const [change] = diff(read(), after);
-        expect(change).toMatchObject({
-            before: { path: "space.sm", value: { value: 4, unit: "px" } },
-            after: { path: "space.sm", value: { value: 5, unit: "px" } },
+        const [change] = after.diff(read());
+        expect(change?.permutations.inputs).toStrictEqual([light, darkTheme]);
+        expect(change?.kind === "changed" && [change.before, change.after]).toStrictEqual([
+            { value: { value: 4, unit: "px" } },
+            { value: { value: 5, unit: "px" } },
+        ]);
+    });
+
+    it("gives everything the file wrote, each property as written", () => {
+        const after = read({
+            base: changed(["space", "sm"], { ...px(4), $description: "Small", $deprecated: true }),
         });
+        const [change] = after.diff(read());
+        expect(change).toMatchObject({
+            properties: ["description", "deprecated"],
+            after: { value: { value: 4, unit: "px" }, description: "Small", deprecated: true },
+        });
+    });
+
+    it("labels the permutations a change holds in", () => {
+        const after = read({ dark: changed(["space", "md"], px(12), dark) });
+        const [change] = after.diff(read());
+        expect(change?.permutations.label).toBe("theme: dark");
     });
 
     it("compares what a token says, not what it resolves to", () => {
@@ -127,7 +149,12 @@ describe("diff", () => {
     it("gives a reference pointed somewhere else as a change", () => {
         const after = read({ base: changed(["space", "gap"], { $value: "{space.md}" }) });
         expect(brief(read(), after)).toEqual([
-            { kind: "changed", path: "space.gap", properties: ["value"], in: [light, darkTheme] },
+            {
+                kind: "changed",
+                path: "space.gap",
+                properties: ["value"],
+                permutations: [light, darkTheme],
+            },
         ]);
     });
 
@@ -139,9 +166,14 @@ describe("diff", () => {
                 kind: "changed",
                 path: "space.sm",
                 properties: ["description"],
-                in: [light, darkTheme],
+                permutations: [light, darkTheme],
             },
-            { kind: "changed", path: "space.md", properties: ["deprecated"], in: [light] },
+            {
+                kind: "changed",
+                path: "space.md",
+                properties: ["deprecated"],
+                permutations: [light],
+            },
         ]);
     });
 
@@ -152,7 +184,7 @@ describe("diff", () => {
                 kind: "group-changed",
                 path: "space",
                 properties: ["deprecated"],
-                in: [light, darkTheme],
+                permutations: [light, darkTheme],
             },
         ]);
     });
@@ -166,7 +198,7 @@ describe("diff", () => {
                 kind: "changed",
                 path: "space.sm",
                 properties: ["value", "type"],
-                in: [light, darkTheme],
+                permutations: [light, darkTheme],
             },
         ]);
     });
@@ -177,9 +209,9 @@ describe("diff", () => {
             dark: changed(["glow"], { $type: "dimension", ...px(2) }, dark),
         });
         expect(brief(read(), after)).toEqual([
-            { kind: "added", path: "space.lg", in: [light, darkTheme] },
-            { kind: "removed", path: "space.md", in: [light] },
-            { kind: "added", path: "glow", in: [darkTheme] },
+            { kind: "added", path: "space.lg", permutations: [light, darkTheme] },
+            { kind: "removed", path: "space.md", permutations: [light] },
+            { kind: "added", path: "glow", permutations: [darkTheme] },
         ]);
     });
 
@@ -202,7 +234,7 @@ describe("diff", () => {
                 path: "space.small",
                 from: "space.sm",
                 properties: [],
-                in: [light, darkTheme],
+                permutations: [light, darkTheme],
             },
         ]);
     });
@@ -218,21 +250,21 @@ describe("diff", () => {
                 path: "type",
                 from: "typography",
                 properties: [],
-                in: everywhere,
+                permutations: everywhere,
             },
             {
                 kind: "renamed",
                 path: "type.body",
                 from: "typography.body",
                 properties: [],
-                in: everywhere,
+                permutations: everywhere,
             },
             {
                 kind: "renamed",
                 path: "type.heading",
                 from: "typography.heading",
                 properties: [],
-                in: everywhere,
+                permutations: everywhere,
             },
         ]);
     });
@@ -246,7 +278,7 @@ describe("diff", () => {
                 path: "animation",
                 from: "motion",
                 properties: [],
-                in: [light, darkTheme],
+                permutations: [light, darkTheme],
             },
         ]);
     });
@@ -260,7 +292,7 @@ describe("diff", () => {
                 path: "space.small",
                 from: "space.sm",
                 properties: ["value"],
-                in: [light, darkTheme],
+                permutations: [light, darkTheme],
             },
         ]);
     });
@@ -278,9 +310,9 @@ describe("diff", () => {
                 path: "space.md",
                 from: "space.sm",
                 properties: [],
-                in: [light, darkTheme],
+                permutations: [light, darkTheme],
             },
-            { kind: "removed", path: "space.md", in: [light, darkTheme] },
+            { kind: "removed", path: "space.md", permutations: [light, darkTheme] },
         ]);
     });
 
@@ -297,7 +329,7 @@ describe("diff", () => {
                 path: "space.tiny",
                 from: "space.sm",
                 properties: [],
-                in: [light, darkTheme],
+                permutations: [light, darkTheme],
             },
         ]);
     });
@@ -331,12 +363,12 @@ describe("diff", () => {
                 kind: "group-changed",
                 path: "space",
                 properties: ["description"],
-                in: [light, darkTheme],
+                permutations: [light, darkTheme],
             },
-            { kind: "group-added", path: "motion", in: [light, darkTheme] },
-            { kind: "group-removed", path: "typography", in: [light, darkTheme] },
-            { kind: "removed", path: "typography.body", in: [light, darkTheme] },
-            { kind: "removed", path: "typography.heading", in: [light, darkTheme] },
+            { kind: "group-added", path: "motion", permutations: [light, darkTheme] },
+            { kind: "group-removed", path: "typography", permutations: [light, darkTheme] },
+            { kind: "removed", path: "typography.body", permutations: [light, darkTheme] },
+            { kind: "removed", path: "typography.heading", permutations: [light, darkTheme] },
         ]);
     });
 
@@ -351,7 +383,7 @@ describe("diff", () => {
             path: "type",
             from: "typography",
             properties: ["description"],
-            in: [light, darkTheme],
+            permutations: [light, darkTheme],
         });
     });
 
@@ -359,9 +391,8 @@ describe("diff", () => {
         const button = (primary: object) => ({
             button: { $type: "dimension", base: { pad: px(4) }, primary },
         });
-        const changes = diff(
+        const changes = read({ base: button({ $extends: "{button.base}" }) }).diff(
             read({ base: button({}) }),
-            read({ base: button({ $extends: "{button.base}" }) }),
         );
         expect(changes.map((change) => [change.kind, change.path])).toEqual([
             ["group-changed", "button.primary"],
@@ -369,9 +400,30 @@ describe("diff", () => {
         ]);
         expect(changes[0]).toMatchObject({
             properties: ["extends"],
-            after: { extends: { path: "button.base" } },
+            after: { extends: "button.base" },
         });
-        expect(changes[1]).toMatchObject({ after: { inherited: { from: "button.base" } } });
+        expect(changes[1]).toMatchObject({ inherited: { from: "button.base" } });
+    });
+
+    it("gives a group's $extends changing as written, though it reaches no group", () => {
+        const version = (extended: string) =>
+            readFromMemory({
+                files: {
+                    "tokens.json": JSON.stringify({
+                        card: { $extends: `{${extended}}`, gap: { $type: "number", $value: 1 } },
+                    }),
+                },
+            });
+        const changes = version("elsewhere").diff(version("nowhere"));
+        expect(changes).toMatchObject([
+            {
+                kind: "group-changed",
+                path: "card",
+                properties: ["extends"],
+                before: { extends: "nowhere" },
+                after: { extends: "elsewhere" },
+            },
+        ]);
     });
 
     it("leaves out a group whose setting changed only in the group it extends", () => {
@@ -384,7 +436,7 @@ describe("diff", () => {
                     }),
                 },
             });
-        const changes = diff(version("Base"), version("Base button"));
+        const changes = version("Base button").diff(version("Base"));
         expect(changes.map((change) => [change.kind, change.path])).toEqual([
             ["group-changed", "button"],
         ]);
@@ -400,7 +452,7 @@ describe("diff", () => {
                     }),
                 },
             });
-        expect(diff(version("One"), version("Two"))).toMatchObject([
+        expect(version("Two").diff(version("One"))).toMatchObject([
             { kind: "top-level-changed", properties: ["description"] },
         ]);
     });
@@ -410,8 +462,18 @@ describe("diff", () => {
             base: changed(["text"], { size: { $type: "dimension", $value: "{typography.body}" } }),
         });
         expect(brief(read(), after)).toEqual([
-            { kind: "group-changed", path: "text", properties: ["type"], in: [light, darkTheme] },
-            { kind: "changed", path: "text.size", properties: ["type"], in: [light, darkTheme] },
+            {
+                kind: "group-changed",
+                path: "text",
+                properties: ["type"],
+                permutations: [light, darkTheme],
+            },
+            {
+                kind: "changed",
+                path: "text.size",
+                properties: ["type"],
+                permutations: [light, darkTheme],
+            },
         ]);
     });
 
@@ -426,7 +488,12 @@ describe("diff", () => {
             },
         });
         expect(brief(read(), after)).toEqual([
-            { kind: "changed", path: "space.sm", properties: ["value"], in: [light, darkTheme] },
+            {
+                kind: "changed",
+                path: "space.sm",
+                properties: ["value"],
+                permutations: [light, darkTheme],
+            },
         ]);
     });
 
@@ -452,15 +519,15 @@ describe("diff", () => {
                 },
                 { generators: [steps] },
             );
-        const changes = diff(scale(1), scale(2));
+        const changes = scale(2).diff(scale(1));
         expect(changes.map((change) => [change.kind, change.path])).toEqual([
             ["group-changed", "space"],
             ["changed", "space.1"],
         ]);
-        expect(changes[1]).toMatchObject({
-            properties: ["value"],
-            after: { generated: { from: "space" } },
-        });
+        expect(changes[1]).toMatchObject({ properties: ["value"], generated: { from: "space" } });
+        expect(
+            changes[1]?.kind === "changed" && [changes[1].before, changes[1].after],
+        ).toStrictEqual([{}, {}]);
     });
 
     it("compares a color's hex fallback inside $extensions, where it is not a value", () => {
@@ -475,7 +542,7 @@ describe("diff", () => {
                 kind: "changed",
                 path: "space.sm",
                 properties: ["extensions"],
-                in: [light, darkTheme],
+                permutations: [light, darkTheme],
             },
         ]);
     });
@@ -503,7 +570,7 @@ describe("diff", () => {
     it("compares values allowing for rounding", () => {
         const before = read();
         const after = read({ base: changed(["space", "sm"], px(4.0001)) });
-        expect(diff(before, after)).toEqual([]);
+        expect(after.diff(before)).toEqual([]);
     });
 });
 

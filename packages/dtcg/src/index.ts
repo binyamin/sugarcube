@@ -1439,6 +1439,29 @@ export interface DesignSystem {
      */
     text(file: string): string | undefined;
     /**
+     * What changed since `before`, an earlier read, and in which permutations: tokens and groups
+     * added, removed, renamed, or with different properties. A token is compared by what it says,
+     * not what it resolves to, so changing one value is one change, not one for every token
+     * pointing at it. The value is compared with {@link sameValue}, the type only where the token
+     * writes `$type`, and the other properties exactly. A change that is the same in several
+     * permutations, such as a value changed in a file they all read, is one entry listing them all.
+     *
+     * Tokens a generator made are included, with `generated` set, so a tool can show the change to
+     * the extension on its group and fold its tokens under it. Tokens a group takes through
+     * `$extends` are included the same way, with `inherited` set.
+     *
+     * Two reads alone cannot tell a rename from a removal and an addition. Pass the moves the edits
+     * made, in the order they were made, and those tokens are listed as `renamed`; references the
+     * moves rewrote are not changes, and a reference pointed somewhere else is.
+     *
+     * Each permutation is compared with the one its input names in `before`; a permutation `before`
+     * has no match for is left out.
+     *
+     * @example
+     * for (const change of ds.diff(before, { moved })) row(change.kind, change.path);
+     */
+    diff(before: DesignSystem, options?: { moved?: Move[] }): Change[];
+    /**
      * The problems about the token or group at `path`, in every permutation, each with the
      * permutations it is in: its own, a missing reference it writes (reported once however many
      * write it), a loop it is part of.
@@ -1822,61 +1845,88 @@ export type GroupProperty = "type" | "description" | "deprecated" | "extensions"
 /** A property a file can set on its top level. */
 export type TopLevelProperty = "type" | "description" | "deprecated" | "extensions";
 
+/** What a file writes for a token: its value exactly as written, and the properties it writes itself. */
+export interface WrittenToken extends Written {
+    value?: unknown;
+}
+
+/** What a file writes for a group: the properties it writes itself, and the path its `$extends` names. */
+export interface WrittenGroup extends Written {
+    extends?: string;
+}
+
 /**
- * One difference between two reads of a design system. `changed`, `renamed`, `group-changed` and
+ * One difference between two reads of a design system, in the permutations it holds in. `before`
+ * and `after` are what the files wrote, the same in each of those permutations; for a token in one
+ * of them, ask it: `dark.token(change.path)`. `changed`, `renamed`, `group-changed` and
  * `group-renamed` list the properties that differ; a rename with nothing else changed lists none.
- * Groups are reported on their own, empty ones included, and so are the tokens inside them.
+ * Groups are reported on their own, empty ones included, and so are the tokens inside them. A token
+ * a {@link Generator} makes says so (`generated`), with nothing written on either side: its change
+ * is the extension's, on its group. One a group takes through `$extends` says so too (`inherited`).
+ *
+ * @example
+ * for (const change of ds.diff(before)) row(change.kind, change.path, change.permutations.label);
  */
 export type Change =
-    | { kind: "added"; path: string; in: Input[]; after: Token }
-    | { kind: "removed"; path: string; in: Input[]; before: Token }
-    | {
+    | ({ kind: "added"; path: string; after: WrittenToken } & TokenChange)
+    | ({ kind: "removed"; path: string; before: WrittenToken } & TokenChange)
+    | ({
           kind: "changed";
           path: string;
-          in: Input[];
           properties: TokenProperty[];
-          before: Token;
-          after: Token;
-      }
-    | {
+          before: WrittenToken;
+          after: WrittenToken;
+      } & TokenChange)
+    | ({
           kind: "renamed";
           from: string;
           path: string;
-          in: Input[];
           properties: TokenProperty[];
-          before: Token;
-          after: Token;
-      }
-    | { kind: "group-added"; path: string; in: Input[]; after: Group }
-    | { kind: "group-removed"; path: string; in: Input[]; before: Group }
-    | {
+          before: WrittenToken;
+          after: WrittenToken;
+      } & TokenChange)
+    | ({ kind: "group-added"; path: string; after: WrittenGroup } & GroupChange)
+    | ({ kind: "group-removed"; path: string; before: WrittenGroup } & GroupChange)
+    | ({
           kind: "group-changed";
           path: string;
-          in: Input[];
           properties: GroupProperty[];
-          before: Group;
-          after: Group;
-      }
-    | {
+          before: WrittenGroup;
+          after: WrittenGroup;
+      } & GroupChange)
+    | ({
           kind: "group-renamed";
           from: string;
           path: string;
-          in: Input[];
           properties: GroupProperty[];
-          before: Group;
-          after: Group;
-      }
+          before: WrittenGroup;
+          after: WrittenGroup;
+      } & GroupChange)
     | {
           kind: "top-level-changed";
           /** The top level has no path. */
           path?: undefined;
-          in: Input[];
+          permutations: Permutations;
           properties: TopLevelProperty[];
-          before: TopLevel;
-          after: TopLevel;
+          before: Written;
+          after: Written;
       };
 
-export { diff } from "./lookup/diff.js";
+/** What every change to a token carries beside its sides. */
+export interface TokenChange {
+    permutations: Permutations;
+    /** Set when a {@link Generator} makes the token, as {@link TokenBase.generated}. */
+    generated?: Token["generated"];
+    /** Set when the token is here only through `$extends`, as {@link TokenBase.inherited}. */
+    inherited?: Token["inherited"];
+}
+
+/** What every change to a group carries beside its sides. */
+export interface GroupChange {
+    permutations: Permutations;
+    /** Set when the group is here only through `$extends`, as {@link Group.inherited}. */
+    inherited?: Group["inherited"];
+}
 
 export { sameValue } from "./values/same-value.js";
 

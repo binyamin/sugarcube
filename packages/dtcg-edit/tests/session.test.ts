@@ -1,4 +1,4 @@
-import { diff, openFromMemory } from "@sugarcube-sh/dtcg";
+import { openFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it, vi } from "vitest";
 import {
     apply,
@@ -61,13 +61,13 @@ describe("createSession", () => {
         expect(heard).not.toHaveBeenCalled();
     });
 
-    it("lists what changed since it was opened, as diff does with the moves made", () => {
+    it("lists what changed since it was opened, as the design system's diff does with the moves made", () => {
         const session = createSession(demo);
         session.do(setValue(session.project, "color.brand.500", red));
         session.do(rename(session.project, "color.brand.300", "350"));
 
         expect(session.changes()).toEqual(
-            diff(demo.doc, session.project.doc, { moved: session.unsaved.moved }),
+            session.project.doc.diff(demo.doc, { moved: session.unsaved.moved }),
         );
         expect(session.changes().map((change) => [change.kind, change.path])).toContainEqual([
             "renamed",
