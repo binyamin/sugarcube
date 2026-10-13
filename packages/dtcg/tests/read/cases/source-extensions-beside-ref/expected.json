@@ -10,7 +10,11 @@
         {
           "file": "palette.json",
           "from": {
-            "sets": ["base"]
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
           },
           "readBy": "everyone",
           "extensions": {
@@ -22,7 +26,11 @@
         {
           "file": "semantic.json",
           "from": {
-            "sets": ["base"]
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
           },
           "readBy": "everyone"
         }

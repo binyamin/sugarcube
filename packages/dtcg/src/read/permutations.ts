@@ -1,8 +1,8 @@
 import type { Node } from "jsonc-parser";
-import type { Diagnostic, DiagnosticDetailByKind, Input, Source } from "../index.js";
+import type { Diagnostic, DiagnosticDetailByKind, Input, SetOnRoute, Source } from "../index.js";
 import { permutationLabel } from "../lookup/permutation-label.js";
 import { diagnostic } from "./diagnostics.js";
-import { type JsonFile, spanOf } from "./json.js";
+import { type JsonFile, plainObject, spanOf } from "./json.js";
 import type { CheckedResolver } from "./resolver.js";
 import type { Loaded } from "./load.js";
 import type { ExpandedItem, LoadedSource, SourceEntry } from "./sources.js";
@@ -255,15 +255,22 @@ function sourcesFor(
     };
     return items.flatMap((item) => {
         if (item.kind === "set") {
-            return item.entries.flatMap((entry) => described(entry, { sets: entry.route }));
+            return item.entries.flatMap((entry) => described(entry, { sets: route(entry) }));
         }
         const { name } = item.modifier;
         const context = input[name];
         if (context === undefined) return [];
         return (item.contexts.get(context) ?? []).flatMap((entry) =>
-            described(entry, { modifier: name, context, sets: entry.route }),
+            described(entry, { modifier: name, context, sets: route(entry) }),
         );
     });
+}
+
+function route({ route: steps }: SourceEntry): SetOnRoute[] {
+    return steps.map(({ name, extensions }) => ({
+        name,
+        ...(extensions && { extensions: plainObject(extensions) }),
+    }));
 }
 
 function whoReadsEachSource(

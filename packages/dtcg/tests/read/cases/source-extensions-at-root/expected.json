@@ -10,7 +10,16 @@
         {
           "file": "palette.json",
           "from": {
-            "sets": ["palette"]
+            "sets": [
+              {
+                "name": "palette",
+                "extensions": {
+                  "com.example": {
+                    "owner": "design"
+                  }
+                }
+              }
+            ]
           },
           "extensions": {
             "sh.sugarcube": {
@@ -22,7 +31,11 @@
         {
           "file": "semantic.json",
           "from": {
-            "sets": ["semantic"]
+            "sets": [
+              {
+                "name": "semantic"
+              }
+            ]
           },
           "readBy": "everyone"
         }

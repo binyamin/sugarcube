@@ -37,12 +37,9 @@ export interface DeclarationOptions {
 
 export function declarationOptions(doc: Document, config: InternalConfig): DeclarationOptions {
     const { prefix, variableName, transforms } = config.variables;
-    const setExtensions = new Map(
-        doc.resolver?.sets.map(({ name, extensions }) => [name, extensions]),
-    );
     return {
         variable: (path) => cssVariable(path, { prefix, name: variableName }),
-        privateSource: (source) => !emits(source, setExtensions),
+        privateSource: (source) => !emits(source),
         fluid: transforms.fluid,
         polyfill: transforms.colorFallbackStrategy === "polyfill",
         parseOptions: doc.parseOptions,
@@ -113,9 +110,9 @@ export function declarations(
     return { declarations: declared, undeclared, missing };
 }
 
-function emits(source: Source, setExtensions: Map<string, Source["extensions"]>): boolean {
+function emits(source: Source): boolean {
     const outermostFirst = [
-        ...(source.from?.sets ?? []).map((name) => setExtensions.get(name)),
+        ...(source.from?.sets ?? []).map(({ extensions }) => extensions),
         source.extensions,
     ];
     let emitted = true;

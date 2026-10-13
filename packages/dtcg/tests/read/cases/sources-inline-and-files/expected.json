@@ -10,7 +10,11 @@
         {
           "file": "base/foundation.json",
           "from": {
-            "sets": ["size"]
+            "sets": [
+              {
+                "name": "size"
+              }
+            ]
           },
           "readBy": "everyone"
         },
@@ -18,7 +22,11 @@
           "file": "tokens.resolver.json",
           "pointer": "#/sets/size/sources/1",
           "from": {
-            "sets": ["size"]
+            "sets": [
+              {
+                "name": "size"
+              }
+            ]
           },
           "readBy": "everyone"
         }

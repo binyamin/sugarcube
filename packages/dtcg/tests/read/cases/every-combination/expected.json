@@ -167,7 +167,11 @@
         {
           "file": "base.json",
           "from": {
-            "sets": ["base"]
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
           },
           "readBy": "everyone"
         }
@@ -183,7 +187,11 @@
         {
           "file": "base.json",
           "from": {
-            "sets": ["base"]
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
           },
           "readBy": "everyone"
         },
@@ -212,7 +220,11 @@
         {
           "file": "base.json",
           "from": {
-            "sets": ["base"]
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
           },
           "readBy": "everyone"
         },
@@ -241,7 +253,11 @@
         {
           "file": "base.json",
           "from": {
-            "sets": ["base"]
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
           },
           "readBy": "everyone"
         },

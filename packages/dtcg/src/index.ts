@@ -568,14 +568,14 @@ export interface Source {
     pointer?: string;
     /**
      * How the resolver reached it: the modifier and context, when it came through one, and every
-     * set on the way, outermost first, each name finding its entry in {@link Document.resolver}.
-     * Absent when there is no resolver.
+     * set on the way, outermost first, each as it is in effect at that step. Absent when there is
+     * no resolver.
      *
      * @example
-     * source.from // { sets: ["base", "palette"] }: palette, which base names
+     * source.from // { sets: [{ name: "base" }, { name: "palette" }] }: palette, which base names
      * source.from // { modifier: "mode", context: "dark", sets: [] }
      */
-    from?: { sets: string[] } | { modifier: string; context: string; sets: string[] };
+    from?: { sets: SetOnRoute[] } | { modifier: string; context: string; sets: SetOnRoute[] };
     /**
      * The source's own vendor data, passed through untouched: the `$extensions` written beside its
      * `$ref`, or else those at the top of its file. A set's and a modifier's stay on them, in
@@ -595,9 +595,27 @@ export interface Source {
 }
 
 /**
+ * A set a source was reached through, as it is in effect at that step of the route: its name, which
+ * finds its entry in {@link Document.resolver}, and its `$extensions`, those written beside the
+ * `$ref` that named it there when there are any, as keys beside a `$ref` replace the target's
+ * (Resolver 4.2.2), otherwise its own.
+ *
+ * @example
+ * // base's sources: [{ "$ref": "#/sets/palette", "$extensions": { "sh.sugarcube": { "emit": false } } }]
+ * { name: "palette", extensions: { "sh.sugarcube": { emit: false } } }
+ */
+export interface SetOnRoute {
+    name: string;
+    extensions?: Record<string, unknown>;
+}
+
+/**
  * What the resolver says about itself and how it is put together (Resolver 4): its name and
  * description, the spec version it declares, and the sets and modifiers that take part, each as it
- * is in effect, with keys written beside a `$ref` applied (Resolver 4.2.2), and where it is written.
+ * is in effect where `resolutionOrder` names it, with keys written beside that `$ref` applied
+ * (Resolver 4.2.2), and where it is written. A set named inside another set with keys beside its
+ * `$ref` is listed as it is defined; what those keys change is on each source's route
+ * ({@link SetOnRoute}), since each such reference can change it differently.
  * A set or modifier `resolutionOrder` never reaches takes no part (Resolver 4.1.6): it is left out
  * here and reported as a hint. A set a source points inside of, such as `#/sets/palette/sources/0`,
  * is left out too, as it doesn't take part as a set, but isn't reported, as part of it is read.

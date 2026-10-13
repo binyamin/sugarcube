@@ -1,0 +1,16 @@
+{
+  "version": "2025.10",
+  "sets": {
+    "palette": {
+      "sources": [{ "$ref": "palette.json" }],
+      "$extensions": { "com.example": { "owner": "design" } }
+    },
+    "base": {
+      "sources": [
+        { "$ref": "#/sets/palette", "$extensions": { "sh.sugarcube": { "emit": false } } },
+        { "$ref": "semantic.json" }
+      ]
+    }
+  },
+  "resolutionOrder": [{ "$ref": "#/sets/base" }]
+}

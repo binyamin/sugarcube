@@ -164,11 +164,11 @@ describe("a source written in the resolver", () => {
         });
 
         expect(inline.permutations[0]?.sources).toStrictEqual([
-            { file: "base.json", from: { sets: ["base"] }, readBy: "everyone" },
+            { file: "base.json", from: { sets: [{ name: "base" }] }, readBy: "everyone" },
             {
                 file: "tokens.resolver.json",
                 pointer: "#/resolutionOrder/0/sources/1",
-                from: { sets: ["base"] },
+                from: { sets: [{ name: "base" }] },
                 readBy: "everyone",
             },
         ]);

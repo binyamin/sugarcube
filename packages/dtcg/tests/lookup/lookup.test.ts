@@ -167,8 +167,8 @@ describe("acrossPermutations", () => {
         expect(
             across.map((each) => ({ label: each.permutation.label, from: each.from })),
         ).toStrictEqual([
-            { label: "theme: light, density: comfy", from: { sets: ["base"] } },
-            { label: "theme: light, density: compact", from: { sets: ["base"] } },
+            { label: "theme: light, density: comfy", from: { sets: [{ name: "base" }] } },
+            { label: "theme: light, density: compact", from: { sets: [{ name: "base" }] } },
             {
                 label: "theme: dark, density: comfy",
                 from: { modifier: "theme", context: "dark", sets: [] },

@@ -18,12 +18,17 @@ import {
     resolverProblem,
 } from "./resolver.js";
 
+export interface RouteStep {
+    name: string;
+    extensions?: Node;
+}
+
 export type SourceEntry =
     | {
           kind: "inline";
           node: Node;
           path: JsonPath;
-          route: string[];
+          route: RouteStep[];
           overriddenKeys?: string[];
           pieces?: SourceEntry[];
       }
@@ -33,7 +38,7 @@ export type SourceEntry =
           fragment: string[];
           ref: Node;
           path: JsonPath;
-          route: string[];
+          route: RouteStep[];
           overriddenKeys?: string[];
           pieces?: SourceEntry[];
       };
@@ -68,11 +73,11 @@ export function expandSources(
         expanded: new Map(),
         setsUsed,
     };
-    const expand = (sources: SourceNode[], route: string[]) =>
+    const expand = (sources: SourceNode[], route: RouteStep[]) =>
         expandList(expander, sources, route, []);
     const items = resolver.order.map((item): ExpandedItem =>
         item.kind === "set"
-            ? { kind: "set", set: item.set, entries: expand(item.set.sources, [item.set.name]) }
+            ? { kind: "set", set: item.set, entries: expand(item.set.sources, [stepOf(item.set)]) }
             : {
                   kind: "modifier",
                   modifier: item.modifier,
@@ -170,7 +175,7 @@ interface Expander {
 function expandList(
     expander: Expander,
     sources: SourceNode[],
-    route: string[],
+    route: RouteStep[],
     seen: string[],
 ): SourceEntry[] {
     return sources.flatMap((source) => expandSource(expander, source, route, seen));
@@ -179,12 +184,14 @@ function expandList(
 function expandSource(
     expander: Expander,
     source: SourceNode,
-    route: string[],
+    route: RouteStep[],
     seen: string[],
 ): SourceEntry[] {
     const byRoute = expander.expanded.get(source.node) ?? new Map<string, SourceEntry[]>();
     expander.expanded.set(source.node, byRoute);
-    const key = route.join("\u0000");
+    const key = route
+        .map(({ name, extensions }) => `${name}@${extensions?.offset ?? ""}`)
+        .join(" ");
     const cached = byRoute.get(key);
     if (cached) return cached;
     const entries = followSource(expander, source, route, seen);
@@ -195,7 +202,7 @@ function expandSource(
 function followSource(
     expander: Expander,
     source: SourceNode,
-    route: string[],
+    route: RouteStep[],
     seen: string[],
     pointedFrom: SourceNode[] = [],
 ): SourceEntry[] {
@@ -258,7 +265,7 @@ function followSource(
         const set = overriding.some((each) => keysBeside(each).length > 0)
             ? Object.assign({ ...target }, ...overriding.map((each) => readSetParts(reader, each)))
             : target;
-        return expandList(expander, set.sources, [...route, set.name], [...seen, ref]);
+        return expandList(expander, set.sources, [...route, stepOf(set)], [...seen, ref]);
     }
 
     const followed = follow(root, steps);
@@ -275,6 +282,10 @@ function followSource(
     }
     const entries = expandSource(expander, target, route, [...seen, ref]);
     return withOverrides(entries, overriding, route);
+}
+
+function stepOf({ name, extensions }: SetDefinition): RouteStep {
+    return { name, ...(extensions && { extensions }) };
 }
 
 export function setNamed(steps: string[]): string | undefined {
@@ -299,7 +310,7 @@ function keysBeside(source: SourceNode): string[] {
 function withOverrides(
     entries: SourceEntry[],
     overriding: SourceNode[],
-    route: string[],
+    route: RouteStep[],
 ): SourceEntry[] {
     return overriding.reduce(
         (inner, source) => withOverride(inner, source, route, keysBeside(source)),
@@ -310,7 +321,7 @@ function withOverrides(
 function withOverride(
     entries: SourceEntry[],
     source: SourceNode,
-    route: string[],
+    route: RouteStep[],
     overridden: string[],
 ): SourceEntry[] {
     if (overridden.length === 0) return entries;

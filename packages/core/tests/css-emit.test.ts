@@ -30,6 +30,32 @@ function cssFor(files: Record<string, unknown>, variables: Variables = {}) {
 const color = (value: unknown) => ({ $type: "color", $value: value });
 
 describe("emitCSS", () => {
+    it("keeps a set private when its settings are written beside the reference that names it", () => {
+        const resolver = {
+            version: "2025.10",
+            sets: {
+                palette: { sources: [{ $ref: "palette.json" }] },
+                base: {
+                    sources: [
+                        {
+                            $ref: "#/sets/palette",
+                            $extensions: { "sh.sugarcube": { emit: false } },
+                        },
+                        { $ref: "semantic.json" },
+                    ],
+                },
+            },
+            resolutionOrder: [{ $ref: "#/sets/base" }],
+        };
+        expect(
+            cssFor({
+                "tokens.resolver.json": resolver,
+                "palette.json": { rose: color("#e11d48") },
+                "semantic.json": { brand: color("{rose}") },
+            }),
+        ).toBe([":root {", "    --brand: #e11d48;", "}", ""].join("\n"));
+    });
+
     it("keeps a set private where a set around it is, unless a nearer setting says otherwise", () => {
         const resolver = {
             version: "2025.10",

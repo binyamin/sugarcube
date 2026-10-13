@@ -10,7 +10,11 @@
         {
           "file": "palette.json",
           "from": {
-            "sets": ["base"]
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
           },
           "extensions": {
             "com.example": {
@@ -22,7 +26,11 @@
         {
           "file": "scale.json",
           "from": {
-            "sets": ["base"]
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
           },
           "extensions": {
             "com.example": {

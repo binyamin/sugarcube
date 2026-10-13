@@ -12,14 +12,22 @@
           "file": "all.json",
           "pointer": "#/base",
           "from": {
-            "sets": ["base"]
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
           },
           "readBy": "everyone"
         },
         {
           "file": "shared.json",
           "from": {
-            "sets": ["base"]
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
           },
           "readBy": "everyone"
         },
@@ -51,14 +59,22 @@
           "file": "all.json",
           "pointer": "#/base",
           "from": {
-            "sets": ["base"]
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
           },
           "readBy": "everyone"
         },
         {
           "file": "shared.json",
           "from": {
-            "sets": ["base"]
+            "sets": [
+              {
+                "name": "base"
+              }
+            ]
           },
           "readBy": "everyone"
         },

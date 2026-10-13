@@ -1,0 +1,24 @@
+{
+  "entry": "tokens.resolver.json",
+  "spec": "Resolver 4.2.2: keys written beside a $ref replace the target's, so a set named with $extensions beside its $ref has those settings at that step of the route; each step of a source's route is the set as it is in effect there",
+  "permutations": [
+    {
+      "input": {},
+      "label": "",
+      "sources": [
+        {
+          "file": "palette.json",
+          "from": {
+            "sets": [
+              { "name": "base" },
+              { "name": "palette", "extensions": { "sh.sugarcube": { "emit": false } } }
+            ]
+          },
+          "readBy": "everyone"
+        },
+        { "file": "semantic.json", "from": { "sets": [{ "name": "base" }] }, "readBy": "everyone" }
+      ]
+    }
+  ],
+  "diagnostics": []
+}

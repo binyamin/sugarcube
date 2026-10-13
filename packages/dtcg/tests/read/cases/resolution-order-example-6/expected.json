@@ -11,21 +11,33 @@
         {
           "file": "foundation/size.json",
           "from": {
-            "sets": ["size"]
+            "sets": [
+              {
+                "name": "size"
+              }
+            ]
           },
           "readBy": "everyone"
         },
         {
           "file": "foundation/typography.json",
           "from": {
-            "sets": ["typography"]
+            "sets": [
+              {
+                "name": "typography"
+              }
+            ]
           },
           "readBy": "everyone"
         },
         {
           "file": "foundation/animation.json",
           "from": {
-            "sets": ["animation"]
+            "sets": [
+              {
+                "name": "animation"
+              }
+            ]
           },
           "readBy": "everyone"
         },
@@ -56,21 +68,33 @@
         {
           "file": "foundation/size.json",
           "from": {
-            "sets": ["size"]
+            "sets": [
+              {
+                "name": "size"
+              }
+            ]
           },
           "readBy": "everyone"
         },
         {
           "file": "foundation/typography.json",
           "from": {
-            "sets": ["typography"]
+            "sets": [
+              {
+                "name": "typography"
+              }
+            ]
           },
           "readBy": "everyone"
         },
         {
           "file": "foundation/animation.json",
           "from": {
-            "sets": ["animation"]
+            "sets": [
+              {
+                "name": "animation"
+              }
+            ]
           },
           "readBy": "everyone"
         },
@@ -117,21 +141,33 @@
         {
           "file": "foundation/size.json",
           "from": {
-            "sets": ["size"]
+            "sets": [
+              {
+                "name": "size"
+              }
+            ]
           },
           "readBy": "everyone"
         },
         {
           "file": "foundation/typography.json",
           "from": {
-            "sets": ["typography"]
+            "sets": [
+              {
+                "name": "typography"
+              }
+            ]
           },
           "readBy": "everyone"
         },
         {
           "file": "foundation/animation.json",
           "from": {
-            "sets": ["animation"]
+            "sets": [
+              {
+                "name": "animation"
+              }
+            ]
           },
           "readBy": "everyone"
         },
@@ -162,21 +198,33 @@
         {
           "file": "foundation/size.json",
           "from": {
-            "sets": ["size"]
+            "sets": [
+              {
+                "name": "size"
+              }
+            ]
           },
           "readBy": "everyone"
         },
         {
           "file": "foundation/typography.json",
           "from": {
-            "sets": ["typography"]
+            "sets": [
+              {
+                "name": "typography"
+              }
+            ]
           },
           "readBy": "everyone"
         },
         {
           "file": "foundation/animation.json",
           "from": {
-            "sets": ["animation"]
+            "sets": [
+              {
+                "name": "animation"
+              }
+            ]
           },
           "readBy": "everyone"
         },
