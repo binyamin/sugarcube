@@ -1,9 +1,9 @@
 // Lists what changed between two versions of the tokens: added, removed and changed, what each
 // file wrote before and after, and in which permutations.
-import { type DesignSystem } from "@sugarcube-sh/dtcg";
+import { type DesignTokens } from "@sugarcube-sh/dtcg";
 
-declare const before: DesignSystem;
-declare const after: DesignSystem;
+declare const before: DesignTokens;
+declare const after: DesignTokens;
 
 for (const change of after.diff(before)) {
     const where = change.permutations.label ?? "";

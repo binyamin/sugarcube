@@ -79,7 +79,7 @@ async function until(done: () => boolean, what: string, step?: () => Promise<voi
 }
 
 describe("dtcg's Vite plugin", () => {
-    it("reads again when a file the Document lists is saved on Vite's watcher, text and all", async () => {
+    it("reads again when a file the design tokens list is saved on Vite's watcher, text and all", async () => {
         const entry = await project();
         const plugin = dtcg({ entry, options: { hexStringColors: true } });
         await serve(plugin);

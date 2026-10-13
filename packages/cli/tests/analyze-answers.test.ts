@@ -61,9 +61,9 @@ async function analysisOf(...uses: Use[]): Promise<Analysis> {
     const texts = Object.fromEntries(
         Object.entries(themed).map(([name, json]) => [name, JSON.stringify(json)]),
     );
-    const { ds } = await buildFiles(texts, "/project");
+    const { tokens } = await buildFiles(texts, "/project");
     return {
-        ds,
+        tokens,
         uses: {
             uses,
             scanned: { forVarReferences: ["/project/app.css"], forUtilityClasses: [] },
@@ -73,7 +73,7 @@ async function analysisOf(...uses: Use[]): Promise<Analysis> {
 }
 
 function impactOf(analysis: Analysis, path: string) {
-    const found = tokenAt(analysis.ds, path);
+    const found = tokenAt(analysis.tokens, path);
     if (!found || found === "group") throw new Error(`no token ${path}`);
     return impact(analysis, found);
 }
@@ -168,11 +168,11 @@ describe("impact", () => {
 
 describe("tokenAt", () => {
     it("says when a path is a group, not a token", async () => {
-        expect(tokenAt((await analysisOf()).ds, "color")).toBe("group");
+        expect(tokenAt((await analysisOf()).tokens, "color")).toBe("group");
     });
 
     it("says when a path is nothing", async () => {
-        expect(tokenAt((await analysisOf()).ds, "nowhere")).toBeUndefined();
+        expect(tokenAt((await analysisOf()).tokens, "nowhere")).toBeUndefined();
     });
 
     it("gives the default theme's token, whichever theme is read first", () => {
@@ -187,9 +187,9 @@ describe("tokenAt", () => {
         const texts = Object.fromEntries(
             Object.entries(themed).map(([name, json]) => [name, JSON.stringify(json)]),
         );
-        const ds = readFromMemory({ files: texts }, readOptions(config));
-        expect(ds.permutations[0]?.input).toStrictEqual({ theme: "dark" });
-        const found = tokenAt(ds, "color.surface");
+        const tokens = readFromMemory({ files: texts }, readOptions(config));
+        expect(tokens.permutations[0]?.input).toStrictEqual({ theme: "dark" });
+        const found = tokenAt(tokens, "color.surface");
         expect(found !== "group" && found?.authored?.value).toBe("{color.target}");
     });
 });
@@ -276,11 +276,11 @@ describe("impact, across themes", () => {
         unread: [],
     };
     const dependentsOf = async (path: string, built?: Awaited<ReturnType<typeof buildFiles>>) => {
-        const { ds } = built ?? (await buildFiles(texts(), "/project"));
-        const found = tokenAt(ds, path);
+        const { tokens } = built ?? (await buildFiles(texts(), "/project"));
+        const found = tokenAt(tokens, path);
         if (!found || found === "group") throw new Error(`no token ${path}`);
         return new Map(
-            impact({ ds, uses: noUses }, found).dependents.map((each) => [each.path, each]),
+            impact({ tokens, uses: noUses }, found).dependents.map((each) => [each.path, each]),
         );
     };
 
@@ -296,7 +296,7 @@ describe("impact, across themes", () => {
     });
 
     it("never lists the token as depending on itself, round a loop", async () => {
-        const { ds } = await buildFiles(
+        const { tokens } = await buildFiles(
             {
                 "tokens.json": JSON.stringify({
                     a: { $type: "number", $value: "{b}" },
@@ -305,9 +305,9 @@ describe("impact, across themes", () => {
             },
             "/project",
         );
-        const a = tokenAt(ds, "a");
+        const a = tokenAt(tokens, "a");
         if (!a || a === "group") throw new Error("no a");
-        expect(impact({ ds, uses: noUses }, a).dependents).toStrictEqual([
+        expect(impact({ tokens, uses: noUses }, a).dependents).toStrictEqual([
             { path: "b", references: ["a"], inDefault: "a" },
         ]);
     });
@@ -335,9 +335,9 @@ describe("impact, across themes", () => {
                 ],
             },
         });
-        const ds = readFromMemory({ files: texts({ "dark.json": {} }) }, readOptions(config));
+        const tokens = readFromMemory({ files: texts({ "dark.json": {} }) }, readOptions(config));
         const loaded = { config: { ...config, resolver: "tokens.resolver.json" } };
-        const built = await buildFrom(ds, loaded);
+        const built = await buildFrom(tokens, loaded);
         expect((await dependentsOf("blue", built)).get("button")?.label).toBe("per brand");
     });
 

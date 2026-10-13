@@ -12,7 +12,7 @@ import {
     setDescription,
     setValue,
 } from "../src/index.js";
-import { designSystem as sized } from "./benchmarks/design-systems.js";
+import { designTokens as sized } from "./benchmarks/design-tokens.js";
 import { at, demo, textsOf } from "./helpers.js";
 
 afterEach(() => {
@@ -23,8 +23,8 @@ describe("applying many edits to one file", () => {
     it("gives what applying them one at a time gives", () => {
         const result = rename(demo, "color.brand", "primary");
         const ops = "ops" in result ? result.ops : [];
-        const oneByOne = ops.reduce((ds, op) => {
-            const next = apply(ds, [op]);
+        const oneByOne = ops.reduce((tokens, op) => {
+            const next = apply(tokens, [op]);
             if ("conflicts" in next) throw new Error(JSON.stringify(next.conflicts));
             return next;
         }, demo);
@@ -37,7 +37,7 @@ describe("applying many edits to one file", () => {
     it("gives what applying them one at a time gives when they touch or sit inside each other", () => {
         const red = { colorSpace: "srgb", components: [1, 0, 0] };
         const steps: OpResult[] = [];
-        let ds = demo;
+        let tokens = demo;
         for (const operation of [
             (p: typeof demo) => setValue(p, "color.brand.500", red),
             (p: typeof demo) => setDescription(p, "color.brand.500", "The anchor, again."),
@@ -48,21 +48,21 @@ describe("applying many edits to one file", () => {
             (p: typeof demo) => rename(p, "color.brand", "house"),
             (p: typeof demo) => setValue(p, "color.house.700", red),
         ]) {
-            const result = operation(ds);
+            const result = operation(tokens);
             steps.push(result);
-            const done = commit(ds, result);
-            if (!("ds" in done)) throw new Error(JSON.stringify(done));
-            ds = done.ds;
+            const done = commit(tokens, result);
+            if (!("tokens" in done)) throw new Error(JSON.stringify(done));
+            tokens = done.tokens;
         }
         const ops = steps.flatMap((step) => ("ops" in step ? step.ops : []));
         const together = apply(demo, ops);
 
         if ("conflicts" in together) throw new Error(JSON.stringify(together.conflicts));
-        expect(textsOf(together)).toEqual(textsOf(ds));
+        expect(textsOf(together)).toEqual(textsOf(tokens));
     });
 
     it("refuses a second key renamed to the name the first just took", () => {
-        const ds = readFromMemory({
+        const tokens = readFromMemory({
             files: {
                 "tokens.json":
                     '{ "a": { "$type": "number", "$value": 1 }, "b": { "$type": "number", "$value": 2 } }',
@@ -73,16 +73,16 @@ describe("applying many edits to one file", () => {
             file: "tokens.json",
             jsonPath: [key],
             name: "x",
-            was: at(ds, "tokens.json", [key]) ?? null,
+            was: at(tokens, "tokens.json", [key]) ?? null,
         });
 
-        expect(apply(ds, [renamedTo("a"), renamedTo("b")])).toEqual({
+        expect(apply(tokens, [renamedTo("a"), renamedTo("b")])).toEqual({
             conflicts: [expect.objectContaining({ kind: "taken" })],
         });
     });
 
     it("refuses an edit through a key an earlier edit renamed", () => {
-        const ds = readFromMemory({
+        const tokens = readFromMemory({
             files: { "tokens.json": '{\n  "a": { "$type": "number", "$value": 1 }\n}\n' },
         });
         const ops: FileOp[] = [
@@ -91,18 +91,18 @@ describe("applying many edits to one file", () => {
                 file: "tokens.json",
                 jsonPath: ["a"],
                 name: "b",
-                was: at(ds, "tokens.json", ["a"]) ?? null,
+                was: at(tokens, "tokens.json", ["a"]) ?? null,
             },
             { kind: "set", file: "tokens.json", jsonPath: ["a", "$value"], value: 2, was: 1 },
         ];
 
-        expect(apply(ds, ops)).toEqual({
+        expect(apply(tokens, ops)).toEqual({
             conflicts: [expect.objectContaining({ kind: "gone" })],
         });
     });
 
     it("deletes a file as an earlier edit in the same list left it", () => {
-        const ds = readFromMemory({
+        const tokens = readFromMemory({
             files: {
                 "tokens.resolver.json": JSON.stringify({
                     version: "2025.10",
@@ -118,7 +118,7 @@ describe("applying many edits to one file", () => {
             { kind: "set", file: "base.json", jsonPath: ["a", "$value"], value: 2, was: 1 },
             { kind: "deleteFile", file: "base.json", was: edited },
         ];
-        const after = apply(ds, ops);
+        const after = apply(tokens, ops);
 
         if ("conflicts" in after) throw new Error(JSON.stringify(after.conflicts));
         expect(after.text("base.json")).toBeUndefined();

@@ -48,7 +48,7 @@ describe("changedFiles", () => {
         expect(Object.keys(result.written)).toStrictEqual(["tokens.resolver.json"]);
     });
 
-    it("deletes no file the design system doesn't read", () => {
+    it("deletes no file the design tokens aren't read from", () => {
         const result = changedFiles(demo, [
             { kind: "deleteFile", file: "package.json", was: "anything" },
         ]);
@@ -64,7 +64,7 @@ describe("changedFiles", () => {
 
         expect(result.deleted).toStrictEqual([]);
         expect(Object.keys(result.written)).toStrictEqual(["tokens.resolver.json"]);
-        expect(result.ds.text("gradient.json")).toBeUndefined();
+        expect(result.tokens.text("gradient.json")).toBeUndefined();
     });
 
     it("writes a new file", () => {

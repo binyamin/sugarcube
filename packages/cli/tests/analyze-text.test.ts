@@ -100,7 +100,7 @@ describe("unusedSummary", () => {
 });
 
 describe("impactHeading", () => {
-    const doc = readFromMemory({
+    const tokens = readFromMemory({
         files: {
             "tokens.json": JSON.stringify({
                 palette: {
@@ -114,7 +114,7 @@ describe("impactHeading", () => {
         },
     });
     const heading = (path: string) => {
-        const found = doc.permutation().token(path);
+        const found = tokens.permutation().token(path);
         if (!found) throw new Error(path);
         return strip(impactHeading({ token: found, dependents: [], uses: [] }));
     };

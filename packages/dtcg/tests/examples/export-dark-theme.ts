@@ -2,9 +2,9 @@
 // and the page says which.
 import { read, toDTCG } from "@sugarcube-sh/dtcg";
 
-const ds = await read("tokens.resolver.json", {
+const tokens = await read("tokens.resolver.json", {
     readText: (p) => fetch(`/tokens/${p}`).then((r) => r.text()),
 });
-const { tokens, skipped } = toDTCG(ds, { theme: "dark" });
+const { tokens: dark, skipped } = toDTCG(tokens, { theme: "dark" });
 if (skipped.length) showMessage(`Left out broken tokens: ${skipped.join(", ")}`);
-download("dark.tokens.json", JSON.stringify(tokens, null, 2));
+download("dark.tokens.json", JSON.stringify(dark, null, 2));

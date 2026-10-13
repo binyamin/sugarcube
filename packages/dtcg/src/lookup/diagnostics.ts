@@ -1,21 +1,21 @@
-import type { DesignSystem, Diagnostic, Span, Token } from "../index.js";
+import type { DesignTokens, Diagnostic, Span, Token } from "../index.js";
 
-export function diagnosticsForIn(ds: DesignSystem, path: string): Diagnostic[] {
-    return ds.diagnostics.filter((found) => isAbout(found, path));
+export function diagnosticsForIn(tokens: DesignTokens, path: string): Diagnostic[] {
+    return tokens.diagnostics.filter((found) => isAbout(found, path));
 }
 
-export function diagnosticsOf(ds: DesignSystem, token: Token): Diagnostic[] {
-    return diagnosticsForIn(ds, token.path).filter(
+export function diagnosticsOf(tokens: DesignTokens, token: Token): Diagnostic[] {
+    return diagnosticsForIn(tokens, token.path).filter(
         ({ permutations }) => !permutations || permutations.includes(token.permutation),
     );
 }
 
 export function diagnosticsAtIn(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     { file, offset, length }: Pick<Span, "file" | "offset" | "length">,
 ): Diagnostic[] {
     const end = offset + length;
-    return ds.diagnostics.filter(
+    return tokens.diagnostics.filter(
         ({ span }) =>
             span !== undefined &&
             span.file === file &&

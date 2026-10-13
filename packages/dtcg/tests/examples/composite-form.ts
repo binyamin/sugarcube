@@ -1,10 +1,10 @@
 // A form for editing a border, shadow or typography token one part at a time. Each part gets the
 // right control for its type: a color picker for a color, a number and a unit for a size, a
 // dropdown for a line style.
-import { type DesignSystem, type TokenType } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, type TokenType } from "@sugarcube-sh/dtcg";
 import { compositeParts, dimensionUnits, strokeStyleKeywords } from "@sugarcube-sh/dtcg/values";
 
-declare const ds: DesignSystem;
+declare const tokens: DesignTokens;
 declare function control(
     label: string,
     type: TokenType | "boolean",
@@ -22,7 +22,7 @@ const choicesFor = (type: TokenType | "boolean") =>
           ? dimensionUnits
           : undefined;
 
-const t = ds.permutation().token("border.card");
+const t = tokens.permutation().token("border.card");
 const written = t?.authored?.value;
 if (t && isComposite(t.type) && written && typeof written === "object") {
     for (const [part, type] of Object.entries(compositeParts[t.type])) {

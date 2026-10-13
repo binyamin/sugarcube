@@ -4,8 +4,8 @@ import { demo } from "./helpers.js";
 describe("isEdits", () => {
     it("is true for a session's unsaved edits, sent as JSON and read back", () => {
         const session = createSession(demo);
-        session.do(setValue(session.ds, "color.text.brand", "{color.brand.800}"));
-        session.do(remove(session.ds, "radius.full"));
+        session.do(setValue(session.tokens, "color.text.brand", "{color.brand.800}"));
+        session.do(remove(session.tokens, "radius.full"));
         const sent = { ...session.unsaved, moved: [{ from: "radius.md", to: "radius.medium" }] };
 
         expect(isEdits(JSON.parse(JSON.stringify(sent)))).toBe(true);

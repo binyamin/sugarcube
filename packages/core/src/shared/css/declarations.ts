@@ -1,5 +1,5 @@
 import {
-    type DesignSystem,
+    type DesignTokens,
     type ParseOptions,
     type Permutation,
     type Source,
@@ -33,14 +33,17 @@ export interface DeclarationOptions {
     parseOptions: ParseOptions;
 }
 
-export function declarationOptions(ds: DesignSystem, config: InternalConfig): DeclarationOptions {
+export function declarationOptions(
+    tokens: DesignTokens,
+    config: InternalConfig,
+): DeclarationOptions {
     const { prefix, variableName, transforms } = config.variables;
     return {
         variable: (path) => cssVariable(path, { prefix, name: variableName }),
         privateSource: (source) => !emits(source),
         fluid: transforms.fluid,
         polyfill: transforms.colorFallbackStrategy === "polyfill",
-        parseOptions: ds.parseOptions,
+        parseOptions: tokens.parseOptions,
     };
 }
 

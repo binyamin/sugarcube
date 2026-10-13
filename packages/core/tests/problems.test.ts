@@ -20,7 +20,7 @@ function value(message: string, place: ReturnType<typeof spanAt>): Reported {
         message,
         span: place,
         docs: "",
-        detail: { at: ["$value"], type: "color", reason: "wrong-shape", value: "" },
+        detail: { jsonPath: ["$value"], type: "color", reason: "wrong-shape", value: "" },
     };
 }
 
@@ -42,7 +42,7 @@ function ignored(place: ReturnType<typeof spanAt>): Reported {
         message: "`paragraphSpacing` is ignored",
         span: place,
         docs: "",
-        detail: { property: "paragraphSpacing", owner: "typography", at: [] },
+        detail: { property: "paragraphSpacing", owner: "typography", jsonPath: [] },
     };
 }
 

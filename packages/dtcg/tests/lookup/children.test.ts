@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { type DesignSystem, defineGenerator, readFromMemory } from "../../src/index.js";
+import { type DesignTokens, defineGenerator, readFromMemory } from "../../src/index.js";
 
 const color = (red: number) => ({ $value: { colorSpace: "srgb", components: [red, 0, 0] } });
 
 const paths = (items: { path: string }[] | undefined) => items?.map(({ path }) => path);
 
-function oneFile(tokens: unknown): DesignSystem {
-    return readFromMemory({ files: { "tokens.json": JSON.stringify(tokens) } });
+function oneFile(json: unknown): DesignTokens {
+    return readFromMemory({ files: { "tokens.json": JSON.stringify(json) } });
 }
 
 describe("a group's children", () => {
-    const doc = oneFile({
+    const tokens = oneFile({
         color: {
             $type: "color",
             bg: color(1),
@@ -22,7 +22,7 @@ describe("a group's children", () => {
     });
 
     it("are the paths directly inside it, tokens and groups together, in the order the file writes them", () => {
-        expect(paths(doc.permutation().group("color")?.children)).toStrictEqual([
+        expect(paths(tokens.permutation().group("color")?.children)).toStrictEqual([
             "color.bg",
             "color.brand",
             "color.text",
@@ -31,20 +31,20 @@ describe("a group's children", () => {
     });
 
     it("include a group's own $root token where it is written", () => {
-        expect(paths(doc.permutation().group("color.brand")?.children)).toStrictEqual([
+        expect(paths(tokens.permutation().group("color.brand")?.children)).toStrictEqual([
             "color.brand.500",
             "color.brand.$root",
         ]);
     });
 
     it("are the tokens and groups themselves", () => {
-        const [bg, brand] = doc.permutation().group("color")?.children ?? [];
-        expect(bg).toBe(doc.permutation().token("color.bg"));
-        expect(brand).toBe(doc.permutation().group("color.brand"));
+        const [bg, brand] = tokens.permutation().group("color")?.children ?? [];
+        expect(bg).toBe(tokens.permutation().token("color.bg"));
+        expect(brand).toBe(tokens.permutation().group("color.brand"));
     });
 
     it("are empty for an empty group", () => {
-        expect(paths(doc.permutation().group("color.raw")?.children)).toStrictEqual([]);
+        expect(paths(tokens.permutation().group("color.raw")?.children)).toStrictEqual([]);
     });
 
     it("leave out a token the read could not keep", () => {
@@ -56,15 +56,15 @@ describe("a group's children", () => {
 });
 
 describe("the top level", () => {
-    const doc = oneFile({
+    const tokens = oneFile({
         color: { $type: "number", a: { $value: 1 } },
         gap: { $type: "number", $value: 2 },
     });
-    const base = doc.permutation();
+    const base = tokens.permutation();
 
     it("is walked from the permutation: its children are what the file writes at the top, in order", () => {
         expect(paths(base?.children)).toStrictEqual(["color", "gap"]);
-        expect(base?.children[1]).toBe(doc.permutation().token("gap"));
+        expect(base?.children[1]).toBe(tokens.permutation().token("gap"));
     });
 
     it("keeps only what is written there in root, not its children", () => {
@@ -73,7 +73,7 @@ describe("the top level", () => {
 
     it('has no path, so nothing reaches it by one: (…).permutation().group("") is the group named ""', () => {
         expect(base && "path" in base.root).toBe(false);
-        expect(doc.permutation().group("")).toBeUndefined();
+        expect(tokens.permutation().group("")).toBeUndefined();
     });
 
     it("is not among the permutation's groups", () => {
@@ -99,7 +99,7 @@ describe("across files and themes", () => {
             },
         ],
     };
-    const doc = readFromMemory({
+    const tokens = readFromMemory({
         files: {
             "tokens.resolver.json": JSON.stringify(resolver),
             "a.json": JSON.stringify({
@@ -116,40 +116,40 @@ describe("across files and themes", () => {
     });
 
     it("put what a later file adds to a group at the end of its children", () => {
-        expect(paths(doc.permutation().group("color")?.children)).toStrictEqual([
+        expect(paths(tokens.permutation().group("color")?.children)).toStrictEqual([
             "color.bg",
             "color.text",
         ]);
     });
 
     it("list the top level across the files, in the order they are read", () => {
-        expect(paths(doc.permutation().children)).toStrictEqual(["color", "size", "gap"]);
+        expect(paths(tokens.permutation().children)).toStrictEqual(["color", "size", "gap"]);
     });
 
     it("are each permutation's own: dark's group has dark's token, light's doesn't", () => {
-        expect(paths(doc.permutation({ mode: "dark" }).group("color")?.children)).toStrictEqual([
+        expect(paths(tokens.permutation({ mode: "dark" }).group("color")?.children)).toStrictEqual([
             "color.bg",
             "color.text",
             "color.glow",
         ]);
-        expect(paths(doc.permutation({ mode: "light" }).group("color")?.children)).not.toContain(
+        expect(paths(tokens.permutation({ mode: "light" }).group("color")?.children)).not.toContain(
             "color.glow",
         );
     });
 
     it("put an override where the token was first written", () => {
-        const dark = doc.permutation({ mode: "dark" });
+        const dark = tokens.permutation({ mode: "dark" });
         expect(dark.group("color")?.children[0]?.path).toBe("color.bg");
     });
 });
 
 describe("tokens that are not written", () => {
     it("put tokens a group takes through $extends at the end of its children", () => {
-        const doc = oneFile({
+        const tokens = oneFile({
             button: { $type: "number", pad: { $value: 1 }, gap: { $value: 2 } },
             primary: { $extends: "{button}", own: { $value: 3 }, pad: { $value: 4 } },
         });
-        expect(paths(doc.permutation().group("primary")?.children)).toStrictEqual([
+        expect(paths(tokens.permutation().group("primary")?.children)).toStrictEqual([
             "primary.own",
             "primary.pad",
             "primary.gap",
@@ -165,7 +165,7 @@ describe("tokens that are not written", () => {
                 value: ["3", "2", "1"].map((name) => ({ name, $value: Number(name) })),
             }),
         });
-        const doc = readFromMemory(
+        const tokens = readFromMemory(
             {
                 files: {
                     "tokens.json": JSON.stringify({
@@ -180,26 +180,26 @@ describe("tokens that are not written", () => {
             },
             { generators: [steps] },
         );
-        const tokenOrder = doc
+        const tokenOrder = tokens
             .permutation()
             ?.tokens.map(({ path }) => path)
             .filter((path) => path.startsWith("space."));
-        const children = paths(doc.permutation().group("space")?.children);
+        const children = paths(tokens.permutation().group("space")?.children);
         expect(children?.filter((path) => path !== "space.sub")).toStrictEqual(tokenOrder);
         expect(children?.indexOf("space.sub")).toBe(1);
     });
 });
 
 describe('a group named ""', () => {
-    const doc = oneFile({
+    const tokens = oneFile({
         "": { $type: "number", x: { $value: 1 } },
         "size": { $type: "number", $value: 2 },
     });
-    const base = doc.permutation();
+    const base = tokens.permutation();
 
     it("is a child of the top level, and holds its own tokens, never the top level's (Format 5.1)", () => {
         expect(paths(base?.children)).toStrictEqual(["", "size"]);
         expect(paths(base?.groups.find(({ path }) => path === "")?.children)).toStrictEqual([".x"]);
-        expect(paths(doc.permutation().group("")?.children)).toStrictEqual([".x"]);
+        expect(paths(tokens.permutation().group("")?.children)).toStrictEqual([".x"]);
     });
 });

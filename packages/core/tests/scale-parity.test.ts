@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
-import { type DesignSystem, read, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, read, readFromMemory } from "@sugarcube-sh/dtcg";
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadTokens } from "../src/node/load-tokens.js";
 import { SUGARCUBE_NAMESPACE } from "../src/shared/extensions.js";
@@ -84,8 +84,8 @@ function madeByOldExpand(trees: TokenTree[]): Made[] {
     });
 }
 
-function madeByDtcg(doc: DesignSystem): Made[] {
-    return doc.permutations.flatMap((permutation) =>
+function madeByDtcg(tokens: DesignTokens): Made[] {
+    return tokens.permutations.flatMap((permutation) =>
         permutation.tokens
             .filter((token) => token.generated && !token.authored)
             .map((token) => ({
@@ -109,29 +109,36 @@ beforeAll(async () => {
             resolverPath,
             config: { variables: {} } as never,
         });
-        const doc = await read(entry, {
+        const tokens = await read(entry, {
             readText: (path) => readFile(join(repo, path), "utf8"),
             generators: [scaleGenerator],
         });
-        for (const file of doc.files) covered.add(join(entry, "..", file));
+        for (const file of tokens.files) covered.add(join(entry, "..", file));
         if (loaded.errors.length > 0) continue;
-        projects.push({ name: entry, old: madeByOldExpand(loaded.trees), dtcg: madeByDtcg(doc) });
+        projects.push({
+            name: entry,
+            old: madeByOldExpand(loaded.trees),
+            dtcg: madeByDtcg(tokens),
+        });
     }
     for (const file of files.filter(
         (each) => !each.endsWith(".resolver.json") && !covered.has(each),
     )) {
         const text = readFileSync(join(repo, file), "utf8");
-        let tokens: TokenTree["tokens"];
+        let tree: TokenTree["tokens"];
         try {
-            tokens = JSON.parse(text);
+            tree = JSON.parse(text);
         } catch {
             continue;
         }
-        const doc = readFromMemory({ files: { [file]: text } }, { generators: [scaleGenerator] });
+        const tokens = readFromMemory(
+            { files: { [file]: text } },
+            { generators: [scaleGenerator] },
+        );
         projects.push({
             name: file,
-            old: madeByOldExpand([{ sourcePath: file, tokens }]),
-            dtcg: madeByDtcg(doc),
+            old: madeByOldExpand([{ sourcePath: file, tokens: tree }]),
+            dtcg: madeByDtcg(tokens),
         });
     }
 });
@@ -149,11 +156,11 @@ describe("the tokens scale recipes make, old expand against dtcg with the scale 
     });
 
     it("reads Studio's demo, whose type scale is a recipe, with nothing missing", async () => {
-        const doc = await read("packages/studio/demo/tokens.resolver.json", {
+        const tokens = await read("packages/studio/demo/tokens.resolver.json", {
             readText: (path) => readFile(join(repo, path), "utf8"),
             generators: [scaleGenerator],
         });
-        expect(doc.diagnostics.filter(({ kind }) => kind === "missing-reference")).toEqual([]);
+        expect(tokens.diagnostics.filter(({ kind }) => kind === "missing-reference")).toEqual([]);
     });
 
     it("makes the same tokens, with the same values, in every project", () => {

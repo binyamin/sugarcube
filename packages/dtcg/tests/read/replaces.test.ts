@@ -22,15 +22,15 @@ const files = {
     "brand.json": `{ "bg": ${color("#fafafa")} }`,
     "dark.json": `{ "bg": ${color("#111111")} }`,
 };
-const doc = readFromMemory({ files, entry: "tokens.resolver.json" });
+const tokens = readFromMemory({ files, entry: "tokens.resolver.json" });
 
 const written = (span: Span) =>
     files[span.file as keyof typeof files].slice(span.offset, span.offset + span.length);
 
 describe("a token's writtenAt, across sources", () => {
     it("lists every place its sources write it, in order, the one that wins last", () => {
-        const light = doc.permutation().token("bg");
-        const dark = doc.permutation({ mode: "dark" }).token("bg");
+        const light = tokens.permutation().token("bg");
+        const dark = tokens.permutation({ mode: "dark" }).token("bg");
 
         expect(light?.writtenAt.map(({ span }) => span.file)).toStrictEqual([
             "base.json",
@@ -60,8 +60,8 @@ describe("a token's writtenAt, across sources", () => {
     });
 
     it("says which of the permutation's sources writes each place", () => {
-        const sources = doc.permutation({ mode: "dark" }).sources ?? [];
-        const dark = doc.permutation({ mode: "dark" }).token("bg");
+        const sources = tokens.permutation({ mode: "dark" }).sources ?? [];
+        const dark = tokens.permutation({ mode: "dark" }).token("bg");
         const winner = dark?.writtenAt.at(-1);
 
         expect(dark?.writtenAt.every(({ source }) => sources.includes(source))).toBe(true);
@@ -70,7 +70,7 @@ describe("a token's writtenAt, across sources", () => {
     });
 
     it("is one place for a token written once", () => {
-        expect(doc.permutation().token("fg")?.writtenAt).toHaveLength(1);
+        expect(tokens.permutation().token("fg")?.writtenAt).toHaveLength(1);
     });
 
     it("is where an inherited token's value is written, not every place the group it comes from is", () => {

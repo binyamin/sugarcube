@@ -358,7 +358,7 @@ export default {
         expect(await css("text-ink")).toContain(".text-ink{color:var(--new-color-ink);}");
     });
 
-    it("hands the config, the Document with its files' text, and its problems to other plugins", async () => {
+    it("hands the config, the design tokens with their files' text, and their problems to other plugins", async () => {
         await project();
         const { context } = await serve();
 
@@ -368,7 +368,7 @@ export default {
         expect(context.problems).toEqual([]);
     });
 
-    it("hands other plugins the files' text a save wrote, with the Document read from it", async () => {
+    it("hands other plugins the files' text a save wrote, with the design tokens read from it", async () => {
         await project();
         const { context, css } = await serve();
 

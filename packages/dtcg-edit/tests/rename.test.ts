@@ -1,4 +1,4 @@
-import { type DesignSystem, defineGenerator, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, defineGenerator, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { type FileOp, createSession, create, rename, setValue } from "../src/index.js";
 import { at, committed, demo, opsOf, textsOf } from "./helpers.js";
@@ -12,7 +12,7 @@ const one = (tree: object) =>
 
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 
-function changedLines(before: DesignSystem, after: DesignSystem, file: string): number {
+function changedLines(before: DesignTokens, after: DesignTokens, file: string): number {
     const was = (before.text(file) ?? "").split("\n");
     const now = (after.text(file) ?? "").split("\n");
     return now.filter((line, index) => line !== was[index]).length;
@@ -54,7 +54,8 @@ describe("rename, on the demo", () => {
     });
 
     it("reads with no new problems and the same values under the new names", () => {
-        const problems = (ds: DesignSystem) => ds.diagnostics.map(({ kind }) => kind).sort();
+        const problems = (tokens: DesignTokens) =>
+            tokens.diagnostics.map(({ kind }) => kind).sort();
         expect(problems(after)).toEqual(problems(demo));
         for (const step of ["50", "300", "500", "700", "900"]) {
             expect(after.permutation().token(`color.primary.${step}`)?.resolved).toEqual(
@@ -140,11 +141,11 @@ describe("rename, refused", () => {
 
 describe("rename, references of every kind", () => {
     it("rewrites a $ref pointer, keeping the steps into the value", () => {
-        const ds = one({
+        const tokens = one({
             color: { $type: "color", brand: { $value: red } },
             alpha: { $type: "number", $value: { $ref: "#/color/brand/$value/components/0" } },
         });
-        const after = committed(ds, rename(ds, "color.brand", "primary"));
+        const after = committed(tokens, rename(tokens, "color.brand", "primary"));
 
         expect(at(after, "tokens.json", ["alpha", "$value"])).toEqual({
             $ref: "#/color/primary/$value/components/0",
@@ -153,14 +154,14 @@ describe("rename, references of every kind", () => {
     });
 
     it("rewrites a group's $extends", () => {
-        const ds = one({
+        const tokens = one({
             button: {
                 $type: "number",
                 base: { pad: { $value: 1 } },
                 primary: { $extends: "{button.base}" },
             },
         });
-        const after = committed(ds, rename(ds, "button.base", "core"));
+        const after = committed(tokens, rename(tokens, "button.base", "core"));
 
         expect(at(after, "tokens.json", ["button", "primary", "$extends"])).toBe("{button.core}");
         expect(after.permutation().group("button.primary")?.extends?.path).toBe("button.core");
@@ -168,43 +169,43 @@ describe("rename, references of every kind", () => {
     });
 
     it("rewrites a group's $ref to another group", () => {
-        const ds = one({
+        const tokens = one({
             button: {
                 $type: "number",
                 base: { pad: { $value: 1 } },
                 primary: { $ref: "#/button/base" },
             },
         });
-        const after = committed(ds, rename(ds, "button.base", "core"));
+        const after = committed(tokens, rename(tokens, "button.base", "core"));
 
         expect(at(after, "tokens.json", ["button", "primary", "$ref"])).toBe("#/button/core");
         expect(after.permutation().group("button.primary")?.extends?.path).toBe("button.core");
     });
 
     it("rewrites a reference written inside the group it renames", () => {
-        const ds = one({ g: { $type: "number", a: { $value: 1 }, b: { $value: "{g.a}" } } });
-        const after = committed(ds, rename(ds, "g", "h"));
+        const tokens = one({ g: { $type: "number", a: { $value: 1 }, b: { $value: "{g.a}" } } });
+        const after = committed(tokens, rename(tokens, "g", "h"));
 
         expect(at(after, "tokens.json", ["h", "b", "$value"])).toBe("{h.a}");
         expect(after.permutation().token("h.b")?.resolved).toBe(1);
     });
 
     it("rewrites a reference in a value that has another mistake", () => {
-        const ds = one({
+        const tokens = one({
             red: { $type: "color", $value: red },
             line: { $type: "border", $value: { color: "{red}", width: "wide", style: "solid" } },
         });
-        const after = committed(ds, rename(ds, "red", "danger"));
+        const after = committed(tokens, rename(tokens, "red", "danger"));
 
         expect(at(after, "tokens.json", ["line", "$value", "color"])).toBe("{danger}");
     });
 
     it("leaves a description that mentions the token alone", () => {
-        const ds = one({
+        const tokens = one({
             red: { $type: "color", $value: red, $description: "Not {red}, the real one." },
             text: { $type: "color", $value: "{red}" },
         });
-        const after = committed(ds, rename(ds, "red", "danger"));
+        const after = committed(tokens, rename(tokens, "red", "danger"));
 
         expect(at(after, "tokens.json", ["danger", "$description"])).toBe(
             "Not {red}, the real one.",
@@ -227,25 +228,25 @@ describe("rename, references of every kind", () => {
   "resolutionOrder": [{ "$ref": "#/sets/base" }]
 }
 `;
-        const ds = readFromMemory({
+        const tokens = readFromMemory({
             files: {
                 "tokens.resolver.json": resolver,
                 "base.json": JSON.stringify({ red: { $type: "color", $value: red } }),
             },
         });
-        const after = committed(ds, rename(ds, "red", "danger"));
+        const after = committed(tokens, rename(tokens, "red", "danger"));
 
         expect(after.text("tokens.resolver.json")).toContain("// The design system.");
         expect(after.text("tokens.resolver.json")).toContain('"$value": "{danger}"');
         expect(after.permutation().token("text")?.resolved).toEqual(
-            ds.permutation().token("text")?.resolved,
+            tokens.permutation().token("text")?.resolved,
         );
     });
 });
 
 describe("rename, a file several contexts list", () => {
     it("renames its key once", () => {
-        const ds = readFromMemory({
+        const tokens = readFromMemory({
             files: {
                 "tokens.resolver.json": JSON.stringify({
                     version: "2025.10",
@@ -268,10 +269,12 @@ describe("rename, a file several contexts list", () => {
                 "night.json": JSON.stringify({ gap: { $type: "number", $value: 2 } }),
             },
         });
-        const result = rename(ds, "gap", "space");
+        const result = rename(tokens, "gap", "space");
 
         expect(opsOf(result).map(({ file }) => file)).toStrictEqual(["base.json", "night.json"]);
-        expect(committed(ds, result).permutation({ mode: "dim" }).token("space")?.resolved).toBe(2);
+        expect(
+            committed(tokens, result).permutation({ mode: "dim" }).token("space")?.resolved,
+        ).toBe(2);
     });
 });
 
@@ -279,7 +282,7 @@ describe("rename, in a session", () => {
     it("keeps a token's id, lists one rename per token, and none for what points at them", () => {
         const session = createSession(demo);
         const id = session.idOf("color.brand.500");
-        session.do(rename(session.ds, "color.brand", "primary"));
+        session.do(rename(session.tokens, "color.brand", "primary"));
 
         expect(session.pathOf(id ?? "")).toBe("color.primary.500");
         const kinds = new Set(session.changes().map(({ kind }) => kind));
@@ -288,8 +291,8 @@ describe("rename, in a session", () => {
 
     it("gives a token made at the vacated path an id of its own", () => {
         const session = createSession(demo);
-        session.do(rename(session.ds, "color.brand", "primary"));
-        session.do(create(session.ds, "color.brand", { $value: red }));
+        session.do(rename(session.tokens, "color.brand", "primary"));
+        session.do(create(session.tokens, "color.brand", { $value: red }));
 
         expect(session.idOf("color.brand")).toMatch(/^new:/);
         expect(session.pathOf("color.brand")).toBe("color.primary");
@@ -297,23 +300,23 @@ describe("rename, in a session", () => {
 
     it("keeps ids through renames put back after a reload", () => {
         const before = createSession(demo);
-        before.do(rename(before.ds, "radius.md", "medium"));
-        before.do(rename(before.ds, "radius.medium", "mid"));
+        before.do(rename(before.tokens, "radius.md", "medium"));
+        before.do(rename(before.tokens, "radius.medium", "mid"));
 
         const session = createSession(demo);
         expect(session.restore(before.unsaved)).toEqual([]);
         expect(session.pathOf("radius.md")).toBe("radius.mid");
     });
 
-    it("saves a rename and other edits that apply to the opened files to the same design system", () => {
+    it("saves a rename and other edits that apply to the opened files to the same design tokens", () => {
         const session = createSession(demo);
-        session.do(setValue(session.ds, "color.brand.500", red));
-        session.do(rename(session.ds, "color.brand", "primary"));
-        session.do(setValue(session.ds, "color.primary.600", red));
+        session.do(setValue(session.tokens, "color.brand.500", red));
+        session.do(rename(session.tokens, "color.brand", "primary"));
+        session.do(setValue(session.tokens, "color.primary.600", red));
         const ops: FileOp[] = session.unsaved.ops;
 
         expect(textsOf(committed(demo, { ops, alsoAffects: [], moved: [] }))).toEqual(
-            textsOf(session.ds),
+            textsOf(session.tokens),
         );
     });
 });

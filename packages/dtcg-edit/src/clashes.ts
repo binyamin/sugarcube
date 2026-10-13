@@ -1,10 +1,10 @@
-import { type DesignSystem, type JsonPath, forbiddenInName } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, type JsonPath, forbiddenInName } from "@sugarcube-sh/dtcg";
 import { editedText } from "./apply.js";
 import { memberAt, writtenIn } from "./file-text.js";
 import type { Clash, FileOp } from "./index.js";
 import { valueAt } from "./text-edits.js";
 
-export function clashesOf(skipped: FileOp[], theirs: DesignSystem, mine: DesignSystem): Clash[] {
+export function clashesOf(skipped: FileOp[], theirs: DesignTokens, mine: DesignTokens): Clash[] {
     const byMember = new Map<string, { file: string; jsonPath: JsonPath; ops: FileOp[] }>();
     for (const op of skipped) {
         const jsonPath = editedMember(op);
@@ -41,13 +41,13 @@ function force(text: string | undefined, op: FileOp): string | undefined {
     return editedText(text, op) ?? text;
 }
 
-function pathsByMember(designSystems: DesignSystem[], files: Set<string>): Map<string, string> {
+function pathsByMember(versions: DesignTokens[], files: Set<string>): Map<string, string> {
     const named = new Map<string, string>();
-    for (const ds of designSystems) {
-        for (const path of [...ds.tokenPaths(), ...ds.groupPaths()]) {
-            for (const { span } of ds.writtenAt(path)) {
+    for (const tokens of versions) {
+        for (const path of [...tokens.tokenPaths(), ...tokens.groupPaths()]) {
+            for (const { span } of tokens.writtenAt(path)) {
                 if (!files.has(span.file)) continue;
-                const member = memberAt(ds, span);
+                const member = memberAt(tokens, span);
                 const key = member && memberKey(span.file, member.jsonPath);
                 if (key && !named.has(key)) named.set(key, path);
             }

@@ -1,8 +1,8 @@
 // Reports a tool's own problems beside the package's, in the same shape, so one list can be shown,
 // filtered by severity and switched on by kind.
-import type { Diagnostic, DiagnosticOf, DesignSystem } from "@sugarcube-sh/dtcg";
+import type { Diagnostic, DiagnosticOf, DesignTokens } from "@sugarcube-sh/dtcg";
 
-declare const ds: DesignSystem;
+declare const tokens: DesignTokens;
 
 interface OurDetailByKind {
     "selector-empty": { entry: number };
@@ -19,7 +19,7 @@ const ours: DiagnosticOf<OurDetailByKind> = {
     detail: { entry: 2 },
 };
 
-const reported: Reported[] = [...ds.diagnostics, ours];
+const reported: Reported[] = [...tokens.diagnostics, ours];
 
 for (const d of reported) {
     if (d.severity !== "error") continue;

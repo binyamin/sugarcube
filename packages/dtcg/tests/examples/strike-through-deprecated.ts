@@ -1,9 +1,9 @@
 // A code editor striking through references to deprecated tokens, with the reason.
-import type { DesignSystem } from "@sugarcube-sh/dtcg";
+import type { DesignTokens } from "@sugarcube-sh/dtcg";
 
-declare const ds: DesignSystem;
+declare const tokens: DesignTokens;
 
-for (const d of ds.diagnostics) {
+for (const d of tokens.diagnostics) {
     if (d.kind === "deprecated-reference" && d.tags?.includes("deprecated") && d.span) {
         report(
             d.span,

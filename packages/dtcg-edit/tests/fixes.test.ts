@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type DesignSystem, type Diagnostic, type Span, read } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, type Diagnostic, type Span, read } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { inputFiles, readOptions } from "../../dtcg/tests/read/case-options.js";
 import { withSpans } from "../../dtcg/tests/read/positions.js";
@@ -19,7 +19,7 @@ interface Offered {
     fixes: Fix[];
 }
 
-async function openCase(name: string): Promise<DesignSystem> {
+async function openCase(name: string): Promise<DesignTokens> {
     const folder = join(casesFolder, name);
     const { entry, options } = JSON.parse(readFileSync(join(folder, "expected.json"), "utf8"));
     return read(entry, {
@@ -36,26 +36,26 @@ function expectedFor(name: string): Offered[] {
     return (withSpans(written, inputs) as { diagnostics: Offered[] }).diagnostics;
 }
 
-function offered(ds: DesignSystem): Offered[] {
-    return ds.diagnostics.flatMap((diagnostic) => {
-        const fixes = fixesFor(ds, diagnostic);
+function offered(tokens: DesignTokens): Offered[] {
+    return tokens.diagnostics.flatMap((diagnostic) => {
+        const fixes = fixesFor(tokens, diagnostic);
         return fixes.length > 0 ? [{ kind: diagnostic.kind, span: diagnostic.span, fixes }] : [];
     });
 }
 
-function leftAfter(ds: DesignSystem, { edits: [edit] }: Fix): string[] {
+function leftAfter(tokens: DesignTokens, { edits: [edit] }: Fix): string[] {
     if (!edit) throw new Error("a fix changes something");
     const { file, offset, length, text } = edit;
-    const before = ds.text(file) ?? "";
-    const after = ds.reread({
+    const before = tokens.text(file) ?? "";
+    const after = tokens.reread({
         [file]: before.slice(0, offset) + text + before.slice(offset + length),
     });
     return after.diagnosticsAt({ file, offset, length: text.length }).map(({ message }) => message);
 }
 
-async function readFiles(files: Record<string, string>): Promise<DesignSystem> {
+async function readFiles(files: Record<string, string>): Promise<DesignTokens> {
     const [entry] = Object.keys(files);
-    if (entry === undefined) throw new Error("a design system needs a file");
+    if (entry === undefined) throw new Error("design tokens need a file");
     return read(entry, {
         readText: async (path) => files[path] ?? Promise.reject(new Error("missing")),
     });

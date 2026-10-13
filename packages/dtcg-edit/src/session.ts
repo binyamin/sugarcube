@@ -1,23 +1,23 @@
-import { type DesignSystem, type Move, movedPath } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, type Move, movedPath } from "@sugarcube-sh/dtcg";
 import { applyWhatFits, commit } from "./apply.js";
 import { clashesOf } from "./clashes.js";
 import type { Committed, Edits, OpResult, Session } from "./index.js";
 
 /**
- * Starts an editing session on a design system.
+ * Starts an editing session on design tokens.
  *
  * @example
- * const session = createSession(ds);
- * session.do(setValue(session.ds, "color.brand", "#e11d48"));
+ * const session = createSession(tokens);
+ * session.do(setValue(session.tokens, "color.brand", "#e11d48"));
  * await save(session.unsaved);
  * session.saved();
  */
-export function createSession(ds: DesignSystem): Session {
-    let current = ds;
-    let opened = ds;
+export function createSession(tokens: DesignTokens): Session {
+    let current = tokens;
+    let opened = tokens;
     let unsaved: Edits = { ops: [], moved: [] };
     const counter = { made: 0 };
-    let ids = followed(undefined, [], ds, counter);
+    let ids = followed(undefined, [], tokens, counter);
     let openedIds = ids;
     const listeners = new Set<() => void>();
     const changed = () => {
@@ -25,7 +25,7 @@ export function createSession(ds: DesignSystem): Session {
     };
 
     return {
-        get ds() {
+        get tokens() {
             return current;
         },
         get opened() {
@@ -38,8 +38,8 @@ export function createSession(ds: DesignSystem): Session {
         canRedo: false,
         do(result: OpResult): Committed {
             const done = commit(current, result);
-            if (!("ds" in done)) return done;
-            current = done.ds;
+            if (!("tokens" in done)) return done;
+            current = done.tokens;
             unsaved = {
                 ops: [...unsaved.ops, ...done.ops],
                 moved: [...unsaved.moved, ...done.moved],
@@ -73,7 +73,7 @@ export function createSession(ds: DesignSystem): Session {
             changed();
         },
         restore(edits) {
-            const { ds: next, applied, skipped } = applyWhatFits(current, edits.ops);
+            const { tokens: next, applied, skipped } = applyWhatFits(current, edits.ops);
             const clashes = clashesOf(skipped, current, next);
             if (applied.length === 0) return clashes;
             const moved = kept(edits.moved, next);
@@ -84,7 +84,7 @@ export function createSession(ds: DesignSystem): Session {
             return clashes;
         },
         adopt(fresh) {
-            const { ds: next, applied, skipped } = applyWhatFits(fresh, unsaved.ops);
+            const { tokens: next, applied, skipped } = applyWhatFits(fresh, unsaved.ops);
             const clashes = clashesOf(skipped, fresh, next);
             openedIds = followed(openedIds, [], fresh, counter);
             ids = followed(ids, [], next, counter, openedIds);
@@ -115,11 +115,11 @@ interface Ids {
 function followed(
     ids: Ids | undefined,
     moved: Move[],
-    ds: DesignSystem,
+    tokens: DesignTokens,
     counter: { made: number },
     known?: Ids,
 ): Ids {
-    const paths = pathsIn(ds);
+    const paths = pathsIn(tokens);
     const byId = new Map<string, string>();
     const byPath = new Map<string, string>();
     const set = (id: string, path: string) => {
@@ -147,8 +147,8 @@ function followed(
     return { byId, byPath };
 }
 
-function kept(moved: Move[], ds: DesignSystem): Move[] {
-    const paths = pathsIn(ds);
+function kept(moved: Move[], tokens: DesignTokens): Move[] {
+    const paths = pathsIn(tokens);
     const later: Move[] = [];
     for (let index = moved.length - 1; index >= 0; index--) {
         const move = moved[index];
@@ -157,6 +157,6 @@ function kept(moved: Move[], ds: DesignSystem): Move[] {
     return later;
 }
 
-function pathsIn(ds: DesignSystem): Set<string> {
-    return new Set([...ds.groupPaths(), ...ds.tokenPaths()]);
+function pathsIn(tokens: DesignTokens): Set<string> {
+    return new Set([...tokens.groupPaths(), ...tokens.tokenPaths()]);
 }

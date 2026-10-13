@@ -109,7 +109,7 @@ describe("setValue, the shared value", () => {
         });
     });
 
-    it("names no context when the design system has no modifiers", () => {
+    it("names no context when the design tokens have no modifiers", () => {
         const files = {
             "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),
             "base.json": '{ "bg": { "$type": "color", "$value": "#ffffff" } }',
@@ -202,8 +202,8 @@ describe("setValue, for one context", () => {
             "base.json": JSON.stringify({ bg }),
             "dark.json": "{}",
         };
-        const ds = opened(files);
-        const result = setValue(ds, "bg", "#000000", dark);
+        const tokens = opened(files);
+        const result = setValue(tokens, "bg", "#000000", dark);
 
         expect(opsOf(result)).toEqual([
             {
@@ -213,7 +213,7 @@ describe("setValue, for one context", () => {
                 value: { ...bg, $value: "#000000" },
             },
         ]);
-        expect(committed(ds, result).permutation({ mode: "dark" }).token("bg")).toMatchObject({
+        expect(committed(tokens, result).permutation({ mode: "dark" }).token("bg")).toMatchObject({
             description: "The page.",
             deprecated: "Use surface.",
             extensions: { "com.example": { role: "page" } },
@@ -231,8 +231,8 @@ describe("setValue, for one context", () => {
             }),
             "dark.json": "{}",
         };
-        const ds = opened(files);
-        const result = setValue(ds, "old.bg", "#000000", dark);
+        const tokens = opened(files);
+        const result = setValue(tokens, "old.bg", "#000000", dark);
 
         expect(opsOf(result)).toEqual([
             {
@@ -243,7 +243,7 @@ describe("setValue, for one context", () => {
             },
         ]);
         expect(
-            committed(ds, result).permutation({ mode: "dark" }).token("old.bg")?.deprecated,
+            committed(tokens, result).permutation({ mode: "dark" }).token("old.bg")?.deprecated,
         ).toBe(true);
     });
 
@@ -257,25 +257,25 @@ describe("setValue, for one context", () => {
             "dark.json": "{}",
             "dark-extra.json": "{}",
         };
-        const ds = opened(files);
+        const tokens = opened(files);
 
-        expect(setValue(ds, "bg", "#000000", dark)).toEqual({
+        expect(setValue(tokens, "bg", "#000000", dark)).toEqual({
             decision: {
                 kind: "placement",
                 path: "bg",
                 candidates: ["dark.json", "dark-extra.json"],
             },
         });
-        expect(opsOf(setValue(ds, "bg", "#000000", { ...dark, place: "dark-extra.json" }))).toEqual(
-            [
-                {
-                    kind: "add",
-                    file: "dark-extra.json",
-                    jsonPath: ["bg"],
-                    value: { $type: "color", $value: "#000000" },
-                },
-            ],
-        );
+        expect(
+            opsOf(setValue(tokens, "bg", "#000000", { ...dark, place: "dark-extra.json" })),
+        ).toEqual([
+            {
+                kind: "add",
+                file: "dark-extra.json",
+                jsonPath: ["bg"],
+                value: { $type: "color", $value: "#000000" },
+            },
+        ]);
     });
 
     it("writes into the context's file that declares the token's group, without asking", () => {
@@ -531,8 +531,8 @@ describe("setDescription", () => {
                 '{ "bg": { "$type": "color", "$value": "#000000", "$description": "Old." } }',
             "dim.json": '{ "bg": { "$type": "color", "$value": "#333333" } }',
         };
-        const ds = opened(files);
-        const result = setDescription(ds, "bg", "The page.");
+        const tokens = opened(files);
+        const result = setDescription(tokens, "bg", "The page.");
 
         expect(opsOf(result)).toEqual([
             {
@@ -551,7 +551,7 @@ describe("setDescription", () => {
             },
             { kind: "add", file: "dim.json", jsonPath: ["bg", "$description"], value: "The page." },
         ]);
-        const after = committed(ds, result);
+        const after = committed(tokens, result);
         for (const mode of ["light", "dark", "dim"]) {
             expect(after.permutation({ mode }).token("bg")?.description).toBe("The page.");
         }

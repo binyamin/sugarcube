@@ -198,21 +198,21 @@ async function differences(each: Case): Promise<string[]> {
     const found = old.problems.map(({ message }) => `old sugarcube reports: ${message}`);
 
     const inputs = old.permutations.map(({ input }) => input);
-    const doc = await read(resolver, {
+    const tokens = await read(resolver, {
         generators: [scaleGenerator],
         hexStringColors: true,
         inputs,
         readText: (path) => readFile(path, "utf8"),
     });
-    for (const { kind, detail, path } of doc.diagnostics) {
+    for (const { kind, detail, path } of tokens.diagnostics) {
         const reason = "reason" in detail ? ` ${String(detail.reason)}` : "";
         found.push(`diagnostic ${kind}${reason} ${path ?? ""}`.trimEnd());
     }
 
-    for (const { input, tokens } of old.permutations) {
+    for (const { input, tokens: oldTokens } of old.permutations) {
         let permutation;
         try {
-            permutation = doc.permutation(input);
+            permutation = tokens.permutation(input);
         } catch (error) {
             if (!(error instanceof PermutationError)) throw error;
             found.push(`no permutation for ${JSON.stringify(input)}`);
@@ -220,7 +220,7 @@ async function differences(each: Case): Promise<string[]> {
         }
         const label = labelOf(permutation.input);
         const newTokens = new Map(permutation.tokens.map((token) => [token.path, token]));
-        for (const [path, { type, value }] of tokens) {
+        for (const [path, { type, value }] of oldTokens) {
             const token = newTokens.get(path);
             if (!token) {
                 found.push(`${label} ${path}: only in old sugarcube`);
@@ -246,7 +246,7 @@ async function differences(each: Case): Promise<string[]> {
             }
         }
         for (const path of newTokens.keys()) {
-            if (!tokens.has(path)) found.push(`${label} ${path}: only in dtcg`);
+            if (!oldTokens.has(path)) found.push(`${label} ${path}: only in dtcg`);
         }
     }
     return found.sort();

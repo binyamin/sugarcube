@@ -1,4 +1,4 @@
-import { type DesignSystem, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { fillDefaults } from "../src/node/config/normalize.js";
 import { declare } from "../src/shared/css/declare.js";
@@ -8,8 +8,8 @@ import { readOptions } from "../src/shared/read-options.js";
 
 type Variables = Parameters<typeof fillDefaults>[0]["variables"];
 
-function built(doc: DesignSystem, config: InternalConfig) {
-    const declared = declare(doc, config);
+function built(tokens: DesignTokens, config: InternalConfig) {
+    const declared = declare(tokens, config);
     const { files, diagnostics } = emitCSS(declared, config);
     return { files, diagnostics: [...declared.diagnostics, ...diagnostics] };
 }
@@ -19,8 +19,8 @@ function filesFor(files: Record<string, unknown>, variables: Variables = {}) {
     const texts = Object.fromEntries(
         Object.entries(files).map(([path, json]) => [path, JSON.stringify(json)]),
     );
-    const doc = readFromMemory({ files: texts }, readOptions(config));
-    return built(doc, config).files;
+    const tokens = readFromMemory({ files: texts }, readOptions(config));
+    return built(tokens, config).files;
 }
 
 function cssFor(files: Record<string, unknown>, variables: Variables = {}) {
@@ -177,11 +177,11 @@ describe("emitCSS", () => {
     it("hands back what reading found from declaring, not from writing", () => {
         const config = fillDefaults({ variables: { path: "variables.css" } });
         const files = { "tokens.json": JSON.stringify({ broken: color("#e11d4") }) };
-        const doc = readFromMemory({ files }, readOptions(config));
-        const declared = declare(doc, config);
-        expect(declared.diagnostics).toStrictEqual(doc.diagnostics);
+        const tokens = readFromMemory({ files }, readOptions(config));
+        const declared = declare(tokens, config);
+        expect(declared.diagnostics).toStrictEqual(tokens.diagnostics);
         expect(emitCSS(declared, config).diagnostics).toStrictEqual([]);
-        expect(doc.diagnostics).not.toStrictEqual([]);
+        expect(tokens.diagnostics).not.toStrictEqual([]);
     });
 
     it("declares each permutation once, however many blocks write it", () => {
@@ -213,8 +213,11 @@ describe("emitCSS", () => {
             }),
             "tokens.json": JSON.stringify({ ink: color("#111111") }),
         };
-        const doc = readFromMemory({ files, entry: "tokens.resolver.json" }, readOptions(config));
-        const [first, second] = declare(doc, config).entries;
+        const tokens = readFromMemory(
+            { files, entry: "tokens.resolver.json" },
+            readOptions(config),
+        );
+        const [first, second] = declare(tokens, config).entries;
         expect(first?.declared).toBe(second?.declared);
     });
 
@@ -241,8 +244,11 @@ describe("emitCSS", () => {
             "tokens.json": JSON.stringify({ brand: color("#e11d48") }),
             "ocean.json": JSON.stringify({ brand: color("#0ea5e9") }),
         };
-        const doc = readFromMemory({ files, entry: "tokens.resolver.json" }, readOptions(config));
-        const declared = declare(doc, config);
+        const tokens = readFromMemory(
+            { files, entry: "tokens.resolver.json" },
+            readOptions(config),
+        );
+        const declared = declare(tokens, config);
         const { files: written } = emitCSS(declared, config);
         const { diagnostics } = declared;
 
@@ -298,8 +304,11 @@ describe("emitCSS", () => {
             }),
             "tokens.json": JSON.stringify({ brand: color("#e11d48") }),
         };
-        const doc = readFromMemory({ files, entry: "tokens.resolver.json" }, readOptions(config));
-        expect(built(doc, config).diagnostics.map(({ message }) => message)).toStrictEqual([
+        const tokens = readFromMemory(
+            { files, entry: "tokens.resolver.json" },
+            readOptions(config),
+        );
+        expect(built(tokens, config).diagnostics.map(({ message }) => message)).toStrictEqual([
             "the modifiers `brand` and `size` have no default, so there is nothing to write on `:root`: give them a `default` in the resolver, or list the permutations to write in `variables.permutations`",
         ]);
     });
@@ -1542,7 +1551,7 @@ describe("emitCSS", () => {
             ]);
         });
 
-        it("reading a fluid range as the design system's values were read", () => {
+        it("reading a fluid range as the design tokens' values were read", () => {
             const config = fillDefaults({
                 variables: {
                     path: "variables.css",

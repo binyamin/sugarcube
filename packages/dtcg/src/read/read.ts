@@ -1,4 +1,4 @@
-import type { DesignSystem, Input, Project, ReadOptions, ReadText } from "../index.js";
+import type { DesignTokens, Input, Project, ReadOptions, ReadText } from "../index.js";
 import type { Answer, FileText, Request } from "./files.js";
 import { collapse, inReadingPermutations } from "./diagnostics.js";
 import { type Loaded, load } from "./load.js";
@@ -13,37 +13,37 @@ import { fileName, filePath, folderOf, normalise } from "./paths.js";
 import { parseJson } from "./json.js";
 import { isResolver } from "./resolver.js";
 import { thrownMessages } from "../error-messages.js";
-import { linkedDocument, permutationsOf } from "./linked.js";
+import { linkedDesignTokens, permutationsOf } from "./linked.js";
 
 const { performance } = globalThis as unknown as { performance: { now(): number } };
 
 /**
- * Reads a design system: the entry file, and every file it refers to.
+ * Reads design tokens: the entry file, and every file it refers to.
  *
  * Files are fetched through `readText`, so this runs anywhere: a browser, a worker, Deno, Bun or
  * Node. `@sugarcube-sh/dtcg/node` provides a version that reads from disk.
  *
  * Never rejects because of what is, or is not, in the files. A file that cannot be fetched
- * (`readText` throws) or cannot be read is reported in {@link DesignSystem.diagnostics}, and the
+ * (`readText` throws) or cannot be read is reported in {@link DesignTokens.diagnostics}, and the
  * rest is still read.
  *
  * @param entry A resolver document or a token file.
  *
  * @example
- * const ds = await read("tokens.resolver.json", {
+ * const tokens = await read("tokens.resolver.json", {
  *   readText: (path) => fetch(path).then((r) => r.text()),
  * });
  */
 export async function read(
     entry: string,
     options: ReadOptions & { readText: ReadText },
-): Promise<DesignSystem> {
+): Promise<DesignTokens> {
     return (await open(entry, options)).doc;
 }
 
 /**
- * Reads a design system as {@link read} does, and keeps the text of every file it read beside
- * the design system, for a tool that changes the files.
+ * Reads design tokens as {@link read} does, and keeps the text of every file it read beside
+ * them, for a tool that changes the files.
  *
  * @param entry A resolver document or a token file.
  *
@@ -82,16 +82,16 @@ async function fetchAll(files: Request, folder: string, readText: ReadText): Pro
 }
 
 /**
- * Reads a design system from text already in memory.
+ * Reads design tokens from text already in memory.
  *
  * The read starts from one entry, a resolver or a token file: the one given, or else the one
  * resolver among the files, or else the only file. Several token files with no resolver among
- * them are not read together, since only a resolver says which files make a design system and in
- * what order (Resolver 4.1, 6); several resolvers need an entry to say which. Either is refused
+ * them are not read together, since only a resolver says which files to read and in what order
+ * (Resolver 4.1, 6); several resolvers need an entry to say which. Either is refused
  * with a `TypeError` naming the files.
  *
  * @example
- * const ds = readFromMemory({ files: { "tokens.json": text } });
+ * const tokens = readFromMemory({ files: { "tokens.json": text } });
  */
 export function readFromMemory(
     sources: {
@@ -103,17 +103,17 @@ export function readFromMemory(
         entry?: string | undefined;
     },
     options: ReadOptions = {},
-): DesignSystem {
+): DesignTokens {
     return openFromMemory(sources, options).doc;
 }
 
 /**
- * Reads a design system from text already in memory, as {@link readFromMemory} does, and keeps
- * the text of every file it read beside the design system. Files it did not read are left out.
+ * Reads design tokens from text already in memory, as {@link readFromMemory} does, and keeps
+ * the text of every file it read beside them. Files it did not read are left out.
  *
  * @example
  * const project = openFromMemory({ files, entry: "tokens.resolver.json" });
- * const again = openFromMemory(project, project.options); // the same design system
+ * const again = openFromMemory(project, project.options); // the same design tokens
  */
 export function openFromMemory(
     sources: {
@@ -159,9 +159,9 @@ function entryAmong(texts: Map<string, string>): string {
 }
 
 function projectOf(loaded: Loaded, options: ReadOptions): Project {
-    const ds = toDesignSystem(loaded, options);
+    const tokens = toDesignTokens(loaded, options);
     const { entry, texts } = loaded;
-    return { doc: ds, entry, files: texts, options };
+    return { doc: tokens, entry, files: texts, options };
 }
 
 function permutationOptions({
@@ -172,7 +172,7 @@ function permutationOptions({
     return { ...(inputs && { inputs }), permutations, limit: permutationLimit };
 }
 
-function toDesignSystem(loaded: Loaded, options: ReadOptions): DesignSystem {
+function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
     const {
         onStage,
         generators = [],
@@ -180,7 +180,7 @@ function toDesignSystem(loaded: Loaded, options: ReadOptions): DesignSystem {
         hexStringColors,
         ignoreUnknownProperties,
     } = options;
-    const found: DesignSystem["diagnostics"] = [];
+    const found: DesignTokens["diagnostics"] = [];
     const parseOptions = {
         hexStringColors: hexStringColors ?? false,
         ignoreUnknownProperties: ignoreUnknownProperties ?? false,
@@ -213,7 +213,7 @@ function toDesignSystem(loaded: Loaded, options: ReadOptions): DesignSystem {
         found,
     );
 
-    return linkedDocument(
+    return linkedDesignTokens(
         {
             files: loaded.files,
             ...(loaded.resolver && { resolver: loaded.resolver }),

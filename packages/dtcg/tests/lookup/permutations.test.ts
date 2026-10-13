@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type DesignSystem, type ReadOptions, readFromMemory } from "../../src/index.js";
+import { type DesignTokens, type ReadOptions, readFromMemory } from "../../src/index.js";
 
 const number = (value: number) => ({ $type: "number", $value: value });
 
@@ -30,33 +30,35 @@ const files = {
     "compact.json": JSON.stringify({ gap: number(2) }),
 };
 
-function readWith(options?: ReadOptions): DesignSystem {
+function readWith(options?: ReadOptions): DesignTokens {
     return readFromMemory({ files, entry: "tokens.resolver.json" }, options);
 }
 
-const ds = readWith();
-const named = (input: Record<string, string>) => ds.permutation(input);
+const tokens = readWith();
+const named = (input: Record<string, string>) => tokens.permutation(input);
 
-describe("ds.permutations", () => {
+describe("tokens.permutations", () => {
     it("is every permutation the read built, as a list", () => {
-        expect(ds.permutations).toHaveLength(6);
-        expect(ds.permutations[0]).toBe(named({}));
-        expect(ds.permutations.find((each) => each.label === "mode: dark, density: compact")).toBe(
-            named({ mode: "dark", density: "compact" }),
-        );
+        expect(tokens.permutations).toHaveLength(6);
+        expect(tokens.permutations[0]).toBe(named({}));
+        expect(
+            tokens.permutations.find((each) => each.label === "mode: dark, density: compact"),
+        ).toBe(named({ mode: "dark", density: "compact" }));
     });
 
     it("has no label, since nothing narrows it", () => {
-        expect(ds.permutations.label).toBeUndefined();
+        expect(tokens.permutations.label).toBeUndefined();
     });
 
     it("gives the inputs, in the same order", () => {
-        expect(ds.permutations.inputs).toStrictEqual(ds.permutations.map(({ input }) => input));
+        expect(tokens.permutations.inputs).toStrictEqual(
+            tokens.permutations.map(({ input }) => input),
+        );
     });
 });
 
 describe("the permutations an answer holds in", () => {
-    const [reference] = ds.referencedBy("red");
+    const [reference] = tokens.referencedBy("red");
 
     it("are the permutations themselves", () => {
         expect(reference?.permutations).toContain(named({ mode: "dark" }));
@@ -68,12 +70,12 @@ describe("the permutations an answer holds in", () => {
     });
 
     it("are labelled by each modifier that narrows them, in the resolver's order", () => {
-        const compact = ds.writtenAt("gap").find(({ span }) => span.file === "compact.json");
+        const compact = tokens.writtenAt("gap").find(({ span }) => span.file === "compact.json");
         expect(compact?.permutations.label).toBe("density: compact");
     });
 
     it("have no label when they are every permutation", () => {
-        const [base] = ds.writtenAt("red");
+        const [base] = tokens.writtenAt("red");
         expect(base?.permutations).toHaveLength(6);
         expect(base?.permutations.label).toBeUndefined();
     });
@@ -189,9 +191,9 @@ describe("a problem's permutations", () => {
     });
 });
 
-describe("the plain form of the design system", () => {
+describe("the plain form of the design tokens", () => {
     it("writes each permutation in full", () => {
-        const written = JSON.parse(JSON.stringify(ds));
+        const written = JSON.parse(JSON.stringify(tokens));
         expect(written.permutations[0]).toHaveProperty("tokens");
         expect(written.permutations[0].input).toStrictEqual({ mode: "light", density: "comfy" });
     });

@@ -50,7 +50,7 @@ async function until(done: () => boolean, what: string) {
 }
 
 describe("startWatcher", () => {
-    it("puts each read of a token save into the queue, with the design system read", async () => {
+    it("puts each read of a token save into the queue, with the design tokens read", async () => {
         const { resolver, configFile, tokens } = project();
         const live = liveProject({ entry: resolver }, { onError: () => {} });
         await live.project();
@@ -76,7 +76,7 @@ describe("startWatcher", () => {
         expect(change?.kind).toBe("token");
         if (change?.kind !== "token") return;
         expect(change.read.file).toBe("base.json");
-        expect(change.ds.files).toContain("base.json");
+        expect(change.tokens.files).toContain("base.json");
     });
 
     it("watches markup where the config a change loaded says", async () => {

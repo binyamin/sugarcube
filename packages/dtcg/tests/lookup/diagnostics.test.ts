@@ -32,13 +32,13 @@ const files = {
     "base.json": base,
     "dark.json": dark,
 };
-const ds = readFromMemory({ files, entry: "tokens.resolver.json" }, { hexStringColors: true });
-const light = ds.permutation();
-const darkMode = ds.permutation({ mode: "dark" });
+const tokens = readFromMemory({ files, entry: "tokens.resolver.json" }, { hexStringColors: true });
+const light = tokens.permutation();
+const darkMode = tokens.permutation({ mode: "dark" });
 
-const kinds = (path: string) => ds.diagnosticsFor(path).map(({ kind }) => kind);
+const kinds = (path: string) => tokens.diagnosticsFor(path).map(({ kind }) => kind);
 
-describe("ds.diagnosticsFor", () => {
+describe("tokens.diagnosticsFor", () => {
     it("gives a token's own problems", () => {
         expect(kinds("color.bad")).toStrictEqual(["invalid-value"]);
     });
@@ -46,7 +46,9 @@ describe("ds.diagnosticsFor", () => {
     it("gives a missing reference to every token that uses it, though it is reported once", () => {
         expect(kinds("color.a")).toStrictEqual(["missing-reference"]);
         expect(kinds("color.b")).toStrictEqual(["missing-reference"]);
-        expect(ds.diagnostics.filter(({ kind }) => kind === "missing-reference")).toHaveLength(1);
+        expect(tokens.diagnostics.filter(({ kind }) => kind === "missing-reference")).toHaveLength(
+            1,
+        );
     });
 
     it("gives a reference loop to every token in it", () => {
@@ -59,7 +61,7 @@ describe("ds.diagnosticsFor", () => {
     });
 
     it("gives each problem with the permutations it is in", () => {
-        const [problem] = ds.diagnosticsFor("color.ok");
+        const [problem] = tokens.diagnosticsFor("color.ok");
         expect(problem?.kind).toBe("invalid-value");
         expect(problem?.permutations?.label).toBe("mode: dark");
     });
@@ -85,7 +87,7 @@ describe("token.diagnostics", () => {
     });
 
     it("gives a problem in a value every permutation reads to each of them", () => {
-        expect(ds.diagnosticsFor("color.bad")[0]?.permutations).toBeUndefined();
+        expect(tokens.diagnosticsFor("color.bad")[0]?.permutations).toBeUndefined();
         expect(darkMode.token("color.bad")?.diagnostics.map(({ kind }) => kind)).toStrictEqual([
             "invalid-value",
         ]);
@@ -140,22 +142,22 @@ describe("a problem in a file only some permutations read", () => {
     });
 });
 
-describe("ds.diagnosticsAt", () => {
-    const bad = ds.diagnosticsFor("color.bad")[0];
+describe("tokens.diagnosticsAt", () => {
+    const bad = tokens.diagnosticsFor("color.bad")[0];
     const at = bad?.span;
 
     it("gives the problems written at a place", () => {
         if (!at) throw new Error("the problem has a place");
-        expect(ds.diagnosticsAt(at)).toStrictEqual([bad]);
+        expect(tokens.diagnosticsAt(at)).toStrictEqual([bad]);
     });
 
     it("gives the problems a place overlaps, a point inside one included", () => {
         if (!at) throw new Error("the problem has a place");
-        expect(ds.diagnosticsAt({ file: at.file, offset: at.offset + 1, length: 0 })).toStrictEqual(
-            [bad],
-        );
         expect(
-            ds
+            tokens.diagnosticsAt({ file: at.file, offset: at.offset + 1, length: 0 }),
+        ).toStrictEqual([bad]);
+        expect(
+            tokens
                 .diagnosticsAt({ file: at.file, offset: at.offset - 2, length: 3 })
                 .map(({ kind }) => kind),
         ).toContain("invalid-value");
@@ -163,16 +165,16 @@ describe("ds.diagnosticsAt", () => {
 
     it("gives none for a place in another file, or where nothing is wrong", () => {
         if (!at) throw new Error("the problem has a place");
-        expect(ds.diagnosticsAt({ file: "dark.json", offset: at.offset, length: 1 })).not.toContain(
-            bad,
-        );
-        expect(ds.diagnosticsAt({ file: "base.json", offset: 0, length: 1 })).toStrictEqual([]);
+        expect(
+            tokens.diagnosticsAt({ file: "dark.json", offset: at.offset, length: 1 }),
+        ).not.toContain(bad);
+        expect(tokens.diagnosticsAt({ file: "base.json", offset: 0, length: 1 })).toStrictEqual([]);
     });
 });
 
 describe("a missing reference's problem", () => {
     it("names the tokens it is written in as `from`", () => {
-        const missing = ds.diagnostics.find(({ kind }) => kind === "missing-reference");
+        const missing = tokens.diagnostics.find(({ kind }) => kind === "missing-reference");
         expect(missing?.kind === "missing-reference" && missing.detail).toMatchObject({
             ref: "color.missing",
             from: ["color.a", "color.b"],

@@ -1,9 +1,9 @@
-import type { DesignSystem, Permutation, PlaceInPermutations, Source, Span } from "../index.js";
+import type { DesignTokens, Permutation, PlaceInPermutations, Source, Span } from "../index.js";
 import { permutationsOf } from "../read/linked.js";
 
-export function writtenAtIn(ds: DesignSystem, path: string): PlaceInPermutations[] {
+export function writtenAtIn(tokens: DesignTokens, path: string): PlaceInPermutations[] {
     const found = new Map<Span, { sources: Source[]; permutations: Permutation[] }>();
-    for (const permutation of ds.permutations) {
+    for (const permutation of tokens.permutations) {
         const places = [
             ...(permutation.token(path)?.writtenAt ?? []),
             ...(permutation.group(path)?.writtenAt ?? []),
@@ -21,6 +21,6 @@ export function writtenAtIn(ds: DesignSystem, path: string): PlaceInPermutations
     return [...found].map(([span, { sources, permutations }]) => ({
         span,
         sources,
-        permutations: permutationsOf(permutations, ds.permutations),
+        permutations: permutationsOf(permutations, tokens.permutations),
     }));
 }

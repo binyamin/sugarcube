@@ -1,13 +1,13 @@
 // Checks a config that maps each theme to a CSS selector. Any entry that matches no theme in the
 // tokens is reported, saying what is wrong with it.
-import { type DesignSystem, type Input, PermutationError } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, type Input, PermutationError } from "@sugarcube-sh/dtcg";
 
-declare const ds: DesignSystem;
+declare const tokens: DesignTokens;
 declare const config: { permutations: { input: Input; selector: string; atRule?: string }[] };
 
 for (const entry of config.permutations) {
     try {
-        const p = ds.permutation(entry.input);
+        const p = tokens.permutation(entry.input);
         row(entry.selector, p.label, p.tokens.length);
     } catch (error) {
         if (!(error instanceof PermutationError)) throw error;

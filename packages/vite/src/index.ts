@@ -61,8 +61,8 @@ export const SUGARCUBE_API_PLUGIN_NAME = "sugarcube:api";
 
 /**
  * What other plugins, such as Studio's, can read from sugarcube's: the config in use, the latest
- * read (the Document and the text of its files) and its problems, the config's first (even when
- * they keep the last good CSS in use), and a signal after every read.
+ * read (the design tokens and the text of their files) and its problems, the config's first (even
+ * when they keep the last good CSS in use), and a signal after every read.
  */
 export interface SugarcubePluginContext {
     config: InternalConfig;

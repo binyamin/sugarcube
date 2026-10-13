@@ -102,7 +102,7 @@ describe("a project kept current with its files", () => {
         expect(reads.map(({ project: read }) => read)).toStrictEqual([next]);
     });
 
-    it("keeps the text of each file it read with the design system", async () => {
+    it("keeps the text of each file it read with the design tokens", async () => {
         const entry = await project();
         const { live: current } = live({ entry });
         const first = await current.project();
@@ -111,7 +111,7 @@ describe("a project kept current with its files", () => {
         expect(first.files["base.json"]).toBe(JSON.stringify({ color: { ink: color("#111111") } }));
     });
 
-    it("holds the text a save wrote, with the design system read from it", async () => {
+    it("holds the text a save wrote, with the design tokens read from it", async () => {
         const entry = await project();
         const { live: current, save } = live({ entry });
         await current.project();
@@ -261,7 +261,7 @@ describe("a project kept current with its files", () => {
         expect(reads[0]?.project.doc.files).toContain("more.json");
     });
 
-    it("does not read again for a file the design system never listed", async () => {
+    it("does not read again for a file the design tokens never listed", async () => {
         const entry = await project();
         const { live: current, reads, save } = live({ entry });
         const first = await current.project();
@@ -273,7 +273,7 @@ describe("a project kept current with its files", () => {
         expect(reads).toHaveLength(0);
     });
 
-    it("does not read again for a file the design system no longer lists", async () => {
+    it("does not read again for a file the design tokens no longer list", async () => {
         const entry = await project();
         await resolver(["base.json", "more.json"]);
         const { live: current, reads, save } = live({ entry });
@@ -288,7 +288,7 @@ describe("a project kept current with its files", () => {
         expect(reads).toHaveLength(1);
     });
 
-    it("names the saved file as the design system does, and times the read", async () => {
+    it("names the saved file as the design tokens do, and times the read", async () => {
         const entry = await project();
         const { live: current, reads, save } = live({ entry });
         await current.project();

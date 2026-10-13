@@ -1,6 +1,6 @@
 import { read } from "@sugarcube-sh/dtcg/node";
 // A dev server serving a token editor. The editor needs the files' text as well as the tokens, and
-// the design system keeps both.
+// the design tokens keep both.
 
-const ds = await read("tokens/tokens.resolver.json");
-row(ds.files.length, ds.text("tokens.resolver.json")?.length, ds.diagnostics.length);
+const tokens = await read("tokens/tokens.resolver.json");
+row(tokens.files.length, tokens.text("tokens.resolver.json")?.length, tokens.diagnostics.length);

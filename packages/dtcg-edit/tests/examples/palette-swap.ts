@@ -18,18 +18,18 @@ function swapped(t: Token): Json | undefined {
     return whole.moved(swap);
 }
 
-const ds = session.ds;
+const tokens = session.tokens;
 const changes: ({ path: string; value: Json } & ValueOptions)[] = [];
-for (const t of ds.permutation().group("color.button")?.tokens ?? []) {
+for (const t of tokens.permutation().group("color.button")?.tokens ?? []) {
     const base = swapped(t);
     if (base) changes.push({ path: t.path, value: base });
 
-    for (const permutation of ds.permutations) {
+    for (const permutation of tokens.permutations) {
         const there = permutation.token(t.path);
         const value = there?.valueFrom.source.context ? swapped(there) : undefined;
         if (value) changes.push({ path: t.path, value, context: permutation.input });
     }
 }
 
-const done = session.do(setValues(session.ds, changes));
+const done = session.do(setValues(session.tokens, changes));
 if ("refused" in done) showMessage(done.refused.reason);

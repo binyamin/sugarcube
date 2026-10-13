@@ -1,8 +1,8 @@
-import type { DesignSystem, Permutation, Permutations, Token } from "@sugarcube-sh/dtcg";
+import type { DesignTokens, Permutation, Permutations, Token } from "@sugarcube-sh/dtcg";
 import type { Use, Uses } from "./uses.js";
 
 export interface Analysis {
-    ds: DesignSystem;
+    tokens: DesignTokens;
     uses: Uses;
 }
 
@@ -24,26 +24,26 @@ export interface Impact {
     uses: Use[];
 }
 
-export function unused({ ds, uses }: Analysis): Unused {
+export function unused({ tokens, uses }: Analysis): Unused {
     const used = uses.uses.map(({ token }) => token);
     const reached = new Set(used);
     for (const path of used) {
-        for (const { path: named } of ds.references(path, { chained: true })) {
+        for (const { path: named } of tokens.references(path, { chained: true })) {
             if (named !== undefined) reached.add(named);
         }
     }
-    const paths = ds.tokenPaths();
+    const paths = tokens.tokenPaths();
     return { unused: paths.filter((path) => !reached.has(path)).sort(), total: paths.length };
 }
 
-export function tokenAt(ds: DesignSystem, path: string): Token | "group" | undefined {
-    const inDefault = ds.permutations.find((each) => each.isDefault)?.token(path);
+export function tokenAt(tokens: DesignTokens, path: string): Token | "group" | undefined {
+    const inDefault = tokens.permutations.find((each) => each.isDefault)?.token(path);
     if (inDefault) return inDefault;
-    for (const permutation of ds.permutations) {
+    for (const permutation of tokens.permutations) {
         const found = permutation.token(path);
         if (found) return found;
     }
-    return ds.has(path) ? "group" : undefined;
+    return tokens.has(path) ? "group" : undefined;
 }
 
 interface Named {
@@ -51,32 +51,32 @@ interface Named {
     permutations: Permutations;
 }
 
-export function impact({ ds, uses }: Analysis, token: Token): Impact {
+export function impact({ tokens, uses }: Analysis, token: Token): Impact {
     const byDependent = new Map<string, Named[]>();
-    for (const { from, path, permutations } of ds.referencedBy(token.path, { chained: true })) {
+    for (const { from, path, permutations } of tokens.referencedBy(token.path, { chained: true })) {
         if (from === token.path || path === undefined) continue;
         byDependent.set(from, [...(byDependent.get(from) ?? []), { path, permutations }]);
     }
     const dependents = [...byDependent]
-        .map(([path, references]) => dependent(ds, path, references))
+        .map(([path, references]) => dependent(tokens, path, references))
         .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
     const affected = new Set([token.path, ...byDependent.keys()]);
     return { token, dependents, uses: uses.uses.filter((each) => affected.has(each.token)) };
 }
 
-function dependent(ds: DesignSystem, path: string, references: Named[]): Dependent {
+function dependent(tokens: DesignTokens, path: string, references: Named[]): Dependent {
     const paths = (named: Named[]) => [...new Set(named.map((each) => each.path))].sort();
     const namedIn = (permutation: Permutation) =>
         paths(references.filter(({ permutations }) => permutations.includes(permutation)));
     const found: Dependent = { path, references: paths(references) };
-    const defaultTheme = ds.permutations.find((each) => each.isDefault);
+    const defaultTheme = tokens.permutations.find((each) => each.isDefault);
     const [inDefault] = defaultTheme ? namedIn(defaultTheme) : [];
     if (inDefault) found.inDefault = inDefault;
     if (found.references.length < 2) return found;
 
-    const base = defaultTheme ?? ds.permutations[0];
+    const base = defaultTheme ?? tokens.permutations[0];
     const before = base && namedIn(base).join("\0");
-    const changed = ds.permutations.filter((each) => namedIn(each).join("\0") !== before);
+    const changed = tokens.permutations.filter((each) => namedIn(each).join("\0") !== before);
     const setBy = new Set(
         changed.flatMap((each) => {
             const context = each.token(path)?.valueFrom.source.context;

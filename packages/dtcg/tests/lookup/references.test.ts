@@ -5,7 +5,7 @@ import { movedReference } from "../../src/values/references.js";
 const color = { colorSpace: "srgb", components: [1, 0, 0] };
 const px = (value: number) => ({ value, unit: "px" });
 
-const tokens = {
+const json = {
     red: { $type: "color", $value: color },
     blue: { $type: "color", $value: { colorSpace: "srgb", components: [0, 0, 1] } },
     thin: { $type: "dimension", $value: px(1) },
@@ -59,9 +59,9 @@ const tokens = {
     broken: { $type: "dimension", $value: "4px" },
 };
 
-const doc = readFromMemory({ files: { "tokens.json": JSON.stringify(tokens) } });
+const tokens = readFromMemory({ files: { "tokens.json": JSON.stringify(json) } });
 const tokenAt = (path: string) => {
-    const found = doc.permutation().token(path);
+    const found = tokens.permutation().token(path);
     if (!found) throw new Error(`no token ${path}`);
     return found;
 };

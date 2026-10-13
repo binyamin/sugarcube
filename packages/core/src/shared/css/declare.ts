@@ -1,5 +1,5 @@
 import {
-    type DesignSystem,
+    type DesignTokens,
     type Diagnostic,
     type Input,
     type Permutation,
@@ -36,12 +36,12 @@ export interface Declarations {
  * on `:root`, so nothing is declared.
  *
  * @example
- * const declared = declare(ds, config);
+ * const declared = declare(tokens, config);
  * const { files } = emitCSS(declared, config);
  * const { rules, safelist } = utilityRules(utilityTokens(declared), config.utilities.classes);
  */
-export function declare(ds: DesignSystem, config: InternalConfig): Declarations {
-    const reported = ds.diagnostics.map(asReported);
+export function declare(tokens: DesignTokens, config: InternalConfig): Declarations {
+    const reported = tokens.diagnostics.map(asReported);
     const deprecated =
         config.variables.transforms.colorFallbackStrategy === "polyfill"
             ? [diagnostic("option-deprecated", { option: 'colorFallbackStrategy: "polyfill"' })]
@@ -49,14 +49,14 @@ export function declare(ds: DesignSystem, config: InternalConfig): Declarations 
     if (reported.some(({ kind }) => kind === "default-required"))
         return { entries: [], diagnostics: [...reported, ...deprecated] };
 
-    const options = declarationOptions(ds, config);
+    const options = declarationOptions(tokens, config);
     const declaredIn = new Map<Permutation, Declared>();
     const declaredFor = (permutation: Permutation) => {
         const found = declaredIn.get(permutation) ?? declarations(permutation, options);
         declaredIn.set(permutation, found);
         return found;
     };
-    const toWrite = entries(ds, config, declaredFor);
+    const toWrite = entries(tokens, config, declaredFor);
     const once = [...declaredIn.values()];
 
     return {
@@ -72,13 +72,13 @@ export function declare(ds: DesignSystem, config: InternalConfig): Declarations 
 }
 
 function entries(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     config: InternalConfig,
     declaredFor: (permutation: Permutation) => Declared,
 ): Entry[] {
     const listed = config.variables.permutations ?? [];
     if (listed.length === 0) {
-        return ds.permutations.map((permutation) => ({
+        return tokens.permutations.map((permutation) => ({
             permutation,
             selector: derivedSelector(permutation),
             path: config.variables.path,
@@ -86,7 +86,7 @@ function entries(
         }));
     }
     return listed.flatMap(({ input, selector, atRule, path }) => {
-        const permutation = configured(ds, input);
+        const permutation = configured(tokens, input);
         if (!permutation) return [];
         return [
             {
@@ -100,9 +100,9 @@ function entries(
     });
 }
 
-function configured(ds: DesignSystem, input: Input): Permutation | undefined {
+function configured(tokens: DesignTokens, input: Input): Permutation | undefined {
     try {
-        return ds.permutation(input);
+        return tokens.permutation(input);
     } catch (error) {
         if (error instanceof PermutationError) return undefined;
         throw error;

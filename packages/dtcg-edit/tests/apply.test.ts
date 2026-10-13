@@ -1,25 +1,25 @@
-import { type DesignSystem, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { type FileOp, type Json, apply, commit } from "../src/index.js";
 import { demo, at, changed, textsOf } from "./helpers.js";
-function applied(ds: DesignSystem, ops: FileOp[]): DesignSystem {
-    const result = apply(ds, ops);
+function applied(tokens: DesignTokens, ops: FileOp[]): DesignTokens {
+    const result = apply(tokens, ops);
     if ("conflicts" in result) throw new Error(JSON.stringify(result.conflicts));
     return result;
 }
 
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 const brand500 = ["color", "brand", "500", "$value"];
-const setBrand500 = (ds: DesignSystem): FileOp => ({
+const setBrand500 = (tokens: DesignTokens): FileOp => ({
     kind: "set",
     file: "color.json",
     jsonPath: brand500,
     value: red,
-    was: at(ds, "color.json", brand500) as Json,
+    was: at(tokens, "color.json", brand500) as Json,
 });
 
 describe("apply, set", () => {
-    it("changes the value, and the design system read again shows it", () => {
+    it("changes the value, and the design tokens read again show it", () => {
         const after = applied(demo, [setBrand500(demo)]);
 
         expect(at(after, "color.json", brand500)).toEqual(red);
@@ -130,7 +130,7 @@ describe("apply, add", () => {
         });
     });
 
-    it("is a conflict in a file the design system doesn't read", () => {
+    it("is a conflict in a file the design tokens aren't read from", () => {
         const op: FileOp = {
             kind: "add",
             file: "nope.json",
@@ -143,7 +143,7 @@ describe("apply, add", () => {
                 {
                     op,
                     kind: "not-read",
-                    reason: "`nope.json` is not one of the files the design system reads",
+                    reason: "`nope.json` is not one of the files read",
                 },
             ],
         });
@@ -346,7 +346,7 @@ describe("apply, files", () => {
         value: { b: { $type: "number", $value: 2 } },
     };
 
-    it("creates a file, written in the design system's indent", () => {
+    it("creates a file, written in the design tokens' indent", () => {
         const after = applied(named, [created]);
 
         expect(after.text("more.json")).toBe(
@@ -367,7 +367,7 @@ describe("apply, files", () => {
         });
     });
 
-    it("is a conflict when nothing in the design system would read the new file", () => {
+    it("is a conflict when nothing would read the new file", () => {
         const op: FileOp = { kind: "createFile", file: "unread.json", value: {} };
 
         expect(apply(demo, [op])).toEqual({
@@ -375,7 +375,7 @@ describe("apply, files", () => {
                 {
                     op,
                     kind: "not-read",
-                    reason: "nothing in the design system reads `unread.json`, so it would be lost",
+                    reason: "nothing reads `unread.json`, so it would be lost",
                 },
             ],
         });
@@ -406,9 +406,9 @@ describe("commit", () => {
         const ops = [setBrand500(demo)];
         const done = commit(demo, { ops, alsoAffects: [], moved: [] });
 
-        expect(done).toEqual({ ds: expect.anything(), ops, moved: [] });
-        if (!("ds" in done)) throw new Error("not committed");
-        expect(at(done.ds, "color.json", brand500)).toEqual(red);
+        expect(done).toEqual({ tokens: expect.anything(), ops, moved: [] });
+        if (!("tokens" in done)) throw new Error("not committed");
+        expect(at(done.tokens, "color.json", brand500)).toEqual(red);
     });
 
     it("passes a question or a refusal through untouched", () => {

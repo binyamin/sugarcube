@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
     type ColorValue,
-    type DesignSystem,
+    type DesignTokens,
     type Move,
     defineGenerator,
     readFromMemory,
@@ -61,7 +61,7 @@ function changed(path: (string | number)[], value: unknown, from: object = base)
     return copy;
 }
 
-function brief(before: DesignSystem, after: DesignSystem, moved?: Move[]) {
+function brief(before: DesignTokens, after: DesignTokens, moved?: Move[]) {
     return after.diff(before, moved && { moved }).map((change) => {
         const shown: Record<string, unknown> = { kind: change.kind, path: change.path };
         if ("from" in change) shown.from = change.from;
@@ -662,10 +662,10 @@ describe("sameValue", () => {
     });
 
     it("compares two tokens by type and by the value they say, not where it leads", () => {
-        const doc = read();
-        const sm = doc.permutation().token("space.sm");
-        const gap = doc.permutation().token("space.gap");
-        const body = doc.permutation().token("typography.body");
+        const tokens = read();
+        const sm = tokens.permutation().token("space.sm");
+        const gap = tokens.permutation().token("space.gap");
+        const body = tokens.permutation().token("typography.body");
         if (!sm || !gap || !body) throw new Error("missing token");
         expect(sameValue(sm, structuredClone(sm))).toBe(true);
         expect(sameValue(sm, gap)).toBe(false);

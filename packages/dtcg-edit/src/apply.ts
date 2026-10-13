@@ -1,4 +1,4 @@
-import type { DesignSystem } from "@sugarcube-sh/dtcg";
+import type { DesignTokens } from "@sugarcube-sh/dtcg";
 import { type Node, findNodeAtLocation, getNodeValue, parseTree } from "jsonc-parser";
 import { conflict } from "./error-messages.js";
 import type { Committed, Conflict, FileOp, Json, OpResult } from "./index.js";
@@ -22,80 +22,83 @@ interface Texts {
 }
 
 /**
- * Applies edits to a design system's text in order and reads the result as the design system was
- * read, returning the new design system. Every other line of each file is left as written.
+ * Applies edits to the design tokens' text in order and reads the result as they were read,
+ * returning the new design tokens. Every other line of each file is left as written.
  *
  * All or nothing: if any edit no longer applies, none is made, and every such edit comes back
  * with its reason. An edit no longer applies when its place has gone, when what it expects to
- * find (`was`) has changed since it was made, or when its file is one the design system doesn't
- * read, a new file included. An edit whose result is already there does nothing.
+ * find (`was`) has changed since it was made, or when its file is one the design tokens aren't read
+ * from, a new file included. An edit whose result is already there does nothing.
  *
  * @example
- * const next = apply(ds, saved.ops);
+ * const next = apply(tokens, saved.ops);
  * if ("conflicts" in next) showConflicts(next.conflicts);
- * else ds = next;
+ * else tokens = next;
  */
-export function apply(ds: DesignSystem, ops: FileOp[]): DesignSystem | { conflicts: Conflict[] } {
-    const changes = changedFiles(ds, ops);
-    return "conflicts" in changes ? changes : changes.ds;
+export function apply(
+    tokens: DesignTokens,
+    ops: FileOp[],
+): DesignTokens | { conflicts: Conflict[] } {
+    const changes = changedFiles(tokens, ops);
+    return "conflicts" in changes ? changes : changes.tokens;
 }
 
 /**
  * What saving edits would do to the files, without saving them: the new text of each file the edits
- * change, and the files they delete, with the design system as read from the result. Only a
+ * change, and the files they delete, with the design tokens as read from the result. Only a
  * `deleteFile` edit deletes a file, so one the resolver stops naming is kept. For saving somewhere
  * that takes whole files, such as a pull request. All or nothing, as {@link apply}: if any edit no
  * longer applies, the answer is the conflicts.
  *
  * @example
- * const changes = changedFiles(ds, edits.ops);
+ * const changes = changedFiles(tokens, edits.ops);
  * if ("conflicts" in changes) showConflicts(changes.conflicts);
  * else await openPullRequest(changes);
  */
 export function changedFiles(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     ops: FileOp[],
 ):
-    | { ds: DesignSystem; written: Record<string, string>; deleted: string[] }
+    | { tokens: DesignTokens; written: Record<string, string>; deleted: string[] }
     | { conflicts: Conflict[] } {
-    const { changed, conflicts } = editedFiles(ds, ops);
+    const { changed, conflicts } = editedFiles(tokens, ops);
     if (conflicts.length > 0) return { conflicts };
-    const next = ds.reread(changed);
+    const next = tokens.reread(changed);
     const lost = unread(next, ops);
     if (lost.length > 0) return { conflicts: lost.map((op) => conflict(op, "not-read")) };
 
     const written = Object.entries(changed)
         .flatMap(([file, text]): [string, string][] =>
-            text !== null && text !== ds.text(file) ? [[file, text]] : [],
+            text !== null && text !== tokens.text(file) ? [[file, text]] : [],
         )
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
     const deleted = Object.keys(changed).filter((file) => changed[file] === null);
-    return { ds: next, written: Object.fromEntries(written), deleted: deleted.sort() };
+    return { tokens: next, written: Object.fromEntries(written), deleted: deleted.sort() };
 }
 
 export function applyWhatFits(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     ops: FileOp[],
-): { ds: DesignSystem; applied: FileOp[]; skipped: FileOp[] } {
-    const { changed, conflicts } = editedFiles(ds, ops);
-    if (conflicts.length === ops.length) return { ds, applied: [], skipped: ops };
-    const next = ds.reread(changed);
+): { tokens: DesignTokens; applied: FileOp[]; skipped: FileOp[] } {
+    const { changed, conflicts } = editedFiles(tokens, ops);
+    if (conflicts.length === ops.length) return { tokens, applied: [], skipped: ops };
+    const next = tokens.reread(changed);
     const lost = unread(next, ops);
     const failed = new Set([...conflicts.map(({ op }) => op), ...lost]);
     const skipped = ops.filter((op) => failed.has(op));
-    return { ds: next, applied: ops.filter((op) => !failed.has(op)), skipped };
+    return { tokens: next, applied: ops.filter((op) => !failed.has(op)), skipped };
 }
 
-function editedFiles(ds: DesignSystem, ops: FileOp[]) {
+function editedFiles(tokens: DesignTokens, ops: FileOp[]) {
     const changed: Changed = {};
     const texts: Texts = {
-        of: (file) => (file in changed ? (changed[file] ?? undefined) : ds.text(file)),
+        of: (file) => (file in changed ? (changed[file] ?? undefined) : tokens.text(file)),
         set: (file, text) => {
             changed[file] = text;
         },
     };
     const drafts = new Map<string, Draft>();
-    const style = texts.of(ds.files[0] ?? "") ?? "";
+    const style = texts.of(tokens.files[0] ?? "") ?? "";
     const conflicts: Conflict[] = [];
     const written = (file: string) => {
         const draft = drafts.get(file);
@@ -116,7 +119,7 @@ function editedFiles(ds: DesignSystem, ops: FileOp[]) {
     return { changed, conflicts };
 }
 
-function unread(next: DesignSystem, ops: FileOp[]): FileOp[] {
+function unread(next: DesignTokens, ops: FileOp[]): FileOp[] {
     return ops.filter((op) => op.kind === "createFile" && next.text(op.file) === undefined);
 }
 
@@ -125,14 +128,14 @@ function unread(next: DesignSystem, ops: FileOp[]): FileOp[] {
  * handed back untouched.
  *
  * @example
- * const done = commit(ds, rename(ds, "color.brand", "primary"));
- * if ("ds" in done) ds = done.ds;
+ * const done = commit(tokens, rename(tokens, "color.brand", "primary"));
+ * if ("tokens" in done) tokens = done.tokens;
  */
-export function commit(ds: DesignSystem, result: OpResult): Committed {
+export function commit(tokens: DesignTokens, result: OpResult): Committed {
     if (!("ops" in result)) return result;
-    const next = apply(ds, result.ops);
+    const next = apply(tokens, result.ops);
     if ("conflicts" in next) return next;
-    return { ds: next, ops: result.ops, moved: result.moved };
+    return { tokens: next, ops: result.ops, moved: result.moved };
 }
 
 function applyOne(

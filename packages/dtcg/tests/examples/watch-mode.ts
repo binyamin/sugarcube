@@ -8,9 +8,9 @@ declare function watchFiles(onChange: () => void): { set(files: string[]): void 
 const entry = "tokens/tokens.resolver.json";
 const onDisk = (files: string[]) => files.map((file) => join(dirname(entry), file));
 
-let ds = await read(entry);
+let tokens = await read(entry);
 const watcher = watchFiles(async () => {
-    ds = await read(entry);
-    watcher.set(onDisk(ds.files));
+    tokens = await read(entry);
+    watcher.set(onDisk(tokens.files));
 });
-watcher.set(onDisk(ds.files));
+watcher.set(onDisk(tokens.files));

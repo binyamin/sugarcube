@@ -22,10 +22,10 @@ const files: Record<string, string> = {
     "dark.json": JSON.stringify({ color: { bg: color(0.1) } }),
 };
 
-const doc = readFromMemory({ files, entry: "tokens.resolver.json" });
-const light = doc.permutation({ mode: "light" });
-const dark = doc.permutation({ mode: "dark" });
-const mode = doc.resolver?.modifiers[0];
+const tokens = readFromMemory({ files, entry: "tokens.resolver.json" });
+const light = tokens.permutation({ mode: "light" });
+const dark = tokens.permutation({ mode: "dark" });
+const mode = tokens.resolver?.modifiers[0];
 const [lightContext, darkContext] = mode?.contexts ?? [];
 
 function written(span: Span): string {
@@ -35,24 +35,24 @@ function written(span: Span): string {
 describe("sources", () => {
     it("are one object per source the resolver lists, shared by every permutation that reads it", () => {
         expect(light?.sources[0]).toBe(dark?.sources[0]);
-        expect(doc.sources).toStrictEqual([dark?.sources[0], dark?.sources[1]]);
+        expect(tokens.sources).toStrictEqual([dark?.sources[0], dark?.sources[1]]);
     });
 
     it("say the context they are listed under, as the resolver's own context object", () => {
-        const [base, darkFile] = doc.sources;
+        const [base, darkFile] = tokens.sources;
         expect(base?.context).toBeUndefined();
         expect(darkFile?.context).toBe(darkContext);
     });
 
     it("say every set on the way, outermost first, and none when there is none", () => {
-        const [base, darkFile] = doc.sources;
+        const [base, darkFile] = tokens.sources;
         expect(base?.sets.map(({ name }) => name)).toStrictEqual(["base"]);
         expect(darkFile?.sets).toStrictEqual([]);
         expect(base).not.toHaveProperty("from");
     });
 
     it("say who reads them: everyone, or the contexts that do", () => {
-        const [base, darkFile] = doc.sources;
+        const [base, darkFile] = tokens.sources;
         expect(base?.readBy).toBe("everyone");
         expect(darkFile?.readBy).toStrictEqual([darkContext]);
     });
@@ -108,7 +108,7 @@ describe("a token's writtenAt", () => {
     it("is where it is written, with the source that writes it", () => {
         const [place, ...rest] = light.token("color.text")?.writtenAt ?? [];
         expect(rest).toStrictEqual([]);
-        expect(place?.source).toBe(doc.sources[0]);
+        expect(place?.source).toBe(tokens.sources[0]);
         expect(place && written(place.span)).toContain('"colorSpace"');
         expect(place?.span.file).toBe("base.json");
     });
@@ -151,9 +151,9 @@ describe("a group's writtenAt", () => {
     });
 });
 
-describe("on the design system", () => {
+describe("on the design tokens", () => {
     it("writtenAt gives every place a path is written, in any permutation, each once with where", () => {
-        const places = doc.writtenAt("color.bg");
+        const places = tokens.writtenAt("color.bg");
         expect(
             places.map(({ span, permutations }) => [span.file, permutations.inputs]),
         ).toStrictEqual([
@@ -163,14 +163,14 @@ describe("on the design system", () => {
     });
 
     it("writtenAt gives a group's places too", () => {
-        expect(doc.writtenAt("color").map(({ span }) => span.file)).toStrictEqual([
+        expect(tokens.writtenAt("color").map(({ span }) => span.file)).toStrictEqual([
             "base.json",
             "dark.json",
         ]);
     });
 });
 
-describe("on the design system, a file several contexts list", () => {
+describe("on the design tokens, a file several contexts list", () => {
     const shared = readFromMemory({
         files: {
             "tokens.resolver.json": JSON.stringify({
@@ -206,9 +206,9 @@ describe("on the design system, a file several contexts list", () => {
 });
 
 describe("the plain form", () => {
-    const plain = JSON.parse(JSON.stringify(doc));
+    const plain = JSON.parse(JSON.stringify(tokens));
 
-    it("writes each source once, on the design system, and each permutation's sources by position", () => {
+    it("writes each source once, on the design tokens, and each permutation's sources by position", () => {
         expect(plain.sources.map(({ file }: { file: string }) => file)).toStrictEqual([
             "base.json",
             "dark.json",

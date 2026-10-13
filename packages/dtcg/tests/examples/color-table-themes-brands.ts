@@ -2,15 +2,15 @@
 // ocean.
 import { read } from "@sugarcube-sh/dtcg";
 
-const ds = await read("tokens.resolver.json", {
+const tokens = await read("tokens.resolver.json", {
     readText: (p) => fetch(p).then((r) => r.text()),
     inputs: [{}, { theme: "dark" }, { brand: "ocean" }, { theme: "dark", brand: "ocean" }],
 });
 
-row("", ...ds.permutations.map((p) => p.label));
-for (const path of ds.tokenPaths()) {
-    const each = ds.permutations.map((p) => p.token(path));
+row("", ...tokens.permutations.map((p) => p.label));
+for (const path of tokens.tokenPaths()) {
+    const each = tokens.permutations.map((p) => p.token(path));
     if (each.some((t) => t?.type === "color")) row(path, ...each.map((t) => t?.resolved));
 }
-const darkOcean = ds.permutation({ theme: "dark", brand: "ocean" });
+const darkOcean = tokens.permutation({ theme: "dark", brand: "ocean" });
 if (darkOcean) showMessage(`${darkOcean.tokens.length} tokens in ${darkOcean.label}`);

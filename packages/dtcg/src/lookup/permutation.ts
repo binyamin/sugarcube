@@ -1,7 +1,7 @@
 import { thrownMessages } from "../error-messages.js";
 import type {
     CompleteInput,
-    DesignSystem,
+    DesignTokens,
     Input,
     Permutation,
     PermutationErrorDetail,
@@ -10,13 +10,13 @@ import type {
 import { findByName } from "../read/permutations.js";
 
 /**
- * Thrown by {@link DesignSystem.permutation} when there is no permutation for the input. The
+ * Thrown by {@link DesignTokens.permutation} when there is no permutation for the input. The
  * message says why in plain words; `detail` holds the facts it is worded from, for a tool to word
  * it itself.
  *
  * @example
  * try {
- *   ds.permutation({ mode: "sepia" });
+ *   tokens.permutation({ mode: "sepia" });
  * } catch (error) {
  *   if (error instanceof PermutationError) error.detail // { reason: "unknown-context", … }
  * }
@@ -31,27 +31,27 @@ export class PermutationError extends Error {
     }
 }
 
-export function permutationIn(ds: DesignSystem, input: Input = {}): Permutation {
-    const found = findPermutation(ds, input);
+export function permutationIn(tokens: DesignTokens, input: Input = {}): Permutation {
+    const found = findPermutation(tokens, input);
     if ("reason" in found) throw new PermutationError(found);
     return found;
 }
 
 export function findPermutation(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     input: Input = {},
 ): Permutation | PermutationErrorDetail {
-    const complete = completeInput(ds, input);
+    const complete = completeInput(tokens, input);
     if (!complete.ok) {
         const { ok: _, ...detail } = complete;
         return detail;
     }
-    const found = ds.permutations.find((each) => sameInput(ds, each.input, complete.input));
+    const found = tokens.permutations.find((each) => sameInput(tokens, each.input, complete.input));
     return found ?? { reason: "not-read", input: complete.input };
 }
 
-export function sameInput(ds: DesignSystem, a: Input, b: Input): boolean {
-    return modifiersOf(ds).every(({ name }) => a[name] === b[name]);
+export function sameInput(tokens: DesignTokens, a: Input, b: Input): boolean {
+    return modifiersOf(tokens).every(({ name }) => a[name] === b[name]);
 }
 
 /**
@@ -59,13 +59,13 @@ export function sameInput(ds: DesignSystem, a: Input, b: Input): boolean {
  * it, or why there is none. Names match whatever their case, as the resolver spec asks.
  *
  * @example
- * completeInput(ds, { Theme: "DARK" })   // { ok: true, input: { theme: "dark", density: "comfy" } }
- * completeInput(ds, { theme: "sepia" })  // { ok: false, reason: "unknown-context", modifier: "theme", context: "sepia" }
+ * completeInput(tokens, { Theme: "DARK" })   // { ok: true, input: { theme: "dark", density: "comfy" } }
+ * completeInput(tokens, { theme: "sepia" })  // { ok: false, reason: "unknown-context", modifier: "theme", context: "sepia" }
  */
-export function completeInput(ds: DesignSystem, input: Input): CompleteInput {
+export function completeInput(tokens: DesignTokens, input: Input): CompleteInput {
     const full: Input = {};
     for (const [key, value] of Object.entries(input)) {
-        const found = modifierIn(ds, key);
+        const found = modifierIn(tokens, key);
         if (!found) return { ok: false, reason: "unknown-modifier", modifier: key };
         const context = findByName(found.contexts, value, ({ name }) => name);
         if (context === undefined) {
@@ -73,7 +73,7 @@ export function completeInput(ds: DesignSystem, input: Input): CompleteInput {
         }
         full[found.name] = context.name;
     }
-    for (const { name, default: fallback, contexts } of modifiersOf(ds)) {
+    for (const { name, default: fallback, contexts } of modifiersOf(tokens)) {
         const context = full[name] ?? fallback;
         if (context === undefined) {
             const valid = contexts.map((each) => each.name);
@@ -84,10 +84,10 @@ export function completeInput(ds: DesignSystem, input: Input): CompleteInput {
     return { ok: true, input: full };
 }
 
-export function modifierIn(ds: DesignSystem, name: string): ResolverModifier | undefined {
-    return findByName(modifiersOf(ds), name, (each) => each.name);
+export function modifierIn(tokens: DesignTokens, name: string): ResolverModifier | undefined {
+    return findByName(modifiersOf(tokens), name, (each) => each.name);
 }
 
-function modifiersOf(ds: DesignSystem): ResolverModifier[] {
-    return ds.resolver?.modifiers ?? [];
+function modifiersOf(tokens: DesignTokens): ResolverModifier[] {
+    return tokens.resolver?.modifiers ?? [];
 }

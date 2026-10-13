@@ -42,12 +42,12 @@ describe("applyToDisk", () => {
         }
     });
 
-    it("hands back the design system as read from the files written", async () => {
+    it("hands back the design tokens as read from the files written", async () => {
         const result = await applyToDisk({ entry }, opsOf(setValue(demo, "radius.md", half)));
 
-        if (!("ds" in result)) throw new Error(JSON.stringify(result));
-        expect(result.ds.permutation().token("radius.md")?.authored?.value).toEqual(half);
-        expect(textsOf(result.ds)).toEqual(textsOf(await readFromDisk(entry)));
+        if (!("tokens" in result)) throw new Error(JSON.stringify(result));
+        expect(result.tokens.permutation().token("radius.md")?.authored?.value).toEqual(half);
+        expect(textsOf(result.tokens)).toEqual(textsOf(await readFromDisk(entry)));
     });
 
     it("reads the files with the source's own options", async () => {
@@ -57,8 +57,8 @@ describe("applyToDisk", () => {
             opsOf(setValue(demo, "radius.md", half)),
         );
 
-        if (!("ds" in result)) throw new Error(JSON.stringify(result));
-        expect(result.ds.parseOptions.hexStringColors).toBe(true);
+        if (!("tokens" in result)) throw new Error(JSON.stringify(result));
+        expect(result.tokens.parseOptions.hexStringColors).toBe(true);
     });
 
     it("keeps a change made on disk since the edits were made", async () => {
@@ -91,7 +91,7 @@ describe("applyToDisk", () => {
         expect(read("color.json")).toBe(before.color);
     });
 
-    it("won't write a file the design system doesn't read", async () => {
+    it("won't write a file the design tokens aren't read from", async () => {
         const op: FileOp = {
             kind: "set",
             file: "package.json",
@@ -107,7 +107,7 @@ describe("applyToDisk", () => {
         expect(read("package.json")).toBe('{ "name": "demo" }\n');
     });
 
-    it("won't delete a file the design system doesn't read", async () => {
+    it("won't delete a file the design tokens aren't read from", async () => {
         const op: FileOp = { kind: "deleteFile", file: "package.json", was: "anything" };
         const result = await applyToDisk({ entry }, [op]);
 

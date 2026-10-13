@@ -29,14 +29,14 @@ describe("similarName", () => {
 
 describe("a missing reference's similar name", () => {
     it("is never the token that holds the reference", () => {
-        const tokens = {
+        const json = {
             color: {
                 $type: "color",
                 line: { $value: "{color.lin}" },
             },
         };
-        const doc = readFromMemory({ files: { "tokens.json": JSON.stringify(tokens) } });
-        const [found] = doc.diagnostics;
+        const tokens = readFromMemory({ files: { "tokens.json": JSON.stringify(json) } });
+        const [found] = tokens.diagnostics;
         expect(found?.kind).toBe("missing-reference");
         expect(found?.detail).not.toHaveProperty("similar");
     });

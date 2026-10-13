@@ -11,7 +11,7 @@ const kits = join(repo, "apps/www/registry/tokens/starter-kits");
 
 async function project(resolver: string) {
     const config = fillDefaults({ resolver, variables: { path: "variables.css" } });
-    return { config, doc: await read(resolver, readOptions(config)) };
+    return { config, tokens: await read(resolver, readOptions(config)) };
 }
 
 const projects = {
@@ -26,10 +26,10 @@ const projects = {
     ),
 };
 
-describe("declare and emitCSS, on a design system already read", () => {
-    for (const [name, { config, doc }] of Object.entries(projects)) {
+describe("declare and emitCSS, on design tokens already read", () => {
+    for (const [name, { config, tokens }] of Object.entries(projects)) {
         bench(name, () => {
-            emitCSS(declare(doc, config), config);
+            emitCSS(declare(tokens, config), config);
         });
     }
 });

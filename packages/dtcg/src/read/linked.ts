@@ -1,5 +1,5 @@
 import type {
-    DesignSystem,
+    DesignTokens,
     Diagnostic,
     Group,
     Input,
@@ -30,7 +30,7 @@ import { readFromMemory } from "./read.js";
 export const NO_REFERENCES: Reference[] = Object.freeze([]) as unknown as Reference[];
 export const NO_PLACES: Place[] = Object.freeze([]) as unknown as Place[];
 
-const designSystems = new WeakMap<Permutation, DesignSystem>();
+const designTokensOf = new WeakMap<Permutation, DesignTokens>();
 
 const tokenShared = {
     kind: "token",
@@ -60,7 +60,7 @@ const tokenShared = {
     },
     get diagnostics(): Diagnostic[] {
         const token = this as unknown as Token;
-        return diagnosticsOf(designSystems.get(token.permutation) as DesignSystem, token);
+        return diagnosticsOf(designTokensOf.get(token.permutation) as DesignTokens, token);
     },
     toJSON(this: Token) {
         return { ...this, group: undefined, permutation: undefined };
@@ -127,44 +127,44 @@ const contextShared = {
     },
 };
 
-const documentShared = {
-    references(this: DesignSystem, path: string, options?: ReferenceOptions) {
+const designTokensShared = {
+    references(this: DesignTokens, path: string, options?: ReferenceOptions) {
         return referencesIn(this, path, options);
     },
-    referencedBy(this: DesignSystem, path: string, options?: ReferenceOptions) {
+    referencedBy(this: DesignTokens, path: string, options?: ReferenceOptions) {
         return referencedByIn(this, path, options);
     },
-    writtenAt(this: DesignSystem, path: string) {
+    writtenAt(this: DesignTokens, path: string) {
         return writtenAtIn(this, path);
     },
-    permutation(this: DesignSystem, input?: Input) {
+    permutation(this: DesignTokens, input?: Input) {
         return permutationIn(this, input);
     },
-    modifier(this: DesignSystem, name: string) {
+    modifier(this: DesignTokens, name: string) {
         return modifierIn(this, name);
     },
-    tokenPaths(this: DesignSystem) {
+    tokenPaths(this: DesignTokens) {
         return pathsIn(this, "tokens");
     },
-    groupPaths(this: DesignSystem) {
+    groupPaths(this: DesignTokens) {
         return pathsIn(this, "groups");
     },
-    toJSON(this: DesignSystem) {
+    toJSON(this: DesignTokens) {
         return { ...this, permutations: [...this.permutations] };
     },
-    diagnosticsFor(this: DesignSystem, path: string) {
+    diagnosticsFor(this: DesignTokens, path: string) {
         return diagnosticsForIn(this, path);
     },
-    diagnosticsAt(this: DesignSystem, place: Pick<Span, "file" | "offset" | "length">) {
+    diagnosticsAt(this: DesignTokens, place: Pick<Span, "file" | "offset" | "length">) {
         return diagnosticsAtIn(this, place);
     },
-    diff(this: DesignSystem, before: DesignSystem, options?: { moved?: Move[] }) {
+    diff(this: DesignTokens, before: DesignTokens, options?: { moved?: Move[] }) {
         return diffIn(this, before, options);
     },
-    text(this: DesignSystem, file: string): string | undefined {
+    text(this: DesignTokens, file: string): string | undefined {
         return kept.get(this)?.texts[file];
     },
-    reread(this: DesignSystem, changed: Readonly<Record<string, string | null>>) {
+    reread(this: DesignTokens, changed: Readonly<Record<string, string | null>>) {
         const files: Record<string, string> = { ...kept.get(this)?.texts };
         for (const [file, text] of Object.entries(changed)) {
             if (text === null) delete files[file];
@@ -172,7 +172,7 @@ const documentShared = {
         }
         return readFromMemory({ files, entry: this.files[0] }, kept.get(this)?.options);
     },
-    has(this: DesignSystem, path: string) {
+    has(this: DesignTokens, path: string) {
         return this.permutations.some(
             (each) => (each.token(path) ?? each.group(path)) !== undefined,
         );
@@ -300,21 +300,21 @@ interface Kept {
     options: ReadOptions;
 }
 
-const kept = new WeakMap<DesignSystem, Kept>();
+const kept = new WeakMap<DesignTokens, Kept>();
 
-export function linkedDocument(
-    fields: Omit<DesignSystem, keyof typeof documentShared>,
+export function linkedDesignTokens(
+    fields: Omit<DesignTokens, keyof typeof designTokensShared>,
     beside: Kept,
-): DesignSystem {
-    const ds: DesignSystem = Object.assign(Object.create(documentShared), fields);
-    kept.set(ds, beside);
-    for (const permutation of ds.permutations) designSystems.set(permutation, ds);
-    return ds;
+): DesignTokens {
+    const tokens: DesignTokens = Object.assign(Object.create(designTokensShared), fields);
+    kept.set(tokens, beside);
+    for (const permutation of tokens.permutations) designTokensOf.set(permutation, tokens);
+    return tokens;
 }
 
-function pathsIn(ds: DesignSystem, kind: "tokens" | "groups"): string[] {
+function pathsIn(tokens: DesignTokens, kind: "tokens" | "groups"): string[] {
     const found = new Set<string>();
-    for (const permutation of ds.permutations) {
+    for (const permutation of tokens.permutations) {
         for (const { path } of permutation[kind]) found.add(path);
     }
     return [...found];

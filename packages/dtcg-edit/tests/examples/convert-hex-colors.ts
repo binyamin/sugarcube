@@ -1,14 +1,14 @@
 // A script that rewrites every color written as a hex string into the spec's object form, as one
 // step, using the fix offered for each one.
-import { type DesignSystem } from "@sugarcube-sh/dtcg";
+import { type DesignTokens } from "@sugarcube-sh/dtcg";
 import { commit, fix, fixesFor } from "@sugarcube-sh/dtcg-edit";
 
-declare let ds: DesignSystem;
+declare let tokens: DesignTokens;
 
-const fixes = ds.diagnostics
+const fixes = tokens.diagnostics
     .filter((d) => d.kind === "hex-string-color")
-    .flatMap((d) => fixesFor(ds, d).filter((f) => f.safe));
+    .flatMap((d) => fixesFor(tokens, d).filter((f) => f.safe));
 
-const done = commit(ds, fix(ds, fixes));
-if ("ds" in done) ds = done.ds;
+const done = commit(tokens, fix(tokens, fixes));
+if ("tokens" in done) tokens = done.tokens;
 else if ("refused" in done) showMessage(done.refused.reason);

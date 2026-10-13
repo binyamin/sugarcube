@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-    type DesignSystem,
+    type DesignTokens,
     type JsonPath,
     type ReadOptions,
     readFromMemory,
@@ -18,21 +18,21 @@ export const demo = readFromMemory({
     entry: "tokens.resolver.json",
 });
 
-export const textsOf = (ds: DesignSystem): Record<string, string | undefined> =>
-    Object.fromEntries(ds.files.map((file) => [file, ds.text(file)]));
+export const textsOf = (tokens: DesignTokens): Record<string, string | undefined> =>
+    Object.fromEntries(tokens.files.map((file) => [file, tokens.text(file)]));
 
-export const at = (ds: DesignSystem, file: string, jsonPath: JsonPath): Json | undefined =>
-    jsonPath.reduce((value, step) => value?.[step], JSON.parse(ds.text(file) ?? "null"));
+export const at = (tokens: DesignTokens, file: string, jsonPath: JsonPath): Json | undefined =>
+    jsonPath.reduce((value, step) => value?.[step], JSON.parse(tokens.text(file) ?? "null"));
 
 export function opsOf(result: OpResult): FileOp[] {
     if (!("ops" in result)) throw new Error(JSON.stringify(result));
     return result.ops;
 }
 
-export function committed(ds: DesignSystem, result: OpResult): DesignSystem {
-    const done = commit(ds, result);
-    if (!("ds" in done)) throw new Error(JSON.stringify(done));
-    return done.ds;
+export function committed(tokens: DesignTokens, result: OpResult): DesignTokens {
+    const done = commit(tokens, result);
+    if (!("tokens" in done)) throw new Error(JSON.stringify(done));
+    return done.tokens;
 }
 
 export const resolver = (sources: object[], contexts: Record<string, object[]> = {}) =>
@@ -50,16 +50,16 @@ export const opened = (files: Record<string, string>, options?: ReadOptions) =>
     readFromMemory({ files, entry: "tokens.resolver.json" }, options);
 
 export function changed(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     changes: [file: string, jsonPath: JsonPath, value: Json | undefined][],
-): DesignSystem {
+): DesignTokens {
     const texts: Record<string, string> = {};
     for (const [file, jsonPath, value] of changes) {
-        const text = texts[file] ?? ds.text(file) ?? "";
+        const text = texts[file] ?? tokens.text(file) ?? "";
         const edited =
             value === undefined ? removeAt(text, jsonPath) : setAt(text, jsonPath, value);
         if (edited === undefined) throw new Error("the test's own edit could not be made");
         texts[file] = edited;
     }
-    return ds.reread(texts);
+    return tokens.reread(texts);
 }

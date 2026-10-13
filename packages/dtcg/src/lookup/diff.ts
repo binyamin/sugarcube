@@ -1,6 +1,6 @@
 import type {
     Change,
-    DesignSystem,
+    DesignTokens,
     Group,
     GroupProperty,
     Move,
@@ -20,8 +20,8 @@ import { sameJson, saysTheSame } from "../values/same-value.js";
 import { findPermutation } from "./permutation.js";
 
 export function diffIn(
-    after: DesignSystem,
-    before: DesignSystem,
+    after: DesignTokens,
+    before: DesignTokens,
     options?: { moved?: Move[] },
 ): Change[] {
     const moved = options?.moved ?? [];

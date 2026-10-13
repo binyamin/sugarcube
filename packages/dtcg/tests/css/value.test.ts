@@ -5,13 +5,13 @@ import { type Token, readFromMemory } from "../../src/index.js";
 const px = (value: number) => ({ value, unit: "px" });
 const color = (value: unknown) => ({ $type: "color", $value: value });
 
-function read(tokens: Record<string, unknown>): (path: string) => Token {
-    const doc = readFromMemory(
-        { files: { "tokens.json": JSON.stringify(tokens) } },
+function read(json: Record<string, unknown>): (path: string) => Token {
+    const tokens = readFromMemory(
+        { files: { "tokens.json": JSON.stringify(json) } },
         { hexStringColors: true },
     );
     return (path) => {
-        const found = doc.permutation().token(path);
+        const found = tokens.permutation().token(path);
         if (!found) throw new Error(`no token at ${path}`);
         return found;
     };

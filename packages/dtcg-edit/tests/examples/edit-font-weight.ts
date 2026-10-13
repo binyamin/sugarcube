@@ -1,9 +1,9 @@
 // Changes only the font weight of a typography token, leaving its other four properties as written.
-import { type DesignSystem } from "@sugarcube-sh/dtcg";
+import { type DesignTokens } from "@sugarcube-sh/dtcg";
 import { setValue, commit } from "@sugarcube-sh/dtcg-edit";
 
-declare let ds: DesignSystem;
+declare let tokens: DesignTokens;
 
-const done = commit(ds, setValue(ds, "type.heading", 700, { part: ["fontWeight"] }));
-if ("ds" in done) ds = done.ds;
+const done = commit(tokens, setValue(tokens, "type.heading", 700, { part: ["fontWeight"] }));
+if ("tokens" in done) tokens = done.tokens;
 if ("refused" in done) showMessage(done.refused.reason);

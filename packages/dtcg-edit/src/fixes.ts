@@ -1,4 +1,4 @@
-import type { DesignSystem, Diagnostic, Span } from "@sugarcube-sh/dtcg";
+import type { DesignTokens, Diagnostic, Span } from "@sugarcube-sh/dtcg";
 import { readReference } from "@sugarcube-sh/dtcg/values";
 import type { Node } from "jsonc-parser";
 import { fixTitles } from "./error-messages.js";
@@ -7,32 +7,32 @@ import { inline, refString, removal, spliced } from "./json-text.js";
 import { nodeAt } from "./file-text.js";
 
 /**
- * The changes that would mend a diagnostic of this design system, made from the facts the
+ * The changes that would mend a diagnostic of these design tokens, made from the facts the
  * diagnostic carries and the text of the files. Empty when nothing is known that would mend it.
  *
  * A safe fix, applied, leaves the place it mends reading clean and changes nothing else the
  * files mean. One that depends on other tokens, such as a pointer standing for part of a value,
- * is offered only when reading the design system again with it applied shows that place clean. A
+ * is offered only when reading the design tokens again with it applied shows that place clean. A
  * fix that is not safe is a likely guess, such as a similar name, for a person to confirm.
  *
  * @example
- * for (const diagnostic of ds.diagnostics) {
- *   for (const fix of fixesFor(ds, diagnostic)) menu.add(fix.title, fix.edits);
+ * for (const diagnostic of tokens.diagnostics) {
+ *   for (const fix of fixesFor(tokens, diagnostic)) menu.add(fix.title, fix.edits);
  * }
  */
-export function fixesFor(ds: DesignSystem, diagnostic: Diagnostic): Fix[] {
-    const fix = fixFor(ds, diagnostic);
+export function fixesFor(tokens: DesignTokens, diagnostic: Diagnostic): Fix[] {
+    const fix = fixFor(tokens, diagnostic);
     return fix ? [fix] : [];
 }
 
-function fixFor(ds: DesignSystem, diagnostic: Diagnostic): Fix | undefined {
+function fixFor(tokens: DesignTokens, diagnostic: Diagnostic): Fix | undefined {
     const { span } = diagnostic;
     if (!span) return undefined;
 
     switch (diagnostic.kind) {
         case "duplicate-key": {
             const earlier = diagnostic.related?.[0]?.span;
-            const edits = earlier && deletion(ds, earlier.file, nodeAt(ds, earlier));
+            const edits = earlier && deletion(tokens, earlier.file, nodeAt(tokens, earlier));
             return (
                 edits && {
                     title: fixTitles.deleteEarlier(diagnostic.detail.key),
@@ -43,7 +43,7 @@ function fixFor(ds: DesignSystem, diagnostic: Diagnostic): Fix | undefined {
         }
         case "unknown-type": {
             const { type, similar } = diagnostic.detail;
-            if (type === "") return deleteEmptyType(ds, span, nodeAt(ds, span));
+            if (type === "") return deleteEmptyType(tokens, span, nodeAt(tokens, span));
             if (similar === undefined) return undefined;
             return guess(fixTitles.useSimilar(similar), [replacing(span, similar)]);
         }
@@ -52,20 +52,20 @@ function fixFor(ds: DesignSystem, diagnostic: Diagnostic): Fix | undefined {
             if (reference !== undefined) {
                 return guess(fixTitles.extendsAsReference(reference), [replacing(span, reference)]);
             }
-            const node = nodeAt(ds, span);
+            const node = nodeAt(tokens, span);
             if (property !== "$type" || node?.type !== "null") return undefined;
-            return deleteEmptyType(ds, span, node);
+            return deleteEmptyType(tokens, span, node);
         }
         case "hex-string-color": {
             const { value, asObject } = diagnostic.detail;
-            if (nodeAt(ds, span)?.value !== value) return undefined;
+            if (nodeAt(tokens, span)?.value !== value) return undefined;
             return safe(fixTitles.hexToObject, { ...range(span), text: inline(asObject) });
         }
         case "invalid-value":
-            return valueFix(ds, diagnostic.detail, span, nodeAt(ds, span)?.value);
+            return valueFix(tokens, diagnostic.detail, span, nodeAt(tokens, span)?.value);
         case "malformed-pointer": {
             const { corrected } = diagnostic.detail;
-            const node = nodeAt(ds, span);
+            const node = nodeAt(tokens, span);
             const ref = node && refString(node);
             if (corrected === undefined || !ref) return undefined;
             const { offset, length } = ref;
@@ -87,7 +87,7 @@ function fixFor(ds: DesignSystem, diagnostic: Diagnostic): Fix | undefined {
             if (similar === undefined) return undefined;
             const uses = [span, ...(diagnostic.related ?? []).map((related) => related.span)];
             const edits = uses
-                .filter((use) => writesCurlyBrace(nodeAt(ds, use)?.value, ref))
+                .filter((use) => writesCurlyBrace(nodeAt(tokens, use)?.value, ref))
                 .map((use) => replacing(use, `{${similar}}`));
             return edits.length > 0 ? guess(fixTitles.useSimilar(similar), edits) : undefined;
         }
@@ -97,7 +97,7 @@ function fixFor(ds: DesignSystem, diagnostic: Diagnostic): Fix | undefined {
 }
 
 function valueFix(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     detail: Extract<Diagnostic, { kind: "invalid-value" }>["detail"],
     span: Span,
     written: unknown,
@@ -128,7 +128,7 @@ function valueFix(
             }
             const pointer = pointerTo(reference.path);
             const change = { ...range(span), text: inline({ $ref: pointer }) };
-            if (!readsClean(ds, [change])) return undefined;
+            if (!readsClean(tokens, [change])) return undefined;
             return safe(fixTitles.referenceAsPointer(pointer), change);
         }
         default:
@@ -136,17 +136,21 @@ function valueFix(
     }
 }
 
-function deleteEmptyType(ds: DesignSystem, span: Span, written: Node | undefined): Fix | undefined {
-    const edits = deletion(ds, span.file, written);
-    if (!edits || !readsClean(ds, edits)) return undefined;
+function deleteEmptyType(
+    tokens: DesignTokens,
+    span: Span,
+    written: Node | undefined,
+): Fix | undefined {
+    const edits = deletion(tokens, span.file, written);
+    if (!edits || !readsClean(tokens, edits)) return undefined;
     return { title: fixTitles.deleteType, safe: true, edits };
 }
 
-function readsClean(ds: DesignSystem, edits: TextEdit[]): boolean {
+function readsClean(tokens: DesignTokens, edits: TextEdit[]): boolean {
     const [first] = edits;
     if (!first) return true;
     const { file } = first;
-    const after = ds.reread({ [file]: spliced(ds.text(file) ?? "", edits) });
+    const after = tokens.reread({ [file]: spliced(tokens.text(file) ?? "", edits) });
     const start = Math.min(...edits.map(({ offset }) => offset));
     const grown = edits.reduce((acc, { length, text }) => acc + text.length - length, 0);
     const end = Math.max(...edits.map(({ offset, length }) => offset + length)) + grown;
@@ -164,11 +168,11 @@ function pointerTo(path: string): string {
 }
 
 function deletion(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     file: string,
     written: Node | undefined,
 ): TextEdit[] | undefined {
-    const text = ds.text(file);
+    const text = tokens.text(file);
     if (!written || text === undefined) return undefined;
     const edits = removal(text, written).map(({ offset, length, text: replaced }) => ({
         file,

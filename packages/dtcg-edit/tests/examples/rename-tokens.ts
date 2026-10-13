@@ -5,7 +5,7 @@ import { commit, rename } from "@sugarcube-sh/dtcg-edit";
 import { applyToDisk } from "@sugarcube-sh/dtcg-edit/node";
 
 const source = { entry: "tokens/tokens.resolver.json" };
-const ds = await read(source.entry);
-const done = commit(ds, rename(ds, "color.brand", "primary"));
-if ("ds" in done) await applyToDisk(source, done.ops);
+const tokens = await read(source.entry);
+const done = commit(tokens, rename(tokens, "color.brand", "primary"));
+if ("tokens" in done) await applyToDisk(source, done.ops);
 else if ("refused" in done) showMessage(done.refused.reason);

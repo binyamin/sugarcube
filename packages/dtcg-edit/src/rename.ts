@@ -1,4 +1,4 @@
-import { type DesignSystem, childPath, forbiddenInName, parentOf } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, childPath, forbiddenInName, parentOf } from "@sugarcube-sh/dtcg";
 import { refused } from "./error-messages.js";
 import type { FileOp, OpResult } from "./index.js";
 import { groupCopies, tokenCopies } from "./placement.js";
@@ -11,26 +11,28 @@ import { type Member, memberAt } from "./file-text.js";
  * a reference, such as a `$description` mentioning `{color.brand}`, is left alone. References are
  * found in the permutations the read built, so a read limited by `inputs` can miss one written in
  * a file only another permutation reads. `moved` gives the path that changed, which a session's
- * ids and `ds.diff` follow.
+ * ids and `tokens.diff` follow.
  *
  * Refused, with the reason: a path that is neither a token nor a group, a name already taken or
  * one the spec forbids, a token a generator makes, or a token or group inherited through
  * `$extends`.
  *
  * @example
- * session.do(rename(session.ds, "color.brand", "primary"));
+ * session.do(rename(session.tokens, "color.brand", "primary"));
  */
-export function rename(ds: DesignSystem, path: string, newName: string): OpResult {
+export function rename(tokens: DesignTokens, path: string, newName: string): OpResult {
     if (newName === "") return refused({ kind: "invalid-name", name: newName });
     const character = forbiddenInName(newName);
     if (character !== undefined) return refused({ kind: "invalid-name", name: newName, character });
 
     const copies =
-        tokenCopies(ds, path) ?? groupCopies(ds, path) ?? refused({ kind: "not-found", path });
+        tokenCopies(tokens, path) ??
+        groupCopies(tokens, path) ??
+        refused({ kind: "not-found", path });
     if ("refused" in copies) return copies;
     const to = childPath(parentOf(path), newName);
     if (to === path) return { ops: [], alsoAffects: copies.alsoAffects, moved: [] };
-    if (ds.has(to)) return refused({ kind: "taken", path: to });
+    if (tokens.has(to)) return refused({ kind: "taken", path: to });
 
     const moved = [{ from: path, to }];
     const keys = copies.places.map(({ span, jsonPath, written }): FileOp => ({
@@ -40,8 +42,8 @@ export function rename(ds: DesignSystem, path: string, newName: string): OpResul
         name: newName,
         was: written,
     }));
-    const references = ds.referencedBy(path).flatMap((reference): FileOp[] => {
-        const member = memberAt(ds, reference.span);
+    const references = tokens.referencedBy(path).flatMap((reference): FileOp[] => {
+        const member = memberAt(tokens, reference.span);
         if (!member) return [];
         const jsonPath = afterKeys(member, copies.places, newName);
         const value = reference.moved(moved);

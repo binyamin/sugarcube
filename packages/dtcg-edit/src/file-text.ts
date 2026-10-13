@@ -1,4 +1,4 @@
-import type { DesignSystem, JsonPath, Span } from "@sugarcube-sh/dtcg";
+import type { DesignTokens, JsonPath, Span } from "@sugarcube-sh/dtcg";
 import {
     type Node,
     findNodeAtLocation,
@@ -15,33 +15,37 @@ export interface Member {
     written: Json;
 }
 
-const parsed = new WeakMap<DesignSystem, Map<string, Node | undefined>>();
+const parsed = new WeakMap<DesignTokens, Map<string, Node | undefined>>();
 
-function treeOf(ds: DesignSystem, file: string): Node | undefined {
-    const trees = parsed.get(ds) ?? new Map<string, Node | undefined>();
-    parsed.set(ds, trees);
+function treeOf(tokens: DesignTokens, file: string): Node | undefined {
+    const trees = parsed.get(tokens) ?? new Map<string, Node | undefined>();
+    parsed.set(tokens, trees);
     if (!trees.has(file)) {
-        const text = ds.text(file);
+        const text = tokens.text(file);
         trees.set(file, text === undefined ? undefined : parseTree(text));
     }
     return trees.get(file);
 }
 
-export function nodeAt(ds: DesignSystem, { file, offset, length }: Span): Node | undefined {
-    const tree = treeOf(ds, file);
+export function nodeAt(tokens: DesignTokens, { file, offset, length }: Span): Node | undefined {
+    const tree = treeOf(tokens, file);
     let node = tree && findNodeAtOffset(tree, offset);
     while (node && (node.offset !== offset || node.length !== length)) node = node.parent;
     return node;
 }
 
-export function writtenIn(ds: DesignSystem, file: string, jsonPath: JsonPath): Json | undefined {
-    const tree = treeOf(ds, file);
+export function writtenIn(
+    tokens: DesignTokens,
+    file: string,
+    jsonPath: JsonPath,
+): Json | undefined {
+    const tree = treeOf(tokens, file);
     const node = tree && findNodeAtLocation(tree, jsonPath);
     return node && (getNodeValue(node) as Json);
 }
 
-export function memberAt(ds: DesignSystem, span: Span): Member | undefined {
-    const node = nodeAt(ds, span);
+export function memberAt(tokens: DesignTokens, span: Span): Member | undefined {
+    const node = nodeAt(tokens, span);
     return node && { span, jsonPath: getNodePath(node), written: getNodeValue(node) as Json };
 }
 

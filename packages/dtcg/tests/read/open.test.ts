@@ -28,7 +28,7 @@ function reopened({ files, entry, options }: Project): Project {
 }
 
 describe("open", () => {
-    it("keeps each file's text by the name the design system gives it", async () => {
+    it("keeps each file's text by the name the design tokens give it", async () => {
         const project = await open("tokens/design.resolver.json", { readText: fromDisk });
         expect(project.doc.files).toStrictEqual([
             "design.resolver.json",
@@ -42,7 +42,7 @@ describe("open", () => {
         });
     });
 
-    it("names the entry as the design system does, so its text is among the files", async () => {
+    it("names the entry as the design tokens do, so its text is among the files", async () => {
         const project = await open("tokens/design.resolver.json", { readText: fromDisk });
         expect(project.entry).toBe("design.resolver.json");
         expect(project.entry && project.files[project.entry]).toBe(resolver);
@@ -57,7 +57,7 @@ describe("open", () => {
         expect(project.doc.diagnostics).toStrictEqual([]);
     });
 
-    it("leaves out a file that could not be read, as the design system reports it", async () => {
+    it("leaves out a file that could not be read, as the design tokens report it", async () => {
         const project = await open("tokens/design.resolver.json", {
             readText: async (path) =>
                 path === "shared/brand.json"
@@ -68,7 +68,7 @@ describe("open", () => {
         expect(project.doc.diagnostics.map(({ kind }) => kind)).toStrictEqual(["file-not-found"]);
     });
 
-    it("opens again from its own files, entry and options to the same design system", async () => {
+    it("opens again from its own files, entry and options to the same design tokens", async () => {
         const project = await open("tokens/design.resolver.json", {
             readText: fromDisk,
             hexStringColors: true,
@@ -78,7 +78,7 @@ describe("open", () => {
 });
 
 describe("openFromMemory", () => {
-    it("keeps the text of each file the design system read, by the design system's name for it", () => {
+    it("keeps the text of each file the design tokens were read from, by their name for it", () => {
         const project = openFromMemory({
             files: { ...disk, "tokens/unused.json": dark },
             entry: "tokens/design.resolver.json",
@@ -91,7 +91,7 @@ describe("openFromMemory", () => {
         });
     });
 
-    it("opens again from its own files and entry to the same design system", () => {
+    it("opens again from its own files and entry to the same design tokens", () => {
         const project = openFromMemory({ files: disk, entry: "tokens/design.resolver.json" });
         expect(reopened(project)).toStrictEqual(project);
     });
@@ -103,7 +103,7 @@ describe("openFromMemory", () => {
         expect(reopened(project)).toStrictEqual(project);
     });
 
-    it("takes a single file as its entry, and opens again to the same design system", () => {
+    it("takes a single file as its entry, and opens again to the same design tokens", () => {
         const project = openFromMemory({ files: { "base.json": base } });
         expect(project.entry).toBe("base.json");
         expect(reopened(project)).toStrictEqual(project);

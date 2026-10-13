@@ -5,7 +5,7 @@ const red = { colorSpace: "srgb", components: [1, 0, 0] };
 const redRead = { colorSpace: "srgb", components: [1, 0, 0], alpha: 1 };
 const px = (value: number) => ({ value, unit: "px" });
 
-const tokens = {
+const json = {
     red: { $type: "color", $value: red },
     thin: { $type: "dimension", $value: px(1) },
     half: { $type: "number", $value: 0.5 },
@@ -68,9 +68,9 @@ const tokens = {
     broken: { $type: "dimension", $value: "4px" },
 };
 
-const doc = readFromMemory({ files: { "tokens.json": JSON.stringify(tokens) } });
+const tokens = readFromMemory({ files: { "tokens.json": JSON.stringify(json) } });
 const partsOfPath = (path: string) => {
-    const found = doc.permutation().token(path);
+    const found = tokens.permutation().token(path);
     if (!found) throw new Error(`no token ${path}`);
     return found.parts;
 };

@@ -260,7 +260,7 @@ export interface ReferenceBase {
 }
 
 /**
- * A reference, as {@link DesignSystem.references} and {@link DesignSystem.referencedBy} give it:
+ * A reference, as {@link DesignTokens.references} and {@link DesignTokens.referencedBy} give it:
  * written once, holding in each of `permutations`. `from` is the path that writes it, since in each
  * permutation that is a different token.
  */
@@ -271,7 +271,7 @@ export type ReferenceInPermutations = Omit<ReferenceBase, "from" | "token" | "mo
         moved(moves: readonly Move[]): JsonValue;
     };
 
-/** How far {@link TokenBase.referencedBy} and the design system's reference questions look. */
+/** How far {@link TokenBase.referencedBy} and the design tokens' reference questions look. */
 export interface ReferenceOptions {
     /**
      * Follow chained references (Format 7.2.2): those through other tokens, however indirectly.
@@ -539,7 +539,7 @@ export interface TokenBase<T extends TokenType> {
      */
     resolved?: ValueByType[T];
     /**
-     * Set when the value could not be read. The reasons are in {@link DesignSystem.diagnostics},
+     * Set when the value could not be read. The reasons are in {@link DesignTokens.diagnostics},
      * under this token's path.
      */
     invalid?: true;
@@ -771,7 +771,7 @@ export interface Place {
 }
 
 /**
- * A place, as {@link DesignSystem.writtenAt} gives it: written once at `span`, read through each of
+ * A place, as {@link DesignTokens.writtenAt} gives it: written once at `span`, read through each of
  * `sources` (a file several contexts list is a source for each), in each of `permutations`.
  */
 export interface PlaceInPermutations {
@@ -785,7 +785,7 @@ export interface PlaceInPermutations {
  * resolver. Keys written beside a source's `$ref` are part of that source, so a token written there
  * belongs to it, and its place is in the resolver. One object for each source the resolver lists,
  * per context that lists it (a set several contexts pull in gives one for each), shared by every
- * permutation that reads it: {@link DesignSystem.sources} lists each once.
+ * permutation that reads it: {@link DesignTokens.sources} lists each once.
  */
 export interface Source {
     /** The file its tokens are written in, or the resolver for tokens written there. */
@@ -798,7 +798,7 @@ export interface Source {
     pointer?: string;
     /**
      * The context it is listed under, when the resolver lists it under one: the context itself, as
-     * {@link DesignSystem.resolver} holds it. "Did a context's own file write this?" is this.
+     * {@link DesignTokens.resolver} holds it. "Did a context's own file write this?" is this.
      *
      * @example
      * token.writtenAt.at(-1)?.source.context?.name // "dark"
@@ -815,7 +815,7 @@ export interface Source {
     /**
      * The source's own vendor data, passed through untouched: the `$extensions` written beside its
      * `$ref`, or else those at the top of its file. A set's and a modifier's stay on them, in
-     * {@link DesignSystem.resolver}.
+     * {@link DesignTokens.resolver}.
      */
     extensions?: Record<string, unknown>;
     /**
@@ -831,7 +831,7 @@ export interface Source {
 
 /**
  * A set a source was reached through, as it is in effect at that step of the route: its name, which
- * finds its entry in {@link DesignSystem.resolver}, and its `$extensions`, those written beside the
+ * finds its entry in {@link DesignTokens.resolver}, and its `$extensions`, those written beside the
  * `$ref` that named it there when there are any, as keys beside a `$ref` replace the target's
  * (Resolver 4.2.2), otherwise its own.
  *
@@ -856,11 +856,11 @@ export interface SetOnRoute {
  * is left out too, as it doesn't take part as a set, but isn't reported, as part of it is read.
  *
  * @example
- * ds.resolver?.name                         // "Acme"
- * ds.resolver?.modifiers.map(({ name }) => name) // ["mode", "density"]
+ * tokens.resolver?.name                         // "Acme"
+ * tokens.resolver?.modifiers.map(({ name }) => name) // ["mode", "density"]
  */
 export interface Resolver {
-    /** The resolver, as {@link DesignSystem.files} names it. */
+    /** The resolver, as {@link DesignTokens.files} names it. */
     file: string;
     /** The spec version the resolver declares, such as `"2025.10"`. */
     version?: string;
@@ -916,7 +916,7 @@ export interface ResolverContext {
 }
 
 /**
- * A source as the resolver writes it: a file, or part of one, as {@link DesignSystem.files} names
+ * A source as the resolver writes it: a file, or part of one, as {@link DesignTokens.files} names
  * it, or a set it names. Tokens written in the resolver are part of the resolver, with a pointer to
  * where they sit.
  *
@@ -957,7 +957,7 @@ export interface Permutation {
      * without a resolver.
      *
      * @example
-     * const base = ds.permutations.find((p) => p.isDefault) ?? ds.permutations[0];
+     * const base = tokens.permutations.find((p) => p.isDefault) ?? tokens.permutations[0];
      */
     readonly isDefault: boolean;
     /** What is written at the top level of the files. */
@@ -1295,7 +1295,7 @@ export type Diagnostic = DiagnosticOf<DiagnosticDetailByKind>;
  *
  * @example
  * type Ours = DiagnosticOf<{ "selector-empty": { entry: number } }>;
- * const reported: (Diagnostic | Ours)[] = [...ds.diagnostics, ...checkConfig(ds)];
+ * const reported: (Diagnostic | Ours)[] = [...tokens.diagnostics, ...checkConfig(tokens)];
  */
 export type DiagnosticOf<DetailByKind> = {
     [K in keyof DetailByKind]: {
@@ -1326,15 +1326,16 @@ export type DiagnosticOf<DetailByKind> = {
 }[keyof DetailByKind];
 
 /**
- * A design system as the DTCG specifications define it: every permutation, with every value in one
- * shape and every reference followed. Its tokens and groups link to each other: a token's
+ * Design tokens as the DTCG specifications define them: every permutation, with every value in one
+ * shape and every reference followed. The tokens and groups link to each other: a token's
  * {@link TokenBase.group | group} is the group itself, a group's {@link Group.children | children}
- * the tokens and groups themselves. `JSON.stringify` writes its plain form, with a path wherever
+ * the tokens and groups themselves. `JSON.stringify` writes their plain form, with a path wherever
  * one links to another, and leaves out what the rest says: a token's or group's `group`, a token's
  * `permutation`, a group's `rootToken` and `extends`, `kind`, a reference's `from`, `token` and
- * `targetProperty`, and a JSON Pointer's `path`. Nothing changes it after {@link read} returns it.
+ * `targetProperty`, and a JSON Pointer's `path`. Nothing changes them after {@link read} returns
+ * them.
  */
-export interface DesignSystem {
+export interface DesignTokens {
     /**
      * Every file the read used, the entry first, in the order they were read. For watching and
      * reloading. Paths are as described at {@link ReadText}.
@@ -1350,18 +1351,18 @@ export interface DesignSystem {
     /** Every permutation the read built, in the order it built them; with no label. */
     permutations: Permutations;
     /**
-     * How the values were read. To read a value from the design system again, such as one inside
+     * How the values were read. To read a value from the design tokens again, such as one inside
      * `$extensions`, the same way, give these to `parseValue` or `extensionReader`.
      */
     parseOptions: Required<ParseOptions>;
     /**
      * Every error, warning and note, in the order the read found them; sort by `span` for file
      * order. For those about one token or group,
-     * {@link DesignSystem.diagnosticsFor | diagnosticsFor}; for those at a place in a file,
-     * {@link DesignSystem.diagnosticsAt | diagnosticsAt}.
+     * {@link DesignTokens.diagnosticsFor | diagnosticsFor}; for those at a place in a file,
+     * {@link DesignTokens.diagnosticsAt | diagnosticsAt}.
      *
      * @example
-     * const errors = ds.diagnostics.filter((d) => d.severity === "error");
+     * const errors = tokens.diagnostics.filter((d) => d.severity === "error");
      */
     diagnostics: Diagnostic[];
     /**
@@ -1370,7 +1371,7 @@ export interface DesignSystem {
      * property-level reference, the token holding the property), however indirectly.
      *
      * @example
-     * ds.references("color.text", { chained: true }).map(({ path }) => path)
+     * tokens.references("color.text", { chained: true }).map(({ path }) => path)
      */
     references(path: string, options?: ReferenceOptions): ReferenceInPermutations[];
     /**
@@ -1379,7 +1380,7 @@ export interface DesignSystem {
      * covers what is written to it, such as an `$extends`, and to everything inside it.
      *
      * @example
-     * for (const { from, span } of ds.referencedBy("color.brand")) show(from, span);
+     * for (const { from, span } of tokens.referencedBy("color.brand")) show(from, span);
      */
     referencedBy(path: string, options?: ReferenceOptions): ReferenceInPermutations[];
     /**
@@ -1387,7 +1388,7 @@ export interface DesignSystem {
      * the sources and permutations that read it, in the order first met.
      *
      * @example
-     * for (const { span } of ds.writtenAt("color.brand")) rename(span);
+     * for (const { span } of tokens.writtenAt("color.brand")) rename(span);
      */
     writtenAt(path: string): PlaceInPermutations[];
     /**
@@ -1399,7 +1400,7 @@ export interface DesignSystem {
      * names a permutation the read did not build. Its `detail` says which.
      *
      * @example
-     * const dark = ds.permutation({ mode: "dark" });
+     * const dark = tokens.permutation({ mode: "dark" });
      */
     permutation(input?: Input): Permutation;
     /**
@@ -1407,7 +1408,7 @@ export interface DesignSystem {
      * and default.
      *
      * @example
-     * ds.modifier("mode")?.contexts.map(({ name }) => name) // ["light", "dark"]
+     * tokens.modifier("mode")?.contexts.map(({ name }) => name) // ["light", "dark"]
      */
     modifier(name: string): ResolverModifier | undefined;
     /**
@@ -1415,7 +1416,7 @@ export interface DesignSystem {
      * a token only a later permutation has comes after the earlier ones' tokens.
      *
      * @example
-     * for (const path of ds.tokenPaths()) row(path, dark.token(path)?.resolved);
+     * for (const path of tokens.tokenPaths()) row(path, dark.token(path)?.resolved);
      */
     tokenPaths(): string[];
     /**
@@ -1426,30 +1427,30 @@ export interface DesignSystem {
      * Whether a token or group is at `path` in any permutation.
      *
      * @example
-     * if (ds.has("color.danger")) refuse("taken");
+     * if (tokens.has("color.danger")) refuse("taken");
      */
     has(path: string): boolean;
     /**
-     * The text of a file the read used, by the name {@link DesignSystem.files} gives it, exactly as
+     * The text of a file the read used, by the name {@link DesignTokens.files} gives it, exactly as
      * read; `undefined` for a file it did not use. What an editor shows, and what a format-keeping
      * edit changes.
      *
      * @example
-     * const lines = ds.text("dark.json")?.split("\n");
+     * const lines = tokens.text("dark.json")?.split("\n");
      */
     text(file: string): string | undefined;
     /**
-     * The design system after some files change, read as this one was: from the same file, with
-     * the same options. `changed` gives each changed file's new text, a new file included, or
-     * `null` for a file deleted, by the names {@link DesignSystem.files} gives them; every other
-     * file is read as this one read it. This design system is not changed. What an editor asks
-     * after changing the text.
+     * The design tokens after some files change, read as these were: from the same file, with the
+     * same options. `changed` gives each changed file's new text, a new file included, or `null`
+     * for a file deleted, by the names {@link DesignTokens.files} gives them; every other file is
+     * read as these read it. These design tokens are not changed. What an editor asks after
+     * changing the text.
      *
      * @example
-     * const next = ds.reread({ "dark.json": edited });
-     * const without = ds.reread({ "tokens.resolver.json": withoutDim, "dim.json": null });
+     * const next = tokens.reread({ "dark.json": edited });
+     * const without = tokens.reread({ "tokens.resolver.json": withoutDim, "dim.json": null });
      */
-    reread(changed: Readonly<Record<string, string | null>>): DesignSystem;
+    reread(changed: Readonly<Record<string, string | null>>): DesignTokens;
     /**
      * What changed since `before`, an earlier read, and in which permutations: tokens and groups
      * added, removed, renamed, or with different properties. A token is compared by what it says,
@@ -1470,16 +1471,16 @@ export interface DesignSystem {
      * has no match for is left out.
      *
      * @example
-     * for (const change of ds.diff(before, { moved })) row(change.kind, change.path);
+     * for (const change of tokens.diff(before, { moved })) row(change.kind, change.path);
      */
-    diff(before: DesignSystem, options?: { moved?: Move[] }): Change[];
+    diff(before: DesignTokens, options?: { moved?: Move[] }): Change[];
     /**
      * The problems about the token or group at `path`, in every permutation, each with the
      * permutations it is in: its own, a missing reference it writes (reported once however many
      * write it), a loop it is part of.
      *
      * @example
-     * for (const { message, permutations } of ds.diagnosticsFor("color.brand")) {
+     * for (const { message, permutations } of tokens.diagnosticsFor("color.brand")) {
      *   show(message, permutations?.label);
      * }
      */
@@ -1489,18 +1490,18 @@ export interface DesignSystem {
      * such as an editor's cursor.
      *
      * @example
-     * const here = ds.diagnosticsAt({ file: "tokens.json", offset: cursor, length: 0 });
+     * const here = tokens.diagnosticsAt({ file: "tokens.json", offset: cursor, length: 0 });
      */
     diagnosticsAt(place: Pick<Span, "file" | "offset" | "length">): Diagnostic[];
 }
 
 /**
- * Some of a design system's permutations, in its order: the ones an answer, a problem or the design
- * system itself covers. A read-only list, so `find`, `map`, `includes` and `length` work as on any
- * array, with the inputs and a label beside it.
+ * Some of the design tokens' permutations, in their order: the ones an answer, a problem or the
+ * design tokens themselves cover. A read-only list, so `find`, `map`, `includes` and `length` work
+ * as on any array, with the inputs and a label beside it.
  *
  * @example
- * for (const { from, permutations } of ds.referencedBy("color.red")) {
+ * for (const { from, permutations } of tokens.referencedBy("color.red")) {
  *   row(from, permutations.label ?? "");   // "mode: dark, sepia", or nothing when it's everywhere
  * }
  */
@@ -1518,7 +1519,7 @@ export interface Permutations extends ReadonlyArray<Permutation> {
 }
 
 /**
- * Why {@link DesignSystem.permutation} found no permutation, with the facts its message is worded
+ * Why {@link DesignTokens.permutation} found no permutation, with the facts its message is worded
  * from.
  */
 export type PermutationErrorDetail =
@@ -1784,14 +1785,14 @@ export interface ReadOptions extends ParseOptions {
  * that is absolute or a URL is passed as written. Throwing, or rejecting, reports the file as not
  * found.
  *
- * Every file path in the results, in `DesignSystem.files` and every `Span`, is relative to the
+ * Every file path in the results, in `DesignTokens.files` and every `Span`, is relative to the
  * entry's folder, with forward slashes, such as `"themes/dark.json"`; one written from the root or
  * as a URL stays as written. The entry itself is its file name. That name is passed as `file`, for
  * keeping each text by the name the results use, and {@link filePath} turns it back into `path`.
  *
  * @example
  * const texts = new Map<string, string>();
- * const ds = await read("tokens/tokens.resolver.json", {
+ * const tokens = await read("tokens/tokens.resolver.json", {
  *   readText: async (path, file) => {
  *     const text = await readFile(path, "utf8");
  *     texts.set(file, text); // "dark.json"
@@ -1805,22 +1806,22 @@ export { open, openFromMemory, read, readFromMemory } from "./read/read.js";
 export { filePath } from "./read/paths.js";
 
 /**
- * A design system and the text of its files: what {@link open} and {@link openFromMemory} give,
- * for a tool that changes the files. The design system holds no text; the text sits beside it.
+ * Design tokens and the text of their files: what {@link open} and {@link openFromMemory} give,
+ * for a tool that changes the files. The design tokens hold no text; the text sits beside them.
  *
  * A project never changes. It remembers the options it was read with, functions included, so it
  * cannot be sent to another process as it is: send its `files` and `entry`, and open it there with
- * {@link openFromMemory} and the same options, which gives the same design system.
+ * {@link openFromMemory} and the same options, which gives the same design tokens.
  */
 export interface Project {
-    readonly doc: DesignSystem;
+    readonly doc: DesignTokens;
     /**
-     * The file the read started from, a resolver or a token file, by the design system's name for
+     * The file the read started from, a resolver or a token file, by the design tokens' name for
      * it, so `files[entry]` is its text.
      */
     readonly entry: string;
     /**
-     * The text of every file the design system read, by the name the design system gives it, as at
+     * The text of every file the design tokens were read from, by the name they give it, as at
      * {@link ReadText}.
      */
     readonly files: Readonly<Record<string, string>>;
@@ -1857,18 +1858,24 @@ export type GroupProperty = "type" | "description" | "deprecated" | "extensions"
 /** A property a file can set on its top level. */
 export type TopLevelProperty = "type" | "description" | "deprecated" | "extensions";
 
-/** What a file writes for a token: its value exactly as written, and the properties it writes itself. */
+/**
+ * What a file writes for a token: its value exactly as written, and the properties it writes
+ * itself.
+ */
 export interface WrittenToken extends Written {
     value?: unknown;
 }
 
-/** What a file writes for a group: the properties it writes itself, and the path its `$extends` names. */
+/**
+ * What a file writes for a group: the properties it writes itself, and the path its `$extends`
+ * names.
+ */
 export interface WrittenGroup extends Written {
     extends?: string;
 }
 
 /**
- * One difference between two reads of a design system, in the permutations it holds in. `before`
+ * One difference between two reads of the design tokens, in the permutations it holds in. `before`
  * and `after` are what the files wrote, the same in each of those permutations; for a token in one
  * of them, ask it: `dark.token(change.path)`. `changed`, `renamed`, `group-changed` and
  * `group-renamed` list the properties that differ; a rename with nothing else changed lists none.
@@ -1877,7 +1884,9 @@ export interface WrittenGroup extends Written {
  * is the extension's, on its group. One a group takes through `$extends` says so too (`inherited`).
  *
  * @example
- * for (const change of ds.diff(before)) row(change.kind, change.path, change.permutations.label);
+ * for (const change of tokens.diff(before)) {
+ *     row(change.kind, change.path, change.permutations.label);
+ * }
  */
 export type Change =
     | ({ kind: "added"; path: string; after: WrittenToken } & TokenChange)
@@ -1953,7 +1962,7 @@ export type AtOffset =
  * What is at a position in a file: a token, a group, or a reference, with the type a value there
  * must have. For editors and language servers.
  */
-export function atOffset(ds: DesignSystem, file: string, offset: number): AtOffset {
+export function atOffset(tokens: DesignTokens, file: string, offset: number): AtOffset {
     throw new Error("not implemented yet");
 }
 
@@ -2015,7 +2024,7 @@ export interface ExportOptions {
  * @param input Which permutation. Defaults to the default permutation.
  */
 export function toDTCG(
-    doc: DesignSystem,
+    doc: DesignTokens,
     input?: Input,
     options?: ExportOptions,
 ): { tokens: JsonObject; skipped: string[] } {
@@ -2023,11 +2032,11 @@ export function toDTCG(
 }
 
 /**
- * Writes the whole design system as a resolver and its files: the default permutation in full,
+ * Writes all the design tokens as a resolver and its files: the default permutation in full,
  * then, for each other context, only what differs.
  */
 export function toDTCGProject(
-    doc: DesignSystem,
+    doc: DesignTokens,
     options?: ExportOptions & {
         /**
          * Write a single resolver file with every source inline.

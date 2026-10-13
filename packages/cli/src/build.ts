@@ -10,7 +10,7 @@ import {
     fillDefaults,
     readOptions,
 } from "@sugarcube-sh/core";
-import { type DesignSystem, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, readFromMemory } from "@sugarcube-sh/dtcg";
 import { read } from "@sugarcube-sh/dtcg/node";
 import { type UnoGenerator, createGenerator } from "@unocss/core";
 import { dirname } from "pathe";
@@ -29,7 +29,7 @@ interface MarkupScan {
 }
 
 export interface Built {
-    ds: DesignSystem;
+    tokens: DesignTokens;
     config: InternalConfig;
     folder: string;
     configFile?: string;
@@ -43,31 +43,31 @@ export interface Built {
 }
 
 interface Reading {
-    ds: DesignSystem;
+    tokens: DesignTokens;
     folder: string;
     config: InternalConfig;
     configFile?: string;
 }
 
 export async function build(loaded: LoadedConfig, options: BuildOptions = {}): Promise<Built> {
-    const ds = await read(loaded.config.resolver, readOptions(loaded.config));
-    return buildFrom(ds, loaded, options);
+    const tokens = await read(loaded.config.resolver, readOptions(loaded.config));
+    return buildFrom(tokens, loaded, options);
 }
 
 export function buildFrom(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     { config, configFile }: LoadedConfig,
     options: BuildOptions = {},
     previous?: Built,
 ): Promise<Built> {
-    const reading = { ds, folder: dirname(config.resolver), config, configFile };
+    const reading = { tokens, folder: dirname(config.resolver), config, configFile };
     return fromReading(reading, options, previous);
 }
 
 export function buildFiles(texts: Record<string, string>, folder: string): Promise<Built> {
     const config = fillDefaults({});
-    const ds = readFromMemory({ files: texts }, readOptions(config));
-    return fromReading({ ds, folder, config }, {});
+    const tokens = readFromMemory({ files: texts }, readOptions(config));
+    return fromReading({ tokens, folder, config }, {});
 }
 
 export async function rescan(built: Built): Promise<Built> {
@@ -88,11 +88,11 @@ export function filesOf({ variables, utilities }: Built): CSSFileOutput {
 }
 
 async function fromReading(
-    { ds, folder, config, configFile }: Reading,
+    { tokens, folder, config, configFile }: Reading,
     options: BuildOptions,
     previous?: Built,
 ): Promise<Built> {
-    const made = cssFrom(ds, config, {
+    const made = cssFrom(tokens, config, {
         variables: !options.utilitiesOnly,
         utilities: !options.variablesOnly,
     });
@@ -101,7 +101,7 @@ async function fromReading(
             ? await markupUtilities(made.utilities, config, previous)
             : { utilities: [], markupFiles: [] };
     return {
-        ds,
+        tokens,
         config,
         folder,
         configFile,

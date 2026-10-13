@@ -51,28 +51,28 @@ describe("positions", () => {
     });
 
     it("reports a comment and a syntax error in the same file, in file order", () => {
-        const doc = readFromMemory({ files: { "tokens.json": '{ "a": 1, // note\n }' } });
-        expect(doc.diagnostics.map(({ detail }) => detail)).toStrictEqual([
+        const tokens = readFromMemory({ files: { "tokens.json": '{ "a": 1, // note\n }' } });
+        expect(tokens.diagnostics.map(({ detail }) => detail)).toStrictEqual([
             { reason: "comment" },
             { reason: "property-name-expected" },
         ]);
     });
 
     it("reports only the first syntax error, since later ones usually follow from it", () => {
-        const doc = readFromMemory({ files: { "tokens.json": '{ "a": 1,, "b": }' } });
-        expect(doc.diagnostics.map(({ detail }) => detail)).toStrictEqual([
+        const tokens = readFromMemory({ files: { "tokens.json": '{ "a": 1,, "b": }' } });
+        expect(tokens.diagnostics.map(({ detail }) => detail)).toStrictEqual([
             { reason: "property-name-expected" },
         ]);
     });
 
     it("reports each repeat of a key, in a nested object too", () => {
-        const doc = readFromMemory({
+        const tokens = readFromMemory({
             files: {
                 "tokens.json":
                     '{ "a": { "$type": "number", "b": { "$value": 1 }, "b": { "$value": 2 }, "b": { "$value": 3 } } }',
             },
         });
-        expect(doc.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
+        expect(tokens.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
             { kind: "duplicate-key", detail: { key: "b" } },
             { kind: "duplicate-key", detail: { key: "b" } },
         ]);
@@ -106,7 +106,7 @@ describe("what is set aside is a warning, and what cannot be read an error", () 
     });
 
     it("a pointer without its slash is an error in a reference to another file, as in a token file", () => {
-        const doc = readFromMemory({
+        const tokens = readFromMemory({
             files: {
                 "tokens.resolver.json": JSON.stringify({
                     version: "2025.10",
@@ -120,10 +120,10 @@ describe("what is set aside is a warning, and what cannot be read an error", () 
             },
             entry: "tokens.resolver.json",
         });
-        expect(doc.diagnostics.map(({ kind, severity }) => [kind, severity])).toStrictEqual([
+        expect(tokens.diagnostics.map(({ kind, severity }) => [kind, severity])).toStrictEqual([
             ["malformed-pointer", "error"],
         ]);
-        expect(doc.permutations[0]?.tokens).toStrictEqual([]);
+        expect(tokens.permutations[0]?.tokens).toStrictEqual([]);
     });
 
     it("a $type, $extends or $ref of the wrong kind stays an error, since it changes what the token is", () => {
@@ -140,16 +140,16 @@ describe("what is set aside is a warning, and what cannot be read an error", () 
     });
 });
 
-describe("the options a design system was read with", () => {
+describe("the options design tokens were read with", () => {
     it("are recorded, so its values can be read again the same way", () => {
         const options = { hexStringColors: true, ignoreUnknownProperties: true };
-        const doc = readFromMemory({ files: { "tokens.json": valid } }, options);
-        expect(doc.parseOptions).toStrictEqual(options);
+        const tokens = readFromMemory({ files: { "tokens.json": valid } }, options);
+        expect(tokens.parseOptions).toStrictEqual(options);
     });
 
     it("are the defaults when none are given", () => {
-        const doc = readFromMemory({ files: { "tokens.json": valid } });
-        expect(doc.parseOptions).toStrictEqual({
+        const tokens = readFromMemory({ files: { "tokens.json": valid } });
+        expect(tokens.parseOptions).toStrictEqual({
             hexStringColors: false,
             ignoreUnknownProperties: false,
         });
@@ -159,10 +159,10 @@ describe("the options a design system was read with", () => {
 describe("read", () => {
     it("asks for each file by the entry's folder, and keeps paths relative to it", async () => {
         const readText = vi.fn(async () => valid);
-        const doc = await read("tokens/base.json", { readText });
+        const tokens = await read("tokens/base.json", { readText });
         expect(readText.mock.calls).toStrictEqual([["tokens/base.json", "base.json"]]);
-        expect(doc.files).toStrictEqual(["base.json"]);
-        expect(doc.permutations[0]?.sources).toStrictEqual([
+        expect(tokens.files).toStrictEqual(["base.json"]);
+        expect(tokens.permutations[0]?.sources).toStrictEqual([
             { file: "base.json", sets: [], readBy: "everyone" },
         ]);
     });
@@ -174,12 +174,12 @@ describe("read", () => {
     });
 
     it("reports a file as not found when readText throws before returning a promise", async () => {
-        const doc = await read("tokens.json", {
+        const tokens = await read("tokens.json", {
             readText: () => {
                 throw new Error("no");
             },
         });
-        expect(doc.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
+        expect(tokens.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
             { kind: "file-not-found", detail: { file: "tokens.json" } },
         ]);
     });
@@ -218,7 +218,7 @@ describe("paths in a resolver", () => {
             batch = [];
             return path.endsWith(".resolver.json") ? resolver : valid;
         };
-        const doc = await read("tokens/design.resolver.json", { readText });
+        const tokens = await read("tokens/design.resolver.json", { readText });
 
         expect(batches).toStrictEqual([
             ["tokens/design.resolver.json"],
@@ -229,17 +229,17 @@ describe("paths in a resolver", () => {
                 "C:/tokens/windows.json",
             ],
         ]);
-        expect(doc.files).toStrictEqual([
+        expect(tokens.files).toStrictEqual([
             "design.resolver.json",
             "dark.json",
             "../shared/base.json",
             "https://cdn.example.com/tokens.json",
             "C:/tokens/windows.json",
         ]);
-        expect(doc.diagnostics).toStrictEqual([]);
+        expect(tokens.diagnostics).toStrictEqual([]);
     });
 
-    it("names each file it asks for as the design system will name it", async () => {
+    it("names each file it asks for as the design tokens will name it", async () => {
         const asked: [string, string][] = [];
         await read("tokens/design.resolver.json", {
             readText: async (path, file) => {
@@ -256,7 +256,7 @@ describe("paths in a resolver", () => {
         ]);
     });
 
-    it("gives back, through filePath, the path it asked for each file the design system names", async () => {
+    it("gives back, through filePath, the path it asked for each file the design tokens name", async () => {
         const asked: [string, string][] = [];
         await read("tokens/design.resolver.json", {
             readText: async (path, file) => {
@@ -276,7 +276,7 @@ describe("paths in a resolver", () => {
 
 describe("shared sets", () => {
     it("reports a problem in a set once, however many places use it", () => {
-        const doc = readFromMemory({
+        const tokens = readFromMemory({
             files: {
                 "tokens.resolver.json": JSON.stringify({
                     version: "2025.10",
@@ -301,7 +301,7 @@ describe("shared sets", () => {
                 }),
             },
         });
-        expect(doc.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
+        expect(tokens.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
             {
                 kind: "resolver-invalid",
                 detail: {
@@ -332,37 +332,39 @@ describe("the combination limit", () => {
         readFromMemory({ files: { "tokens.resolver.json": resolver } }, options);
 
     it("builds every combination up to the limit, and no warning", () => {
-        const doc = readWith(withModifiers(5));
-        expect(doc.permutations).toHaveLength(32);
-        expect(doc.diagnostics).toStrictEqual([]);
+        const tokens = readWith(withModifiers(5));
+        expect(tokens.permutations).toHaveLength(32);
+        expect(tokens.diagnostics).toStrictEqual([]);
     });
 
     it("builds the default and each context on its own above it, and says so", () => {
-        const doc = readWith(withModifiers(6));
-        expect(doc.permutations.map(({ input }) => Object.values(input).join(""))).toStrictEqual([
-            "offoffoffoffoffoff",
-            "onoffoffoffoffoff",
-            "offonoffoffoffoff",
-            "offoffonoffoffoff",
-            "offoffoffonoffoff",
-            "offoffoffoffonoff",
-            "offoffoffoffoffon",
-        ]);
-        expect(doc.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
+        const tokens = readWith(withModifiers(6));
+        expect(tokens.permutations.map(({ input }) => Object.values(input).join(""))).toStrictEqual(
+            [
+                "offoffoffoffoffoff",
+                "onoffoffoffoffoff",
+                "offonoffoffoffoff",
+                "offoffonoffoffoff",
+                "offoffoffonoffoff",
+                "offoffoffoffonoff",
+                "offoffoffoffoffon",
+            ],
+        );
+        expect(tokens.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
             { kind: "permutation-limit", detail: { count: 64, limit: 32, built: 7 } },
         ]);
     });
 
     it("takes a higher limit", () => {
-        const doc = readWith(withModifiers(6), { permutationLimit: 64 });
-        expect(doc.permutations).toHaveLength(64);
-        expect(doc.diagnostics).toStrictEqual([]);
+        const tokens = readWith(withModifiers(6), { permutationLimit: 64 });
+        expect(tokens.permutations).toHaveLength(64);
+        expect(tokens.diagnostics).toStrictEqual([]);
     });
 
     it("builds only what can be built above it when modifiers have no default", () => {
-        const doc = readWith(withModifiers(6, false));
-        expect(doc.permutations).toStrictEqual([]);
-        expect(doc.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
+        const tokens = readWith(withModifiers(6, false));
+        expect(tokens.permutations).toStrictEqual([]);
+        expect(tokens.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
             {
                 kind: "no-default",
                 detail: { modifiers: ["m0", "m1", "m2", "m3", "m4", "m5"] },
@@ -372,12 +374,12 @@ describe("the combination limit", () => {
     });
 
     it("never needs the limit when inputs are given", () => {
-        const doc = readFromMemory(
+        const tokens = readFromMemory(
             { files: { "tokens.resolver.json": withModifiers(20) } },
             { inputs: [{ m3: "on" }] },
         );
-        expect(doc.permutations.map(({ input }) => input.m3)).toStrictEqual(["on"]);
-        expect(doc.diagnostics).toStrictEqual([]);
+        expect(tokens.permutations.map(({ input }) => input.m3)).toStrictEqual(["on"]);
+        expect(tokens.diagnostics).toStrictEqual([]);
     });
 });
 
@@ -391,13 +393,13 @@ describe("each context on its own", () => {
             })),
         });
     const labels = (text: string) => {
-        const doc = readFromMemory(
+        const tokens = readFromMemory(
             { files: { "tokens.resolver.json": text } },
             { permutations: "each-context" },
         );
         return {
-            labels: doc.permutations.map(({ label }) => label),
-            diagnostics: doc.diagnostics.map(({ kind, detail }) => ({ kind, detail })),
+            labels: tokens.permutations.map(({ label }) => label),
+            diagnostics: tokens.diagnostics.map(({ kind, detail }) => ({ kind, detail })),
         };
     };
 
@@ -451,14 +453,14 @@ describe("each context on its own", () => {
 
 describe("inputs without modifiers", () => {
     it("builds the one permutation there is, since there is nothing to check (Resolver 6.1)", () => {
-        const doc = readFromMemory(
+        const tokens = readFromMemory(
             { files: { "tokens.json": valid } },
             { inputs: [{ theme: "dark" }] },
         );
-        expect(doc.permutations.map(({ input, label }) => ({ input, label }))).toStrictEqual([
+        expect(tokens.permutations.map(({ input, label }) => ({ input, label }))).toStrictEqual([
             { input: {}, label: "" },
         ]);
-        expect(doc.diagnostics).toStrictEqual([]);
+        expect(tokens.diagnostics).toStrictEqual([]);
     });
 });
 
@@ -468,6 +470,7 @@ describe("readFromMemory", () => {
             readFromMemory({ files: { "base.json": valid, "./themes/dark.json": valid } });
         expect(reading).toThrow(TypeError);
         expect(reading).toThrow(/`base\.json`.*`themes\/dark\.json`/);
+        expect(reading).toThrow(/a resolver says which files to read and in what order/);
     });
 
     it("refuses several resolvers when no entry says which, naming them", () => {
@@ -483,48 +486,48 @@ describe("readFromMemory", () => {
     });
 
     it("reads several token files when an entry names the one to start from", () => {
-        const doc = readFromMemory({
+        const tokens = readFromMemory({
             files: { "base.json": valid, "other.json": valid },
             entry: "base.json",
         });
-        expect(doc.files).toStrictEqual(["base.json"]);
+        expect(tokens.files).toStrictEqual(["base.json"]);
     });
 
     it("finds an entry given with a folder among the files", () => {
-        const doc = readFromMemory({
+        const tokens = readFromMemory({
             files: { "tokens/base.json": valid, "other.json": valid },
             entry: "tokens/base.json",
         });
-        expect(doc.files).toStrictEqual(["base.json"]);
-        expect(doc.diagnostics).toStrictEqual([]);
+        expect(tokens.files).toStrictEqual(["base.json"]);
+        expect(tokens.diagnostics).toStrictEqual([]);
     });
 
     it("uses a resolver among the files as the entry, and ignores files it does not read", () => {
-        const doc = readFromMemory({
+        const tokens = readFromMemory({
             files: {
                 "stray.json": "{ // not read\n }",
                 "design.resolver.json": '{ "version": "2025.10", "resolutionOrder": [] }',
             },
         });
-        expect(doc.files).toStrictEqual(["design.resolver.json"]);
-        expect(doc.diagnostics).toStrictEqual([]);
+        expect(tokens.files).toStrictEqual(["design.resolver.json"]);
+        expect(tokens.diagnostics).toStrictEqual([]);
     });
 
     it("reports a syntax error in a resolver, but not its comments", () => {
-        const doc = readFromMemory({
+        const tokens = readFromMemory({
             files: {
                 "design.resolver.json":
                     '{ // fine here\n "version": "2025.10", "resolutionOrder": [], }',
             },
         });
-        expect(doc.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
+        expect(tokens.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
             { kind: "invalid-json", detail: { reason: "property-name-expected" } },
         ]);
     });
 
     it("writes its plain form with JSON.stringify, each source once and placed by position", () => {
-        const doc = readFromMemory({ files: { "tokens.json": '{ "a": 1, "a": 2 }' } });
-        expect(JSON.parse(JSON.stringify(doc))).toMatchObject({
+        const tokens = readFromMemory({ files: { "tokens.json": '{ "a": 1, "a": 2 }' } });
+        expect(JSON.parse(JSON.stringify(tokens))).toMatchObject({
             files: ["tokens.json"],
             sources: [{ file: "tokens.json", sets: [], readBy: "everyone" }],
             permutations: [{ sources: [0] }],
@@ -556,9 +559,9 @@ describe("a group referring to the whole document", () => {
                 "g": { $ref: "#/" },
             }),
         };
-        const doc = readFromMemory({ files });
-        expect(doc.diagnostics).toStrictEqual([]);
-        expect(doc.permutation().token("g.x")?.inherited).toStrictEqual({ from: "" });
+        const tokens = readFromMemory({ files });
+        expect(tokens.diagnostics).toStrictEqual([]);
+        expect(tokens.permutation().token("g.x")?.inherited).toStrictEqual({ from: "" });
     });
     it('never reaches a token named "" through #, the whole document', () => {
         const files = {
@@ -573,8 +576,8 @@ describe("a group referring to the whole document", () => {
 
 describe("a member named like a property at the top of a file", () => {
     it("is not taken for `$value`, since the top of a file is never a token", () => {
-        const doc = readFromMemory({ files: { "tokens.json": JSON.stringify({ value: "x" }) } });
-        expect(doc.diagnostics.map(({ kind }) => kind)).toStrictEqual(["invalid-member"]);
+        const tokens = readFromMemory({ files: { "tokens.json": JSON.stringify({ value: "x" }) } });
+        expect(tokens.diagnostics.map(({ kind }) => kind)).toStrictEqual(["invalid-member"]);
     });
 });
 
@@ -596,10 +599,10 @@ describe("labels", () => {
             },
         ],
     });
-    const doc = readFromMemory({ files: { "tokens.resolver.json": resolver } });
+    const tokens = readFromMemory({ files: { "tokens.resolver.json": resolver } });
 
     it("write out the input, every modifier in the order the resolver declares them", () => {
-        expect(doc.permutations.map(({ input, label }) => [input, label])).toStrictEqual([
+        expect(tokens.permutations.map(({ input, label }) => [input, label])).toStrictEqual([
             [{ theme: "light", size: "large" }, "theme: light, size: large"],
             [{ theme: "light", size: "default" }, "theme: light, size: default"],
             [{ theme: "dark", size: "default" }, "theme: dark, size: default"],
@@ -613,14 +616,14 @@ describe("labels", () => {
     });
 });
 
-describe("what a design system holds", () => {
+describe("what the design tokens hold", () => {
     it("is the files, the resolver part, the sources, the permutations, how values were read and the problems", () => {
         const resolver = JSON.stringify({ version: "2025.10", resolutionOrder: [] });
-        const doc = readFromMemory({
+        const tokens = readFromMemory({
             files: { "tokens.resolver.json": resolver },
             entry: "tokens.resolver.json",
         });
-        expect(Object.keys(doc)).toStrictEqual([
+        expect(Object.keys(tokens)).toStrictEqual([
             "files",
             "resolver",
             "sources",
@@ -631,7 +634,7 @@ describe("what a design system holds", () => {
     });
 });
 
-describe("ds.text", () => {
+describe("tokens.text", () => {
     const base = '{ "gap": { "$type": "number", "$value": 1 } }\n';
     const files = {
         "tokens.resolver.json": JSON.stringify({
@@ -643,33 +646,33 @@ describe("ds.text", () => {
         "unread.json": "{}",
     };
 
-    it("is the text of each file the read used, by the name the design system gives it", () => {
-        const ds = readFromMemory({ files, entry: "tokens.resolver.json" });
-        expect(ds.text("base.json")).toBe(base);
-        expect(ds.text("tokens.resolver.json")).toBe(files["tokens.resolver.json"]);
+    it("is the text of each file the read used, by the name the design tokens give it", () => {
+        const tokens = readFromMemory({ files, entry: "tokens.resolver.json" });
+        expect(tokens.text("base.json")).toBe(base);
+        expect(tokens.text("tokens.resolver.json")).toBe(files["tokens.resolver.json"]);
     });
 
     it("is undefined for a file the read did not use", () => {
-        const ds = readFromMemory({ files, entry: "tokens.resolver.json" });
-        expect(ds.text("unread.json")).toBeUndefined();
-        expect(ds.text("missing.json")).toBeUndefined();
+        const tokens = readFromMemory({ files, entry: "tokens.resolver.json" });
+        expect(tokens.text("unread.json")).toBeUndefined();
+        expect(tokens.text("missing.json")).toBeUndefined();
     });
 
     it("is kept by read from disk too", async () => {
-        const ds = await read("tokens.resolver.json", {
+        const tokens = await read("tokens.resolver.json", {
             readText: async (path) => files[path as keyof typeof files],
         });
-        expect(ds.text("base.json")).toBe(base);
+        expect(tokens.text("base.json")).toBe(base);
     });
 
     it("is not written in the plain form", () => {
-        const ds = readFromMemory({ files, entry: "tokens.resolver.json" });
-        expect(JSON.stringify(ds)).not.toContain("\\n");
-        expect(JSON.parse(JSON.stringify(ds))).not.toHaveProperty("text");
+        const tokens = readFromMemory({ files, entry: "tokens.resolver.json" });
+        expect(JSON.stringify(tokens)).not.toContain("\\n");
+        expect(JSON.parse(JSON.stringify(tokens))).not.toHaveProperty("text");
     });
 });
 
-describe("ds.reread", () => {
+describe("tokens.reread", () => {
     const steps = defineGenerator({
         extension: ["com.example", "steps"],
         messages: {},
@@ -690,8 +693,8 @@ describe("ds.reread", () => {
         "base.json": base("#ff0000"),
         "more.json": more,
     };
-    const ds = readFromMemory({ files }, { generators: [steps], hexStringColors: true });
-    const changed = () => ds.reread({ "base.json": base("#00ff00") });
+    const tokens = readFromMemory({ files }, { generators: [steps], hexStringColors: true });
+    const changed = () => tokens.reread({ "base.json": base("#00ff00") });
 
     it("reads a changed file's new text, and every other file as this one read it", () => {
         expect(changed().permutation().token("brand")?.authored?.value).toBe("#00ff00");
@@ -706,7 +709,7 @@ describe("ds.reread", () => {
     });
 
     it("leaves out a file given as null, as if deleted", () => {
-        const deleted = ds.reread({ "more.json": null });
+        const deleted = tokens.reread({ "more.json": null });
         expect(deleted.text("more.json")).toBeUndefined();
         expect(deleted.permutation().token("gap")).toBeUndefined();
         expect(deleted.diagnostics.map(({ kind }) => kind)).toStrictEqual(["file-not-found"]);
@@ -719,12 +722,12 @@ describe("ds.reread", () => {
         expect(added.permutation().token("gap")).toBeDefined();
     });
 
-    it("leaves the design system it was asked of as it was", () => {
+    it("leaves the design tokens it was asked of as they were", () => {
         changed();
-        ds.reread({ "more.json": null });
-        expect(ds.permutation().token("brand")?.authored?.value).toBe("#ff0000");
-        expect(ds.text("base.json")).toBe(base("#ff0000"));
-        expect(ds.text("more.json")).toBe(more);
+        tokens.reread({ "more.json": null });
+        expect(tokens.permutation().token("brand")?.authored?.value).toBe("#ff0000");
+        expect(tokens.text("base.json")).toBe(base("#ff0000"));
+        expect(tokens.text("more.json")).toBe(more);
     });
 });
 
@@ -746,7 +749,7 @@ describe("the top level of a file, to a generator or an extension check", () => 
             return [];
         },
     });
-    const doc = readFromMemory(
+    const tokens = readFromMemory(
         {
             files: {
                 "tokens.json": JSON.stringify({
@@ -773,7 +776,7 @@ describe("the top level of a file, to a generator or an extension check", () => 
     });
 
     it("names no path in a problem about it", () => {
-        const problem = doc.diagnostics.find(({ kind }) => kind === "extension-invalid");
+        const problem = tokens.diagnostics.find(({ kind }) => kind === "extension-invalid");
         expect(problem).toBeDefined();
         expect(problem && "path" in problem).toBe(false);
     });
@@ -790,11 +793,11 @@ describe("the resolver part", () => {
             sets: { spare: { sources: [] } },
             resolutionOrder: [],
         });
-        const doc = readFromMemory({
+        const tokens = readFromMemory({
             files: { "tokens.resolver.json": resolver },
             entry: "tokens.resolver.json",
         });
-        expect(doc.diagnostics).toMatchObject([
+        expect(tokens.diagnostics).toMatchObject([
             {
                 kind: "not-in-resolution-order",
                 severity: "hint",

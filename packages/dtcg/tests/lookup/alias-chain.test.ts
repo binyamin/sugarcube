@@ -17,7 +17,7 @@ const resolver = {
     ],
 };
 
-const doc = readFromMemory({
+const tokens = readFromMemory({
     files: {
         "tokens.resolver.json": JSON.stringify(resolver),
         "base.json": JSON.stringify({
@@ -41,7 +41,7 @@ const doc = readFromMemory({
 });
 
 const aliasChain = (path: string, input?: Input) =>
-    doc
+    tokens
         .permutation(input)
         .token(path)
         ?.aliasChain.map((each) => each.path);
@@ -57,7 +57,7 @@ describe("a token's aliasChain", () => {
             "brand",
             "palette.rose",
         ]);
-        const dark = doc.permutation({ theme: "dark" });
+        const dark = tokens.permutation({ theme: "dark" });
         const text = dark.token("text");
         expect(text?.aliasChain[1]).toBe(dark.token("brand"));
     });

@@ -20,24 +20,24 @@ function inMemory() {
 
 describe("read from disk", () => {
     it("reads an entry given as an absolute path, with paths in the result relative to its folder", async () => {
-        const doc = await read(join(folder, "tokens.resolver.json"));
-        expect(doc.files).toStrictEqual([
+        const tokens = await read(join(folder, "tokens.resolver.json"));
+        expect(tokens.files).toStrictEqual([
             "tokens.resolver.json",
             "base.json",
             "dark.json",
             "ocean.json",
         ]);
-        expect(doc).toStrictEqual(inMemory());
+        expect(tokens).toStrictEqual(inMemory());
     });
 
     it("reads an entry given relative to the working directory", async () => {
-        const doc = await read(join(relative(process.cwd(), folder), "tokens.resolver.json"));
-        expect(doc).toStrictEqual(inMemory());
+        const tokens = await read(join(relative(process.cwd(), folder), "tokens.resolver.json"));
+        expect(tokens).toStrictEqual(inMemory());
     });
 
     it("reports a file that is not there, and does not throw", async () => {
-        const doc = await read(join(folder, "missing.resolver.json"));
-        expect(doc.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
+        const tokens = await read(join(folder, "missing.resolver.json"));
+        expect(tokens.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
             { kind: "file-not-found", detail: { file: "missing.resolver.json" } },
         ]);
     });

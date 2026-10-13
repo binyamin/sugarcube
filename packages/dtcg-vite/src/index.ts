@@ -2,8 +2,8 @@ import { type LiveProject, type ProjectSource, liveProject } from "@sugarcube-sh
 import type { Logger, Plugin } from "vite";
 
 /**
- * The design system the plugin keeps current, the Document and the text of its files, for the
- * plugins after it: a {@link LiveProject} that Vite's own watcher drives.
+ * The design tokens the plugin keeps current, and the text of their files, for the plugins after
+ * it: a {@link LiveProject} that Vite's own watcher drives.
  */
 export type DtcgApi = Omit<LiveProject, "watch">;
 
@@ -13,8 +13,8 @@ export interface DtcgPlugin extends Plugin {
 }
 
 /**
- * Opens a design system with `dtcg` and keeps it current on Vite's watcher: it watches exactly
- * the files the Document lists and reads again when one is saved, added or deleted. Give the
+ * Opens design tokens with `dtcg` and keeps them current on Vite's watcher: it watches exactly
+ * the files the design tokens list and reads again when one is saved, added or deleted. Give the
  * source as a function to be asked again on every read. What fails is logged through Vite.
  *
  * @example

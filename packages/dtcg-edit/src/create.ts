@@ -1,4 +1,4 @@
-import { type DesignSystem, forbiddenInName, parentOf } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, forbiddenInName, parentOf } from "@sugarcube-sh/dtcg";
 import { refused } from "./error-messages.js";
 import type { FileOp, Json, NewToken, OpResult, Where } from "./index.js";
 import { newPlace } from "./placement.js";
@@ -18,11 +18,11 @@ import { newPlace } from "./placement.js";
  * a group to go in that doesn't exist or is a token; or a context with no whole file of its own.
  *
  * @example
- * create(ds, "color.brand.950", { $value: "{color.brand.900}" })
- * create(ds, "color.raw", { group: true }, { context: { theme: "dark" } })
+ * create(tokens, "color.brand.950", { $value: "{color.brand.900}" })
+ * create(tokens, "color.raw", { group: true }, { context: { theme: "dark" } })
  */
 export function create(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     path: string,
     token: NewToken | { group: true },
     options: Where & { after?: string } = {},
@@ -33,7 +33,7 @@ export function create(
     if (name === "") return refused({ kind: "invalid-name", name });
     const character = forbiddenInName(name);
     if (character) return refused({ kind: "invalid-name", name, character });
-    const placed = newPlace(ds, path, options);
+    const placed = newPlace(tokens, path, options);
     if (!("into" in placed)) return placed;
     const { into: file, alsoAffects } = placed;
 

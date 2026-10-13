@@ -11,7 +11,7 @@ import type { UtilityClassesConfig } from "../src/types/config.js";
 
 const color = (value: string) => ({ $type: "color", $value: value });
 
-const tokens = {
+const json = {
     color: { ink: color("#111111"), paper: color("#ffffff"), brand: color("{color.missing}") },
 };
 
@@ -24,11 +24,11 @@ function project(classes: UtilityClassesConfig) {
         },
         utilities: { classes },
     });
-    const doc = readFromMemory(
-        { files: { "tokens.json": JSON.stringify(tokens) } },
+    const tokens = readFromMemory(
+        { files: { "tokens.json": JSON.stringify(json) } },
         readOptions(config),
     );
-    return { doc, config };
+    return { tokens, config };
 }
 
 const classes = {
@@ -38,21 +38,21 @@ const classes = {
 
 describe("cssFrom", () => {
     it("gives the declarations it made, for a reader that needs which variable is which token", () => {
-        const { doc, config } = project(classes);
+        const { tokens, config } = project(classes);
 
-        expect(cssFrom(doc, config).declared).toStrictEqual(declare(doc, config));
-        expect(cssFrom(doc, config, { variables: false, utilities: false }).declared).toStrictEqual(
-            declare(doc, config),
-        );
+        expect(cssFrom(tokens, config).declared).toStrictEqual(declare(tokens, config));
+        expect(
+            cssFrom(tokens, config, { variables: false, utilities: false }).declared,
+        ).toStrictEqual(declare(tokens, config));
     });
 
     it("gives what declaring, the variables and the utility rules give in turn", () => {
-        const { doc, config } = project(classes);
-        const declared = declare(doc, config);
+        const { tokens, config } = project(classes);
+        const declared = declare(tokens, config);
         const emitted = emitCSS(declared, config);
         const ruled = utilityRules(utilityTokens(declared), classes);
 
-        const made = cssFrom(doc, config);
+        const made = cssFrom(tokens, config);
 
         expect(made.variables).toStrictEqual(emitted.files);
         expect(made.utilities).toStrictEqual({
@@ -79,8 +79,8 @@ describe("cssFrom", () => {
     });
 
     it("writes each class's variable through its rules", () => {
-        const { doc, config } = project(classes);
-        const rules = cssFrom(doc, config).utilities?.rules ?? [];
+        const { tokens, config } = project(classes);
+        const rules = cssFrom(tokens, config).utilities?.rules ?? [];
         const written = rules.flatMap(([pattern, handler]) => {
             const match = "text-ink".match(pattern);
             return match ? [handler(match)] : [];
@@ -89,8 +89,8 @@ describe("cssFrom", () => {
     });
 
     it("leaves out the variables with variables: false", () => {
-        const { doc, config } = project(classes);
-        const made = cssFrom(doc, config, { variables: false });
+        const { tokens, config } = project(classes);
+        const made = cssFrom(tokens, config, { variables: false });
         expect(made.variables).toStrictEqual([]);
         expect(made.utilities?.safelist).toStrictEqual(["text-ink"]);
         expect(made.diagnostics.map(({ kind }) => kind)).toStrictEqual([
@@ -102,8 +102,8 @@ describe("cssFrom", () => {
     });
 
     it("leaves out the utilities and their problems with utilities: false", () => {
-        const { doc, config } = project(classes);
-        const made = cssFrom(doc, config, { utilities: false });
+        const { tokens, config } = project(classes);
+        const made = cssFrom(tokens, config, { utilities: false });
         expect(made.variables).toHaveLength(1);
         expect(made.utilities).toBeUndefined();
         expect(made.diagnostics.map(({ kind }) => kind)).toStrictEqual([
@@ -114,8 +114,8 @@ describe("cssFrom", () => {
     });
 
     it("gives no utilities and no utility problems when the config asks for no classes", () => {
-        const { doc, config } = project({});
-        const made = cssFrom(doc, config);
+        const { tokens, config } = project({});
+        const made = cssFrom(tokens, config);
         expect(made.variables).toHaveLength(1);
         expect(made.utilities).toBeUndefined();
         expect(made.diagnostics.map(({ kind }) => kind)).toStrictEqual([

@@ -73,8 +73,8 @@ function conflictReason(op: FileOp, kind: Conflict["kind"]): string {
     switch (kind) {
         case "not-read":
             return op.kind === "createFile"
-                ? `nothing in the design system reads \`${op.file}\`, so it would be lost`
-                : `\`${op.file}\` is not one of the files the design system reads`;
+                ? `nothing reads \`${op.file}\`, so it would be lost`
+                : `\`${op.file}\` is not one of the files read`;
         case "gone":
             return `${place} is no longer there`;
         case "changed":

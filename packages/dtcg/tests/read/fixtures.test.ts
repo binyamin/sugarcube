@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { type Diagnostic, type DesignSystem, read, readFromMemory } from "../../src/index.js";
+import { type Diagnostic, type DesignTokens, read, readFromMemory } from "../../src/index.js";
 
 const repo = join(import.meta.dirname, "../../../..");
 
@@ -291,15 +291,17 @@ function jsonFilesIn(folder: string): string[] {
         .sort();
 }
 
-const projects = new Map<string, DesignSystem>();
+const projects = new Map<string, DesignTokens>();
 
 beforeAll(async () => {
     const files = tokenFolders.flatMap(jsonFilesIn);
     const covered = new Set<string>();
     for (const entry of files.filter((file) => file.endsWith(".resolver.json"))) {
-        const doc = await read(entry, { readText: (path) => readFile(join(repo, path), "utf8") });
-        for (const file of doc.files) covered.add(join(dirname(entry), file));
-        projects.set(entry, doc);
+        const tokens = await read(entry, {
+            readText: (path) => readFile(join(repo, path), "utf8"),
+        });
+        for (const file of tokens.files) covered.add(join(dirname(entry), file));
+        projects.set(entry, tokens);
     }
     for (const together of readTogether) {
         const texts = together.map((file) => [file, readFileSync(join(repo, file), "utf8")]);
@@ -330,8 +332,8 @@ function located(d: Diagnostic): string {
 
 describe("every token file and resolver in the repo", () => {
     it("fails only with forms old sugarcube accepted, or where a fixture is meant to", () => {
-        const unexplained = [...projects].flatMap(([project, doc]) =>
-            doc.diagnostics
+        const unexplained = [...projects].flatMap(([project, tokens]) =>
+            tokens.diagnostics
                 .filter((d) => !oldForms.some((each) => each.matches(d)))
                 .filter(
                     (d) =>
@@ -354,7 +356,7 @@ describe("every token file and resolver in the repo", () => {
     });
 
     it("finds in the repo exactly the forms old sugarcube accepted that are marked as there", () => {
-        const all = [...projects.values()].flatMap((doc) => doc.diagnostics);
+        const all = [...projects.values()].flatMap((tokens) => tokens.diagnostics);
         const found = oldForms.map(({ form, matches }) => ({
             form,
             inRepo: all.some(matches),

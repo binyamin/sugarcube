@@ -7,7 +7,7 @@ import { fileOnDisk, open } from "../../src/node.js";
 const folder = join(import.meta.dirname, "../read/cases/every-combination/input");
 
 describe("open from disk", () => {
-    it("keeps each file's text by the design system's name for it, the entry by its file name", async () => {
+    it("keeps each file's text by the design tokens' name for it, the entry by its file name", async () => {
         const project = await open(join(folder, "tokens.resolver.json"));
         expect(project.entry).toBe("tokens.resolver.json");
         expect(Object.keys(project.files)).toStrictEqual(project.doc.files);
@@ -16,7 +16,7 @@ describe("open from disk", () => {
         }
     });
 
-    it("opens again from its own files and entry to the same design system", async () => {
+    it("opens again from its own files and entry to the same design tokens", async () => {
         const project = await open(join(folder, "tokens.resolver.json"), { hexStringColors: true });
         expect(project.options).toStrictEqual({ hexStringColors: true });
         expect(
@@ -29,7 +29,7 @@ describe("open from disk", () => {
 });
 
 describe("fileOnDisk", () => {
-    it("is where each file the design system names was read from", async () => {
+    it("is where each file the design tokens name was read from", async () => {
         const entry = join(folder, "tokens.resolver.json");
         const project = await open(entry);
         for (const file of project.doc.files) {

@@ -1,13 +1,13 @@
 // A theme switcher on a docs site. It shows every color in whichever theme the reader picks,
 // falling back to the default.
-import { type DesignSystem } from "@sugarcube-sh/dtcg";
+import { type DesignTokens } from "@sugarcube-sh/dtcg";
 
-declare const ds: DesignSystem;
+declare const tokens: DesignTokens;
 declare const picked: string;
 
-const theme = ds.modifier("theme");
+const theme = tokens.modifier("theme");
 const themes = theme?.contexts.map(({ name }) => name) ?? [];
-const current = ds.permutation({
+const current = tokens.permutation({
     theme: themes.includes(picked) ? picked : (theme?.default ?? ""),
 });
 for (const t of current?.tokens ?? []) {

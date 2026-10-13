@@ -15,7 +15,7 @@ const resolver = JSON.stringify({
         },
     ],
 });
-const ds = () =>
+const tokens = () =>
     readFromMemory({
         files: {
             "tokens.resolver.json": resolver,
@@ -31,10 +31,10 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-describe("reading a design system's text", () => {
+describe("reading the design tokens' text", () => {
     it("parses each file an operation reads once", () => {
-        const opened = ds();
-        const other = ds();
+        const opened = tokens();
+        const other = tokens();
         const counted = parses();
         setValue(opened, "n", 3);
         expect(counted).toHaveBeenCalledTimes(1);
@@ -44,8 +44,8 @@ describe("reading a design system's text", () => {
         expect(counted).toHaveBeenCalledTimes(2);
     });
 
-    it("parses a file once for every operation on the same design system", () => {
-        const opened = ds();
+    it("parses a file once for every operation on the same design tokens", () => {
+        const opened = tokens();
         const counted = parses();
         setValue(opened, "n", 3);
         setDescription(opened, "n", "Two.");

@@ -41,8 +41,8 @@ function ruledFrom(
     const texts = Object.fromEntries(
         Object.entries(files).map(([path, json]) => [path, JSON.stringify(json)]),
     );
-    const doc = readFromMemory({ files: texts }, readOptions(config));
-    return utilityRules(utilityTokens(declare(doc, config)), classes);
+    const tokens = readFromMemory({ files: texts }, readOptions(config));
+    return utilityRules(utilityTokens(declare(tokens, config)), classes);
 }
 
 function ruled(tokens: unknown, classes: UtilityClassesConfig, variables: Variables = {}) {

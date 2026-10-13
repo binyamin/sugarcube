@@ -68,7 +68,7 @@ export async function watch(flags: WatchFlags, first: LoadedConfig): Promise<voi
     const rebuilt = (change: Change): Promise<Built | undefined> => {
         if (change.kind === "config") return configChanged();
         if (change.kind === "markup") return rescan(last);
-        return buildFrom(change.ds, loaded, options, last);
+        return buildFrom(change.tokens, loaded, options, last);
     };
 
     const watcher = await startWatcher(live, loaded.configFile, watchedBy(last), {
@@ -89,7 +89,7 @@ export async function watch(flags: WatchFlags, first: LoadedConfig): Promise<voi
         },
     });
 
-    const tokenFiles = plural(last.ds.files.length, "token file");
+    const tokenFiles = plural(last.tokens.files.length, "token file");
     console.log(`${prefix} Watching ${tokenFiles} + markup files...`);
 
     process.on("SIGINT", async () => {

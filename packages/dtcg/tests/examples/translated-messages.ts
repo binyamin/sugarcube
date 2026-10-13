@@ -1,10 +1,10 @@
 // Shows problems in French, worded by the tool itself from each problem's details rather than from
 // the English message.
-import type { DesignSystem } from "@sugarcube-sh/dtcg";
+import type { DesignTokens } from "@sugarcube-sh/dtcg";
 
-declare const ds: DesignSystem;
+declare const tokens: DesignTokens;
 
-for (const d of ds.diagnostics) {
+for (const d of tokens.diagnostics) {
     switch (d.kind) {
         case "missing-reference":
             showMessage(

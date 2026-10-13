@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-    type DesignSystem,
+    type DesignTokens,
     type Input,
     PermutationError,
     completeInput,
@@ -51,14 +51,14 @@ const files = {
     "compact.json": `{ "space": { "sm": ${JSON.stringify(px(2))} } }`,
 };
 
-function readWith(inputs?: Input[]): DesignSystem {
+function readWith(inputs?: Input[]): DesignTokens {
     return readFromMemory({ files, entry: "tokens.resolver.json" }, inputs && { inputs });
 }
 
-const ds = readWith();
-const light = ds.permutation();
-const dark = ds.permutation({ theme: "dark" });
-const paths = (tokens: readonly { path: string }[] | undefined) => tokens?.map(({ path }) => path);
+const tokens = readWith();
+const light = tokens.permutation();
+const dark = tokens.permutation({ theme: "dark" });
+const paths = (items: readonly { path: string }[] | undefined) => items?.map(({ path }) => path);
 const valueOf = (found: ReturnType<typeof light.token>) =>
     found?.type === "dimension" ? found.resolved?.value : undefined;
 
@@ -84,9 +84,9 @@ function thrown(run: () => unknown): PermutationError {
     throw new Error("nothing was thrown");
 }
 
-describe("ds.permutation", () => {
+describe("tokens.permutation", () => {
     it("is the permutation for a full input", () => {
-        expect(ds.permutation({ theme: "dark", density: "compact" }).input).toStrictEqual({
+        expect(tokens.permutation({ theme: "dark", density: "compact" }).input).toStrictEqual({
             theme: "dark",
             density: "compact",
         });
@@ -98,11 +98,11 @@ describe("ds.permutation", () => {
     });
 
     it("matches modifier and context names case-insensitively (Resolver 5.1)", () => {
-        expect(ds.permutation({ Theme: "DARK" })).toBe(dark);
+        expect(tokens.permutation({ Theme: "DARK" })).toBe(dark);
     });
 
     it("is one of the permutations the read built", () => {
-        expect(ds.permutations).toContain(dark);
+        expect(tokens.permutations).toContain(dark);
     });
 
     it("is the one permutation of a file read without a resolver", () => {
@@ -111,13 +111,13 @@ describe("ds.permutation", () => {
     });
 
     it("throws for a modifier the resolver does not declare, saying which", () => {
-        const error = thrown(() => ds.permutation({ size: "large" }));
+        const error = thrown(() => tokens.permutation({ size: "large" }));
         expect(error.message).toBe("there is no modifier named `size`");
         expect(error.detail).toStrictEqual({ reason: "unknown-modifier", modifier: "size" });
     });
 
     it("throws for a context the modifier does not declare, saying which", () => {
-        const error = thrown(() => ds.permutation({ theme: "sepia" }));
+        const error = thrown(() => tokens.permutation({ theme: "sepia" }));
         expect(error.message).toBe("`sepia` is not a context of the modifier `theme`");
         expect(error.detail).toStrictEqual({
             reason: "unknown-context",
@@ -151,19 +151,19 @@ describe("ds.permutation", () => {
 
 describe("completeInput", () => {
     it("gives every modifier, defaults filled in and names as the resolver writes them", () => {
-        expect(completeInput(ds, { Theme: "DARK" })).toStrictEqual({
+        expect(completeInput(tokens, { Theme: "DARK" })).toStrictEqual({
             ok: true,
             input: { theme: "dark", density: "comfy" },
         });
     });
 
     it("says which modifier or context the resolver does not declare", () => {
-        expect(completeInput(ds, { mood: "calm" })).toStrictEqual({
+        expect(completeInput(tokens, { mood: "calm" })).toStrictEqual({
             ok: false,
             reason: "unknown-modifier",
             modifier: "mood",
         });
-        expect(completeInput(ds, { theme: "sepia" })).toStrictEqual({
+        expect(completeInput(tokens, { theme: "sepia" })).toStrictEqual({
             ok: false,
             reason: "unknown-context",
             modifier: "theme",
@@ -183,7 +183,7 @@ describe("completeInput", () => {
 
 describe("permutation.isDefault", () => {
     it("is true for the permutation with every modifier at its default, the empty input's (Resolver 4.1.5.3, 6.1)", () => {
-        expect(ds.permutations.filter(({ isDefault }) => isDefault)).toStrictEqual([light]);
+        expect(tokens.permutations.filter(({ isDefault }) => isDefault)).toStrictEqual([light]);
         expect(dark.isDefault).toBe(false);
     });
 
@@ -201,9 +201,9 @@ describe("permutation.isDefault", () => {
     });
 });
 
-describe("ds.tokenPaths", () => {
+describe("tokens.tokenPaths", () => {
     it("lists every token in any permutation once, in the order the permutations list them", () => {
-        expect(ds.tokenPaths()).toStrictEqual([
+        expect(tokens.tokenPaths()).toStrictEqual([
             "px",
             "2",
             "1",
@@ -216,37 +216,37 @@ describe("ds.tokenPaths", () => {
     });
 
     it("is a list the caller may change", () => {
-        ds.tokenPaths().reverse();
-        expect(ds.tokenPaths()[0]).toBe("px");
+        tokens.tokenPaths().reverse();
+        expect(tokens.tokenPaths()[0]).toBe("px");
     });
 });
 
-describe("ds.groupPaths", () => {
+describe("tokens.groupPaths", () => {
     it("lists every group in any permutation once, in the order the permutations list them", () => {
-        expect(ds.groupPaths()).toStrictEqual(["space", "space.inset", "spacer"]);
+        expect(tokens.groupPaths()).toStrictEqual(["space", "space.inset", "spacer"]);
     });
 });
 
-describe("ds.has", () => {
+describe("tokens.has", () => {
     it("says whether a token or group is at a path in any permutation", () => {
-        expect(ds.has("glow")).toBe(true);
-        expect(ds.has("space.inset")).toBe(true);
-        expect(ds.has("space.lg")).toBe(false);
-        expect(ds.has("toString")).toBe(false);
+        expect(tokens.has("glow")).toBe(true);
+        expect(tokens.has("space.inset")).toBe(true);
+        expect(tokens.has("space.lg")).toBe(false);
+        expect(tokens.has("toString")).toBe(false);
     });
 });
 
-describe("ds.modifier", () => {
+describe("tokens.modifier", () => {
     it("is a modifier that takes part, by its name, whatever its case", () => {
-        expect(ds.modifier("Theme")).toMatchObject({ name: "theme", default: "light" });
-        expect(ds.modifier("theme")?.contexts.map(({ name }) => name)).toStrictEqual([
+        expect(tokens.modifier("Theme")).toMatchObject({ name: "theme", default: "light" });
+        expect(tokens.modifier("theme")?.contexts.map(({ name }) => name)).toStrictEqual([
             "light",
             "dark",
         ]);
     });
 
     it("is undefined for a name the resolver doesn't use", () => {
-        expect(ds.modifier("brand")).toBeUndefined();
+        expect(tokens.modifier("brand")).toBeUndefined();
     });
 });
 
@@ -258,7 +258,8 @@ describe("permutationLabel", () => {
     });
 
     it("is the label the read gives each permutation", () => {
-        for (const each of ds.permutations) expect(permutationLabel(each.input)).toBe(each.label);
+        for (const each of tokens.permutations)
+            expect(permutationLabel(each.input)).toBe(each.label);
     });
 });
 
@@ -266,7 +267,7 @@ describe("permutation.token", () => {
     it("is the token at a path in that permutation", () => {
         expect(valueOf(light.token("2"))).toBe(2);
         expect(valueOf(dark.token("2"))).toBe(3);
-        expect(valueOf(ds.permutation({ density: "compact" }).token("space.sm"))).toBe(2);
+        expect(valueOf(tokens.permutation({ density: "compact" }).token("space.sm"))).toBe(2);
     });
 
     it("is the same object the permutation's tokens and its groups' children hold", () => {
@@ -322,7 +323,7 @@ describe("group.tokens", () => {
     });
 
     it("lists the tokens of its own permutation", () => {
-        const compact = ds.permutation({ density: "compact" });
+        const compact = tokens.permutation({ density: "compact" });
         expect(valueOf(compact.group("space")?.tokens[1])).toBe(2);
         expect(compact.group("space")?.tokens[1]).toBe(compact.token("space.sm"));
     });
@@ -339,7 +340,7 @@ describe("token.valueFrom", () => {
 
 describe("the plain form", () => {
     it("writes none of the questions, only what was read", () => {
-        const written = JSON.parse(JSON.stringify(ds));
+        const written = JSON.parse(JSON.stringify(tokens));
         expect(written).not.toHaveProperty("tokenPaths");
         expect(written.permutations[0]).not.toHaveProperty("token");
         const token = written.permutations[0].tokens.find(

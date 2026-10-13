@@ -1,9 +1,9 @@
 // Finds colors with the same value under different names, and suggests pointing one at the other.
-import { sameValue, type DesignSystem, type Token } from "@sugarcube-sh/dtcg";
+import { sameValue, type DesignTokens, type Token } from "@sugarcube-sh/dtcg";
 
-declare const ds: DesignSystem;
+declare const tokens: DesignTokens;
 
-const colors = ds
+const colors = tokens
     .permutation()
     .tokens.filter(
         (t): t is Extract<Token, { type: "color" }> => t.type === "color" && !t.referenceAt(),

@@ -7,7 +7,7 @@ import { setValue, type Json, type Session } from "@sugarcube-sh/dtcg-edit";
 declare const session: Session;
 
 function written(path: string, typed: string): Json | undefined {
-    const t = session.ds.permutation().token(path);
+    const t = session.tokens.permutation().token(path);
     const like = t?.authored?.value;
 
     switch (t?.type) {
@@ -28,6 +28,6 @@ function written(path: string, typed: string): Json | undefined {
 export function save(path: string, typed: string): void {
     const value = written(path, typed);
     if (value === undefined) return;
-    const done = session.do(setValue(session.ds, path, value));
+    const done = session.do(setValue(session.tokens, path, value));
     if ("refused" in done) showMessage(done.refused.reason);
 }

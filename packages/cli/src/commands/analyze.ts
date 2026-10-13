@@ -57,7 +57,7 @@ const unusedCommand = new Command()
             const built = await builtFor(plain);
             if (!built) return;
             const uses = await usesFor(built, "unused", plain);
-            const analysis: Analysis = { ds: built.ds, uses };
+            const analysis: Analysis = { tokens: built.tokens, uses };
             const answer = unused(analysis);
 
             if (options.json) return printJSON(unusedJSON(answer, uses));
@@ -66,7 +66,7 @@ const unusedCommand = new Command()
                 return;
             }
             if (answer.unused.length > 0) {
-                log.message(unusedLines(answer, built.ds.tokenPaths()));
+                log.message(unusedLines(answer, built.tokens.tokenPaths()));
             }
             outro(unusedSummary(answer, uses));
         } catch (error) {
@@ -88,11 +88,11 @@ const impactCommand = new Command()
 
             const built = await builtFor(plain);
             if (!built) return;
-            const token = tokenAt(built.ds, path);
+            const token = tokenAt(built.tokens, path);
             if (token === "group") throw new CLIError(ERROR_MESSAGES.ANALYZE_GROUP_NOT_TOKEN(path));
             if (!token) throw new CLIError(ERROR_MESSAGES.ANALYZE_NO_TOKEN(path));
             const uses = await usesFor(built, "impact", plain);
-            const answer = impact({ ds: built.ds, uses }, token);
+            const answer = impact({ tokens: built.tokens, uses }, token);
 
             if (plain) return printJSON(impactJSON(answer));
             log.message(impactHeading(answer));

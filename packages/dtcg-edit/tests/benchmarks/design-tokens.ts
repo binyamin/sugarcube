@@ -51,7 +51,7 @@ const steps: Generator = defineGenerator({
     }),
 });
 
-export function designSystem(perGroup: number, { generated = 0 } = {}) {
+export function designTokens(perGroup: number, { generated = 0 } = {}) {
     const sources = [{ $ref: "base.json" }, ...(generated ? [{ $ref: "scale.json" }] : [])];
     const resolver = {
         version: "2025.10",

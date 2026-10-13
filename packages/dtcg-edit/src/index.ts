@@ -1,6 +1,6 @@
 import type {
     Change,
-    DesignSystem,
+    DesignTokens,
     Input,
     JsonPath,
     Move,
@@ -183,13 +183,13 @@ export interface ValueOptions extends Where {
  * {@link setValue}.
  *
  * @example
- * setValues(ds, [
+ * setValues(tokens, [
  *   { path: "color.button.background", value: "{color.violet.500}" },
  *   { path: "color.button.background", value: "{color.violet.300}", context: { theme: "dark" } },
  * ])
  */
 export function setValues(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     values: ({ path: string; value: Json } & ValueOptions)[],
 ): OpResult {
     throw new Error("not implemented yet");
@@ -199,7 +199,7 @@ export { create } from "./create.js";
 
 /** Moves a token or group among its siblings. */
 export function reorder(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     path: string,
     options: { after: string } | { before: string },
 ): OpResult {
@@ -212,10 +212,10 @@ export function reorder(
  * the token would disappear from some of them.
  *
  * @example
- * move(ds, "color.brand.500", { group: "color.primary", name: "600" })
+ * move(tokens, "color.brand.500", { group: "color.primary", name: "600" })
  */
 export function move(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     path: string,
     to: { group?: string; file?: string; name?: string },
 ): OpResult {
@@ -229,9 +229,13 @@ export { remove } from "./remove.js";
  * none. `null` removes the mark.
  *
  * @example
- * deprecate(ds, "color.old", "Use color.primary instead")
+ * deprecate(tokens, "color.old", "Use color.primary instead")
  */
-export function deprecate(ds: DesignSystem, path: string, reason: string | true | null): OpResult {
+export function deprecate(
+    tokens: DesignTokens,
+    path: string,
+    reason: string | true | null,
+): OpResult {
     throw new Error("not implemented yet");
 }
 
@@ -241,10 +245,10 @@ export function deprecate(ds: DesignSystem, path: string, reason: string | true 
  * the key to replace the whole extension. `null` removes the setting.
  *
  * @example
- * setExtension(ds, "space", ["com.example", "scale", "ratio"], 1.333)
+ * setExtension(tokens, "space", ["com.example", "scale", "ratio"], 1.333)
  */
 export function setExtension(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     path: string,
     jsonPath: JsonPath,
     value: Json | null,
@@ -253,31 +257,31 @@ export function setExtension(
 }
 
 /**
- * Turns fixes offered for this design system's diagnostics into ordinary edits, so they can be
+ * Turns fixes offered for these design tokens' diagnostics into ordinary edits, so they can be
  * undone, saved and replayed like any other. Pass several to make them one step. Every fix must
- * come from {@link fixesFor} for this design system.
+ * come from {@link fixesFor} for these design tokens.
  *
  * @example
- * const safe = ds.diagnostics.flatMap((d) => fixesFor(ds, d).filter((f) => f.safe));
- * commit(ds, fix(ds, safe));
+ * const safe = tokens.diagnostics.flatMap((d) => fixesFor(tokens, d).filter((f) => f.safe));
+ * commit(tokens, fix(tokens, safe));
  */
-export function fix(ds: DesignSystem, fixes: Fix[]): OpResult {
+export function fix(tokens: DesignTokens, fixes: Fix[]): OpResult {
     throw new Error("not implemented yet");
 }
 
 /** Changes a token's type. Refused if tokens that refer to it would break. */
-export function retype(ds: DesignSystem, path: string, type: TokenType): OpResult {
+export function retype(tokens: DesignTokens, path: string, type: TokenType): OpResult {
     throw new Error("not implemented yet");
 }
 
 /** Turns a token made by a generator into an ordinary token written in the file. */
-export function detach(ds: DesignSystem, path: string): OpResult {
+export function detach(tokens: DesignTokens, path: string): OpResult {
     throw new Error("not implemented yet");
 }
 
 /** Adds a file to a set or to a modifier's context in the resolver. */
 export function addFile(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     file: string,
     options: {
         to: { set: string } | { modifier: string; context: string };
@@ -295,10 +299,10 @@ export function addFile(
  * Adds a context to a modifier, with a new file of its own.
  *
  * @example
- * addContext(ds, "theme", "dim", { file: "dim.json", basedOn: "dark" })
+ * addContext(tokens, "theme", "dim", { file: "dim.json", basedOn: "dark" })
  */
 export function addContext(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     modifier: string,
     context: string,
     options: {
@@ -312,7 +316,7 @@ export function addContext(
 
 /** Adds a modifier to the resolver. */
 export function addModifier(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     modifier: string,
     options: { contexts: string[]; default?: string },
 ): OpResult {
@@ -321,7 +325,7 @@ export function addModifier(
 
 /** Renames a modifier's context. */
 export function renameContext(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     modifier: string,
     from: string,
     to: string,
@@ -335,7 +339,7 @@ export function renameContext(
  * deleted.
  */
 export function removeContext(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     modifier: string,
     context: string,
     options?: {
@@ -347,7 +351,7 @@ export function removeContext(
 }
 
 /** Sets a modifier's default context. */
-export function setDefault(ds: DesignSystem, modifier: string, context: string): OpResult {
+export function setDefault(tokens: DesignTokens, modifier: string, context: string): OpResult {
     throw new Error("not implemented yet");
 }
 
@@ -355,7 +359,7 @@ export function setDefault(ds: DesignSystem, modifier: string, context: string):
  * An edit that could no longer be made, such as a change to a token someone has since deleted,
  * with a `reason` worded from its `kind` and the edit.
  *
- * - `not-read`: the design system doesn't read the edit's file: an edit to a file it never read,
+ * - `not-read`: the design tokens aren't read from the edit's file: an edit to a file never read,
  *   such as `package.json`, or a new file nothing would read, which would be lost.
  * - `gone`: the place the edit changes is no longer there.
  * - `changed`: what is there is no longer what the edit expected (`was`).
@@ -375,8 +379,8 @@ export { apply, changedFiles, commit } from "./apply.js";
 /** The outcome of {@link commit}. */
 export type Committed =
     | {
-          /** The design system with the edits applied. */
-          ds: DesignSystem;
+          /** The design tokens with the edits applied. */
+          tokens: DesignTokens;
           /** The edits that were applied, for undo, saving, and sharing. */
           ops: FileOp[];
           /** Tokens and groups whose path changed, for keeping a selection or a URL on them. */
@@ -410,27 +414,27 @@ export interface Clash {
 }
 
 /**
- * An editing session: a design system as a person edits it, with undo, the unsaved edits, and
- * what changed since it was opened. It changes as it is used, like a store; the design systems in
+ * An editing session: design tokens as a person edits them, with undo, the unsaved edits, and
+ * what changed since they were opened. It changes as it is used, like a store; the design tokens in
  * it never do. Writing is left to the tool: send {@link Session.unsaved} wherever saves go, then
  * call {@link Session.saved}.
  *
  * @example
- * const session = createSession(ds);
- * session.do(rename(session.ds, "color.brand", "primary"));
+ * const session = createSession(tokens);
+ * session.do(rename(session.tokens, "color.brand", "primary"));
  * session.undo();
  */
 export interface Session {
     /** The current version. */
-    readonly ds: DesignSystem;
+    readonly tokens: DesignTokens;
     /** The version the unsaved edits are measured from: as opened, as last saved, or as last adopted. */
-    readonly opened: DesignSystem;
+    readonly opened: DesignTokens;
     /** The edits since {@link Session.opened}, with the moves they made: what a save sends, and what to keep for a reload. */
     readonly unsaved: Edits;
     readonly canUndo: boolean;
     readonly canRedo: boolean;
     /**
-     * Commits an operation's result. On success the design system moves on and the change goes on
+     * Commits an operation's result. On success the design tokens move on and the change goes on
      * the undo history; otherwise nothing changes, and the answer says why.
      */
     do(result: OpResult): Committed;
@@ -462,7 +466,7 @@ export interface Session {
      * still there keeps its id, one gone loses it, and a new one gets a new id. The undo history
      * starts again.
      */
-    adopt(fresh: DesignSystem): Clash[];
+    adopt(fresh: DesignTokens): Clash[];
     /** Calls `listener` whenever the session changes. Returns a function that stops listening. */
     subscribe(listener: () => void): () => void;
     /**
@@ -474,7 +478,7 @@ export interface Session {
      *
      * @example
      * const id = session.idOf("color.brand");
-     * session.do(rename(session.ds, "color.brand", "primary"));
+     * session.do(rename(session.tokens, "color.brand", "primary"));
      * session.pathOf(id); // "color.primary"
      */
     idOf(path: string): string | undefined;

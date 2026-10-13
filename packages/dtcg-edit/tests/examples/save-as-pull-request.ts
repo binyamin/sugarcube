@@ -7,8 +7,8 @@ declare const body: { edits: unknown; title: string };
 declare function readFromGitHub(path: string): Promise<string>;
 
 if (!isEdits(body.edits)) throw new Error("not edits");
-const ds = await read("tokens.resolver.json", { readText: readFromGitHub });
-const changes = changedFiles(ds, body.edits.ops);
+const tokens = await read("tokens.resolver.json", { readText: readFromGitHub });
+const changes = changedFiles(tokens, body.edits.ops);
 if ("conflicts" in changes) {
     showConflicts(changes.conflicts);
 } else {

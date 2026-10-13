@@ -1,5 +1,5 @@
 import type {
-    DesignSystem,
+    DesignTokens,
     Group,
     Permutation,
     Reference,
@@ -48,19 +48,19 @@ export function referencedIn(
 }
 
 export function referencedByIn(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     path: string,
     options?: ReferenceOptions,
 ): ReferenceInPermutations[] {
-    return across(ds, (permutation) => referencedIn(permutation, path, options));
+    return across(tokens, (permutation) => referencedIn(permutation, path, options));
 }
 
 export function referencesIn(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     path: string,
     { chained = false }: ReferenceOptions = {},
 ): ReferenceInPermutations[] {
-    return across(ds, (permutation) => {
+    return across(tokens, (permutation) => {
         const start = permutation.token(path) ?? permutation.group(path);
         if (!start) return [];
         const found: Reference[] = [];
@@ -104,11 +104,11 @@ function writtenIn(permutation: Permutation): WrittenIn {
 }
 
 function across(
-    ds: DesignSystem,
+    tokens: DesignTokens,
     inPermutation: (permutation: Permutation) => Reference[],
 ): ReferenceInPermutations[] {
     const merged = new Map<Span, { reference: Reference; permutations: Permutation[] }>();
-    for (const permutation of ds.permutations) {
+    for (const permutation of tokens.permutations) {
         for (const reference of inPermutation(permutation)) {
             const found = merged.get(reference.span);
             if (!found) merged.set(reference.span, { reference, permutations: [permutation] });
@@ -117,6 +117,6 @@ function across(
         }
     }
     return [...merged.values()].map(({ reference, permutations }) =>
-        acrossPermutations(reference, permutationsOf(permutations, ds.permutations)),
+        acrossPermutations(reference, permutationsOf(permutations, tokens.permutations)),
     );
 }
