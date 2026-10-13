@@ -54,7 +54,7 @@
     "test:bench": "vitest bench --no-watch",
     "test:bench:save": "vitest bench --no-watch --outputJson benchmarks/$(date +%Y-%m-%d)-results.json",
     "test:bench:compare": "./scripts/bench-compare.sh",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
   "dependencies": {
     "jiti": "^2.7.0",
