@@ -154,6 +154,9 @@ const documentShared = {
     diagnosticsAt(this: DesignSystem, place: Pick<Span, "file" | "offset" | "length">) {
         return diagnosticsAtIn(this, place);
     },
+    text(this: DesignSystem, file: string): string | undefined {
+        return texts.get(this)?.[file];
+    },
     has(this: DesignSystem, path: string) {
         return this.permutations.some(
             (each) => (each.token(path) ?? each.group(path)) !== undefined,
@@ -277,10 +280,14 @@ export function placesIn(): Places {
     return { at, only: (source, span) => PlaceObject.alone(at(source, span)) };
 }
 
+const texts = new WeakMap<DesignSystem, Readonly<Record<string, string>>>();
+
 export function linkedDocument(
     fields: Omit<DesignSystem, keyof typeof documentShared>,
+    read: Readonly<Record<string, string>>,
 ): DesignSystem {
     const ds: DesignSystem = Object.assign(Object.create(documentShared), fields);
+    texts.set(ds, read);
     for (const permutation of ds.permutations) designSystems.set(permutation, ds);
     return ds;
 }

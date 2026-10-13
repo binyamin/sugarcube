@@ -631,6 +631,44 @@ describe("what a design system holds", () => {
     });
 });
 
+describe("ds.text", () => {
+    const base = '{ "gap": { "$type": "number", "$value": 1 } }\n';
+    const files = {
+        "tokens.resolver.json": JSON.stringify({
+            version: "2025.10",
+            sets: { base: { sources: [{ $ref: "base.json" }] } },
+            resolutionOrder: [{ $ref: "#/sets/base" }],
+        }),
+        "base.json": base,
+        "unread.json": "{}",
+    };
+
+    it("is the text of each file the read used, by the name the design system gives it", () => {
+        const ds = readFromMemory({ files, entry: "tokens.resolver.json" });
+        expect(ds.text("base.json")).toBe(base);
+        expect(ds.text("tokens.resolver.json")).toBe(files["tokens.resolver.json"]);
+    });
+
+    it("is undefined for a file the read did not use", () => {
+        const ds = readFromMemory({ files, entry: "tokens.resolver.json" });
+        expect(ds.text("unread.json")).toBeUndefined();
+        expect(ds.text("missing.json")).toBeUndefined();
+    });
+
+    it("is kept by read from disk too", async () => {
+        const ds = await read("tokens.resolver.json", {
+            readText: async (path) => files[path as keyof typeof files],
+        });
+        expect(ds.text("base.json")).toBe(base);
+    });
+
+    it("is not written in the plain form", () => {
+        const ds = readFromMemory({ files, entry: "tokens.resolver.json" });
+        expect(JSON.stringify(ds)).not.toContain("\\n");
+        expect(JSON.parse(JSON.stringify(ds))).not.toHaveProperty("text");
+    });
+});
+
 describe("the top level of a file, to a generator or an extension check", () => {
     const seen: { generator?: unknown; validator?: unknown[] } = { validator: [] };
     const steps = defineGenerator({

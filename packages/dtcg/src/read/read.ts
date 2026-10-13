@@ -215,15 +215,18 @@ function toDesignSystem(
         found,
     );
 
-    return linkedDocument({
-        files: loaded.files,
-        ...(loaded.resolver && { resolver: loaded.resolver }),
-        sources,
-        permutations,
-        parseOptions,
-        diagnostics: inReadingPermutations(
-            [...loaded.diagnostics, ...collapse(found, permutations)],
+    return linkedDocument(
+        {
+            files: loaded.files,
+            ...(loaded.resolver && { resolver: loaded.resolver }),
+            sources,
             permutations,
-        ),
-    });
+            parseOptions,
+            diagnostics: inReadingPermutations(
+                [...loaded.diagnostics, ...collapse(found, permutations)],
+                permutations,
+            ),
+        },
+        loaded.texts,
+    );
 }

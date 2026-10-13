@@ -1430,6 +1430,15 @@ export interface DesignSystem {
      */
     has(path: string): boolean;
     /**
+     * The text of a file the read used, by the name {@link DesignSystem.files} gives it, exactly as
+     * read; `undefined` for a file it did not use. What an editor shows, and what a format-keeping
+     * edit changes.
+     *
+     * @example
+     * const lines = ds.text("dark.json")?.split("\n");
+     */
+    text(file: string): string | undefined;
+    /**
      * The problems about the token or group at `path`, in every permutation, each with the
      * permutations it is in: its own, a missing reference it writes (reported once however many
      * write it), a loop it is part of.
