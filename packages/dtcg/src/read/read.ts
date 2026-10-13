@@ -13,7 +13,8 @@ import { fileName, filePath, folderOf, normalise } from "./paths.js";
 import { parseJson } from "./json.js";
 import { isResolver } from "./resolver.js";
 import { thrownMessages } from "../error-messages.js";
-import { linkedDesignTokens, permutationsOf } from "./linked.js";
+import { linkedDesignTokens } from "./linked.js";
+import { permutationsOf } from "./permutations-of.js";
 
 const { performance } = globalThis as unknown as { performance: { now(): number } };
 
@@ -225,6 +226,9 @@ function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
                 permutations,
             ),
         },
-        { texts: loaded.texts, options },
+        {
+            texts: loaded.texts,
+            readAgain: (files) => readFromMemory({ files, entry: loaded.entry }, options),
+        },
     );
 }

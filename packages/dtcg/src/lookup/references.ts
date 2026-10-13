@@ -9,7 +9,7 @@ import type {
     Token,
 } from "../index.js";
 import { within } from "../path.js";
-import { permutationsOf } from "../read/linked.js";
+import { permutationsOf } from "../read/permutations-of.js";
 import { acrossPermutations } from "../read/reference.js";
 
 interface WrittenIn {

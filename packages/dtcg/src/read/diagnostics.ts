@@ -6,7 +6,7 @@ import type {
     Input,
     Permutations,
 } from "../index.js";
-import { permutationsOf } from "./linked.js";
+import { permutationsOf } from "./permutations-of.js";
 
 const foundIn = new WeakMap<Diagnostic, Input[]>();
 

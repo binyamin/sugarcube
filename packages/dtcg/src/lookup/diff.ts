@@ -13,7 +13,7 @@ import type {
     WrittenGroup,
     WrittenToken,
 } from "../index.js";
-import { permutationsOf } from "../read/linked.js";
+import { permutationsOf } from "../read/permutations-of.js";
 import { movedPath } from "../path.js";
 import { isReference, movedReference } from "../values/references.js";
 import { sameJson, saysTheSame } from "../values/same-value.js";

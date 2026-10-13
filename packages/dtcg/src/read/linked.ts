@@ -7,9 +7,7 @@ import type {
     Move,
     Part,
     Permutation,
-    Permutations,
     Place,
-    ReadOptions,
     Reference,
     ReferenceOptions,
     ResolverContext,
@@ -21,11 +19,9 @@ import type {
 import { diagnosticsAtIn, diagnosticsForIn, diagnosticsOf } from "../lookup/diagnostics.js";
 import { diffIn } from "../lookup/diff.js";
 import { partsOf } from "../lookup/parts.js";
-import { labelFor } from "../lookup/permutation-label.js";
 import { modifierIn, permutationIn } from "../lookup/permutation.js";
 import { referencedByIn, referencedIn, referencesIn } from "../lookup/references.js";
 import { writtenAtIn } from "../lookup/written-at.js";
-import { readFromMemory } from "./read.js";
 
 export const NO_REFERENCES: Reference[] = Object.freeze([]) as unknown as Reference[];
 export const NO_PLACES: Place[] = Object.freeze([]) as unknown as Place[];
@@ -162,15 +158,16 @@ const designTokensShared = {
         return diffIn(this, before, options);
     },
     text(this: DesignTokens, file: string): string | undefined {
-        return kept.get(this)?.texts[file];
+        return keptBy(this).texts[file];
     },
     reread(this: DesignTokens, changed: Readonly<Record<string, string | null>>) {
-        const files: Record<string, string> = { ...kept.get(this)?.texts };
+        const { texts, readAgain } = keptBy(this);
+        const files: Record<string, string> = { ...texts };
         for (const [file, text] of Object.entries(changed)) {
             if (text === null) delete files[file];
             else files[file] = text;
         }
-        return readFromMemory({ files, entry: this.files[0] }, kept.get(this)?.options);
+        return readAgain(files);
     },
     has(this: DesignTokens, path: string) {
         return this.permutations.some(
@@ -212,21 +209,6 @@ export function linkedPermutation(
     fields: Omit<Permutation, keyof typeof permutationShared>,
 ): Permutation {
     return Object.assign(Object.create(permutationShared), fields);
-}
-
-export function permutationsOf(list: Permutation[], all: readonly Permutation[]): Permutations {
-    let label: string | undefined | null = null;
-    const inputs = () => list.map(({ input }) => input);
-    return Object.defineProperties(list, {
-        inputs: { get: inputs },
-        label: {
-            get: () => {
-                if (label === null) label = labelFor(list, all);
-                return label;
-            },
-        },
-        toJSON: { value: inputs },
-    }) as unknown as Permutations;
 }
 
 export function withIndex(
@@ -297,10 +279,14 @@ export function placesIn(): Places {
 
 interface Kept {
     texts: Readonly<Record<string, string>>;
-    options: ReadOptions;
+    readAgain(files: Record<string, string>): DesignTokens;
 }
 
 const kept = new WeakMap<DesignTokens, Kept>();
+
+function keptBy(tokens: DesignTokens): Kept {
+    return kept.get(tokens) as Kept;
+}
 
 export function linkedDesignTokens(
     fields: Omit<DesignTokens, keyof typeof designTokensShared>,

@@ -1,5 +1,5 @@
 import type { DesignTokens, Permutation, PlaceInPermutations, Source, Span } from "../index.js";
-import { permutationsOf } from "../read/linked.js";
+import { permutationsOf } from "../read/permutations-of.js";
 
 export function writtenAtIn(tokens: DesignTokens, path: string): PlaceInPermutations[] {
     const found = new Map<Span, { sources: Source[]; permutations: Permutation[] }>();
