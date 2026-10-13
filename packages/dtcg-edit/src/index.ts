@@ -1,10 +1,10 @@
 import type {
     Change,
+    DesignSystem,
     Input,
     JsonPath,
     Move,
     PermutationErrorDetail,
-    Project,
     TokenType,
 } from "@sugarcube-sh/dtcg";
 
@@ -38,8 +38,8 @@ export { fixesFor } from "./fixes.js";
 export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
 /**
- * One change to one file, addressed by path so it still applies if the file has changed
- * elsewhere since it was read.
+ * One change to one file, addressed by its route through the file's JSON (`jsonPath`), so it still
+ * applies if the file has changed elsewhere since it was read.
  *
  * - `set` changes something that exists. Its parent must exist.
  * - `add` adds something new, creating any missing groups on the way. It must not already exist.
@@ -55,10 +55,10 @@ export type Json = string | number | boolean | null | Json[] | { [key: string]: 
  * only to tell when the rename is already done: the key is renamed whatever its value now.
  */
 export type FileOp =
-    | { kind: "set"; file: string; path: JsonPath; value: Json; was: Json }
-    | { kind: "add"; file: string; path: JsonPath; value: Json }
-    | { kind: "remove"; file: string; path: JsonPath; was: Json }
-    | { kind: "renameKey"; file: string; path: JsonPath; name: string; was: Json }
+    | { kind: "set"; file: string; jsonPath: JsonPath; value: Json; was: Json }
+    | { kind: "add"; file: string; jsonPath: JsonPath; value: Json }
+    | { kind: "remove"; file: string; jsonPath: JsonPath; was: Json }
+    | { kind: "renameKey"; file: string; jsonPath: JsonPath; name: string; was: Json }
     | { kind: "createFile"; file: string; value: Json }
     | { kind: "deleteFile"; file: string; was: string };
 
@@ -183,13 +183,13 @@ export interface ValueOptions extends Where {
  * {@link setValue}.
  *
  * @example
- * setValues(project, [
+ * setValues(ds, [
  *   { path: "color.button.background", value: "{color.violet.500}" },
  *   { path: "color.button.background", value: "{color.violet.300}", context: { theme: "dark" } },
  * ])
  */
 export function setValues(
-    project: Project,
+    ds: DesignSystem,
     values: ({ path: string; value: Json } & ValueOptions)[],
 ): OpResult {
     throw new Error("not implemented yet");
@@ -199,7 +199,7 @@ export { create } from "./create.js";
 
 /** Moves a token or group among its siblings. */
 export function reorder(
-    project: Project,
+    ds: DesignSystem,
     path: string,
     options: { after: string } | { before: string },
 ): OpResult {
@@ -212,10 +212,10 @@ export function reorder(
  * the token would disappear from some of them.
  *
  * @example
- * move(project, "color.brand.500", { group: "color.primary", name: "600" })
+ * move(ds, "color.brand.500", { group: "color.primary", name: "600" })
  */
 export function move(
-    project: Project,
+    ds: DesignSystem,
     path: string,
     to: { group?: string; file?: string; name?: string },
 ): OpResult {
@@ -229,9 +229,9 @@ export { remove } from "./remove.js";
  * none. `null` removes the mark.
  *
  * @example
- * deprecate(project, "color.old", "Use color.primary instead")
+ * deprecate(ds, "color.old", "Use color.primary instead")
  */
-export function deprecate(project: Project, path: string, reason: string | true | null): OpResult {
+export function deprecate(ds: DesignSystem, path: string, reason: string | true | null): OpResult {
     throw new Error("not implemented yet");
 }
 
@@ -241,10 +241,10 @@ export function deprecate(project: Project, path: string, reason: string | true 
  * the key to replace the whole extension. `null` removes the setting.
  *
  * @example
- * setExtension(project, "space", ["com.example", "scale", "ratio"], 1.333)
+ * setExtension(ds, "space", ["com.example", "scale", "ratio"], 1.333)
  */
 export function setExtension(
-    project: Project,
+    ds: DesignSystem,
     path: string,
     jsonPath: JsonPath,
     value: Json | null,
@@ -253,31 +253,31 @@ export function setExtension(
 }
 
 /**
- * Turns fixes offered for this project's diagnostics into ordinary edits, so they can be undone,
- * saved and replayed like any other. Pass several to make them one step. Every fix must come from
- * {@link fixesFor} for this project.
+ * Turns fixes offered for this design system's diagnostics into ordinary edits, so they can be
+ * undone, saved and replayed like any other. Pass several to make them one step. Every fix must
+ * come from {@link fixesFor} for this design system.
  *
  * @example
- * const safe = project.doc.diagnostics.flatMap((d) => fixesFor(project, d).filter((f) => f.safe));
- * commit(project, fix(project, safe));
+ * const safe = ds.diagnostics.flatMap((d) => fixesFor(ds, d).filter((f) => f.safe));
+ * commit(ds, fix(ds, safe));
  */
-export function fix(project: Project, fixes: Fix[]): OpResult {
+export function fix(ds: DesignSystem, fixes: Fix[]): OpResult {
     throw new Error("not implemented yet");
 }
 
 /** Changes a token's type. Refused if tokens that refer to it would break. */
-export function retype(project: Project, path: string, type: TokenType): OpResult {
+export function retype(ds: DesignSystem, path: string, type: TokenType): OpResult {
     throw new Error("not implemented yet");
 }
 
 /** Turns a token made by a generator into an ordinary token written in the file. */
-export function detach(project: Project, path: string): OpResult {
+export function detach(ds: DesignSystem, path: string): OpResult {
     throw new Error("not implemented yet");
 }
 
 /** Adds a file to a set or to a modifier's context in the resolver. */
 export function addFile(
-    project: Project,
+    ds: DesignSystem,
     file: string,
     options: {
         to: { set: string } | { modifier: string; context: string };
@@ -295,10 +295,10 @@ export function addFile(
  * Adds a context to a modifier, with a new file of its own.
  *
  * @example
- * addContext(project, "theme", "dim", { file: "dim.json", basedOn: "dark" })
+ * addContext(ds, "theme", "dim", { file: "dim.json", basedOn: "dark" })
  */
 export function addContext(
-    project: Project,
+    ds: DesignSystem,
     modifier: string,
     context: string,
     options: {
@@ -312,7 +312,7 @@ export function addContext(
 
 /** Adds a modifier to the resolver. */
 export function addModifier(
-    project: Project,
+    ds: DesignSystem,
     modifier: string,
     options: { contexts: string[]; default?: string },
 ): OpResult {
@@ -321,7 +321,7 @@ export function addModifier(
 
 /** Renames a modifier's context. */
 export function renameContext(
-    project: Project,
+    ds: DesignSystem,
     modifier: string,
     from: string,
     to: string,
@@ -335,7 +335,7 @@ export function renameContext(
  * deleted.
  */
 export function removeContext(
-    project: Project,
+    ds: DesignSystem,
     modifier: string,
     context: string,
     options?: {
@@ -347,7 +347,7 @@ export function removeContext(
 }
 
 /** Sets a modifier's default context. */
-export function setDefault(project: Project, modifier: string, context: string): OpResult {
+export function setDefault(ds: DesignSystem, modifier: string, context: string): OpResult {
     throw new Error("not implemented yet");
 }
 
@@ -355,17 +355,18 @@ export function setDefault(project: Project, modifier: string, context: string):
  * An edit that could no longer be made, such as a change to a token someone has since deleted,
  * with a `reason` worded from its `kind` and the edit.
  *
- * - `not-in-project`: the project doesn't hold the edit's file.
+ * - `not-read`: the design system doesn't read the edit's file: an edit to a file it never read,
+ *   such as `package.json`, or a new file nothing would read, which would be lost.
  * - `gone`: the place the edit changes is no longer there.
  * - `changed`: what is there is no longer what the edit expected (`was`).
  * - `taken`: something different is already where the edit would write, or a sibling already
  *   has the new name.
- * - `not-a-group`: the path runs through something that isn't a group, or past the end of a list.
- * - `unread`: nothing in the project would read the new file, so it would be lost.
+ * - `not-a-group`: the `jsonPath` runs through something that isn't a group, or past the end of a
+ *   list.
  */
 export interface Conflict {
     op: FileOp;
-    kind: "not-in-project" | "gone" | "changed" | "taken" | "not-a-group" | "unread";
+    kind: "not-read" | "gone" | "changed" | "taken" | "not-a-group";
     reason: string;
 }
 
@@ -374,7 +375,8 @@ export { apply, changedFiles, commit } from "./apply.js";
 /** The outcome of {@link commit}. */
 export type Committed =
     | {
-          project: Project;
+          /** The design system with the edits applied. */
+          ds: DesignSystem;
           /** The edits that were applied, for undo, saving, and sharing. */
           ops: FileOp[];
           /** Tokens and groups whose path changed, for keeping a selection or a URL on them. */
@@ -408,28 +410,28 @@ export interface Clash {
 }
 
 /**
- * An editing session: a project as a person edits it, with undo, the unsaved edits, and what
- * changed since it was opened. It changes as it is used, like a store; the projects inside it
- * never do. Writing is left to the tool: send {@link Session.unsaved} wherever saves go, then call
- * {@link Session.saved}.
+ * An editing session: a design system as a person edits it, with undo, the unsaved edits, and
+ * what changed since it was opened. It changes as it is used, like a store; the design systems in
+ * it never do. Writing is left to the tool: send {@link Session.unsaved} wherever saves go, then
+ * call {@link Session.saved}.
  *
  * @example
- * const session = createSession(project);
- * session.do(rename(session.project, "color.brand", "primary"));
+ * const session = createSession(ds);
+ * session.do(rename(session.ds, "color.brand", "primary"));
  * session.undo();
  */
 export interface Session {
     /** The current version. */
-    readonly project: Project;
+    readonly ds: DesignSystem;
     /** The version the unsaved edits are measured from: as opened, as last saved, or as last adopted. */
-    readonly opened: Project;
+    readonly opened: DesignSystem;
     /** The edits since {@link Session.opened}, with the moves they made: what a save sends, and what to keep for a reload. */
     readonly unsaved: Edits;
     readonly canUndo: boolean;
     readonly canRedo: boolean;
     /**
-     * Commits an operation's result. On success the project moves on and the change goes on the
-     * undo history; otherwise nothing changes, and the answer says why.
+     * Commits an operation's result. On success the design system moves on and the change goes on
+     * the undo history; otherwise nothing changes, and the answer says why.
      */
     do(result: OpResult): Committed;
     /** Commits an operation's result without keeping it, for previewing, such as while a slider moves. */
@@ -460,7 +462,7 @@ export interface Session {
      * still there keeps its id, one gone loses it, and a new one gets a new id. The undo history
      * starts again.
      */
-    adopt(fresh: Project): Clash[];
+    adopt(fresh: DesignSystem): Clash[];
     /** Calls `listener` whenever the session changes. Returns a function that stops listening. */
     subscribe(listener: () => void): () => void;
     /**
@@ -472,7 +474,7 @@ export interface Session {
      *
      * @example
      * const id = session.idOf("color.brand");
-     * session.do(rename(session.project, "color.brand", "primary"));
+     * session.do(rename(session.ds, "color.brand", "primary"));
      * session.pathOf(id); // "color.primary"
      */
     idOf(path: string): string | undefined;

@@ -1,14 +1,14 @@
-import type { Project } from "@sugarcube-sh/dtcg";
+import type { DesignSystem } from "@sugarcube-sh/dtcg";
 import { type Node, findNodeAtLocation, getNodeValue, parseTree } from "jsonc-parser";
 import { conflict } from "./error-messages.js";
 import type { Committed, Conflict, FileOp, Json, OpResult } from "./index.js";
 import { type Splice, indentUnit, lineBreak, removal, spliced } from "./json-text.js";
-import { reread } from "./reread.js";
 import { renameSplices, setSplices, valueAt } from "./text-edits.js";
 
 type MemberOp = Exclude<FileOp, { kind: "createFile" | "deleteFile" }>;
 type FileLevelOp = Extract<FileOp, { kind: "createFile" | "deleteFile" }>;
 type Outcome = { conflict: Conflict["kind"] } | "stale" | undefined;
+type Changed = Record<string, string | null>;
 
 interface Draft {
     text: string;
@@ -16,105 +16,108 @@ interface Draft {
     pending: Splice[];
 }
 
+interface Texts {
+    of(file: string): string | undefined;
+    set(file: string, text: string | null): void;
+}
+
 /**
- * Applies edits to a project's text in order and reads the result with the project's own
- * options, returning a new project. Every other line of each file is left as written.
+ * Applies edits to a design system's text in order and reads the result as the design system was
+ * read, returning the new design system. Every other line of each file is left as written.
  *
  * All or nothing: if any edit no longer applies, none is made, and every such edit comes back
  * with its reason. An edit no longer applies when its place has gone, when what it expects to
- * find (`was`) has changed since it was made, or when a new file would not be read by the
- * project. An edit whose result is already there does nothing.
+ * find (`was`) has changed since it was made, or when its file is one the design system doesn't
+ * read, a new file included. An edit whose result is already there does nothing.
  *
  * @example
- * const next = apply(project, saved.ops);
+ * const next = apply(ds, saved.ops);
  * if ("conflicts" in next) showConflicts(next.conflicts);
- * else project = next;
+ * else ds = next;
  */
-export function apply(project: Project, ops: FileOp[]): Project | { conflicts: Conflict[] } {
-    const changes = changedFiles(project, ops);
-    return "conflicts" in changes ? changes : changes.project;
+export function apply(ds: DesignSystem, ops: FileOp[]): DesignSystem | { conflicts: Conflict[] } {
+    const changes = changedFiles(ds, ops);
+    return "conflicts" in changes ? changes : changes.ds;
 }
 
 /**
  * What saving edits would do to the files, without saving them: the new text of each file the edits
- * change, and the files they delete, with the project as read from the result. Only a `deleteFile`
- * edit deletes a file, so one the resolver stops naming is kept. For saving somewhere that takes
- * whole files, such as a pull request. All or nothing, as {@link apply}: if any edit no longer
- * applies, the answer is the conflicts.
+ * change, and the files they delete, with the design system as read from the result. Only a
+ * `deleteFile` edit deletes a file, so one the resolver stops naming is kept. For saving somewhere
+ * that takes whole files, such as a pull request. All or nothing, as {@link apply}: if any edit no
+ * longer applies, the answer is the conflicts.
  *
  * @example
- * const changes = changedFiles(project, edits.ops);
+ * const changes = changedFiles(ds, edits.ops);
  * if ("conflicts" in changes) showConflicts(changes.conflicts);
  * else await openPullRequest(changes);
  */
 export function changedFiles(
-    project: Project,
+    ds: DesignSystem,
     ops: FileOp[],
 ):
-    | { project: Project; written: Record<string, string>; deleted: string[] }
+    | { ds: DesignSystem; written: Record<string, string>; deleted: string[] }
     | { conflicts: Conflict[] } {
-    const { files, conflicts } = editedFiles(project, ops);
+    const { changed, conflicts } = editedFiles(ds, ops);
     if (conflicts.length > 0) return { conflicts };
-    const next = reread(project, files);
+    const next = ds.reread(changed);
     const lost = unread(next, ops);
-    if (lost.length > 0) return { conflicts: lost.map((op) => conflict(op, "unread")) };
+    if (lost.length > 0) return { conflicts: lost.map((op) => conflict(op, "not-read")) };
 
-    const written = Object.entries(files)
-        .filter(([file, text]) => text !== project.files[file])
+    const written = Object.entries(changed)
+        .flatMap(([file, text]): [string, string][] =>
+            text !== null && text !== ds.text(file) ? [[file, text]] : [],
+        )
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    const deleted = ops.flatMap((op) =>
-        op.kind === "deleteFile" && files[op.file] === undefined ? [op.file] : [],
-    );
-    return {
-        project: next,
-        written: Object.fromEntries(written),
-        deleted: [...new Set(deleted)].sort(),
-    };
+    const deleted = Object.keys(changed).filter((file) => changed[file] === null);
+    return { ds: next, written: Object.fromEntries(written), deleted: deleted.sort() };
 }
 
 export function applyWhatFits(
-    project: Project,
+    ds: DesignSystem,
     ops: FileOp[],
-): { project: Project; applied: FileOp[]; skipped: FileOp[] } {
-    const { files, conflicts } = editedFiles(project, ops);
-    if (conflicts.length === ops.length) return { project, applied: [], skipped: ops };
-    let next = reread(project, files);
+): { ds: DesignSystem; applied: FileOp[]; skipped: FileOp[] } {
+    const { changed, conflicts } = editedFiles(ds, ops);
+    if (conflicts.length === ops.length) return { ds, applied: [], skipped: ops };
+    const next = ds.reread(changed);
     const lost = unread(next, ops);
-    if (lost.length > 0) {
-        for (const op of lost) delete files[op.file];
-        next = reread(project, files);
-    }
     const failed = new Set([...conflicts.map(({ op }) => op), ...lost]);
     const skipped = ops.filter((op) => failed.has(op));
-    return { project: next, applied: ops.filter((op) => !failed.has(op)), skipped };
+    return { ds: next, applied: ops.filter((op) => !failed.has(op)), skipped };
 }
 
-function editedFiles(project: Project, ops: FileOp[]) {
-    const files: Record<string, string> = { ...project.files };
+function editedFiles(ds: DesignSystem, ops: FileOp[]) {
+    const changed: Changed = {};
+    const texts: Texts = {
+        of: (file) => (file in changed ? (changed[file] ?? undefined) : ds.text(file)),
+        set: (file, text) => {
+            changed[file] = text;
+        },
+    };
     const drafts = new Map<string, Draft>();
-    const style = project.files[project.entry] ?? "";
+    const style = texts.of(ds.files[0] ?? "") ?? "";
     const conflicts: Conflict[] = [];
     const written = (file: string) => {
         const draft = drafts.get(file);
-        if (draft && draft.pending.length > 0) files[file] = spliced(draft.text, draft.pending);
+        if (draft && draft.pending.length > 0) texts.set(file, spliced(draft.text, draft.pending));
         drafts.delete(file);
     };
     const draftOf = (file: string) => {
-        const text = files[file];
+        const text = texts.of(file);
         const draft = drafts.get(file) ?? (text === undefined ? undefined : { text, pending: [] });
         if (draft) drafts.set(file, draft);
         return draft;
     };
     for (const op of ops) {
-        const kind = applyOne(op, style, files, { draftOf, written });
+        const kind = applyOne(op, style, texts, { draftOf, written });
         if (kind !== undefined) conflicts.push(conflict(op, kind));
     }
     for (const file of drafts.keys()) written(file);
-    return { files, conflicts };
+    return { changed, conflicts };
 }
 
-function unread(next: Project, ops: FileOp[]): FileOp[] {
-    return ops.filter((op) => op.kind === "createFile" && next.files[op.file] === undefined);
+function unread(next: DesignSystem, ops: FileOp[]): FileOp[] {
+    return ops.filter((op) => op.kind === "createFile" && next.text(op.file) === undefined);
 }
 
 /**
@@ -122,20 +125,20 @@ function unread(next: Project, ops: FileOp[]): FileOp[] {
  * handed back untouched.
  *
  * @example
- * const done = commit(project, rename(project, "color.brand", "primary"));
- * if ("project" in done) project = done.project;
+ * const done = commit(ds, rename(ds, "color.brand", "primary"));
+ * if ("ds" in done) ds = done.ds;
  */
-export function commit(project: Project, result: OpResult): Committed {
+export function commit(ds: DesignSystem, result: OpResult): Committed {
     if (!("ops" in result)) return result;
-    const next = apply(project, result.ops);
+    const next = apply(ds, result.ops);
     if ("conflicts" in next) return next;
-    return { project: next, ops: result.ops, moved: result.moved };
+    return { ds: next, ops: result.ops, moved: result.moved };
 }
 
 function applyOne(
     op: FileOp,
     style: string,
-    files: Record<string, string>,
+    texts: Texts,
     {
         draftOf,
         written,
@@ -143,32 +146,28 @@ function applyOne(
 ): Conflict["kind"] | undefined {
     if (op.kind === "createFile" || op.kind === "deleteFile") {
         written(op.file);
-        return fileEdit(files, op, style);
+        return fileEdit(texts, op, style);
     }
     const draft = draftOf(op.file);
-    if (!draft) return "not-in-project";
+    if (!draft) return "not-read";
     const outcome = memberEdit(draft, op);
     if (outcome !== "stale") return outcome?.conflict;
     written(op.file);
-    return applyOne(op, style, files, { draftOf, written });
+    return applyOne(op, style, texts, { draftOf, written });
 }
 
-function fileEdit(
-    files: Record<string, string>,
-    op: FileLevelOp,
-    style: string,
-): Conflict["kind"] | undefined {
-    const existing = files[op.file];
+function fileEdit(texts: Texts, op: FileLevelOp, style: string): Conflict["kind"] | undefined {
+    const existing = texts.of(op.file);
     if (op.kind === "deleteFile") {
         if (existing === undefined) return undefined;
         if (existing !== op.was) return "changed";
-        delete files[op.file];
+        texts.set(op.file, null);
         return undefined;
     }
     if (existing !== undefined) return same(valueAt(existing, []), op.value) ? undefined : "taken";
     const eol = lineBreak(style);
     const written = JSON.stringify(op.value, null, indentUnit(style));
-    files[op.file] = written.replaceAll("\n", eol) + eol;
+    texts.set(op.file, written.replaceAll("\n", eol) + eol);
     return undefined;
 }
 
@@ -176,7 +175,7 @@ function memberEdit(draft: Draft, op: MemberOp): Outcome {
     const { text, pending } = draft;
     draft.root ??= parseTree(text);
     const { root } = draft;
-    const node = root && findNodeAtLocation(root, op.path);
+    const node = root && findNodeAtLocation(root, op.jsonPath);
     if (pending.length > 0 && (!node || reads(node, op).some((range) => touches(range, pending)))) {
         return "stale";
     }
@@ -204,7 +203,7 @@ function memberEdit(draft: Draft, op: MemberOp): Outcome {
         case "renameKey": {
             if (!node) {
                 const renamed =
-                    root && findNodeAtLocation(root, [...op.path.slice(0, -1), op.name]);
+                    root && findNodeAtLocation(root, [...op.jsonPath.slice(0, -1), op.name]);
                 const there = renamed && (getNodeValue(renamed) as Json);
                 return same(there, op.was) ? undefined : { conflict: "gone" };
             }
@@ -214,8 +213,9 @@ function memberEdit(draft: Draft, op: MemberOp): Outcome {
 }
 
 function splicesFor(text: string, root: Node, op: MemberOp): Splice[] | undefined {
-    if (op.kind === "set" || op.kind === "add") return setSplices(text, root, op.path, op.value);
-    const node = findNodeAtLocation(root, op.path);
+    if (op.kind === "set" || op.kind === "add")
+        return setSplices(text, root, op.jsonPath, op.value);
+    const node = findNodeAtLocation(root, op.jsonPath);
     if (!node) return op.kind === "remove" ? [] : undefined;
     return op.kind === "remove" ? removal(text, node) : renameSplices(node, op.name);
 }

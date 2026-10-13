@@ -1,4 +1,4 @@
-import { defineGenerator, openFromMemory } from "@sugarcube-sh/dtcg";
+import { defineGenerator, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { create, remove } from "../src/index.js";
 import { demo, at, opsOf, committed, resolver, opened } from "./helpers.js";
@@ -16,7 +16,7 @@ describe("create, which file", () => {
             {
                 kind: "add",
                 file: "color.json",
-                path: ["color", "brand", "950"],
+                jsonPath: ["color", "brand", "950"],
                 value: { $value: "#0a1f44" },
             },
         ]);
@@ -31,7 +31,7 @@ describe("create, which file", () => {
             {
                 kind: "add",
                 file: "color.json",
-                path: ["color", "text", "accent"],
+                jsonPath: ["color", "text", "accent"],
                 value: { $value: "{color.brand.600}" },
             },
         ]);
@@ -52,7 +52,7 @@ describe("create, which file", () => {
             {
                 kind: "add",
                 file: "color.json",
-                path: ["color", "accent"],
+                jsonPath: ["color", "accent"],
                 value: { $value: "#f59e0b" },
             },
         ]);
@@ -65,7 +65,7 @@ describe("create, which file", () => {
             {
                 kind: "add",
                 file: "dark.json",
-                path: ["color", "text", "accent"],
+                jsonPath: ["color", "text", "accent"],
                 value: { $value: "{color.brand.300}" },
             },
         ]);
@@ -76,14 +76,14 @@ describe("create, which file", () => {
         const result = create(demo, "radius.xl", value, dark);
 
         expect(opsOf(result)).toEqual([
-            { kind: "add", file: "dark.json", path: ["radius", "xl"], value },
+            { kind: "add", file: "dark.json", jsonPath: ["radius", "xl"], value },
         ]);
         const after = committed(demo, result);
-        expect(after.doc.permutation({ mode: "dark" }).token("radius.xl")?.resolved).toEqual({
+        expect(after.permutation({ mode: "dark" }).token("radius.xl")?.resolved).toEqual({
             value: 1,
             unit: "rem",
         });
-        expect(after.doc.permutation().token("radius.xl")).toBeUndefined();
+        expect(after.permutation().token("radius.xl")).toBeUndefined();
     });
 
     const split = {
@@ -94,9 +94,9 @@ describe("create, which file", () => {
     };
 
     it("asks which file when several write the group, and takes the answer", () => {
-        const project = opened(split);
+        const ds = opened(split);
 
-        expect(create(project, "color.accent", { $value: "#f59e0b" })).toEqual({
+        expect(create(ds, "color.accent", { $value: "#f59e0b" })).toEqual({
             decision: {
                 kind: "placement",
                 path: "color.accent",
@@ -104,12 +104,12 @@ describe("create, which file", () => {
             },
         });
         expect(
-            opsOf(create(project, "color.accent", { $value: "#f59e0b" }, { place: "roles.json" })),
+            opsOf(create(ds, "color.accent", { $value: "#f59e0b" }, { place: "roles.json" })),
         ).toEqual([
             {
                 kind: "add",
                 file: "roles.json",
-                path: ["color", "accent"],
+                jsonPath: ["color", "accent"],
                 value: { $value: "#f59e0b" },
             },
         ]);
@@ -120,33 +120,33 @@ describe("create, which file", () => {
             {
                 kind: "add",
                 file: "palette.json",
-                path: ["color", "brand", "600"],
+                jsonPath: ["color", "brand", "600"],
                 value: { $value: "#0c6ade" },
             },
         ]);
     });
 
     it('makes a token inside the group named "" when asked for "", never at the top level', () => {
-        const project = opened({
+        const ds = opened({
             "tokens.resolver.json": resolver([{ $ref: "./a.json" }]),
             "a.json": JSON.stringify({ "": { $type: "number", x: { $value: 1 } } }),
         });
-        expect(opsOf(create(project, ".y", { $value: 2 }))).toEqual([
-            { kind: "add", file: "a.json", path: ["", "y"], value: { $value: 2 } },
+        expect(opsOf(create(ds, ".y", { $value: 2 }))).toEqual([
+            { kind: "add", file: "a.json", jsonPath: ["", "y"], value: { $value: 2 } },
         ]);
     });
 
-    it("adds to a project of one token file, read without a resolver", () => {
-        const project = openFromMemory({
+    it("adds to a design system of one token file, read without a resolver", () => {
+        const ds = readFromMemory({
             files: { "tokens.json": '{ "a": { "$type": "number", "$value": 1 } }' },
             entry: "tokens.json",
         });
 
-        expect(opsOf(create(project, "b", { $type: "number", $value: 2 }))).toEqual([
+        expect(opsOf(create(ds, "b", { $type: "number", $value: 2 }))).toEqual([
             {
                 kind: "add",
                 file: "tokens.json",
-                path: ["b"],
+                jsonPath: ["b"],
                 value: { $type: "number", $value: 2 },
             },
         ]);
@@ -162,7 +162,12 @@ describe("create, which file", () => {
         };
 
         expect(opsOf(create(opened(files), "c", { $type: "number", $value: 3 }))).toEqual([
-            { kind: "add", file: "base.json", path: ["c"], value: { $type: "number", $value: 3 } },
+            {
+                kind: "add",
+                file: "base.json",
+                jsonPath: ["c"],
+                value: { $type: "number", $value: 3 },
+            },
         ]);
     });
 
@@ -177,7 +182,12 @@ describe("create, which file", () => {
         };
 
         expect(opsOf(create(opened(files), "c", { $type: "number", $value: 3 }))).toEqual([
-            { kind: "add", file: "base.json", path: ["c"], value: { $type: "number", $value: 3 } },
+            {
+                kind: "add",
+                file: "base.json",
+                jsonPath: ["c"],
+                value: { $type: "number", $value: 3 },
+            },
         ]);
     });
 });
@@ -187,14 +197,14 @@ describe("create, groups", () => {
         const group = create(demo, "color.raw", { group: true });
 
         expect(opsOf(group)).toEqual([
-            { kind: "add", file: "color.json", path: ["color", "raw"], value: {} },
+            { kind: "add", file: "color.json", jsonPath: ["color", "raw"], value: {} },
         ]);
         const after = committed(demo, group);
         expect(opsOf(create(after, "color.raw.blue", { $value: "#0000ff" }))).toEqual([
             {
                 kind: "add",
                 file: "color.json",
-                path: ["color", "raw", "blue"],
+                jsonPath: ["color", "raw", "blue"],
                 value: { $value: "#0000ff" },
             },
         ]);
@@ -240,17 +250,17 @@ describe("create, what it refuses", () => {
     });
 
     it("writes a token with no type as given, and the read reports it", () => {
-        const project = opened({
+        const ds = opened({
             "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),
             "base.json": '{ "misc": { "y": { "$type": "number", "$value": 1 } } }',
         });
-        const result = create(project, "misc.x", { $value: 2 });
+        const result = create(ds, "misc.x", { $value: 2 });
 
         expect(opsOf(result)).toEqual([
-            { kind: "add", file: "base.json", path: ["misc", "x"], value: { $value: 2 } },
+            { kind: "add", file: "base.json", jsonPath: ["misc", "x"], value: { $value: 2 } },
         ]);
-        const after = committed(project, result);
-        expect(after.doc.diagnostics.some(({ path }) => path === "misc.x")).toBe(true);
+        const after = committed(ds, result);
+        expect(after.diagnostics.some(({ path }) => path === "misc.x")).toBe(true);
     });
 
     it("is refused for a context's own token when the token is shared, to be overridden instead", () => {
@@ -268,7 +278,7 @@ describe("remove", () => {
         const result = remove(demo, "color.brand.500");
         const pointing = [
             ...new Set(
-                demo.doc.permutations.flatMap(({ tokens }) =>
+                demo.permutations.flatMap(({ tokens }) =>
                     tokens
                         .filter(({ references }) =>
                             references.some(({ path }) => path === "color.brand.500"),
@@ -284,7 +294,7 @@ describe("remove", () => {
                 {
                     kind: "remove",
                     file: "color.json",
-                    path: ["color", "brand", "500"],
+                    jsonPath: ["color", "brand", "500"],
                     was: at(demo, "color.json", ["color", "brand", "500"]),
                 },
             ],
@@ -309,22 +319,22 @@ describe("remove", () => {
             "brand.json": '{ "bg": { "$type": "color", "$value": "#fafafa" } }',
             "dark.json": '{ "bg": { "$type": "color", "$value": "#000000" } }',
         };
-        const project = opened(files);
-        const result = remove(project, "bg");
+        const ds = opened(files);
+        const result = remove(ds, "bg");
 
         expect(opsOf(result).map(({ file }) => file)).toEqual([
             "base.json",
             "brand.json",
             "dark.json",
         ]);
-        const after = committed(project, result);
-        expect(after.doc.permutation().token("bg")).toBeUndefined();
-        expect(after.doc.permutation({ mode: "dark" }).token("bg")).toBeUndefined();
+        const after = committed(ds, result);
+        expect(after.permutation().token("bg")).toBeUndefined();
+        expect(after.permutation({ mode: "dark" }).token("bg")).toBeUndefined();
     });
 
     it("takes out a group and everything under it, listing only what points in from outside", () => {
         const result = remove(demo, "color.brand");
-        const inside = (demo.doc.permutation().group("color.brand")?.tokens ?? []).map(
+        const inside = (demo.permutation().group("color.brand")?.tokens ?? []).map(
             ({ path }) => path,
         );
 
@@ -332,20 +342,20 @@ describe("remove", () => {
             {
                 kind: "remove",
                 file: "color.json",
-                path: ["color", "brand"],
+                jsonPath: ["color", "brand"],
                 was: at(demo, "color.json", ["color", "brand"]),
             },
         ]);
         const broken = "ops" in result ? (result.broken ?? []) : [];
         expect(broken.length).toBeGreaterThan(0);
         expect(broken.filter((path) => inside.includes(path))).toEqual([]);
-        expect(
-            committed(demo, result).doc.permutation().group("color.brand")?.tokens ?? [],
-        ).toEqual([]);
+        expect(committed(demo, result).permutation().group("color.brand")?.tokens ?? []).toEqual(
+            [],
+        );
     });
 
     it("leaves out of broken a token inside the group that refers to another inside it", () => {
-        const project = opened({
+        const ds = opened({
             "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),
             "base.json": JSON.stringify({
                 brand: {
@@ -357,16 +367,16 @@ describe("remove", () => {
             }),
         });
 
-        expect(remove(project, "brand")).toMatchObject({ broken: ["button"] });
+        expect(remove(ds, "brand")).toMatchObject({ broken: ["button"] });
     });
 
-    it("names no context in a project without modifiers", () => {
-        const project = opened({
+    it("names no context in a design system without modifiers", () => {
+        const ds = opened({
             "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),
             "base.json": '{ "bg": { "$type": "color", "$value": "#ffffff" } }',
         });
 
-        expect(remove(project, "bg")).toMatchObject({ alsoAffects: [] });
+        expect(remove(ds, "bg")).toMatchObject({ alsoAffects: [] });
     });
 
     it("is refused for a path that is neither a token nor a group", () => {

@@ -1,4 +1,4 @@
-import { type Generator, defineGenerator, openFromMemory } from "@sugarcube-sh/dtcg";
+import { type Generator, defineGenerator, readFromMemory } from "@sugarcube-sh/dtcg";
 
 type Tree = Record<string, unknown>;
 
@@ -51,7 +51,7 @@ const steps: Generator = defineGenerator({
     }),
 });
 
-export function project(perGroup: number, { generated = 0 } = {}) {
+export function designSystem(perGroup: number, { generated = 0 } = {}) {
     const sources = [{ $ref: "base.json" }, ...(generated ? [{ $ref: "scale.json" }] : [])];
     const resolver = {
         version: "2025.10",
@@ -81,7 +81,7 @@ export function project(perGroup: number, { generated = 0 } = {}) {
         "compact.json": written(overrides(perGroup, 2, "space", (i) => rem((1 + (i % 5)) * 0.75))),
         ...(generated && { "scale.json": written(scale) }),
     };
-    return openFromMemory(
+    return readFromMemory(
         { files, entry: "tokens.resolver.json" },
         { generators: generated ? [steps] : [] },
     );

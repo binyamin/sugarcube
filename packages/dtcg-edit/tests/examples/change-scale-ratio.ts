@@ -1,12 +1,9 @@
 // Changes a spacing scale's ratio. The steps are remade from the new ratio when the tokens are read
 // again.
-import { type Project } from "@sugarcube-sh/dtcg";
+import { type DesignSystem } from "@sugarcube-sh/dtcg";
 import { setExtension, commit } from "@sugarcube-sh/dtcg-edit";
 
-declare let project: Project;
+declare let ds: DesignSystem;
 
-const done = commit(
-    project,
-    setExtension(project, "space", ["sh.sugarcube", "scale", "ratio"], 1.333),
-);
-if ("project" in done) project = done.project;
+const done = commit(ds, setExtension(ds, "space", ["sh.sugarcube", "scale", "ratio"], 1.333));
+if ("ds" in done) ds = done.ds;

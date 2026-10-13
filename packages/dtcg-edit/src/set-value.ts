@@ -1,7 +1,7 @@
-import type { Project, Token } from "@sugarcube-sh/dtcg";
+import type { DesignSystem, Token } from "@sugarcube-sh/dtcg";
 import type { FileOp, Json, OpResult, ValueOptions } from "./index.js";
 import { groupPlace, placement, tokenCopies } from "./placement.js";
-import { type Place, writtenAt } from "./project-text.js";
+import { type Member, writtenIn } from "./file-text.js";
 
 /**
  * Changes a token's value.
@@ -25,11 +25,11 @@ import { type Place, writtenAt } from "./project-text.js";
  * context writes its own.
  *
  * @example
- * setValue(project, "color.danger", "{color.red.600}")
- * setValue(project, "color.danger", "{color.red.400}", { context: { theme: "dark" } })
+ * setValue(ds, "color.danger", "{color.red.600}")
+ * setValue(ds, "color.danger", "{color.red.400}", { context: { theme: "dark" } })
  */
 export function setValue(
-    project: Project,
+    ds: DesignSystem,
     path: string,
     value: Json,
     options: ValueOptions = {},
@@ -37,14 +37,19 @@ export function setValue(
     if (options.part !== undefined || options.inherited !== undefined) {
         throw new Error("not implemented yet");
     }
-    const placed = placement(project, path, options);
+    const placed = placement(ds, path, options);
     if (!("token" in placed)) return placed;
     const { token, alsoAffects } = placed;
     if ("at" in placed) {
-        return { ops: written(project, placed.at, "$value", value), alsoAffects, moved: [] };
+        return { ops: written(ds, placed.at, "$value", value), alsoAffects, moved: [] };
     }
     const override = { ...ownProperties(token), $value: value };
-    const op: FileOp = { kind: "add", file: placed.into, path: path.split("."), value: override };
+    const op: FileOp = {
+        kind: "add",
+        file: placed.into,
+        jsonPath: path.split("."),
+        value: override,
+    };
     return { ops: [op], alsoAffects, moved: [] };
 }
 
@@ -67,33 +72,31 @@ function ownProperties(token: Token): Record<string, Json> {
  * makes, or a token or group inherited through `$extends`.
  *
  * @example
- * setDescription(project, "color.brand", "The house colour.")
+ * setDescription(ds, "color.brand", "The house colour.")
  */
 export function setDescription(
-    project: Project,
+    ds: DesignSystem,
     path: string,
     description: string | null,
 ): OpResult {
-    const copies = tokenCopies(project, path);
+    const copies = tokenCopies(ds, path);
     if (copies && "refused" in copies) return copies;
     if (copies) {
-        const ops = copies.places.flatMap((at) =>
-            written(project, at, "$description", description),
-        );
+        const ops = copies.places.flatMap((at) => written(ds, at, "$description", description));
         return { ops, alsoAffects: copies.alsoAffects, moved: [] };
     }
-    const placed = groupPlace(project, path);
+    const placed = groupPlace(ds, path);
     if ("refused" in placed) return placed;
-    const ops = written(project, placed.at, "$description", description);
+    const ops = written(ds, placed.at, "$description", description);
     return { ops, alsoAffects: placed.alsoAffects, moved: [] };
 }
 
-function written(project: Project, at: Place, key: string, value: Json | null): FileOp[] {
+function written(ds: DesignSystem, at: Member, key: string, value: Json | null): FileOp[] {
     const { file } = at.span;
-    const path = [...at.path, key];
-    const was = writtenAt(project, file, path);
-    if (value === null) return was === undefined ? [] : [{ kind: "remove", file, path, was }];
+    const jsonPath = [...at.jsonPath, key];
+    const was = writtenIn(ds, file, jsonPath);
+    if (value === null) return was === undefined ? [] : [{ kind: "remove", file, jsonPath, was }];
     return was === undefined
-        ? [{ kind: "add", file, path, value }]
-        : [{ kind: "set", file, path, value, was }];
+        ? [{ kind: "add", file, jsonPath, value }]
+        : [{ kind: "set", file, jsonPath, value, was }];
 }

@@ -2,28 +2,31 @@
 // sends their text. The browser opens the same design system from that text and edits it. A save
 // sends back only the edits; the server checks they are edits and writes them, and an edit to a
 // file that isn't one of the token files is a conflict. If a file breaks mid-edit, the browser keeps the last version that read cleanly.
-import { openFromMemory, type Project } from "@sugarcube-sh/dtcg";
-import { type ProjectSource, open } from "@sugarcube-sh/dtcg/node";
+import { readFromMemory, type DesignSystem } from "@sugarcube-sh/dtcg";
+import { type ProjectSource, read } from "@sugarcube-sh/dtcg/node";
 import { isEdits } from "@sugarcube-sh/dtcg-edit";
 import { applyToDisk } from "@sugarcube-sh/dtcg-edit/node";
 
 declare function sendToBrowser(entry: string, files: Readonly<Record<string, string>>): void;
 
 const source: ProjectSource = { entry: "tokens/tokens.resolver.json" };
-let serving: Project | undefined;
+let serving: DesignSystem | undefined;
 
 export async function serve(): Promise<void> {
-    const next = await open(source.entry, source.options);
-    const unreadable = next.doc.diagnostics.some(
+    const next = await read(source.entry, source.options);
+    const unreadable = next.diagnostics.some(
         (d) => d.kind === "invalid-json" || d.kind === "file-not-found",
     );
     if (unreadable && serving) return;
     serving = next;
-    sendToBrowser(source.entry, next.files);
+    sendToBrowser(
+        source.entry,
+        Object.fromEntries(next.files.map((file) => [file, next.text(file) ?? ""])),
+    );
 }
 
-export function openInBrowser(files: Readonly<Record<string, string>>): Project {
-    return openFromMemory({ files: { ...files }, entry: "tokens.resolver.json" });
+export function openInBrowser(files: Readonly<Record<string, string>>): DesignSystem {
+    return readFromMemory({ files: { ...files }, entry: "tokens.resolver.json" });
 }
 
 export async function save(sent: unknown): Promise<string> {

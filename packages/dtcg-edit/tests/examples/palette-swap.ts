@@ -18,7 +18,7 @@ function swapped(t: Token): Json | undefined {
     return whole.moved(swap);
 }
 
-const ds = session.project.doc;
+const ds = session.ds;
 const changes: ({ path: string; value: Json } & ValueOptions)[] = [];
 for (const t of ds.permutation().group("color.button")?.tokens ?? []) {
     const base = swapped(t);
@@ -31,5 +31,5 @@ for (const t of ds.permutation().group("color.button")?.tokens ?? []) {
     }
 }
 
-const done = session.do(setValues(session.project, changes));
+const done = session.do(setValues(session.ds, changes));
 if ("refused" in done) showMessage(done.refused.reason);

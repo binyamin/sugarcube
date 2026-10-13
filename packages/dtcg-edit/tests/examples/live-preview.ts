@@ -11,10 +11,10 @@ let latest = 0;
 
 session.subscribe(async () => {
     const run = ++latest;
-    const css = await buildCSS(session.project.doc);
+    const css = await buildCSS(session.ds);
     if (run === latest) sendToPage(css);
 });
 
 export function onType(path: string, text: string): void {
-    session.do(setValue(session.project, path, text));
+    session.do(setValue(session.ds, path, text));
 }

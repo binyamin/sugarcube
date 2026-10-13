@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type Diagnostic, type Project, type Span, open, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type DesignSystem, type Diagnostic, type Span, read } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { inputFiles, readOptions } from "../../dtcg/tests/read/case-options.js";
 import { withSpans } from "../../dtcg/tests/read/positions.js";
@@ -19,10 +19,10 @@ interface Offered {
     fixes: Fix[];
 }
 
-async function openCase(name: string): Promise<Project> {
+async function openCase(name: string): Promise<DesignSystem> {
     const folder = join(casesFolder, name);
     const { entry, options } = JSON.parse(readFileSync(join(folder, "expected.json"), "utf8"));
-    return open(entry, {
+    return read(entry, {
         ...readOptions(options),
         readText: (path) => readFile(join(folder, "input", path), "utf8"),
     });
@@ -36,29 +36,27 @@ function expectedFor(name: string): Offered[] {
     return (withSpans(written, inputs) as { diagnostics: Offered[] }).diagnostics;
 }
 
-function offered(project: Project): Offered[] {
-    return project.doc.diagnostics.flatMap((diagnostic) => {
-        const fixes = fixesFor(project, diagnostic);
+function offered(ds: DesignSystem): Offered[] {
+    return ds.diagnostics.flatMap((diagnostic) => {
+        const fixes = fixesFor(ds, diagnostic);
         return fixes.length > 0 ? [{ kind: diagnostic.kind, span: diagnostic.span, fixes }] : [];
     });
 }
 
-function leftAfter(project: Project, { edits: [edit] }: Fix): string[] {
+function leftAfter(ds: DesignSystem, { edits: [edit] }: Fix): string[] {
     if (!edit) throw new Error("a fix changes something");
     const { file, offset, length, text } = edit;
-    const before = project.files[file] ?? "";
-    const files = {
-        ...project.files,
+    const before = ds.text(file) ?? "";
+    const after = ds.reread({
         [file]: before.slice(0, offset) + text + before.slice(offset + length),
-    };
-    const doc = readFromMemory({ files, entry: project.doc.files[0] }, project.options);
-    return doc.diagnosticsAt({ file, offset, length: text.length }).map(({ message }) => message);
+    });
+    return after.diagnosticsAt({ file, offset, length: text.length }).map(({ message }) => message);
 }
 
-async function projectOf(files: Record<string, string>): Promise<Project> {
+async function readFiles(files: Record<string, string>): Promise<DesignSystem> {
     const [entry] = Object.keys(files);
-    if (entry === undefined) throw new Error("a project needs a file");
-    return open(entry, {
+    if (entry === undefined) throw new Error("a design system needs a file");
+    return read(entry, {
         readText: async (path) => files[path] ?? Promise.reject(new Error("missing")),
     });
 }
@@ -80,7 +78,7 @@ describe.each(cases)("%s", (name) => {
 
 describe("fixes that depend on other tokens", () => {
     it("offers no pointer when the target's whole value does not fit the place", async () => {
-        const opened = await projectOf({
+        const opened = await readFiles({
             "tokens.json": JSON.stringify({
                 space: {
                     $type: "dimension",
@@ -89,19 +87,19 @@ describe("fixes that depend on other tokens", () => {
                 },
             }),
         });
-        const [problem] = opened.doc.diagnostics;
+        const [problem] = opened.diagnostics;
         expect(problem?.kind).toBe("invalid-value");
         expect(problem && fixesFor(opened, problem)).toStrictEqual([]);
     });
 
     it("offers a pointer when the target's whole value fits the place", async () => {
-        const opened = await projectOf({
+        const opened = await readFiles({
             "tokens.json": JSON.stringify({
                 base: { $type: "number", $value: 4 },
                 space: { $type: "dimension", $value: { value: "{base}", unit: "px" } },
             }),
         });
-        const [problem] = opened.doc.diagnostics;
+        const [problem] = opened.diagnostics;
         const [fix] = problem ? fixesFor(opened, problem) : [];
         expect(fix?.safe).toBe(true);
         expect(fix?.edits.map(({ text }) => text)).toStrictEqual(['{ "$ref": "#/base/$value" }']);
@@ -109,12 +107,12 @@ describe("fixes that depend on other tokens", () => {
     });
 
     it("deletes an empty $type only when the token then takes its group's type", async () => {
-        const untyped = await projectOf({
+        const untyped = await readFiles({
             "tokens.json": JSON.stringify({
                 border: { thin: { $type: "", $value: { value: 1, unit: "px" } } },
             }),
         });
-        const [problem] = untyped.doc.diagnostics;
+        const [problem] = untyped.diagnostics;
         expect(problem?.kind).toBe("unknown-type");
         expect(problem && fixesFor(untyped, problem)).toStrictEqual([]);
     });

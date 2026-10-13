@@ -4,8 +4,7 @@ import {
     type Input,
     type Permutation,
     PermutationError,
-    type Place as WrittenPlace,
-    type Project,
+    type Place,
     type ResolverContext,
     type Source,
     type Span,
@@ -14,15 +13,15 @@ import {
 } from "@sugarcube-sh/dtcg";
 import { refused } from "./error-messages.js";
 import type { Decision, Refusal, Where } from "./index.js";
-import { type Place, placeOf, spanKey, writtenAt } from "./project-text.js";
+import { type Member, memberAt, spanKey, writtenIn } from "./file-text.js";
 
 type Placement =
-    | { token: Token; at: Place; alsoAffects: Input[] }
+    | { token: Token; at: Member; alsoAffects: Input[] }
     | { token: Token; into: string; alsoAffects: Input[] }
     | { decision: Decision }
     | { refused: Refusal };
 
-type Declared = { at: Place; alsoAffects: Input[] } | { refused: Refusal };
+type Declared = { at: Member; alsoAffects: Input[] } | { refused: Refusal };
 
 type NewPlace =
     | { into: string; alsoAffects: Input[] }
@@ -34,44 +33,43 @@ interface Chosen {
     context: ResolverContext;
 }
 
-export function placement(project: Project, path: string, where: Where = {}): Placement {
-    const chosen = chosenContext(project.doc, where.context ?? {});
-    if (chosen === undefined) return sharedPlace(project, path);
+export function placement(ds: DesignSystem, path: string, where: Where = {}): Placement {
+    const chosen = chosenContext(ds, where.context ?? {});
+    if (chosen === undefined) return sharedPlace(ds, path);
     if ("refused" in chosen) return chosen;
-    return contextPlace(project, path, chosen, where.place);
+    return contextPlace(ds, path, chosen, where.place);
 }
 
-export function groupPlace(project: Project, path: string): Declared {
-    const { doc } = project;
-    const declared = sharedPermutation(doc)?.group(path);
+export function groupPlace(ds: DesignSystem, path: string): Declared {
+    const declared = sharedPermutation(ds)?.group(path);
     if (!declared) return refused({ kind: "not-found", path });
     const refusal = refusalFor(declared);
     if (refusal) return refusal;
     const placed = declared.writtenAt.flatMap(({ source, span }) => {
-        const place = placeOf(project, span);
-        return place ? [{ place, shared: source.readBy === "everyone" }] : [];
+        const member = memberAt(ds, span);
+        return member ? [{ member, shared: source.readBy === "everyone" }] : [];
     });
     const at =
         placed.find(
-            ({ place }) =>
-                writtenAt(project, place.span.file, [...place.path, "$description"]) !== undefined,
-        )?.place ??
-        placed.find(({ shared }) => shared)?.place ??
-        placed[0]?.place;
+            ({ member }) =>
+                writtenIn(ds, member.span.file, [...member.jsonPath, "$description"]) !== undefined,
+        )?.member ??
+        placed.find(({ shared }) => shared)?.member ??
+        placed[0]?.member;
     if (!at) return refused({ kind: "not-found", path });
-    return { at, alsoAffects: seenBy(doc, path, at.span.file) };
+    return { at, alsoAffects: seenBy(ds, path, at.span.file) };
 }
 
-type Copies = { places: Place[]; alsoAffects: Input[] } | { refused: Refusal };
+type Copies = { places: Member[]; alsoAffects: Input[] } | { refused: Refusal };
 
-export function tokenCopies(project: Project, path: string): Copies | undefined {
-    const first = firstIn(project.doc, (perm) => perm.token(path));
-    return first && (refusalFor(first) ?? copiesAt(project, path));
+export function tokenCopies(ds: DesignSystem, path: string): Copies | undefined {
+    const first = firstIn(ds, (perm) => perm.token(path));
+    return first && (refusalFor(first) ?? copiesAt(ds, path));
 }
 
-export function groupCopies(project: Project, path: string): Copies | undefined {
-    const first = firstIn(project.doc, (perm) => perm.group(path));
-    return first && (refusalFor(first) ?? copiesAt(project, path));
+export function groupCopies(ds: DesignSystem, path: string): Copies | undefined {
+    const first = firstIn(ds, (perm) => perm.group(path));
+    return first && (refusalFor(first) ?? copiesAt(ds, path));
 }
 
 function firstIn<T>(ds: DesignSystem, find: (perm: Permutation) => T | undefined): T | undefined {
@@ -86,27 +84,26 @@ function sharedPermutation(ds: DesignSystem): Permutation | undefined {
     return ds.permutations.find((perm) => perm.isDefault) ?? ds.permutations[0];
 }
 
-function copiesAt(project: Project, path: string): Copies {
-    const places = project.doc.writtenAt(path).flatMap(({ span }) => placeOf(project, span) ?? []);
+function copiesAt(ds: DesignSystem, path: string): Copies {
+    const places = ds.writtenAt(path).flatMap(({ span }) => memberAt(ds, span) ?? []);
     const alsoAffects = inputsOf(
-        project.doc,
+        ds,
         (perm) => (perm.token(path) ?? perm.group(path)) !== undefined,
     );
     return { places, alsoAffects };
 }
 
-function inputsOf(doc: DesignSystem, affected: (perm: Permutation) => boolean): Input[] {
-    return doc.permutations
+function inputsOf(ds: DesignSystem, affected: (perm: Permutation) => boolean): Input[] {
+    return ds.permutations
         .filter((perm) => Object.keys(perm.input).length > 0 && affected(perm))
         .map((perm) => perm.input);
 }
 
-export function newPlace(project: Project, path: string, where: Where = {}): NewPlace {
-    const { doc } = project;
+export function newPlace(ds: DesignSystem, path: string, where: Where = {}): NewPlace {
     const parent = parentOf(path);
-    const chosen = chosenContext(doc, where.context ?? {});
+    const chosen = chosenContext(ds, where.context ?? {});
     if (chosen && "refused" in chosen) return chosen;
-    const perm = chosen?.perm ?? sharedPermutation(doc);
+    const perm = chosen?.perm ?? sharedPermutation(ds);
     if (!perm) return refused({ kind: "not-found", path: parent ?? path });
     if (parent !== undefined && perm.token(parent)) {
         return refused({ kind: "not-a-group", path: parent });
@@ -119,7 +116,7 @@ export function newPlace(project: Project, path: string, where: Where = {}): New
     }
     if (existing || perm.group(path)) return refused({ kind: "taken", path });
 
-    const files = [...new Set(writable(project, perm, chosen).map(({ file }) => file))];
+    const files = [...new Set(writable(ds, perm, chosen).map(({ file }) => file))];
     if (files.length === 0) {
         return chosen
             ? refused({ kind: "no-file-for-context", path, context: contextOf(chosen) })
@@ -127,7 +124,7 @@ export function newPlace(project: Project, path: string, where: Where = {}): New
     }
     const into = chosenFile(path, files, groupPlaces, where.place);
     if (typeof into !== "string") return into;
-    return { into, alsoAffects: seenBy(doc, path, into, chosen) };
+    return { into, alsoAffects: seenBy(ds, path, into, chosen) };
 }
 
 function chosenContext(ds: DesignSystem, input: Input): Chosen | { refused: Refusal } | undefined {
@@ -149,27 +146,25 @@ function chosenContext(ds: DesignSystem, input: Input): Chosen | { refused: Refu
     return { perm, context };
 }
 
-function sharedPlace(project: Project, path: string): Placement {
-    const { doc } = project;
-    const first = firstIn(doc, (perm) => perm.token(path));
+function sharedPlace(ds: DesignSystem, path: string): Placement {
+    const first = firstIn(ds, (perm) => perm.token(path));
     if (!first) return refused({ kind: "not-found", path });
     const refusal = refusalFor(first);
     if (refusal) return refusal;
 
-    let shared: WrittenPlace | undefined;
+    let shared: Place | undefined;
     for (const each of first.writtenAt) if (each.source.readBy === "everyone") shared = each;
-    const at = shared && placeOf(project, shared.span);
+    const at = shared && memberAt(ds, shared.span);
     if (!at) return refused({ kind: "no-shared-value", path });
-    return { token: first, at, alsoAffects: seenBy(doc, path, at.span) };
+    return { token: first, at, alsoAffects: seenBy(ds, path, at.span) };
 }
 
 function contextPlace(
-    project: Project,
+    ds: DesignSystem,
     path: string,
     chosen: Chosen,
     place: string | undefined,
 ): Placement {
-    const { doc } = project;
     const { perm } = chosen;
     const context = contextOf(chosen);
     const written = perm.token(path);
@@ -179,12 +174,12 @@ function contextPlace(
 
     const winner = written.valueFrom;
     if (isFrom(winner.source, chosen)) {
-        const at = placeOf(project, winner.span);
+        const at = memberAt(ds, winner.span);
         if (!at) return refused({ kind: "not-found", path });
-        return { token: written, at, alsoAffects: seenBy(doc, path, at.span, chosen) };
+        return { token: written, at, alsoAffects: seenBy(ds, path, at.span, chosen) };
     }
 
-    const own = writable(project, perm, chosen);
+    const own = writable(ds, perm, chosen);
     if (own.length === 0) return refused({ kind: "no-file-for-context", path, context });
     const winnerIndex = perm.sources.indexOf(winner.source);
     const winning = own.filter((each) => each.index > winnerIndex);
@@ -197,11 +192,11 @@ function contextPlace(
     const groupPlaces = written.group?.writtenAt ?? [];
     const into = chosenFile(path, candidates, groupPlaces, place);
     if (typeof into !== "string") return into;
-    return { token: written, into, alsoAffects: seenBy(doc, path, into, chosen) };
+    return { token: written, into, alsoAffects: seenBy(ds, path, into, chosen) };
 }
 
 function writable(
-    project: Project,
+    ds: DesignSystem,
     perm: Permutation,
     chosen: Chosen | undefined,
 ): { file: string; index: number }[] {
@@ -214,7 +209,7 @@ function writable(
 function chosenFile(
     path: string,
     candidates: string[],
-    groupPlaces: WrittenPlace[],
+    groupPlaces: Place[],
     place: string | undefined,
 ): string | { decision: Decision } {
     if (place !== undefined && candidates.includes(place)) return place;
@@ -239,14 +234,14 @@ function refusalFor(found: Token | Group): { refused: Refusal } | undefined {
     return undefined;
 }
 
-function seenBy(doc: DesignSystem, path: string, where: Span | string, chosen?: Chosen): Input[] {
+function seenBy(ds: DesignSystem, path: string, where: Span | string, chosen?: Chosen): Input[] {
     const reads = (perm: Permutation) => {
         if (typeof where === "string") return perm.sources.some(({ file }) => file === where);
         const at = perm.token(path)?.valueFrom.span;
         return at !== undefined && spanKey(at) === spanKey(where);
     };
     return inputsOf(
-        doc,
+        ds,
         (perm) => !(chosen && perm.contexts.includes(chosen.context)) && reads(perm),
     );
 }

@@ -1,4 +1,4 @@
-import { openFromMemory } from "@sugarcube-sh/dtcg";
+import { readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it, vi } from "vitest";
 import {
     apply,
@@ -9,41 +9,39 @@ import {
     setDescription,
     setValue,
 } from "../src/index.js";
-import { demo } from "./helpers.js";
+import { demo, textsOf } from "./helpers.js";
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 
 describe("createSession", () => {
     it("has nothing unsaved before an edit", () => {
         const session = createSession(demo);
 
-        expect(session.project).toBe(demo);
+        expect(session.ds).toBe(demo);
         expect(session.opened).toBe(demo);
         expect(session.unsaved).toEqual({ ops: [], moved: [] });
         expect(session.changes()).toEqual([]);
     });
 
-    it("keeps an edit as the edit to its file, and moves the project on", () => {
+    it("keeps an edit as the edit to its file, and moves the design system on", () => {
         const session = createSession(demo);
-        const done = session.do(setValue(session.project, "color.brand.500", red));
+        const done = session.do(setValue(session.ds, "color.brand.500", red));
 
-        expect("project" in done && done.project).toBe(session.project);
+        expect("ds" in done && done.ds).toBe(session.ds);
         expect(session.unsaved.ops).toEqual([
             expect.objectContaining({ kind: "set", file: "color.json" }),
         ]);
         expect(session.unsaved).not.toHaveProperty("files");
-        expect(session.project.doc.permutation().token("color.brand.500")?.authored?.value).toEqual(
-            red,
-        );
+        expect(session.ds.permutation().token("color.brand.500")?.authored?.value).toEqual(red);
         expect(session.opened).toBe(demo);
     });
 
     it("keeps the edits in the order they were made", () => {
         const session = createSession(demo);
-        session.do(setValue(session.project, "color.brand.500", red));
-        session.do(setDescription(session.project, "color.brand.500", "The anchor."));
+        session.do(setValue(session.ds, "color.brand.500", red));
+        session.do(setDescription(session.ds, "color.brand.500", "The anchor."));
 
         expect(session.unsaved.ops.map((op) => op.kind)).toEqual(["set", "set"]);
-        expect(session.unsaved.ops.map((op) => "path" in op && op.path.at(-1))).toEqual([
+        expect(session.unsaved.ops.map((op) => "jsonPath" in op && op.jsonPath.at(-1))).toEqual([
             "$value",
             "$description",
         ]);
@@ -53,22 +51,20 @@ describe("createSession", () => {
         const session = createSession(demo);
         const heard = vi.fn();
         session.subscribe(heard);
-        const answer = session.do(setValue(session.project, "color.nope", red));
+        const answer = session.do(setValue(session.ds, "color.nope", red));
 
         expect(answer).toMatchObject({ refused: { kind: "not-found" } });
-        expect(session.project).toBe(demo);
+        expect(session.ds).toBe(demo);
         expect(session.unsaved.ops).toEqual([]);
         expect(heard).not.toHaveBeenCalled();
     });
 
     it("lists what changed since it was opened, as the design system's diff does with the moves made", () => {
         const session = createSession(demo);
-        session.do(setValue(session.project, "color.brand.500", red));
-        session.do(rename(session.project, "color.brand.300", "350"));
+        session.do(setValue(session.ds, "color.brand.500", red));
+        session.do(rename(session.ds, "color.brand.300", "350"));
 
-        expect(session.changes()).toEqual(
-            session.project.doc.diff(demo.doc, { moved: session.unsaved.moved }),
-        );
+        expect(session.changes()).toEqual(session.ds.diff(demo, { moved: session.unsaved.moved }));
         expect(session.changes().map((change) => [change.kind, change.path])).toContainEqual([
             "renamed",
             "color.brand.350",
@@ -77,52 +73,52 @@ describe("createSession", () => {
 
     it("puts every file back exactly on discard", () => {
         const session = createSession(demo);
-        session.do(setValue(session.project, "color.brand.500", red));
-        session.do(create(session.project, "color.highlight", { $type: "color", $value: red }));
+        session.do(setValue(session.ds, "color.brand.500", red));
+        session.do(create(session.ds, "color.highlight", { $type: "color", $value: red }));
         session.discard();
 
-        expect(session.project).toBe(demo);
-        expect(session.project.files).toEqual(demo.files);
+        expect(session.ds).toBe(demo);
+        expect(textsOf(session.ds)).toEqual(textsOf(demo));
         expect(session.unsaved).toEqual({ ops: [], moved: [] });
         expect(session.changes()).toEqual([]);
     });
 
     it("measures from the saved version once saved, and discards back to it", () => {
         const session = createSession(demo);
-        session.do(setValue(session.project, "color.brand.500", red));
-        const saved = session.project;
+        session.do(setValue(session.ds, "color.brand.500", red));
+        const saved = session.ds;
         session.saved();
 
         expect(session.opened).toBe(saved);
         expect(session.unsaved).toEqual({ ops: [], moved: [] });
         expect(session.changes()).toEqual([]);
 
-        session.do(setDescription(session.project, "color.brand.500", "The anchor."));
+        session.do(setDescription(session.ds, "color.brand.500", "The anchor."));
         session.discard();
-        expect(session.project).toBe(saved);
+        expect(session.ds).toBe(saved);
     });
 
     it("tells listeners about every change until they stop listening", () => {
         const session = createSession(demo);
         const heard = vi.fn();
         const stop = session.subscribe(heard);
-        session.do(setValue(session.project, "color.brand.500", red));
+        session.do(setValue(session.ds, "color.brand.500", red));
         session.saved();
-        session.do(setValue(session.project, "color.brand.500", { ...red, alpha: 0.5 }));
+        session.do(setValue(session.ds, "color.brand.500", { ...red, alpha: 0.5 }));
         session.discard();
 
         expect(heard).toHaveBeenCalledTimes(4);
         stop();
-        session.do(setValue(session.project, "color.brand.500", red));
+        session.do(setValue(session.ds, "color.brand.500", red));
         expect(heard).toHaveBeenCalledTimes(4);
     });
 
     it("gives back the same tokens when the unsaved edits are applied to the opened files and read again", () => {
         const session = createSession(demo);
-        session.do(setValue(session.project, "color.brand.500", red));
+        session.do(setValue(session.ds, "color.brand.500", red));
         session.do(
             setValue(
-                session.project,
+                session.ds,
                 "radius.md",
                 { value: 0.5, unit: "rem" },
                 {
@@ -130,15 +126,15 @@ describe("createSession", () => {
                 },
             ),
         );
-        session.do(create(session.project, "color.highlight", { $type: "color", $value: red }));
-        session.do(create(session.project, "motion2", { group: true }));
-        session.do(remove(session.project, "color.brand.50"));
-        session.do(rename(session.project, "color.brand", "primary"));
+        session.do(create(session.ds, "color.highlight", { $type: "color", $value: red }));
+        session.do(create(session.ds, "motion2", { group: true }));
+        session.do(remove(session.ds, "color.brand.50"));
+        session.do(rename(session.ds, "color.brand", "primary"));
         const replayed = apply(demo, session.unsaved.ops);
 
         if ("conflicts" in replayed) throw new Error(JSON.stringify(replayed.conflicts));
-        expect(replayed.files).toEqual(session.project.files);
-        expect(replayed.doc).toEqual(session.project.doc);
+        expect(textsOf(replayed)).toEqual(textsOf(session.ds));
+        expect(replayed).toEqual(session.ds);
     });
 });
 
@@ -155,13 +151,13 @@ describe("ids", () => {
 
     it("keeps a token's id through a rename, and the ids inside a renamed group", () => {
         const session = createSession(demo);
-        session.do(rename(session.project, "color.brand.500", "550"));
+        session.do(rename(session.ds, "color.brand.500", "550"));
 
         expect(session.pathOf("color.brand.500")).toBe("color.brand.550");
         expect(session.idOf("color.brand.550")).toBe("color.brand.500");
         expect(session.idOf("color.brand.500")).toBeUndefined();
 
-        session.do(rename(session.project, "color.brand", "house"));
+        session.do(rename(session.ds, "color.brand", "house"));
         expect(session.pathOf("color.brand.500")).toBe("color.house.550");
         expect(session.pathOf("color.brand.300")).toBe("color.house.300");
         expect(session.pathOf("color.brand")).toBe("color.house");
@@ -169,7 +165,7 @@ describe("ids", () => {
 
     it("gives a token made in the session an id of its own", () => {
         const session = createSession(demo);
-        session.do(create(session.project, "color.highlight", { $type: "color", $value: red }));
+        session.do(create(session.ds, "color.highlight", { $type: "color", $value: red }));
         const id = session.idOf("color.highlight");
 
         expect(id).toMatch(/^new:/);
@@ -178,20 +174,20 @@ describe("ids", () => {
 
     it("forgets a removed token's id, and gives a token made again at its path a new one", () => {
         const session = createSession(demo);
-        session.do(remove(session.project, "color.brand.50"));
+        session.do(remove(session.ds, "color.brand.50"));
 
         expect(session.pathOf("color.brand.50")).toBeUndefined();
         expect(session.idOf("color.brand.50")).toBeUndefined();
 
-        session.do(create(session.project, "color.brand.50", { $value: red }));
+        session.do(create(session.ds, "color.brand.50", { $value: red }));
         expect(session.idOf("color.brand.50")).toMatch(/^new:/);
         expect(session.pathOf("color.brand.50")).toBeUndefined();
     });
 
     it("doesn't give a renamed-away path's id to what is made there next", () => {
         const session = createSession(demo);
-        session.do(rename(session.project, "color.brand.500", "550"));
-        session.do(create(session.project, "color.brand.500", { $value: red }));
+        session.do(rename(session.ds, "color.brand.500", "550"));
+        session.do(create(session.ds, "color.brand.500", { $value: red }));
 
         expect(session.idOf("color.brand.500")).toMatch(/^new:/);
         expect(session.pathOf("color.brand.500")).toBe("color.brand.550");
@@ -199,19 +195,19 @@ describe("ids", () => {
 
     it("puts ids back on discard, and keeps them through a save", () => {
         const session = createSession(demo);
-        session.do(rename(session.project, "color.brand.500", "550"));
+        session.do(rename(session.ds, "color.brand.500", "550"));
         session.saved();
         expect(session.pathOf("color.brand.500")).toBe("color.brand.550");
 
-        session.do(rename(session.project, "color.brand.550", "555"));
+        session.do(rename(session.ds, "color.brand.550", "555"));
         session.discard();
         expect(session.pathOf("color.brand.500")).toBe("color.brand.550");
     });
 
     it("never gives a made token the id of one whose name looks like a new id", () => {
         const files = { "tokens.json": '{ "new:1": { "$type": "number", "$value": 1 } }' };
-        const session = createSession(openFromMemory({ files }));
-        session.do(create(session.project, "made", { $type: "number", $value: 2 }));
+        const session = createSession(readFromMemory({ files }));
+        session.do(create(session.ds, "made", { $type: "number", $value: 2 }));
 
         expect(session.idOf("made")).not.toBe("new:1");
         expect(session.pathOf("new:1")).toBe("new:1");
@@ -219,10 +215,10 @@ describe("ids", () => {
 
     it("never gives two tokens the same new id, even after a discard", () => {
         const session = createSession(demo);
-        session.do(create(session.project, "color.a", { $type: "color", $value: red }));
+        session.do(create(session.ds, "color.a", { $type: "color", $value: red }));
         const first = session.idOf("color.a");
         session.discard();
-        session.do(create(session.project, "color.b", { $type: "color", $value: red }));
+        session.do(create(session.ds, "color.b", { $type: "color", $value: red }));
 
         expect(session.idOf("color.b")).not.toBe(first);
         expect(session.pathOf(first ?? "")).toBeUndefined();

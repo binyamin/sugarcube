@@ -10,18 +10,18 @@ describe("setValue, the shared value", () => {
             {
                 kind: "set",
                 file: "color.json",
-                path: ["color", "text", "brand", "$value"],
+                jsonPath: ["color", "text", "brand", "$value"],
                 value: "{color.brand.800}",
                 was: "{color.brand.700}",
             },
         ]);
         const after = committed(demo, result);
-        expect(after.doc.permutation().token("color.text.brand")?.authored?.value).toBe(
+        expect(after.permutation().token("color.text.brand")?.authored?.value).toBe(
             "{color.brand.800}",
         );
-        expect(
-            after.doc.permutation({ mode: "dark" }).token("color.text.brand")?.authored?.value,
-        ).toBe("{color.brand.300}");
+        expect(after.permutation({ mode: "dark" }).token("color.text.brand")?.authored?.value).toBe(
+            "{color.brand.300}",
+        );
     });
 
     it("says which contexts see the change", () => {
@@ -47,7 +47,7 @@ describe("setValue, the shared value", () => {
 
         expect(at(hex, "color.json", ["color", "brand", "500", "$value"])).toBe("#e11d48");
         expect(at(words, "radius.json", ["radius", "md", "$value"])).toBe("sixteen pixels");
-        expect(words.doc.diagnostics.some((each) => each.path === "radius.md")).toBe(true);
+        expect(words.diagnostics.some((each) => each.path === "radius.md")).toBe(true);
     });
 
     it("edits a shared value every context overrides, and says no context sees it", () => {
@@ -66,7 +66,7 @@ describe("setValue, the shared value", () => {
                 {
                     kind: "set",
                     file: "base.json",
-                    path: ["bg", "$value"],
+                    jsonPath: ["bg", "$value"],
                     value: "#eeeeee",
                     was: "#ffffff",
                 },
@@ -87,7 +87,7 @@ describe("setValue, the shared value", () => {
             {
                 kind: "set",
                 file: "brand.json",
-                path: ["bg", "$value"],
+                jsonPath: ["bg", "$value"],
                 value: "#eeeeee",
                 was: "#fafafa",
             },
@@ -109,7 +109,7 @@ describe("setValue, the shared value", () => {
         });
     });
 
-    it("names no context when the project has no modifiers", () => {
+    it("names no context when the design system has no modifiers", () => {
         const files = {
             "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),
             "base.json": '{ "bg": { "$type": "color", "$value": "#ffffff" } }',
@@ -137,7 +137,7 @@ describe("setValue, for one context", () => {
             {
                 kind: "set",
                 file: "dark.json",
-                path: ["color", "text", "brand", "$value"],
+                jsonPath: ["color", "text", "brand", "$value"],
                 value: "{color.brand.200}",
                 was: "{color.brand.300}",
             },
@@ -151,16 +151,16 @@ describe("setValue, for one context", () => {
             {
                 kind: "add",
                 file: "dark.json",
-                path: ["radius", "md"],
+                jsonPath: ["radius", "md"],
                 value: { $value: { value: 0.5, unit: "rem" } },
             },
         ]);
         const after = committed(demo, result);
-        expect(after.doc.permutation({ mode: "dark" }).token("radius.md")?.resolved).toEqual({
+        expect(after.permutation({ mode: "dark" }).token("radius.md")?.resolved).toEqual({
             value: 0.5,
             unit: "rem",
         });
-        expect(after.doc.permutation().token("radius.md")?.resolved).toEqual({
+        expect(after.permutation().token("radius.md")?.resolved).toEqual({
             value: 0.25,
             unit: "rem",
         });
@@ -180,7 +180,7 @@ describe("setValue, for one context", () => {
             {
                 kind: "add",
                 file: "dark.json",
-                path: ["bg"],
+                jsonPath: ["bg"],
                 value: { $type: "color", $value: "#000000" },
             },
         ]);
@@ -202,15 +202,18 @@ describe("setValue, for one context", () => {
             "base.json": JSON.stringify({ bg }),
             "dark.json": "{}",
         };
-        const project = opened(files);
-        const result = setValue(project, "bg", "#000000", dark);
+        const ds = opened(files);
+        const result = setValue(ds, "bg", "#000000", dark);
 
         expect(opsOf(result)).toEqual([
-            { kind: "add", file: "dark.json", path: ["bg"], value: { ...bg, $value: "#000000" } },
+            {
+                kind: "add",
+                file: "dark.json",
+                jsonPath: ["bg"],
+                value: { ...bg, $value: "#000000" },
+            },
         ]);
-        expect(
-            committed(project, result).doc.permutation({ mode: "dark" }).token("bg"),
-        ).toMatchObject({
+        expect(committed(ds, result).permutation({ mode: "dark" }).token("bg")).toMatchObject({
             description: "The page.",
             deprecated: "Use surface.",
             extensions: { "com.example": { role: "page" } },
@@ -228,15 +231,19 @@ describe("setValue, for one context", () => {
             }),
             "dark.json": "{}",
         };
-        const project = opened(files);
-        const result = setValue(project, "old.bg", "#000000", dark);
+        const ds = opened(files);
+        const result = setValue(ds, "old.bg", "#000000", dark);
 
         expect(opsOf(result)).toEqual([
-            { kind: "add", file: "dark.json", path: ["old", "bg"], value: { $value: "#000000" } },
+            {
+                kind: "add",
+                file: "dark.json",
+                jsonPath: ["old", "bg"],
+                value: { $value: "#000000" },
+            },
         ]);
         expect(
-            committed(project, result).doc.permutation({ mode: "dark" }).token("old.bg")
-                ?.deprecated,
+            committed(ds, result).permutation({ mode: "dark" }).token("old.bg")?.deprecated,
         ).toBe(true);
     });
 
@@ -250,25 +257,25 @@ describe("setValue, for one context", () => {
             "dark.json": "{}",
             "dark-extra.json": "{}",
         };
-        const project = opened(files);
+        const ds = opened(files);
 
-        expect(setValue(project, "bg", "#000000", dark)).toEqual({
+        expect(setValue(ds, "bg", "#000000", dark)).toEqual({
             decision: {
                 kind: "placement",
                 path: "bg",
                 candidates: ["dark.json", "dark-extra.json"],
             },
         });
-        expect(
-            opsOf(setValue(project, "bg", "#000000", { ...dark, place: "dark-extra.json" })),
-        ).toEqual([
-            {
-                kind: "add",
-                file: "dark-extra.json",
-                path: ["bg"],
-                value: { $type: "color", $value: "#000000" },
-            },
-        ]);
+        expect(opsOf(setValue(ds, "bg", "#000000", { ...dark, place: "dark-extra.json" }))).toEqual(
+            [
+                {
+                    kind: "add",
+                    file: "dark-extra.json",
+                    jsonPath: ["bg"],
+                    value: { $type: "color", $value: "#000000" },
+                },
+            ],
+        );
     });
 
     it("writes into the context's file that declares the token's group, without asking", () => {
@@ -286,7 +293,7 @@ describe("setValue, for one context", () => {
             {
                 kind: "add",
                 file: "dark-colors.json",
-                path: ["color", "bg"],
+                jsonPath: ["color", "bg"],
                 value: { $value: "#000000" },
             },
         ]);
@@ -396,7 +403,7 @@ describe("setValue, what it can't change", () => {
             {
                 kind: "set",
                 file: "all.json",
-                path: ["tokens", "bg", "$value"],
+                jsonPath: ["tokens", "bg", "$value"],
                 value: "#000000",
                 was: "#ffffff",
             },
@@ -504,7 +511,7 @@ describe("setDescription", () => {
             {
                 kind: "set",
                 file: "color.json",
-                path: ["color", "brand", "500", "$description"],
+                jsonPath: ["color", "brand", "500", "$description"],
                 value: "The anchor.",
                 was: at(demo, "color.json", ["color", "brand", "500", "$description"]),
             },
@@ -524,27 +531,27 @@ describe("setDescription", () => {
                 '{ "bg": { "$type": "color", "$value": "#000000", "$description": "Old." } }',
             "dim.json": '{ "bg": { "$type": "color", "$value": "#333333" } }',
         };
-        const project = opened(files);
-        const result = setDescription(project, "bg", "The page.");
+        const ds = opened(files);
+        const result = setDescription(ds, "bg", "The page.");
 
         expect(opsOf(result)).toEqual([
             {
                 kind: "set",
                 file: "base.json",
-                path: ["bg", "$description"],
+                jsonPath: ["bg", "$description"],
                 value: "The page.",
                 was: "Old.",
             },
             {
                 kind: "set",
                 file: "dark.json",
-                path: ["bg", "$description"],
+                jsonPath: ["bg", "$description"],
                 value: "The page.",
                 was: "Old.",
             },
-            { kind: "add", file: "dim.json", path: ["bg", "$description"], value: "The page." },
+            { kind: "add", file: "dim.json", jsonPath: ["bg", "$description"], value: "The page." },
         ]);
-        const after = committed(project, result).doc;
+        const after = committed(ds, result);
         for (const mode of ["light", "dark", "dim"]) {
             expect(after.permutation({ mode }).token("bg")?.description).toBe("The page.");
         }
@@ -561,14 +568,14 @@ describe("setDescription", () => {
         };
 
         expect(opsOf(setDescription(opened(files), "glow", "Halo."))).toEqual([
-            { kind: "add", file: "dark.json", path: ["glow", "$description"], value: "Halo." },
+            { kind: "add", file: "dark.json", jsonPath: ["glow", "$description"], value: "Halo." },
         ]);
     });
 
     it("adds one to a token that has none", () => {
         const after = committed(demo, setDescription(demo, "color.brand.600", "Hover."));
 
-        expect(after.doc.permutation().token("color.brand.600")?.description).toBe("Hover.");
+        expect(after.permutation().token("color.brand.600")?.description).toBe("Hover.");
     });
 
     it("changes a group's description where the group writes it", () => {
@@ -591,7 +598,7 @@ describe("setDescription", () => {
                 {
                     kind: "set",
                     file: "more.json",
-                    path: ["color", "$description"],
+                    jsonPath: ["color", "$description"],
                     value: "New.",
                     was: "Old.",
                 },
@@ -604,7 +611,7 @@ describe("setDescription", () => {
     it("removes one with null, and does nothing when there is none", () => {
         const after = committed(demo, setDescription(demo, "color.brand.500", null));
 
-        expect(after.doc.permutation().token("color.brand.500")?.description).toBeUndefined();
+        expect(after.permutation().token("color.brand.500")?.description).toBeUndefined();
         expect(opsOf(setDescription(demo, "color.brand.600", null))).toEqual([]);
     });
 

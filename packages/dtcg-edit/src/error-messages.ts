@@ -68,10 +68,13 @@ export function conflict(op: FileOp, kind: Conflict["kind"]): Conflict {
 }
 
 function conflictReason(op: FileOp, kind: Conflict["kind"]): string {
-    const place = "path" in op ? `\`${op.path.join(".")}\` in \`${op.file}\`` : `\`${op.file}\``;
+    const place =
+        "jsonPath" in op ? `\`${op.jsonPath.join(".")}\` in \`${op.file}\`` : `\`${op.file}\``;
     switch (kind) {
-        case "not-in-project":
-            return `\`${op.file}\` is not one of the project's files`;
+        case "not-read":
+            return op.kind === "createFile"
+                ? `nothing in the design system reads \`${op.file}\`, so it would be lost`
+                : `\`${op.file}\` is not one of the files the design system reads`;
         case "gone":
             return `${place} is no longer there`;
         case "changed":
@@ -82,8 +85,6 @@ function conflictReason(op: FileOp, kind: Conflict["kind"]): string {
                 : `${place} already holds something else`;
         case "not-a-group":
             return `${place} runs through something that is not a group, or past the end of a list`;
-        case "unread":
-            return `nothing in the project reads \`${op.file}\`, so it would be lost`;
     }
 }
 

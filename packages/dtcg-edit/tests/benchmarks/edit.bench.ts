@@ -1,4 +1,4 @@
-import { type Project, openFromMemory } from "@sugarcube-sh/dtcg";
+import type { DesignSystem } from "@sugarcube-sh/dtcg";
 import { bench, describe } from "vitest";
 import {
     type OpResult,
@@ -10,12 +10,12 @@ import {
     setDescription,
     setValue,
 } from "../../src/index.js";
-import { project } from "./projects.js";
+import { designSystem } from "./design-systems.js";
 
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 const dark = { context: { theme: "dark" } };
 
-const operations: [string, (project: Project) => OpResult][] = [
+const operations: [string, (ds: DesignSystem) => OpResult][] = [
     ["setValue, the shared value", (p) => setValue(p, "color.c0", red)],
     ["setValue, dark's override", (p) => setValue(p, "color.c0", red, dark)],
     ["setValue, a new override for dark", (p) => setValue(p, "color.c1", red, dark)],
@@ -27,23 +27,23 @@ const operations: [string, (project: Project) => OpResult][] = [
     ["rename the group 100 references point into", (p) => rename(p, "color", "colour")],
 ];
 
-function edits(name: string, opened: Project) {
+function edits(name: string, opened: DesignSystem) {
     describe(name, () => {
         bench("read alone", () => {
-            openFromMemory({ files: opened.files, entry: opened.entry }, opened.options);
+            opened.reread({});
         });
         for (const [label, operation] of operations) {
             const result = operation(opened);
-            bench(`${label}: the operation`, () => {
-                operation({ ...opened, files: { ...opened.files } });
+            bench(`${label}: read again, then the operation`, () => {
+                operation(opened.reread({}));
             });
             bench(`${label}: commit`, () => {
                 commit(opened, result);
             });
         }
         const kept = createSession(opened);
-        kept.do(setValue(kept.project, "color.c0", red));
-        kept.do(setValue(kept.project, "space.s0", { value: 3, unit: "rem" }));
+        kept.do(setValue(kept.ds, "color.c0", red));
+        kept.do(setValue(kept.ds, "space.s0", { value: 3, unit: "rem" }));
         bench("restore two edits after a reload", () => {
             createSession(opened).restore(kept.unsaved);
         });
@@ -57,10 +57,10 @@ function edits(name: string, opened: Project) {
         bench("setValue, the shared value: operation and session.do", () => {
             turn += 1;
             const value = { ...red, alpha: turn % 2 ? 1 : 0.5 };
-            session.do(setValue(session.project, "color.c0", value));
+            session.do(setValue(session.ds, "color.c0", value));
         });
     });
 }
 
-edits("150 tokens a group, 450 in all", project(150));
-edits("the same, with 150 more a generator makes", project(150, { generated: 150 }));
+edits("150 tokens a group, 450 in all", designSystem(150));
+edits("the same, with 150 more a generator makes", designSystem(150, { generated: 150 }));

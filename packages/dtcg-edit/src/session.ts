@@ -1,23 +1,23 @@
-import { type DesignSystem, type Move, type Project, movedPath } from "@sugarcube-sh/dtcg";
+import { type DesignSystem, type Move, movedPath } from "@sugarcube-sh/dtcg";
 import { applyWhatFits, commit } from "./apply.js";
 import { clashesOf } from "./clashes.js";
 import type { Committed, Edits, OpResult, Session } from "./index.js";
 
 /**
- * Starts an editing session on a project.
+ * Starts an editing session on a design system.
  *
  * @example
- * const session = createSession(project);
- * session.do(setValue(session.project, "color.brand", "#e11d48"));
+ * const session = createSession(ds);
+ * session.do(setValue(session.ds, "color.brand", "#e11d48"));
  * await save(session.unsaved);
  * session.saved();
  */
-export function createSession(project: Project): Session {
-    let current = project;
-    let opened = project;
+export function createSession(ds: DesignSystem): Session {
+    let current = ds;
+    let opened = ds;
     let unsaved: Edits = { ops: [], moved: [] };
     const counter = { made: 0 };
-    let ids = followed(undefined, [], project.doc, counter);
+    let ids = followed(undefined, [], ds, counter);
     let openedIds = ids;
     const listeners = new Set<() => void>();
     const changed = () => {
@@ -25,7 +25,7 @@ export function createSession(project: Project): Session {
     };
 
     return {
-        get project() {
+        get ds() {
             return current;
         },
         get opened() {
@@ -38,13 +38,13 @@ export function createSession(project: Project): Session {
         canRedo: false,
         do(result: OpResult): Committed {
             const done = commit(current, result);
-            if (!("project" in done)) return done;
-            current = done.project;
+            if (!("ds" in done)) return done;
+            current = done.ds;
             unsaved = {
                 ops: [...unsaved.ops, ...done.ops],
                 moved: [...unsaved.moved, ...done.moved],
             };
-            ids = followed(ids, done.moved, current.doc, counter);
+            ids = followed(ids, done.moved, current, counter);
             changed();
             return done;
         },
@@ -58,7 +58,7 @@ export function createSession(project: Project): Session {
             throw new Error("not implemented yet");
         },
         changes() {
-            return current.doc.diff(opened.doc, { moved: unsaved.moved });
+            return current.diff(opened, { moved: unsaved.moved });
         },
         saved() {
             opened = current;
@@ -73,24 +73,24 @@ export function createSession(project: Project): Session {
             changed();
         },
         restore(edits) {
-            const { project: next, applied, skipped } = applyWhatFits(current, edits.ops);
+            const { ds: next, applied, skipped } = applyWhatFits(current, edits.ops);
             const clashes = clashesOf(skipped, current, next);
             if (applied.length === 0) return clashes;
-            const moved = kept(edits.moved, next.doc);
+            const moved = kept(edits.moved, next);
             current = next;
             unsaved = { ops: [...unsaved.ops, ...applied], moved: [...unsaved.moved, ...moved] };
-            ids = followed(ids, moved, current.doc, counter);
+            ids = followed(ids, moved, current, counter);
             changed();
             return clashes;
         },
         adopt(fresh) {
-            const { project: next, applied, skipped } = applyWhatFits(fresh, unsaved.ops);
+            const { ds: next, applied, skipped } = applyWhatFits(fresh, unsaved.ops);
             const clashes = clashesOf(skipped, fresh, next);
-            openedIds = followed(openedIds, [], fresh.doc, counter);
-            ids = followed(ids, [], next.doc, counter, openedIds);
+            openedIds = followed(openedIds, [], fresh, counter);
+            ids = followed(ids, [], next, counter, openedIds);
             opened = fresh;
             current = next;
-            unsaved = { ops: applied, moved: kept(unsaved.moved, next.doc) };
+            unsaved = { ops: applied, moved: kept(unsaved.moved, next) };
             changed();
             return clashes;
         },
@@ -115,11 +115,11 @@ interface Ids {
 function followed(
     ids: Ids | undefined,
     moved: Move[],
-    doc: DesignSystem,
+    ds: DesignSystem,
     counter: { made: number },
     known?: Ids,
 ): Ids {
-    const paths = pathsIn(doc);
+    const paths = pathsIn(ds);
     const byId = new Map<string, string>();
     const byPath = new Map<string, string>();
     const set = (id: string, path: string) => {
@@ -147,8 +147,8 @@ function followed(
     return { byId, byPath };
 }
 
-function kept(moved: Move[], doc: DesignSystem): Move[] {
-    const paths = pathsIn(doc);
+function kept(moved: Move[], ds: DesignSystem): Move[] {
+    const paths = pathsIn(ds);
     const later: Move[] = [];
     for (let index = moved.length - 1; index >= 0; index--) {
         const move = moved[index];

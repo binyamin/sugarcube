@@ -1,4 +1,4 @@
-import { openFromMemory } from "@sugarcube-sh/dtcg";
+import { readFromMemory } from "@sugarcube-sh/dtcg";
 import * as jsonc from "jsonc-parser";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { remove, setDescription, setValue } from "../src/index.js";
@@ -15,8 +15,8 @@ const resolver = JSON.stringify({
         },
     ],
 });
-const project = () =>
-    openFromMemory({
+const ds = () =>
+    readFromMemory({
         files: {
             "tokens.resolver.json": resolver,
             "base.json": '{ "n": { "$type": "number", "$value": 1, "$description": "One." } }',
@@ -31,10 +31,10 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-describe("reading a project's text", () => {
+describe("reading a design system's text", () => {
     it("parses each file an operation reads once", () => {
-        const opened = project();
-        const other = project();
+        const opened = ds();
+        const other = ds();
         const counted = parses();
         setValue(opened, "n", 3);
         expect(counted).toHaveBeenCalledTimes(1);
@@ -44,8 +44,8 @@ describe("reading a project's text", () => {
         expect(counted).toHaveBeenCalledTimes(2);
     });
 
-    it("parses a file once for every operation on the same project", () => {
-        const opened = project();
+    it("parses a file once for every operation on the same design system", () => {
+        const opened = ds();
         const counted = parses();
         setValue(opened, "n", 3);
         setDescription(opened, "n", "Two.");

@@ -9,29 +9,29 @@ import { type Splice, insertion, removal, replacement, spliced } from "./json-te
  * a new member is written in the style of the sibling before it, on one line or spread over
  * several in the file's own indent.
  *
- * @returns the new text, or `undefined` when the path runs through something that isn't a group,
+ * @returns the new text, or `undefined` when `jsonPath` runs through something that isn't a group,
  * or past the end of a list
  */
-export function setAt(text: string, path: JsonPath, value: Json): string | undefined {
+export function setAt(text: string, jsonPath: JsonPath, value: Json): string | undefined {
     const root = parseTree(text);
-    const splices = root && setSplices(text, root, path, value);
+    const splices = root && setSplices(text, root, jsonPath, value);
     return splices && spliced(text, splices);
 }
 
 export function setSplices(
     text: string,
     root: Node,
-    path: JsonPath,
+    jsonPath: JsonPath,
     value: Json,
 ): Splice[] | undefined {
     let node = root;
-    for (const [index, step] of path.entries()) {
+    for (const [index, step] of jsonPath.entries()) {
         const child = findNodeAtLocation(node, [step]);
         if (child) {
             node = child;
             continue;
         }
-        const missing = path.slice(index);
+        const missing = jsonPath.slice(index);
         if (node.type !== "object" || missing.some((each) => typeof each !== "string")) {
             return undefined;
         }
@@ -46,21 +46,21 @@ export function setSplices(
  * Removes a value from JSON text, changing nothing else: a member written on its own lines goes
  * with its lines, and a group left empty is written `{}`.
  *
- * @returns the new text, or the same text when the path is not there
+ * @returns the new text, or the same text when nothing is at `jsonPath`
  */
-export function removeAt(text: string, path: JsonPath): string {
-    const node = find(text, path);
+export function removeAt(text: string, jsonPath: JsonPath): string {
+    const node = find(text, jsonPath);
     return node ? spliced(text, removal(text, node)) : text;
 }
 
 /**
  * Renames a key in JSON text, keeping its value and position.
  *
- * @returns the new text, or `undefined` when the path is not there or a sibling already has the
+ * @returns the new text, or `undefined` when nothing is at `jsonPath` or a sibling already has the
  * name
  */
-export function renameKeyAt(text: string, path: JsonPath, name: string): string | undefined {
-    const node = find(text, path);
+export function renameKeyAt(text: string, jsonPath: JsonPath, name: string): string | undefined {
+    const node = find(text, jsonPath);
     const splices = node && renameSplices(node, name);
     return splices && spliced(text, splices);
 }
@@ -76,12 +76,12 @@ export function renameSplices(node: Node, name: string): Splice[] | undefined {
     return [{ offset: key.offset, length: key.length, text: JSON.stringify(name) }];
 }
 
-export function valueAt(text: string, path: JsonPath): Json | undefined {
-    const node = find(text, path);
+export function valueAt(text: string, jsonPath: JsonPath): Json | undefined {
+    const node = find(text, jsonPath);
     return node === undefined ? undefined : (getNodeValue(node) as Json);
 }
 
-function find(text: string, path: JsonPath): Node | undefined {
+function find(text: string, jsonPath: JsonPath): Node | undefined {
     const root = parseTree(text);
-    return root === undefined ? undefined : findNodeAtLocation(root, path);
+    return root === undefined ? undefined : findNodeAtLocation(root, jsonPath);
 }
