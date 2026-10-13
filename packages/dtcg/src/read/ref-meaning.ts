@@ -1,3 +1,5 @@
+import type { JsonPath } from "../index.js";
+import { isJsonObject } from "../values/json.js";
 import type { Merged, MergedToken } from "./merge.js";
 
 export type Reached =
@@ -12,7 +14,9 @@ export function reach(steps: string[] | undefined, merged: Merged): Reached {
     if (path === undefined) return { kind: "nothing" };
     const token = merged.tokens.get(path);
     if (token) {
-        return inside ? { kind: "part", path, token, inside } : { kind: "token", path, token };
+        return inside && inside.length > 0
+            ? { kind: "part", path, token, inside }
+            : { kind: "token", path, token };
     }
     if (!inside && merged.groups.has(path)) return { kind: "group", path };
     return { kind: "nothing" };
@@ -28,12 +32,26 @@ export function pointerParts(steps: string[]): { path?: string; inside?: string[
     };
 }
 
-export function wholeValueTarget(steps: string[]): string | undefined {
-    const { path, inside } = pointerParts(steps);
-    return inside === undefined || inside.length === 0 ? path : undefined;
-}
-
 export function refObjectMeaning(reached: Reached): "group" | "token" | "nothing" {
     if (reached.kind === "token" || reached.kind === "part") return "token";
     return reached.kind;
+}
+
+export function stepInto(
+    raw: unknown,
+    steps: string[],
+): { value: unknown; at: JsonPath } | undefined {
+    let current = raw;
+    const at: JsonPath = [];
+    for (const step of steps) {
+        if (Array.isArray(current) && /^(?:0|[1-9]\d*)$/.test(step)) {
+            current = current[Number(step)];
+            at.push(Number(step));
+        } else if (isJsonObject(current) && Object.hasOwn(current, step)) {
+            current = current[step];
+            at.push(step);
+        } else return undefined;
+        if (current === undefined) return undefined;
+    }
+    return { value: current, at };
 }

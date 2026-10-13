@@ -53,7 +53,7 @@ describe("parseStrokeStyle", () => {
                 read({ dashArray: ["{dash-length-medium}", px(4)], lineCap: "butt" }),
             ).toStrictEqual({
                 kind: "dash",
-                dashArray: [{ alias: "dash-length-medium" }, px(4)],
+                dashArray: [{ syntax: "curly-brace", path: "dash-length-medium" }, px(4)],
                 lineCap: "butt",
             });
         });
@@ -64,13 +64,18 @@ describe("parseStrokeStyle", () => {
             });
         });
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{border.style.focus}")).toStrictEqual({ alias: "border.style.focus" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{border.style.focus}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "border.style.focus",
+            });
         });
 
         it.for(["dashArray", "lineCap"])("reads a JSON Pointer in place of %s", (part) => {
             const raw = { dashArray: [px(4)], lineCap: "round", [part]: { $ref: "#/elsewhere" } };
-            expect(read(raw)).toMatchObject({ [part]: { pointer: "#/elsewhere" } });
+            expect(read(raw)).toMatchObject({
+                [part]: { syntax: "json-pointer", pointer: "#/elsewhere" },
+            });
         });
     });
 

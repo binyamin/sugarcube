@@ -3,8 +3,6 @@
 // can being used as the font size of a typography token or the width of a border.
 import {
     defaultPermutation,
-    isAlias,
-    isPointer,
     token,
     type Document,
     type Group,
@@ -21,21 +19,17 @@ function declared(path: string): string | undefined {
     return undefined;
 }
 
+const measures: Record<string, string> = {
+    "typography fontSize": "font-size",
+    "typography letterSpacing": "letter-spacing",
+    "border width": "border-width",
+};
+
 const usedAs = new Map<string, string>();
 for (const t of defaultPermutation(doc)?.tokens ?? []) {
-    if (t.type === "typography" && t.value && !isAlias(t.value) && !isPointer(t.value)) {
-        if (isAlias(t.value.fontSize)) usedAs.set(t.value.fontSize.alias, "font-size");
-        if (isAlias(t.value.letterSpacing))
-            usedAs.set(t.value.letterSpacing.alias, "letter-spacing");
-    }
-    if (
-        t.type === "border" &&
-        t.value &&
-        !isAlias(t.value) &&
-        !isPointer(t.value) &&
-        isAlias(t.value.width)
-    ) {
-        usedAs.set(t.value.width.alias, "border-width");
+    for (const { property = [], token: target } of t.references) {
+        const measure = measures[`${t.type} ${property.join(".")}`];
+        if (measure && target) usedAs.set(target.path, measure);
     }
 }
 

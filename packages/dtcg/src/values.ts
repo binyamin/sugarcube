@@ -12,7 +12,7 @@ export {
 } from "./values/keywords.js";
 export { tokenTypes } from "./values/token-types.js";
 export { parseValue } from "./values/parse-value.js";
-export { isAlias, isPointer, readReference } from "./values/references.js";
+export { isReference, readReference } from "./values/references.js";
 export {
     type ExtensionReader,
     type ExtensionResult,
@@ -22,9 +22,9 @@ export { isJsonObject } from "./values/json.js";
 export { compositeParts } from "./values/composite-parts.js";
 
 /**
- * Reads one color value. A reference to a whole token, written `"{color.brand}"`, is read as an
- * `Alias`. A JSON Pointer is read as a `Pointer`, and may stand in place of the whole value or any
- * part of it.
+ * Reads one color value. A reference to a whole token, written `"{color.brand}"`, is read as a
+ * `CurlyBraceReference`. A JSON Pointer is read as a `JsonPointerReference`, and may stand in place
+ * of the whole value or any part of it.
  *
  * @example
  * parseColor({ colorSpace: "srgb", components: [1, 0, 1] }, [])
@@ -32,7 +32,7 @@ export { compositeParts } from "./values/composite-parts.js";
  *
  * @example
  * parseColor("{color.brand}", [])
- * // { ok: true, value: { alias: "color.brand" }, ignored: [] }
+ * // { ok: true, value: { syntax: "curly-brace", path: "color.brand" }, ignored: [] }
  *
  * @example
  * parseColor({ colorSpace: "srgb", components: [1, 0, 1], name: "magenta" }, [])
@@ -69,12 +69,13 @@ export const parseFontWeight: Parse<UnresolvedValue<"fontWeight">> = (raw, at, o
 export const parseStrokeStyle: Parse<UnresolvedValue<"strokeStyle">> = (raw, at, options) =>
     readToken("strokeStyle", raw, at, options);
 /**
- * Reads one border value. A part that is a reference is kept as an `Alias`, and checked
- * against its target when references are followed.
+ * Reads one border value. A part written as a reference is kept as written, in either syntax,
+ * and checked against its target when references are followed.
  *
  * @example
  * parseBorder({ color: "{color.brand}", width: { value: 1, unit: "px" }, style: "solid" }, [])
- * // { ok: true, value: { color: { alias: "color.brand" }, width: { value: 1, unit: "px" },
+ * // { ok: true, value: { color: { syntax: "curly-brace", path: "color.brand" },
+ * //   width: { value: 1, unit: "px" },
  * //   style: { kind: "keyword", keyword: "solid" } }, ignored: [] }
  */
 export const parseBorder: Parse<UnresolvedValue<"border">> = (raw, at, options) =>

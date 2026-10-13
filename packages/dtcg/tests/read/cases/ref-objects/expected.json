@@ -71,6 +71,7 @@
           "path": "untyped",
           "type": "number",
           "value": {
+            "syntax": "json-pointer",
             "pointer": "#/base"
           },
           "resolved": 4

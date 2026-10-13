@@ -13,6 +13,7 @@ import { fileName, filePath, folderOf, normalise } from "./paths.js";
 import { parseJson } from "./json.js";
 import { isResolver } from "./resolver.js";
 import { thrownMessages } from "../error-messages.js";
+import { linkedDocument } from "./linked.js";
 
 const { performance } = globalThis as unknown as { performance: { now(): number } };
 
@@ -208,7 +209,7 @@ function toDocument(
         found,
     );
 
-    return {
+    return linkedDocument({
         files: loaded.files,
         ...(loaded.resolver && { resolver: loaded.resolver }),
         permutations,
@@ -220,5 +221,5 @@ function toDocument(
                 permutations.map(({ input }) => input),
             ),
         ],
-    };
+    });
 }

@@ -2,20 +2,18 @@
 // a block with only the declarations that differ from it. A reference is written as `var()`, so it
 // follows its target wherever the target changes.
 import {
-    type Alias,
     type Document,
     type Permutation,
-    type Pointer,
+    type Reference,
     defaultPermutation,
-    isAlias,
 } from "@sugarcube-sh/dtcg";
 import { cssValue, cssVariable } from "@sugarcube-sh/dtcg/css";
 
 declare const doc: Document;
 declare function selectorFor(p: Permutation): string;
 
-const replacement = (ref: Alias | Pointer) =>
-    isAlias(ref) ? { variable: cssVariable(ref.alias) } : undefined;
+const replacement = (ref: Reference) =>
+    ref.token ? { variable: cssVariable(ref.token.path) } : undefined;
 
 function declarations(p: Permutation): string[] {
     return p.tokens.flatMap((t) => {

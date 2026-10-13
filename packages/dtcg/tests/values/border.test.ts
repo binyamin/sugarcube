@@ -48,7 +48,7 @@ describe("parseBorder", () => {
                     },
                 }),
             ).toStrictEqual({
-                color: { alias: "color.focusring" },
+                color: { syntax: "curly-brace", path: "color.focusring" },
                 width: { value: 1, unit: "px" },
                 style: {
                     kind: "dash",
@@ -63,15 +63,21 @@ describe("parseBorder", () => {
 
         it.for(["color", "width", "style"])("a reference in place of %s", (part) => {
             const raw = { color, width, style: "solid", [part]: `{border.${part}}` };
-            expect(read(raw)).toMatchObject({ [part]: { alias: `border.${part}` } });
+            expect(read(raw)).toMatchObject({
+                [part]: { syntax: "curly-brace", path: `border.${part}` },
+            });
         });
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{border.heavy}")).toStrictEqual({ alias: "border.heavy" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{border.heavy}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "border.heavy",
+            });
         });
 
         it("reads a JSON Pointer as the whole value", () => {
             expect(read({ $ref: "#/border/heavy/$value" })).toStrictEqual({
+                syntax: "json-pointer",
                 pointer: "#/border/heavy/$value",
             });
         });

@@ -52,15 +52,14 @@ function observedPermutation(
     permutation: Document["permutations"][number],
     expected: Partial<Document["permutations"][number]> = {},
 ) {
-    const { input, label, sources, tokens, groups, edges } = permutation;
+    const { input, label, sources, tokens, groups } = permutation;
     return {
-        ...(!expected.tokens && !expected.groups && !expected.edges && { input, label, sources }),
+        ...(!expected.tokens && !expected.groups && { input, label, sources }),
         ...("input" in expected && { input }),
         ...("label" in expected && { label }),
         ...("sources" in expected && { sources }),
         ...(expected.tokens && { tokens: picked(tokens, expected.tokens) }),
         ...(expected.groups && { groups: picked(groups, expected.groups) }),
-        ...(expected.edges && { edges }),
     };
 }
 

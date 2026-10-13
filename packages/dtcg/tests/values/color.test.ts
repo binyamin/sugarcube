@@ -102,12 +102,13 @@ describe("parseColor", () => {
             { raw: "{color.brand}", alias: "color.brand" },
             { raw: "{brand colors.primary}", alias: "brand colors.primary" },
             { raw: "{color.accent.$root}", alias: "color.accent.$root" },
-        ])("reads $raw as an alias", ({ raw, alias }) => {
-            expect(read(raw)).toStrictEqual({ alias });
+        ])("reads $raw in curly brace syntax", ({ raw, alias }) => {
+            expect(read(raw)).toStrictEqual({ syntax: "curly-brace", path: alias });
         });
 
         it("reads a JSON Pointer as the whole value", () => {
             expect(read({ $ref: "#/color/brand/$value" })).toStrictEqual({
+                syntax: "json-pointer",
                 pointer: "#/color/brand/$value",
             });
         });
@@ -126,8 +127,8 @@ describe("parseColor", () => {
             ).toStrictEqual({
                 colorSpace: "srgb",
                 components: [
-                    { pointer: "#/base/blue/$value/components/0" },
-                    { pointer: "#/base/blue/$value/components/1" },
+                    { syntax: "json-pointer", pointer: "#/base/blue/$value/components/0" },
+                    { syntax: "json-pointer", pointer: "#/base/blue/$value/components/1" },
                     0.7,
                 ],
                 alpha: 1,
@@ -145,7 +146,9 @@ describe("parseColor", () => {
                     hex: "#ff0000",
                     [part]: { $ref: "#/elsewhere" },
                 };
-                expect(read(raw)).toMatchObject({ [part]: { pointer: "#/elsewhere" } });
+                expect(read(raw)).toMatchObject({
+                    [part]: { syntax: "json-pointer", pointer: "#/elsewhere" },
+                });
             },
         );
 

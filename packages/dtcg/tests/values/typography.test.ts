@@ -46,9 +46,9 @@ describe("parseTypography", () => {
                     lineHeight: 1,
                 }),
             ).toStrictEqual({
-                fontFamily: { alias: "font.serif" },
-                fontSize: { alias: "font.size.smallest" },
-                fontWeight: { alias: "font.weight.normal" },
+                fontFamily: { syntax: "curly-brace", path: "font.serif" },
+                fontSize: { syntax: "curly-brace", path: "font.size.smallest" },
+                fontWeight: { syntax: "curly-brace", path: "font.weight.normal" },
                 letterSpacing: px(0),
                 lineHeight: 1,
             });
@@ -68,13 +68,16 @@ describe("parseTypography", () => {
                     lineHeight: { $ref: "#/base/text/$value/lineHeight" },
                 }),
             ).toMatchObject({
-                fontFamily: { pointer: "#/base/text/$value/fontFamily" },
-                lineHeight: { pointer: "#/base/text/$value/lineHeight" },
+                fontFamily: { syntax: "json-pointer", pointer: "#/base/text/$value/fontFamily" },
+                lineHeight: { syntax: "json-pointer", pointer: "#/base/text/$value/lineHeight" },
             });
         });
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{type.heading}")).toStrictEqual({ alias: "type.heading" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{type.heading}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "type.heading",
+            });
         });
     });
 

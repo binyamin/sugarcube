@@ -1,4 +1,5 @@
 import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind, Input } from "../index.js";
+import { referenceText } from "../values/references.js";
 import { relatedMessages } from "../error-messages.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { malformation } from "./malformed-pointer.js";
@@ -46,7 +47,8 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
     };
 
     const extend = (group: Extending, chain: Extending[]): void => {
-        const { keyword, written, steps } = group.extends;
+        const { keyword, reference, steps } = group.extends;
+        const written = referenceText(reference);
         const direct = steps && pointerParts(steps).path;
         if (steps && direct === undefined) {
             report("circular-reference", { chain: [group.path], toTopLevel: true }, group);
@@ -68,7 +70,7 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
         } else if (reached.kind === "nothing") {
             report("missing-reference", { ref: written, referencedBy: [group.path] }, group);
         } else if (reached.kind === "group") {
-            group.extendsGroup = { path: reached.path, at: group.extends.at };
+            group.extendsGroup = reached.path;
             inherit(merged, group, reached.path);
         } else if (keyword === "$ref" && refObjectMeaning(reached) === "token") {
             becomeToken(merged, group, permutation, diagnostics);
@@ -149,7 +151,7 @@ function becomeToken(
         diagnostics.push(
             diagnostic(
                 "token-and-group",
-                { reason: "ref", ref: extending.written },
+                { reason: "ref", ref: referenceText(extending.reference) },
                 { at: extending.at, path, permutation },
             ),
         );
@@ -159,8 +161,8 @@ function becomeToken(
         path,
         json: extending.json,
         value: extending.node,
-        authored: { $ref: extending.written },
-        reference: { pointer: extending.written },
+        authored: { $ref: referenceText(extending.reference) },
+        reference: extending.reference,
         at: extending.declaredAt,
         piece: extending.piece,
         ...(type !== undefined && { type }),

@@ -23,15 +23,18 @@ describe("parseCubicBezier", () => {
             expect(read(curve)).toStrictEqual(curve);
         });
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{easing.out}")).toStrictEqual({ alias: "easing.out" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{easing.out}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "easing.out",
+            });
         });
 
         it("reads a JSON Pointer in place of one number", () => {
             expect(read([0.5, 0, { $ref: "#/easing/in/$value/2" }, 1])).toStrictEqual([
                 0.5,
                 0,
-                { pointer: "#/easing/in/$value/2" },
+                { syntax: "json-pointer", pointer: "#/easing/in/$value/2" },
                 1,
             ]);
         });

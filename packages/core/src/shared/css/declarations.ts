@@ -4,8 +4,6 @@ import {
     type Permutation,
     type Source,
     type Token,
-    isAlias,
-    token,
 } from "@sugarcube-sh/dtcg";
 import { cssVariable } from "@sugarcube-sh/dtcg/css";
 import type { FluidConfig, InternalConfig } from "../../types/config.js";
@@ -64,7 +62,7 @@ export function declarations(
             return renderedFor.get(each);
         };
         const replacementFor: ReplacementFor = (ref) => {
-            const target = isAlias(ref) ? token(permutation, ref.alias) : undefined;
+            const target = ref.token;
             const written = target && rendered(target);
             if (!target || written === undefined) return undefined;
             return isPrivate(target) ? { written } : { variable: variable(target.path) };
@@ -93,7 +91,7 @@ export function declarations(
             undeclared.push({ token: each, private: hidden });
             return [];
         }
-        const found = polyfill ? fallbacksIn(permutation, each, isPrivate) : undefined;
+        const found = polyfill ? fallbacksIn(each, isPrivate) : undefined;
         const plain = found && found.spaces.length > 0 ? fallback(each) : undefined;
         if (found) missing.push(...found.missing);
         if (!found || plain === undefined) return lines(each, written);

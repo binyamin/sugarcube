@@ -12,7 +12,7 @@ const ROUNDING = 0.0005;
  *
  * @example
  * sameValue("dimension", { value: 0.1 + 0.2, unit: "rem" }, { value: 0.3, unit: "rem" }) // true
- * sameValue("dimension", { alias: "space.sm" }, { value: 4, unit: "px" })                 // false
+ * sameValue("dimension", { syntax: "curly-brace", path: "space.sm" }, { value: 4, unit: "px" }) // false
  */
 export function sameValue<T extends TokenType>(
     type: T,

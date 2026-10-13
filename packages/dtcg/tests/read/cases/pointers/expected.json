@@ -25,9 +25,11 @@
             "colorSpace": "srgb",
             "components": [
               {
+                "syntax": "json-pointer",
                 "pointer": "#/base/blue/$value/components/0"
               },
               {
+                "syntax": "json-pointer",
                 "pointer": "#/base/blue/$value/components/1"
               },
               0.7

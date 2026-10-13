@@ -54,7 +54,10 @@ describe("parseGradient", () => {
 
         it("references for a stop's color and position, as spec example 57 does", () => {
             expect(read([{ color: "{brand-primary}", position: "{position-end}" }])).toStrictEqual([
-                { color: { alias: "brand-primary" }, position: { alias: "position-end" } },
+                {
+                    color: { syntax: "curly-brace", path: "brand-primary" },
+                    position: { syntax: "curly-brace", path: "position-end" },
+                },
             ]);
         });
 
@@ -66,9 +69,9 @@ describe("parseGradient", () => {
                     "{gradient.end-stop}",
                 ]),
             ).toStrictEqual([
-                { alias: "gradient.start-stop" },
+                { syntax: "curly-brace", path: "gradient.start-stop" },
                 { color: withAlpha(red), position: 0.333 },
-                { alias: "gradient.end-stop" },
+                { syntax: "curly-brace", path: "gradient.end-stop" },
             ]);
         });
 
@@ -85,8 +88,11 @@ describe("parseGradient", () => {
             },
         );
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{gradient.brand}")).toStrictEqual({ alias: "gradient.brand" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{gradient.brand}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "gradient.brand",
+            });
         });
     });
 

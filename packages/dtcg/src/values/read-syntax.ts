@@ -1,17 +1,16 @@
 import type {
-    Alias,
     IgnoredProperty,
     JsonPath,
     ParseOptions,
     ParseResult,
-    Pointer,
     TokenType,
     UnresolvedValueByType,
     ValueError,
+    WrittenReference,
 } from "../index.js";
 import { syntaxes } from "./syntaxes.js";
 import { isJsonObject } from "./json.js";
-import { isAlias, isPointer, readAlias, readPointer } from "./references.js";
+import { isReference, readCurlyBrace, readJsonPointer } from "./references.js";
 import {
     type ArraySyntax,
     type ObjectSyntax,
@@ -34,7 +33,7 @@ export interface Place {
 }
 
 export interface ReferenceRead extends Place {
-    ref: Alias | Pointer;
+    ref: WrittenReference;
     place: JsonPath;
 }
 
@@ -93,15 +92,15 @@ export function readPlace(
 }
 
 function read(syntax: Syntax, raw: unknown, where: Where, reading: Reading): unknown {
-    const pointer = readPointer(raw);
+    const pointer = readJsonPointer(raw);
     if (pointer) return keep(pointer, syntax, where, reading);
 
     if (typeof raw === "string") {
-        const alias = readAlias(raw);
-        if (alias && (where.element || syntax.kind === "ofType")) {
-            return keep(alias, syntax, where, reading);
+        const curly = readCurlyBrace(raw);
+        if (curly && (where.element || syntax.kind === "ofType")) {
+            return keep(curly, syntax, where, reading);
         }
-        if (alias)
+        if (curly)
             return fail(where, { reason: "alias-not-allowed-here", reference: raw }, reading);
     }
 
@@ -208,7 +207,7 @@ function inside({ at, place }: Where, step: string | number, element = false): W
     return { at: [...at, step], place: [...place, step], element };
 }
 
-function keep(ref: Alias | Pointer, syntax: Syntax, where: Where, reading: Reading) {
+function keep(ref: WrittenReference, syntax: Syntax, where: Where, reading: Reading) {
     const { at, place, element } = where;
     reading.notes?.references.push({ ref, syntax, at, place, element, owner: reading.owner });
     return ref;
@@ -217,8 +216,4 @@ function keep(ref: Alias | Pointer, syntax: Syntax, where: Where, reading: Readi
 function fail({ at }: Where, problem: Problem, reading: Reading): typeof FAILED {
     reading.errors.push(valueError(at, { type: reading.owner, ...problem }));
     return FAILED;
-}
-
-function isReference(value: unknown): boolean {
-    return isAlias(value) || isPointer(value);
 }

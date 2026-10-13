@@ -1,4 +1,4 @@
-import { type Token, dependencies, group } from "@sugarcube-sh/dtcg";
+import { type Token, group } from "@sugarcube-sh/dtcg";
 import { describeElidedParents, hopsTo, parentsOf } from "./reach.js";
 import type { System } from "./system.js";
 import type { Use, Uses } from "./uses.js";
@@ -29,9 +29,9 @@ export interface Impact {
 export function unused({ system, uses }: Analysis): Unused {
     const used = [...new Set(uses.uses.map(({ token }) => token))];
     const reached = new Set(used);
-    for (const permutation of system.permutations) {
-        for (const each of dependencies(permutation, used, { transitive: true })) {
-            reached.add(each.path);
+    for (const path of used) {
+        for (const reference of system.doc.references(path, { chained: true })) {
+            if (reference.path !== undefined) reached.add(reference.path);
         }
     }
     const left = [...system.tokens.keys()].filter((path) => !reached.has(path)).sort();

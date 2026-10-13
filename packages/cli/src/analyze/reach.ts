@@ -1,4 +1,4 @@
-import { type Permutation, referrers, token } from "@sugarcube-sh/dtcg";
+import { type Permutation, token } from "@sugarcube-sh/dtcg";
 import type { System } from "./system.js";
 
 export interface Hop {
@@ -10,13 +10,11 @@ export interface Hop {
 export function hopsTo(permutations: Permutation[], target: string): Hop[] {
     const found = new Map<string, Hop>();
     for (const permutation of permutations) {
-        const reached = new Set(
-            referrers(permutation, target, { transitive: true }).map(({ path }) => path),
-        );
-        for (const { from, to } of permutation.edges) {
-            if (!reached.has(from) || !(reached.has(to) || to === target)) continue;
-            const key = `${from}\0${to}`;
-            const hop = found.get(key) ?? { from, to, in: [] };
+        const reached = token(permutation, target);
+        for (const { from, path: to } of reached?.referencedBy({ chained: true }) ?? []) {
+            if (from === reached || to === undefined) continue;
+            const key = `${from.path}\0${to}`;
+            const hop = found.get(key) ?? { from: from.path, to, in: [] };
             if (!hop.in.includes(permutation)) hop.in.push(permutation);
             found.set(key, hop);
         }

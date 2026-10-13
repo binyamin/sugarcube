@@ -1,4 +1,4 @@
-import { defineGenerator, openFromMemory, referrers, token, tokensIn } from "@sugarcube-sh/dtcg";
+import { defineGenerator, openFromMemory, token, tokensIn } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { create, remove } from "../src/index.js";
 import { demo, at, opsOf, committed, resolver, opened } from "./helpers.js";
@@ -266,7 +266,17 @@ describe("create, what it refuses", () => {
 describe("remove", () => {
     it("takes a token out, leaving its siblings in order, and lists what pointed at it", () => {
         const result = remove(demo, "color.brand.500");
-        const pointing = referrers(demo.doc, "color.brand.500").map(({ path }) => path);
+        const pointing = [
+            ...new Set(
+                demo.doc.permutations.flatMap(({ tokens }) =>
+                    tokens
+                        .filter(({ references }) =>
+                            references.some(({ path }) => path === "color.brand.500"),
+                        )
+                        .map(({ path }) => path),
+                ),
+            ),
+        ];
 
         expect(pointing.length).toBeGreaterThan(0);
         expect(result).toEqual({
@@ -328,6 +338,22 @@ describe("remove", () => {
         expect(broken.length).toBeGreaterThan(0);
         expect(broken.filter((path) => inside.includes(path))).toEqual([]);
         expect(tokensIn(committed(demo, result).doc, "color.brand")).toEqual([]);
+    });
+
+    it("leaves out of broken a token inside the group that refers to another inside it", () => {
+        const project = opened({
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),
+            "base.json": JSON.stringify({
+                brand: {
+                    $type: "number",
+                    base: { $value: 1 },
+                    fill: { $value: "{brand.base}" },
+                },
+                button: { $type: "number", $value: "{brand.fill}" },
+            }),
+        });
+
+        expect(remove(project, "brand")).toMatchObject({ broken: ["button"] });
     });
 
     it("names no context in a project without modifiers", () => {

@@ -1,11 +1,10 @@
 import type {
-    Alias,
     ColorComponent,
     ColorValue,
     GradientStopPart,
     Part,
     PartBase,
-    Pointer,
+    Reference,
     ShadowLayerPart,
     Token,
     TypographyPart,
@@ -32,9 +31,9 @@ export interface CSSValueOptions {
      * that is itself a reference takes a variable only, writing `var(--name-font-size)` and so on.
      *
      * @example
-     * { replacement: (ref) => (isAlias(ref) ? { variable: cssVariable(ref.alias) } : undefined) }
+     * { replacement: (ref) => (ref.token ? { variable: cssVariable(ref.token.path) } : undefined) }
      */
-    replacement?: (ref: Alias | Pointer) => Replacement | undefined;
+    replacement?: (ref: Reference) => Replacement | undefined;
     /**
      * `"hex"` writes every color that has a `hex` as that hex, with two more digits when it is
      * not opaque, for a browser that cannot show its color space. A color without a `hex` is

@@ -34,12 +34,16 @@ describe("parseDimension", () => {
     });
 
     describe("references", () => {
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{space.small}")).toStrictEqual({ alias: "space.small" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{space.small}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "space.small",
+            });
         });
 
         it("reads a JSON Pointer as the whole value", () => {
             expect(read({ $ref: "#/base/spacing/$value" })).toStrictEqual({
+                syntax: "json-pointer",
                 pointer: "#/base/spacing/$value",
             });
         });
@@ -48,13 +52,13 @@ describe("parseDimension", () => {
             expect(
                 read({ value: { $ref: "#/base/spacing/$value/value" }, unit: "rem" }),
             ).toStrictEqual({
-                value: { pointer: "#/base/spacing/$value/value" },
+                value: { syntax: "json-pointer", pointer: "#/base/spacing/$value/value" },
                 unit: "rem",
             });
             expect(read({ value: 32, unit: { $ref: "#/base/spacing/$value/unit" } })).toStrictEqual(
                 {
                     value: 32,
-                    unit: { pointer: "#/base/spacing/$value/unit" },
+                    unit: { syntax: "json-pointer", pointer: "#/base/spacing/$value/unit" },
                 },
             );
         });

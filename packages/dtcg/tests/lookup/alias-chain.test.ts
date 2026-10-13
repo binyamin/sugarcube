@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aliasChain, permutation, readFromMemory } from "../../src/index.js";
+import { type Input, permutation, readFromMemory, token } from "../../src/index.js";
 
 const color = (value: unknown) => ({ $type: "color", $value: value });
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
@@ -40,38 +40,38 @@ const doc = readFromMemory({
     entry: "tokens.resolver.json",
 });
 
-describe("aliasChain", () => {
+const aliasChain = (path: string, input?: Input) =>
+    token(doc, path, input)?.aliasChain.map((each) => each.path);
+
+describe("a token's aliasChain", () => {
     it("follows whole-value references from the token to the one that holds a value", () => {
-        expect(aliasChain(doc, "text")).toStrictEqual(["text", "brand", "palette.red"]);
+        expect(aliasChain("text")).toStrictEqual(["text", "brand", "palette.red"]);
     });
 
     it("follows each permutation's own references", () => {
-        expect(aliasChain(doc, "text", { theme: "dark" })).toStrictEqual([
+        expect(aliasChain("text", { theme: "dark" })).toStrictEqual([
             "text",
             "brand",
             "palette.rose",
         ]);
         const dark = permutation(doc, { theme: "dark" });
-        expect(dark && aliasChain(dark, "text")).toStrictEqual(["text", "brand", "palette.rose"]);
+        const text = dark && token(dark, "text");
+        expect(text?.aliasChain[1]).toBe(dark && token(dark, "brand"));
     });
 
     it("follows a pointer to a whole value, or to the token itself, as the read does", () => {
-        expect(aliasChain(doc, "pointed")).toStrictEqual(["pointed", "brand", "palette.red"]);
-        expect(aliasChain(doc, "whole")).toStrictEqual(["whole", "brand", "palette.red"]);
+        expect(aliasChain("pointed")).toStrictEqual(["pointed", "brand", "palette.red"]);
+        expect(aliasChain("whole")).toStrictEqual(["whole", "brand", "palette.red"]);
     });
 
-    it("is the token alone when its value is not a whole reference: a composite holding one, a pointer into a part", () => {
-        expect(aliasChain(doc, "palette.red")).toStrictEqual(["palette.red"]);
-        expect(aliasChain(doc, "line")).toStrictEqual(["line"]);
-        expect(aliasChain(doc, "part")).toStrictEqual(["part"]);
+    it("is the token alone when its value is not a whole reference: a composite holding one, a property-level reference", () => {
+        expect(aliasChain("palette.red")).toStrictEqual(["palette.red"]);
+        expect(aliasChain("line")).toStrictEqual(["line"]);
+        expect(aliasChain("part")).toStrictEqual(["part"]);
     });
 
     it("stops at a reference to nothing, and at a loop, without repeating", () => {
-        expect(aliasChain(doc, "gone")).toStrictEqual(["gone"]);
-        expect(aliasChain(doc, "ring")).toStrictEqual(["ring", "loop"]);
-    });
-
-    it("is empty for a token that isn't there", () => {
-        expect(aliasChain(doc, "nope")).toStrictEqual([]);
+        expect(aliasChain("gone")).toStrictEqual(["gone"]);
+        expect(aliasChain("ring")).toStrictEqual(["ring", "loop"]);
     });
 });

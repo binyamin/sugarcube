@@ -50,20 +50,25 @@ describe("parseShadow", () => {
         it("references to shadow tokens mixed with shadows, as spec example 54 does", () => {
             const middle = { ...layer, color: "{brand.accent}" };
             expect(read(["{base.shadow}", middle, "{highlight.shadow}"])).toStrictEqual([
-                { alias: "base.shadow" },
-                { ...middle, color: { alias: "brand.accent" }, inset: false },
-                { alias: "highlight.shadow" },
+                { syntax: "curly-brace", path: "base.shadow" },
+                { ...middle, color: { syntax: "curly-brace", path: "brand.accent" }, inset: false },
+                { syntax: "curly-brace", path: "highlight.shadow" },
             ]);
         });
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{shadow.card}")).toStrictEqual({ alias: "shadow.card" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{shadow.card}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "shadow.card",
+            });
         });
 
         it("reads a JSON Pointer in place of inset", () => {
             expect(
                 read({ ...layer, inset: { $ref: "#/shadow/inner/$value/inset" } }),
-            ).toMatchObject([{ inset: { pointer: "#/shadow/inner/$value/inset" } }]);
+            ).toMatchObject([
+                { inset: { syntax: "json-pointer", pointer: "#/shadow/inner/$value/inset" } },
+            ]);
         });
     });
 

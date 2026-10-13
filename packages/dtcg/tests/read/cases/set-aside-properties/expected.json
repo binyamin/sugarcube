@@ -44,7 +44,18 @@
               "keyword": "solid"
             }
           },
-          "invalid": null
+          "invalid": null,
+          "references": [
+            {
+              "syntax": "json-pointer",
+              "pointer": "#/space/md/$value",
+              "span": {
+                "file": "tokens.json",
+                "text": "{ \"$ref\": \"#/space/md/$value\" }"
+              },
+              "property": ["width"]
+            }
+          ]
         },
         {
           "path": "heading-copy",
@@ -61,7 +72,17 @@
             },
             "lineHeight": 1.2
           },
-          "invalid": null
+          "invalid": null,
+          "references": [
+            {
+              "syntax": "json-pointer",
+              "pointer": "#/heading/$value",
+              "span": {
+                "file": "tokens.json",
+                "text": "{ \"$ref\": \"#/heading/$value\" }"
+              }
+            }
+          ]
         },
         {
           "path": "wide",
@@ -88,33 +109,18 @@
               "keyword": "solid"
             }
           },
-          "invalid": null
-        }
-      ],
-      "edges": [
-        {
-          "from": "card",
-          "to": "space.md",
-          "at": {
-            "file": "tokens.json",
-            "text": "{ \"$ref\": \"#/space/md/$value\" }"
-          }
-        },
-        {
-          "from": "heading-copy",
-          "to": "heading",
-          "at": {
-            "file": "tokens.json",
-            "text": "{ \"$ref\": \"#/heading/$value\" }"
-          }
-        },
-        {
-          "from": "framed",
-          "to": "wide",
-          "at": {
-            "file": "tokens.json",
-            "text": "{ \"$ref\": \"#/wide/$value\" }"
-          }
+          "invalid": null,
+          "references": [
+            {
+              "syntax": "json-pointer",
+              "pointer": "#/wide/$value",
+              "span": {
+                "file": "tokens.json",
+                "text": "{ \"$ref\": \"#/wide/$value\" }"
+              },
+              "property": ["width"]
+            }
+          ]
         }
       ]
     }

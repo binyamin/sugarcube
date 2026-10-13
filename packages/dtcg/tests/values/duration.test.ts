@@ -31,15 +31,18 @@ describe("parseDuration", () => {
             expect(read(duration)).toStrictEqual(duration);
         });
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{duration.fast}")).toStrictEqual({ alias: "duration.fast" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{duration.fast}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "duration.fast",
+            });
         });
 
         it("reads a JSON Pointer in place of the value", () => {
             expect(
                 read({ value: { $ref: "#/duration/fast/$value/value" }, unit: "s" }),
             ).toStrictEqual({
-                value: { pointer: "#/duration/fast/$value/value" },
+                value: { syntax: "json-pointer", pointer: "#/duration/fast/$value/value" },
                 unit: "s",
             });
         });

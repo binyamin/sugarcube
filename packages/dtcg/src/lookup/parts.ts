@@ -2,7 +2,6 @@ import type { JsonPath, Part, Token, TokenType } from "../index.js";
 import { syntaxes } from "../values/syntaxes.js";
 import { isJsonObject } from "../values/json.js";
 import { type ArraySyntax, type Syntax, choiceOf, syntaxOf } from "../values/syntax.js";
-import { referenceAt } from "./references.js";
 
 /**
  * A token's value as its parts: the whole value, and within it each part of a composite, each
@@ -15,7 +14,7 @@ import { referenceAt } from "./references.js";
  * // a border written { "color": "{color.ink}", "width": { "value": 1, "unit": "px" }, "style": "solid" }
  * const border = parts(token);
  * if (border?.type === "border") {
- *   border.color.ref        // { alias: "color.ink" }
+ *   border.color.ref?.token // color.ink
  *   border.width.resolved   // { value: 1, unit: "px" }
  * }
  */
@@ -27,8 +26,7 @@ export function parts(token: Token): Part | undefined {
 type Built = Record<string, unknown>;
 
 function partOf(token: Token, type: TokenType, resolved: unknown, at: JsonPath): unknown {
-    const ref = referenceAt(token, at);
-    const part: Built = ref ? { type, at, resolved, ref } : { type, at, resolved };
+    const part = placed(token, at, { type, resolved });
     addParts(token, part, syntaxes[type], resolved, at);
     return part;
 }
@@ -77,10 +75,7 @@ function listParts(token: Token, syntax: ArraySyntax, items: unknown[], at: Json
         case "elements":
             return items.map((item, index) => {
                 const where = [...at, index];
-                const ref = referenceAt(token, where);
-                const element: Built = ref
-                    ? { at: where, resolved: item, ref }
-                    : { at: where, resolved: item };
+                const element = placed(token, where, { resolved: item });
                 addParts(token, element, syntax.item, item, where);
                 return element;
             });
@@ -91,4 +86,11 @@ function listParts(token: Token, syntax: ArraySyntax, items: unknown[], at: Json
                 partsAt(token, itemSyntax, items[index], [...at, index]),
             );
     }
+}
+
+function placed(token: Token, at: JsonPath, part: Built): Built {
+    if (at.length > 0) part.property = at;
+    const ref = token.referenceAt(at);
+    if (ref) part.ref = ref;
+    return part;
 }

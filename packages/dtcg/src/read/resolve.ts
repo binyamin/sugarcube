@@ -3,10 +3,11 @@ import type {
     Diagnostic,
     DiagnosticDetailByKind,
     DiagnosticKind,
-    Edge,
     Group,
+    JsonPath,
     ParseResult,
     Permutation,
+    Reference,
     Span,
     Token,
     TokenBase,
@@ -14,6 +15,7 @@ import type {
     TopLevel,
     ValueByType,
     Written,
+    WrittenReference,
 } from "../index.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { applying, inherited } from "./inherit.js";
@@ -22,11 +24,13 @@ import type { Properties } from "./walk.js";
 import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
 import type { LocatedReference, ValueReader } from "./parse-value.js";
 import { malformation } from "./malformed-pointer.js";
-import { reach, wholeValueTarget } from "./ref-meaning.js";
+import { pointerParts, reach, stepInto } from "./ref-meaning.js";
 import { similarName } from "./similar.js";
+import { referenceText } from "../values/references.js";
 import { type Occurrence, wholeReference } from "./occurrence.js";
 import { type Resolving, UNRESOLVED, resolveValue } from "./resolve-value.js";
-import { linkedGroup, linkedPermutation, linkedToken } from "./linked.js";
+import { NO_REFERENCES, linkedGroup, linkedPermutation, linkedToken } from "./linked.js";
+import { linkedReference } from "./reference.js";
 import { parentOf, withoutRoot } from "../path.js";
 
 interface Resolved {
@@ -92,15 +96,17 @@ function resolvePermutation(
     };
 
     const reportUnreachable = (use: Occurrence, from: string) => {
-        const malformed = use.kind === "pointer" && malformation(use.written, merged);
+        const { reference } = use;
+        const malformed =
+            reference.syntax === "json-pointer" && malformation(reference.pointer, merged);
         if (malformed) {
             report("malformed-pointer", malformed, from, use.at);
             return;
         }
-        const ref = use.kind === "alias" ? use.target : use.written;
+        const ref = referenceText(reference);
         const isGroup =
-            use.kind === "alias"
-                ? merged.groups.has(use.target)
+            reference.syntax === "curly-brace"
+                ? merged.groups.has(reference.path)
                 : reach(use.steps, merged).kind === "group";
         if (isGroup) report("not-a-token", { ref }, from, use.at);
         else recordMissing(ref, from, use.at);
@@ -139,17 +145,16 @@ function resolvePermutation(
     };
 
     const followWhole = (token: MergedToken, whole: Occurrence): Whole => {
-        if (whole.kind === "alias") {
-            const outcome = outcomeOf(whole.target, token.path, whole.at);
-            return { kind: "token", path: whole.target, outcome };
-        }
-        const path = whole.steps && wholeValueTarget(whole.steps);
-        if (path !== undefined && merged.tokens.has(path)) {
+        if (whole.reference.syntax === "curly-brace") {
+            const { path } = whole.reference;
             return { kind: "token", path, outcome: outcomeOf(path, token.path, whole.at) };
         }
-        return reach(whole.steps, merged).kind === "part"
-            ? { kind: "part" }
-            : { kind: "unreachable" };
+        const reached = reach(whole.steps, merged);
+        if (reached.kind === "token") {
+            const { path } = reached;
+            return { kind: "token", path, outcome: outcomeOf(path, token.path, whole.at) };
+        }
+        return reached.kind === "part" ? { kind: "part" } : { kind: "unreachable" };
     };
 
     const compute = (entry: NormalisedToken): Outcome => {
@@ -213,6 +218,17 @@ function resolvePermutation(
         reportUnreachable,
     };
 
+    const { input, label, sources } = permutation;
+    const linked = linkedPermutation({
+        input,
+        label,
+        sources,
+        root: publicTopLevel(merged.root),
+        children: [],
+        tokens: [],
+        groups: [],
+    });
+
     const groups = new Map<string, Group>();
     for (const group of merged.groups.values()) {
         groups.set(group.path, publicGroup(group, applying(merged, group)));
@@ -223,17 +239,42 @@ function resolvePermutation(
     };
 
     const built = new Map<string, Token>();
-    const edges: Edge[] = [];
+    const written: [Token, LocatedReference[]][] = [];
     for (const [path, entry] of tokens) {
         const outcome = resolveToken(entry);
         if (outcome === "untyped") continue;
         const group = groupOf(path);
-        const token = toToken(entry.token, outcome, merged, group);
+        const token = toToken(entry.token, outcome, merged, group, linked);
         if (group && withoutRoot(path) === group.path) group.rootToken = token;
         built.set(path, token);
-        for (const { occurrence } of outcome.references) {
-            edges.push({ from: path, to: targetOf(occurrence, merged), at: occurrence.at });
-        }
+        if (outcome.references.length > 0) written.push([token, outcome.references]);
+    }
+
+    const referenceOf = (
+        from: Token | Group,
+        reference: WrittenReference,
+        steps: string[] | undefined,
+        span: Span,
+        place: JsonPath,
+        { pointerAlone = false } = {},
+    ): Reference => {
+        const { path, token, targetProperty } = targetOf(reference, steps, merged, built);
+        const property = place.length > 0 ? place : undefined;
+        const facts = { reference, path, span, property, targetProperty };
+        return linkedReference(facts, from, token, { pointerAlone });
+    };
+    for (const [token, located] of written) {
+        token.references = located.map(({ occurrence: { reference, steps, at, place } }) =>
+            referenceOf(token, reference, steps, at, place),
+        );
+    }
+    for (const each of merged.groups.values()) {
+        const group = groups.get(each.path);
+        if (!group || !each.extends) continue;
+        const { reference, steps, at, keyword } = each.extends;
+        const pointerAlone = keyword === "$ref";
+        group.references = [referenceOf(group, reference, steps, at, [], { pointerAlone })];
+        if (each.extendsGroup) group.extends = groups.get(each.extendsGroup);
     }
 
     const knownPaths = [...tokens.keys()];
@@ -263,23 +304,28 @@ function resolvePermutation(
         group.group = groupOf(group.path);
         group.children = childrenOf(group.path);
     }
-    const { input, label, sources } = permutation;
-    return linkedPermutation({
-        input,
-        label,
-        sources,
-        root: publicTopLevel(merged.root),
-        children: childrenOf(undefined),
-        tokens: [...built.values()],
-        groups: [...groups.values()],
-        edges,
-    });
+    linked.children = childrenOf(undefined);
+    linked.tokens = [...built.values()];
+    linked.groups = [...groups.values()];
+    return linked;
 }
 
-function targetOf(use: Occurrence, merged: Merged): string {
-    if (use.kind === "alias") return use.target;
-    const reached = reach(use.steps, merged);
-    return reached.kind === "nothing" ? use.written : reached.path;
+function targetOf(
+    reference: WrittenReference,
+    steps: string[] | undefined,
+    merged: Merged,
+    built: Map<string, Token>,
+): { path?: string | undefined; token?: Token | undefined; targetProperty?: JsonPath } {
+    if (reference.syntax === "curly-brace") {
+        return { path: reference.path, token: built.get(reference.path) };
+    }
+    const reached = reach(steps, merged);
+    if (reached.kind === "nothing") return { path: steps && pointerParts(steps).path };
+    if (reached.kind === "group") return { path: reached.path };
+    const { path } = reached;
+    if (reached.kind === "token") return { path, token: built.get(path) };
+    const targetProperty = stepInto(reached.token.authored, reached.inside)?.at;
+    return targetProperty ? { path, targetProperty } : { path };
 }
 
 function publicTopLevel(top: MergedTopLevel): TopLevel {
@@ -287,14 +333,14 @@ function publicTopLevel(top: MergedTopLevel): TopLevel {
 }
 
 function publicGroup(group: MergedGroup, applies: Properties): Group {
-    const { path, declaredIn, extendsGroup, inherited: from } = group;
+    const { path, declaredIn, inherited: from } = group;
     const authored = publicProperties(group);
     return linkedGroup({
         path,
         ...publicProperties(applies),
         declaredIn,
         children: [],
-        ...(extendsGroup !== undefined && { extends: extendsGroup }),
+        references: NO_REFERENCES,
         ...(from && { inherited: from }),
         ...(Object.keys(authored).length > 0 && { authored }),
     });
@@ -314,11 +360,14 @@ function toToken<T extends TokenType>(
     outcome: Resolved & { type: T },
     merged: Merged,
     group: Group | undefined,
+    permutation: Permutation,
 ): Token {
     const deprecated = inherited(token, merged, "deprecated");
-    const built: Omit<TokenBase<T>, "kind"> = {
+    const built: Omit<TokenBase<T>, "kind" | "referenceAt" | "referencedBy" | "aliasChain"> = {
         path: token.path,
         group,
+        permutation,
+        references: NO_REFERENCES,
         type: outcome.type,
         ...(token.description !== undefined && { description: token.description }),
         ...(deprecated !== undefined && { deprecated }),
@@ -339,5 +388,5 @@ function toToken<T extends TokenType>(
         built.value = outcome.read.value as TokenBase<T>["value"];
         if ("resolved" in outcome) built.resolved = outcome.resolved as ValueByType[T];
     }
-    return linkedToken(built as Omit<Token, "kind">);
+    return linkedToken(built as Parameters<typeof linkedToken>[0]);
 }

@@ -35,12 +35,15 @@ describe("parseTransition", () => {
 
         it.for(["duration", "delay", "timingFunction"])("a reference in place of %s", (part) => {
             expect(read({ ...emphasis, [part]: `{motion.${part}}` })).toMatchObject({
-                [part]: { alias: `motion.${part}` },
+                [part]: { syntax: "curly-brace", path: `motion.${part}` },
             });
         });
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{transition.emphasis}")).toStrictEqual({ alias: "transition.emphasis" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{transition.emphasis}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "transition.emphasis",
+            });
         });
     });
 

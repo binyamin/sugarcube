@@ -159,58 +159,149 @@ export interface ValueByType {
 export type TokenType = keyof ValueByType;
 
 /**
- * A reference to another token, written `"{color.brand}"`. It stands for the whole of that
- * token's value.
+ * A reference written in curly brace syntax (Format 7.1.1), `"{color.brand}"`: it stands for the
+ * whole of the value of the token at `path`.
  *
  * @example
  * // "$value": "{color.brand}" is read as
- * { alias: "color.brand" }
+ * { syntax: "curly-brace", path: "color.brand" }
  */
-export interface Alias {
+export interface CurlyBraceReference {
+    syntax: "curly-brace";
     /** The path of the token referred to. */
-    alias: string;
+    path: string;
 }
 
 /**
- * A reference by JSON Pointer, written `{ "$ref": "#/…" }`. Unlike an {@link Alias}, it can point
- * inside another token's value, such as at one component of a color.
+ * A reference written in JSON Pointer syntax (Format 7.1.2), `{ "$ref": "#/…" }`. It can point at
+ * a whole token or inside its value, such as at one component of a color (Format 7.3).
  *
  * @example
  * // "components": [{ "$ref": "#/color/blue/$value/components/0" }, 0.5, 0.5]
  * // reads the first component as
- * { pointer: "#/color/blue/$value/components/0" }
+ * { syntax: "json-pointer", pointer: "#/color/blue/$value/components/0" }
  */
-export interface Pointer {
+export interface JsonPointerReference {
+    syntax: "json-pointer";
     /** The JSON Pointer, as written. */
     pointer: string;
 }
 
-/** `V`, with a {@link Pointer} allowed in place of the whole of it or any part of it. */
+/**
+ * A reference as it stands in a value, in either syntax. {@link isReference} tells one from a
+ * value.
+ */
+export type WrittenReference = CurlyBraceReference | JsonPointerReference;
+
+/**
+ * A reference a token or group writes, in the permutation that holds it: what is written, where,
+ * and the token it references. Each is listed in its token's {@link TokenBase.references | references}
+ * and its group's {@link Group.references | references}.
+ *
+ * @example
+ * // in mode: dark, "text": { "$value": "{color.brand}" }
+ * const [reference] = text.references;
+ * reference.path    // "color.brand"
+ * reference.token   // dark's color.brand
+ */
+export type Reference = ReferenceBase &
+    (CurlyBraceReference | (JsonPointerReference & { path?: string }));
+
+/** What every {@link Reference} has, whatever its syntax. */
+export interface ReferenceBase {
+    /**
+     * The path it names: a token's, or a group's for a group's `$extends`; for a JSON Pointer to a
+     * property within a value, the token holding it. Absent for a pointer that names no path in
+     * the files read, such as one to another file.
+     */
+    path?: string;
+    /** The token or group that writes it. */
+    from: Token | Group;
+    /**
+     * The token it references as a whole, in this permutation: curly braces target complete
+     * tokens only, a JSON Pointer any place (Format 7.1.2). `undefined` when it references none: a
+     * property within a value (see {@link ReferenceBase.targetProperty | targetProperty}; the
+     * token holding it is at `path`), a group, as a group's `$extends` does, or nothing at all.
+     */
+    token?: Token;
+    /**
+     * For a property-level reference (Format 7.3), a JSON Pointer to a property within a token's
+     * value, the property it targets. Absent when it references the complete value (Format
+     * 7.4.2), as a curly brace reference always does.
+     *
+     * @example
+     * // { "$ref": "#/color/blue/$value/components/0" }
+     * reference.targetProperty // ["components", 0]
+     */
+    targetProperty?: JsonPath;
+    /** Where it is written. */
+    span: Span;
+    /**
+     * The property of {@link TokenBase.value | value} it is written as, which can differ from the
+     * file: a shadow written as one object is a list of one, so a reference in its `color` is at
+     * `[0, "color"]`. Absent for a reference written as the whole value, and for a group's
+     * `$extends`.
+     */
+    property?: JsonPath;
+    /**
+     * What to write at {@link ReferenceBase.span | span} after a list of {@link Move}s, made in
+     * order, in the syntax it is written in: a JSON Pointer keeps its steps into the value. As it
+     * is written when no move reaches it.
+     *
+     * @example
+     * reference.moved([{ from: "color.brand", to: "color.house" }]) // "{color.house}"
+     */
+    moved(moves: readonly Move[]): JsonValue;
+}
+
+/**
+ * A reference, as {@link Document.references} and {@link Document.referencedBy} give it: written
+ * once, holding in each of `permutations`. `from` is the path that writes it, since in each
+ * permutation that is a different token.
+ */
+export type ReferenceInPermutations = Omit<ReferenceBase, "from" | "token" | "moved"> &
+    (CurlyBraceReference | (JsonPointerReference & { path?: string })) & {
+        from: string;
+        permutations: Input[];
+        moved(moves: readonly Move[]): JsonValue;
+    };
+
+/** How far {@link TokenBase.referencedBy} and the Document's reference questions look. */
+export interface ReferenceOptions {
+    /**
+     * Follow chained references (Format 7.2.2): those through other tokens, however indirectly.
+     * Each reference once, safe with loops.
+     * @default false
+     */
+    chained?: boolean;
+}
+
+/** `V`, with a {@link JsonPointerReference} allowed in place of the whole of it or any part of it. */
 export type WithPointers<V> =
-    | Pointer
+    | JsonPointerReference
     | (V extends object ? { [K in keyof V]: WithPointers<V[K]> } : V);
 
 /**
- * A value whose references have not been followed yet: an {@link Alias} to a token holding one,
- * or the value with a {@link Pointer} in place of any part.
+ * A value whose references have not been followed yet: a {@link CurlyBraceReference} to a token
+ * holding one, or the value with a {@link JsonPointerReference} in place of any part.
  */
-export type Unresolved<V> = Alias | WithPointers<V>;
+export type Unresolved<V> = CurlyBraceReference | WithPointers<V>;
 
 /** A stroke style whose references have not been followed yet, where the specification allows them. */
 export type UnresolvedStrokeStyle =
-    | Alias
-    | Pointer
+    | WrittenReference
     | Extract<StrokeStyleValue, { kind: "keyword" }>
     | {
           kind: "dash";
-          dashArray: Pointer | Unresolved<DimensionValue>[];
-          lineCap: Pointer | "round" | "butt" | "square";
+          dashArray: JsonPointerReference | Unresolved<DimensionValue>[];
+          lineCap: JsonPointerReference | "round" | "butt" | "square";
       };
 
 /**
- * Where the specification allows references in each type's value. An {@link Alias} stands for a
- * whole token, so it may take the place of the whole value, or of a part of a composite that is a
- * token type in its own right. A {@link Pointer} may take the place of any part.
+ * Where the specification allows references in each type's value. A {@link CurlyBraceReference}
+ * stands for a whole token, so it may take the place of the whole value, or of a part of a
+ * composite that is a token type in its own right. A {@link JsonPointerReference} may take the
+ * place of any part.
  */
 export interface UnresolvedValueByType {
     color: Unresolved<ColorValue>;
@@ -222,47 +313,40 @@ export interface UnresolvedValueByType {
     fontWeight: Unresolved<FontWeightValue>;
     strokeStyle: UnresolvedStrokeStyle;
     border:
-        | Alias
-        | Pointer
+        | WrittenReference
         | {
               color: Unresolved<ColorValue>;
               width: Unresolved<DimensionValue>;
               style: UnresolvedStrokeStyle;
           };
     shadow:
-        | Alias
-        | Pointer
+        | WrittenReference
         | (
-              | Alias
-              | Pointer
+              | WrittenReference
               | {
                     color: Unresolved<ColorValue>;
                     offsetX: Unresolved<DimensionValue>;
                     offsetY: Unresolved<DimensionValue>;
                     blur: Unresolved<DimensionValue>;
                     spread: Unresolved<DimensionValue>;
-                    inset: Pointer | boolean;
+                    inset: JsonPointerReference | boolean;
                 }
           )[];
     gradient:
-        | Alias
-        | Pointer
+        | WrittenReference
         | (
-              | Alias
-              | Pointer
+              | WrittenReference
               | { color: Unresolved<ColorValue>; position: Unresolved<NumberValue> }
           )[];
     transition:
-        | Alias
-        | Pointer
+        | WrittenReference
         | {
               duration: Unresolved<DurationValue>;
               delay: Unresolved<DurationValue>;
               timingFunction: Unresolved<CubicBezierValue>;
           };
     typography:
-        | Alias
-        | Pointer
+        | WrittenReference
         | {
               fontFamily: Unresolved<FontFamilyValue>;
               fontSize: Unresolved<DimensionValue>;
@@ -279,8 +363,7 @@ export interface UnresolvedValueByType {
  */
 export type UnresolvedValue<T extends TokenType> = UnresolvedValueByType[T];
 
-export { isAlias, isPointer, movedReference } from "./values/references.js";
-export { referenceAt, references } from "./lookup/references.js";
+export { isReference } from "./values/references.js";
 
 /**
  * One part of a token's value: the whole value, a part of a composite, a shadow layer or gradient
@@ -312,14 +395,17 @@ export type SimplePartType =
 
 /** What every part has: where it is, what it resolved to, and the reference written there. */
 export interface PartBase<V> {
-    /** Where the part sits in {@link TokenBase.value | value}, as {@link references} places it. */
-    at: JsonPath;
+    /**
+     * The property of {@link TokenBase.value | value} it is, as a reference's
+     * {@link ReferenceBase.property | property} says; absent for the whole value.
+     */
+    property?: JsonPath;
     resolved: V;
     /**
      * The reference written at this place, if any. A pointer inside the part, such as at one
      * component of a color, is not at it: what it reaches is in `resolved`.
      */
-    ref?: Alias | Pointer;
+    ref?: Reference;
 }
 
 /** A part with no parts of its own. */
@@ -431,11 +517,12 @@ export interface TokenBase<T extends TokenType> {
      * it is the root token of (Format 6.2). `undefined` at the top level of the files.
      */
     group?: Group;
+    /** The permutation that holds it: the same path in another permutation is another token. */
+    permutation: Permutation;
     type: T;
     /**
-     * The value, in one shape per type, with references kept as {@link Alias} and
-     * {@link Pointer} nodes.
-     * Absent when the token is {@link TokenBase.invalid | invalid}.
+     * The value, in one shape per type, with each reference kept as written
+     * ({@link WrittenReference}). Absent when the token is {@link TokenBase.invalid | invalid}.
      */
     value?: UnresolvedValue<T>;
     /** The value with every reference followed. Absent when invalid or when a reference cannot be followed. */
@@ -479,6 +566,46 @@ export interface TokenBase<T extends TokenType> {
     generated?: { from?: string; extension: [string, ...string[]] };
     /** Set when the token is here only because of `$extends`, or a `$ref` to another group, at `from`. */
     inherited?: { from: string };
+    /**
+     * Each reference its value writes, in the order the value lists them, each with what it
+     * references. Kept for a value that can't be read as a whole, since they are written whatever
+     * else is wrong.
+     *
+     * @example
+     * // a border written { "color": "{color.brand}", "width": "{border.thin}", "style": "solid" }
+     * border.references.map(({ property, path }) => [property, path])
+     * // [[["color"], "color.brand"], [["width"], "border.thin"]]
+     */
+    references: Reference[];
+    /**
+     * The reference written as one property of the value, as {@link ReferenceBase.property}
+     * places it, or as the whole value when none is given; `undefined` when a value is written
+     * there.
+     *
+     * @example
+     * // a typography token written { "fontSize": "{size.xl}", … }
+     * heading.referenceAt(["fontSize"])?.token // size.xl
+     * alias.referenceAt()?.token                // the token its whole value references
+     */
+    referenceAt(property?: JsonPath): Reference | undefined;
+    /**
+     * Every reference to the token in this permutation, each with the token that writes it in
+     * `from`; with `chained`, also every reference to each of those, however indirectly.
+     *
+     * @example
+     * red.referencedBy().map(({ from }) => from.path)  // ["color.brand"]
+     * red.referencedBy({ chained: true })              // everything a change would reach
+     */
+    referencedBy(options?: ReferenceOptions): Reference[];
+    /**
+     * The token, then each token its whole value references in turn, ending at the one that holds a
+     * value: a curly brace reference, or a JSON Pointer to a complete value. A property-level
+     * reference isn't followed. Stops at a reference to no token and at a loop, without repeating.
+     *
+     * @example
+     * text.aliasChain.map(({ path }) => path) // ["color.text", "color.brand", "palette.red"]
+     */
+    readonly aliasChain: Token[];
 }
 
 /**
@@ -524,10 +651,16 @@ export interface Group {
     extensions?: Record<string, unknown>;
     /**
      * The group this one takes tokens from, through `$extends` or a `$ref` to another group
-     * (Format 6.4), when the reference reaches one, and where that reference is written. The
-     * tokens it takes are marked {@link TokenBase.inherited | inherited}.
+     * (Format 6.4), when the reference reaches one. The reference itself is among its
+     * {@link Group.references | references}. The tokens it takes are marked
+     * {@link TokenBase.inherited | inherited}.
      */
-    extends?: { path: string; at: Span };
+    extends?: Group;
+    /**
+     * The reference it writes: its `$extends`, or a `$ref` to another group, which reaches a group
+     * and so no token. Empty when it writes neither.
+     */
+    references: Reference[];
     /**
      * Every place the group is declared, each with the permutation's source that declares it, as
      * {@link TokenBase.source | a token's source} has it. Groups can be spread across files, so
@@ -726,22 +859,6 @@ export interface Permutation {
      * use {@link group}.
      */
     groups: Group[];
-    /**
-     * Every reference between this permutation's tokens, one per reference as written, in the
-     * order of {@link Permutation.tokens | tokens}, including those in a value that isn't valid
-     * as a whole, since they are written whatever else is wrong. To ask what refers to a token,
-     * use {@link referrers}.
-     */
-    edges: Edge[];
-}
-
-/** One reference from one token to another, in the permutation that holds it. */
-export interface Edge {
-    from: string;
-    /** The token referred to. For a {@link Pointer} into part of a value, the token holding that part. */
-    to: string;
-    /** Where the reference is written. */
-    at: Span;
 }
 
 /**
@@ -1042,8 +1159,9 @@ export { diagnosticsFor } from "./lookup/diagnostics-for.js";
  * one shape and every reference followed. Its tokens and groups link to each other: a token's
  * {@link TokenBase.group | group} is the group itself, a group's {@link Group.children | children}
  * the tokens and groups themselves. `JSON.stringify` writes its plain form, with a path wherever
- * one links to another, and leaves out what the rest says (a token's or group's `group`, a
- * group's `rootToken`, `kind`). Nothing changes it after {@link read} returns it.
+ * one links to another, and leaves out what the rest says: a token's or group's `group`, a
+ * token's `permutation`, a group's `rootToken` and `extends`, `kind`, a reference's `from`, `token`
+ * and `targetProperty`, and a JSON Pointer's `path`. Nothing changes it after {@link read} returns it.
  */
 export interface Document {
     /**
@@ -1064,6 +1182,24 @@ export interface Document {
      * {@link errors} picks out the errors.
      */
     diagnostics: Diagnostic[];
+    /**
+     * The references the token or group at `path` writes, in every permutation, each once with the
+     * permutations it holds in; with `chained`, also those written by each token they name (for a
+     * property-level reference, the token holding the property), however indirectly.
+     *
+     * @example
+     * doc.references("color.text", { chained: true }).map(({ path }) => path)
+     */
+    references(path: string, options?: ReferenceOptions): ReferenceInPermutations[];
+    /**
+     * Every reference to `path`, in every permutation, each once with the permutations it holds
+     * in; with `chained`, also every reference to each token that writes one. A group's path
+     * covers what is written to it, such as an `$extends`, and to everything inside it.
+     *
+     * @example
+     * for (const { from, span } of doc.referencedBy("color.brand")) show(from, span);
+     */
+    referencedBy(path: string, options?: ReferenceOptions): ReferenceInPermutations[];
 }
 
 export type { ValueErrorCode, ValueErrorDetail, ValueErrorFacts } from "./values/value-errors.js";
@@ -1444,18 +1580,6 @@ export { diff } from "./lookup/diff.js";
 
 export { sameValue } from "./values/same-value.js";
 
-/** A token that is related to another, and the permutations in which it is. */
-export interface Related {
-    path: string;
-    in: Input[];
-}
-
-export { type ReferrersOptions, referrers } from "./lookup/referrers.js";
-
-export { type DependenciesOptions, dependencies } from "./lookup/dependencies.js";
-
-export { aliasChain } from "./lookup/alias-chain.js";
-
 /** What is at a position in a file. */
 export type AtOffset =
     | { kind: "token"; path: string; expects?: TokenType }
@@ -1489,7 +1613,7 @@ export type JsonValue =
  * into a file.
  *
  * @example
- * toDTCGValue("color", { alias: "color.brand" }) // "{color.brand}"
+ * toDTCGValue("color", { syntax: "curly-brace", path: "color.brand" }) // "{color.brand}"
  * toDTCGValue("fontWeight", 400, { like: "regular" }) // "regular"
  */
 export function toDTCGValue<T extends TokenType>(

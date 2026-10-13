@@ -11,7 +11,8 @@
           "path": "color.danger",
           "type": "color",
           "value": {
-            "alias": "color.brnad"
+            "syntax": "curly-brace",
+            "path": "color.brnad"
           },
           "resolved": null
         },

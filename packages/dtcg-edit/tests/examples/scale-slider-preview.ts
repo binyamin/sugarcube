@@ -1,14 +1,14 @@
 // A slider that resizes a whole spacing scale at once. While it moves, the page previews every
 // step without touching the files: each frame makes a new project and throws it away. Letting go
 // keeps the last one, as one undo step.
-import { isAlias, tokensIn, type Document } from "@sugarcube-sh/dtcg";
+import { tokensIn, type Document } from "@sugarcube-sh/dtcg";
 import { setValues, type Session } from "@sugarcube-sh/dtcg-edit";
 
 declare const session: Session;
 declare function showPreview(doc: Document): void;
 
 const steps = tokensIn(session.project.doc, "space").flatMap((t) =>
-    t.type === "dimension" && t.resolved && !isAlias(t.value) && !t.generated
+    t.type === "dimension" && t.resolved && !t.referenceAt() && !t.generated
         ? [{ path: t.path, size: t.resolved }]
         : [],
 );

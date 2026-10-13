@@ -77,32 +77,35 @@ const partsOf = (path: string) => {
 
 describe("parts", () => {
     it("gives a simple value as one part, with what it resolved to", () => {
-        expect(partsOf("thin")).toStrictEqual({ type: "dimension", at: [], resolved: px(1) });
+        expect(partsOf("thin")).toStrictEqual({ type: "dimension", resolved: px(1) });
     });
 
     it("gives a whole value written as a reference that reference", () => {
         expect(partsOf("accent")).toStrictEqual({
             type: "color",
-            at: [],
             resolved: redRead,
-            ref: { alias: "red" },
+            ref: expect.objectContaining({ syntax: "curly-brace", path: "red" }),
         });
     });
 
     it("gives each part of a composite, typed, with the reference written there", () => {
         expect(partsOf("edge")).toStrictEqual({
             type: "border",
-            at: [],
             resolved: {
                 color: redRead,
                 width: px(2),
                 style: { kind: "keyword", keyword: "solid" },
             },
-            color: { type: "color", at: ["color"], resolved: redRead, ref: { alias: "red" } },
-            width: { type: "dimension", at: ["width"], resolved: px(2) },
+            color: {
+                type: "color",
+                property: ["color"],
+                resolved: redRead,
+                ref: expect.objectContaining({ syntax: "curly-brace", path: "red" }),
+            },
+            width: { type: "dimension", property: ["width"], resolved: px(2) },
             style: {
                 type: "strokeStyle",
-                at: ["style"],
+                property: ["style"],
                 resolved: { kind: "keyword", keyword: "solid" },
             },
         });
@@ -110,21 +113,25 @@ describe("parts", () => {
 
     it("gives a JSON Pointer written at a part as its reference", () => {
         const border = partsOf("pointed");
-        expect(border?.type === "border" && border.color.ref).toStrictEqual({
+        expect(border?.type === "border" && border.color.ref).toMatchObject({
+            syntax: "json-pointer",
             pointer: "#/red/$value",
         });
-        expect(border?.type === "border" && border.width.ref).toStrictEqual({ alias: "thin" });
+        expect(border?.type === "border" && border.width.ref).toMatchObject({
+            syntax: "curly-brace",
+            path: "thin",
+        });
     });
 
     it("leaves a pointer inside a part, such as at one color component, in what it resolved to", () => {
-        expect(partsOf("mixed")).toStrictEqual({ type: "color", at: [], resolved: redRead });
+        expect(partsOf("mixed")).toStrictEqual({ type: "color", resolved: redRead });
     });
 
     it("gives a shadow its layers, a single shadow as a list of one", () => {
         const shadow = partsOf("lone");
         expect(shadow?.type === "shadow" && shadow.layers).toStrictEqual([
             {
-                at: [0],
+                property: [0],
                 resolved: {
                     color: redRead,
                     offsetX: px(0),
@@ -135,14 +142,14 @@ describe("parts", () => {
                 },
                 color: {
                     type: "color",
-                    at: [0, "color"],
+                    property: [0, "color"],
                     resolved: redRead,
-                    ref: { alias: "red" },
+                    ref: expect.objectContaining({ syntax: "curly-brace", path: "red" }),
                 },
-                offsetX: { type: "dimension", at: [0, "offsetX"], resolved: px(0) },
-                offsetY: { type: "dimension", at: [0, "offsetY"], resolved: px(1) },
-                blur: { type: "dimension", at: [0, "blur"], resolved: px(2) },
-                spread: { type: "dimension", at: [0, "spread"], resolved: px(0) },
+                offsetX: { type: "dimension", property: [0, "offsetX"], resolved: px(0) },
+                offsetY: { type: "dimension", property: [0, "offsetY"], resolved: px(1) },
+                blur: { type: "dimension", property: [0, "blur"], resolved: px(2) },
+                spread: { type: "dimension", property: [0, "spread"], resolved: px(0) },
             },
         ]);
     });
@@ -151,21 +158,30 @@ describe("parts", () => {
         const shadow = partsOf("layered");
         if (shadow?.type !== "shadow") throw new Error("not a shadow");
         const [first, second] = shadow.layers;
-        expect(first?.ref).toStrictEqual({ alias: "lone" });
-        expect(first?.color).toStrictEqual({ type: "color", at: [0, "color"], resolved: redRead });
+        expect(first?.ref).toMatchObject({ syntax: "curly-brace", path: "lone" });
+        expect(first?.color).toStrictEqual({
+            type: "color",
+            property: [0, "color"],
+            resolved: redRead,
+        });
         expect(second?.ref).toBeUndefined();
         expect(second?.resolved.inset).toBe(true);
-        expect(second?.offsetX.ref).toStrictEqual({ alias: "thin" });
+        expect(second?.offsetX.ref).toMatchObject({ syntax: "curly-brace", path: "thin" });
     });
 
     it("gives a gradient its stops, each with its color and position", () => {
         const gradient = partsOf("fade");
         if (gradient?.type !== "gradient") throw new Error("not a gradient");
         expect(gradient.stops.map(({ color, position }) => [color.ref, position])).toStrictEqual([
-            [undefined, { type: "number", at: [0, "position"], resolved: 0 }],
+            [undefined, { type: "number", property: [0, "position"], resolved: 0 }],
             [
-                { alias: "red" },
-                { type: "number", at: [1, "position"], resolved: 0.5, ref: { alias: "half" } },
+                expect.objectContaining({ syntax: "curly-brace", path: "red" }),
+                {
+                    type: "number",
+                    property: [1, "position"],
+                    resolved: 0.5,
+                    ref: expect.objectContaining({ syntax: "curly-brace", path: "half" }),
+                },
             ],
         ]);
     });
@@ -176,11 +192,11 @@ describe("parts", () => {
             [
                 {
                     type: "dimension",
-                    at: ["dashArray", 0],
+                    property: ["dashArray", 0],
                     resolved: px(1),
-                    ref: { alias: "thin" },
+                    ref: expect.objectContaining({ syntax: "curly-brace", path: "thin" }),
                 },
-                { type: "dimension", at: ["dashArray", 1], resolved: px(2) },
+                { type: "dimension", property: ["dashArray", 1], resolved: px(2) },
             ],
         );
         const plain = partsOf("plain");
@@ -197,12 +213,12 @@ describe("parts", () => {
             ["letterSpacing", "dimension"],
             ["lineHeight", "number"],
         ]);
-        expect(typography.fontFamily.ref).toStrictEqual({ alias: "family" });
+        expect(typography.fontFamily.ref).toMatchObject({ syntax: "curly-brace", path: "family" });
         expect(typography.lineHeight).toStrictEqual({
             type: "number",
-            at: ["lineHeight"],
+            property: ["lineHeight"],
             resolved: 0.5,
-            ref: { alias: "half" },
+            ref: expect.objectContaining({ syntax: "curly-brace", path: "half" }),
         });
     });
 

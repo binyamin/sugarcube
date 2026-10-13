@@ -1,15 +1,15 @@
 import { forbiddenInName } from "../path.js";
 import type { Node } from "jsonc-parser";
 import type {
-    Alias,
     Diagnostic,
     DiagnosticDetailByKind,
     DiagnosticKind,
-    Pointer,
     Span,
+    JsonPointerReference,
     TokenType,
+    WrittenReference,
 } from "../index.js";
-import { readAlias, readPointer, readReference } from "../values/references.js";
+import { readReference } from "../values/references.js";
 import { isTokenType, tokenTypes } from "../values/token-types.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { type JsonFile, type Member, members, plainObject, plainValue, spanOf } from "./json.js";
@@ -29,13 +29,13 @@ export interface SourceToken extends Properties {
     json: JsonFile;
     value: Node;
     authored: unknown;
-    reference: Alias | Pointer | undefined;
+    reference: WrittenReference | undefined;
     at: Span;
 }
 
 export interface GroupReference {
     keyword: "$extends" | "$ref";
-    written: string;
+    reference: WrittenReference;
     steps: string[] | undefined;
     json: JsonFile;
     node: Node;
@@ -298,14 +298,15 @@ function nonObjectKind(node: Node): NonObjectKind | undefined {
 function readGroupReference(
     keyword: "$extends" | "$ref",
     raw: unknown,
-): Pick<GroupReference, "written" | "steps"> | undefined {
-    if (keyword === "$ref") {
-        return typeof raw === "string" ? { written: raw, steps: refSteps(raw) } : undefined;
-    }
-    const alias = readAlias(raw);
-    if (alias) return { written: alias.alias, steps: alias.alias.split(".") };
-    const pointer = readPointer(raw);
-    return pointer && { written: pointer.pointer, steps: refSteps(pointer.pointer) };
+): Pick<GroupReference, "reference" | "steps"> | undefined {
+    const reference = keyword === "$extends" ? readReference(raw) : pointerOf(raw);
+    if (!reference) return undefined;
+    if (reference.syntax === "curly-brace") return { reference, steps: reference.path.split(".") };
+    return { reference, steps: refSteps(reference.pointer) };
+}
+
+function pointerOf(raw: unknown): JsonPointerReference | undefined {
+    return typeof raw === "string" ? { syntax: "json-pointer", pointer: raw } : undefined;
 }
 
 function asReference(written: unknown): string | undefined {

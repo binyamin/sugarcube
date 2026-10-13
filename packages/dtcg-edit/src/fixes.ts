@@ -84,7 +84,7 @@ function fixFor(project: Project, diagnostic: Diagnostic): Fix | undefined {
             if (similar === undefined) return undefined;
             const uses = [at, ...(diagnostic.related ?? []).map((related) => related.at)];
             const edits = uses
-                .filter((use) => aliases(written(use)?.value, ref))
+                .filter((use) => writesCurlyBrace(written(use)?.value, ref))
                 .map((use) => replacing(use, `{${similar}}`));
             return edits.length > 0 ? guess(fixTitles.useSimilar(similar), edits) : undefined;
         }
@@ -117,10 +117,10 @@ function valueFix(
         }
         case "alias-not-allowed-here": {
             const reference = readReference(detail.reference);
-            if (written !== detail.reference || !reference || !("alias" in reference)) {
+            if (written !== detail.reference || reference?.syntax !== "curly-brace") {
                 return undefined;
             }
-            const pointer = pointerTo(reference.alias);
+            const pointer = pointerTo(reference.path);
             const change = { ...range(at), text: inline({ $ref: pointer }) };
             if (!readsClean(project, [change])) return undefined;
             return safe(fixTitles.referenceAsPointer(pointer), change);
@@ -150,9 +150,9 @@ function readsClean(project: Project, edits: TextEdit[]): boolean {
     );
 }
 
-function aliases(written: unknown, ref: string): boolean {
+function writesCurlyBrace(written: unknown, ref: string): boolean {
     const reference = readReference(written);
-    return reference !== undefined && "alias" in reference && reference.alias === ref;
+    return reference?.syntax === "curly-brace" && reference.path === ref;
 }
 
 function pointerTo(path: string): string {

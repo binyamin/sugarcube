@@ -38,7 +38,7 @@ export interface MergedTopLevel extends Properties {
 export interface MergedGroup extends MergedTopLevel {
     path: string;
     extends?: GroupReference & { piece: Piece };
-    extendsGroup?: { path: string; at: Span };
+    extendsGroup?: string;
     takesFrom?: string;
     inherited?: { from: string };
 }

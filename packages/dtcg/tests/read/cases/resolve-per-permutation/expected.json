@@ -1,6 +1,6 @@
 {
   "entry": "tokens.resolver.json",
-  "spec": "Resolver 6.3 and contract 02, rule 4: references are followed within each permutation, so the same reference gives each permutation its own value, and each permutation's edges hold one edge per reference. A reference broken in one permutation is reported for that permutation",
+  "spec": "Resolver 6.3 and contract 02, rule 4: references are followed within each permutation, so the same reference gives each permutation its own value, and each permutation's tokens list each reference they write. A reference broken in one permutation is reported for that permutation",
   "permutations": [
     {
       "tokens": [
@@ -18,7 +18,17 @@
             "colorSpace": "srgb",
             "components": [1, 0, 0],
             "alpha": 1
-          }
+          },
+          "references": [
+            {
+              "syntax": "curly-brace",
+              "path": "color.brand",
+              "span": {
+                "file": "base.json",
+                "text": "\"{color.brand}\""
+              }
+            }
+          ]
         },
         {
           "path": "color.accent",
@@ -26,26 +36,18 @@
             "colorSpace": "srgb",
             "components": [1, 0, 0],
             "alpha": 1
-          }
-        }
-      ],
-      "edges": [
-        {
-          "from": "color.danger",
-          "to": "color.brand",
-          "at": {
-            "file": "base.json",
-            "text": "\"{color.brand}\""
-          }
-        },
-        {
-          "from": "color.accent",
-          "to": "color.brand",
-          "at": {
-            "file": "base.json",
-            "text": "\"{color.brand}\"",
-            "occurrence": 2
-          }
+          },
+          "references": [
+            {
+              "syntax": "curly-brace",
+              "path": "color.brand",
+              "span": {
+                "file": "base.json",
+                "text": "\"{color.brand}\"",
+                "occurrence": 2
+              }
+            }
+          ]
         }
       ]
     },
@@ -65,33 +67,36 @@
             "colorSpace": "oklch",
             "components": [0.7, 0.2, 20],
             "alpha": 1
-          }
+          },
+          "references": [
+            {
+              "syntax": "curly-brace",
+              "path": "color.brand",
+              "span": {
+                "file": "base.json",
+                "text": "\"{color.brand}\""
+              }
+            }
+          ]
         },
         {
           "path": "color.accent",
           "type": "color",
           "value": {
-            "alias": "color.highlight"
+            "syntax": "curly-brace",
+            "path": "color.highlight"
           },
-          "resolved": null
-        }
-      ],
-      "edges": [
-        {
-          "from": "color.danger",
-          "to": "color.brand",
-          "at": {
-            "file": "base.json",
-            "text": "\"{color.brand}\""
-          }
-        },
-        {
-          "from": "color.accent",
-          "to": "color.highlight",
-          "at": {
-            "file": "dark.json",
-            "text": "\"{color.highlight}\""
-          }
+          "resolved": null,
+          "references": [
+            {
+              "syntax": "curly-brace",
+              "path": "color.highlight",
+              "span": {
+                "file": "dark.json",
+                "text": "\"{color.highlight}\""
+              }
+            }
+          ]
         }
       ]
     }

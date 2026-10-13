@@ -12,7 +12,7 @@ import type {
     Written,
 } from "../index.js";
 import { movedPath } from "../path.js";
-import { isAlias, isPointer, movedReference } from "../values/references.js";
+import { isReference, movedReference } from "../values/references.js";
 import { sameJson, saysTheSame } from "../values/same-value.js";
 import { permutation } from "./permutation.js";
 
@@ -239,7 +239,7 @@ function movedReferences(before: Token, moved: Move[]): Token {
 }
 
 function forwarded(value: unknown, moved: Move[]): unknown {
-    if (isAlias(value) || isPointer(value)) return movedReference(value, moved);
+    if (isReference(value)) return movedReference(value, moved);
     if (Array.isArray(value)) return value.map((each) => forwarded(each, moved));
     if (typeof value === "object" && value !== null) {
         return Object.fromEntries(

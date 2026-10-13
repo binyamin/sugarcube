@@ -135,6 +135,45 @@ describe("emitCSS", () => {
         );
     });
 
+    it("writes var() for a JSON Pointer to a whole value, as for a curly brace reference, and the value for one to a property", () => {
+        const ink = { colorSpace: "srgb", components: [0.2, 0.2, 0.2], hex: "#333333" };
+        expect(
+            cssFor({
+                "tokens.json": {
+                    ink: color(ink),
+                    text: color({ $ref: "#/ink/$value" }),
+                    tint: color({
+                        colorSpace: "srgb",
+                        components: [{ $ref: "#/ink/$value/components/0" }, 1, 1],
+                    }),
+                    line: {
+                        $type: "border",
+                        $value: { color: ink, width: { value: 1, unit: "px" }, style: "solid" },
+                    },
+                    edge: {
+                        $type: "border",
+                        $value: {
+                            color: { $ref: "#/line/$value/color" },
+                            width: { value: 2, unit: "px" },
+                            style: "dashed",
+                        },
+                    },
+                },
+            }),
+        ).toBe(
+            [
+                ":root {",
+                "    --ink: #333333;",
+                "    --text: var(--ink);",
+                "    --tint: rgb(51 255 255);",
+                "    --line: 1px solid #333333;",
+                "    --edge: 2px dashed #333333;",
+                "}",
+                "",
+            ].join("\n"),
+        );
+    });
+
     it("hands back what reading found from declaring, not from writing", () => {
         const config = fillDefaults({ variables: { path: "variables.css" } });
         const files = { "tokens.json": JSON.stringify({ broken: color("#e11d4") }) };

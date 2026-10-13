@@ -1,20 +1,16 @@
 import {
     type Document,
-    type Move,
     type Project,
     childPath,
     forbiddenInName,
     group,
-    movedReference,
     parentOf,
-    pathBelow,
     token,
 } from "@sugarcube-sh/dtcg";
-import { readReference } from "@sugarcube-sh/dtcg/values";
 import { refused } from "./error-messages.js";
-import type { FileOp, Json, OpResult } from "./index.js";
+import type { FileOp, OpResult } from "./index.js";
 import { groupCopies, tokenCopies } from "./placement.js";
-import { type Place, placeOf, unique } from "./project-text.js";
+import { type Place, placeOf } from "./project-text.js";
 
 /**
  * Renames a token or group where each is written, and rewrites every reference to it or to
@@ -54,10 +50,11 @@ export function rename(project: Project, path: string, newName: string): OpResul
         name: newName,
         was: written,
     }));
-    const references = referencesTo(project, path).flatMap((place): FileOp[] => {
-        const value = movedWritten(place.written, moved);
-        if (value === undefined) return [];
+    const references = project.doc.referencedBy(path).flatMap((reference): FileOp[] => {
+        const place = placeOf(project, reference.span);
+        if (!place) return [];
         const at = afterKeys(place, copies.places, newName);
+        const value = reference.moved(moved);
         return [{ kind: "set", file: place.span.file, path: at, value, was: place.written }];
     });
     return { ops: [...keys, ...references], alsoAffects: copies.alsoAffects, moved };
@@ -65,27 +62,6 @@ export function rename(project: Project, path: string, newName: string): OpResul
 
 function taken(doc: Document, path: string): boolean {
     return doc.permutations.some((perm) => (token(perm, path) ?? group(perm, path)) !== undefined);
-}
-
-function referencesTo(project: Project, path: string): Place[] {
-    const reaches = (target: string) => target === path || pathBelow(target, path) !== undefined;
-    const spans = project.doc.permutations.flatMap((perm) => [
-        ...perm.edges.filter(({ to }) => reaches(to)).map(({ at }) => at),
-        ...perm.groups.flatMap(({ extends: extended }) =>
-            extended && reaches(extended.path) ? [extended.at] : [],
-        ),
-    ]);
-    return unique(spans).flatMap((span) => placeOf(project, span) ?? []);
-}
-
-function movedWritten(written: Json, moved: Move[]): Json | undefined {
-    if (typeof written === "string" && written.startsWith("#")) {
-        return movedReference({ pointer: written }, moved).pointer;
-    }
-    const ref = readReference(written);
-    if (ref === undefined) return undefined;
-    if ("alias" in ref) return `{${movedReference(ref, moved).alias}}`;
-    return { $ref: movedReference(ref, moved).pointer };
 }
 
 function afterKeys(place: Place, keys: Place[], name: string): Place["path"] {

@@ -80,7 +80,7 @@ export type OpResult =
            * those.
            */
           alsoAffects: Input[];
-          /** References left pointing at nothing, after a {@link remove}. */
+          /** The tokens and groups left referring to nothing, after a {@link remove}. */
           broken?: string[];
           /** Tokens and groups whose path changed, such as after a {@link rename}. Empty when none did. */
           moved: Move[];

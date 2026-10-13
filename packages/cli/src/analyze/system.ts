@@ -1,7 +1,13 @@
-import { type Permutation, type Token, defaultPermutation } from "@sugarcube-sh/dtcg";
+import {
+    type Document,
+    type Permutation,
+    type Token,
+    defaultPermutation,
+} from "@sugarcube-sh/dtcg";
 import type { Built } from "../build.js";
 
 export interface System {
+    doc: Document;
     permutations: Permutation[];
     tokens: Map<string, Token>;
     defaultPermutation?: Permutation;
@@ -17,6 +23,7 @@ export function systemOf({ doc, declared }: Built): System {
     }
     const fallback = defaultPermutation(doc);
     return {
+        doc,
         permutations,
         tokens,
         ...(fallback && permutations.includes(fallback) && { defaultPermutation: fallback }),

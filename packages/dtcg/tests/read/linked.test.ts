@@ -148,12 +148,13 @@ describe("the plain form", () => {
         expect(() => JSON.stringify(doc)).not.toThrow();
     });
 
-    it("writes a token without its group or kind", () => {
+    it("writes a token without its group, permutation or kind", () => {
         const bg = token(doc, "color.bg");
         const written = plain(bg);
         expect(written).not.toHaveProperty("group");
         expect(written).not.toHaveProperty("kind");
-        expect(written).toStrictEqual(plain({ ...bg, group: undefined }));
+        expect(written).not.toHaveProperty("permutation");
+        expect(written).toStrictEqual(plain({ ...bg, group: undefined, permutation: undefined }));
     });
 
     it("writes a group's children as their paths, without its root token or kind", () => {

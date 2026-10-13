@@ -6,7 +6,7 @@ describe("parseValue", () => {
         expect(parseValue("number", 1.5, [])).toStrictEqual({ ok: true, value: 1.5, ignored: [] });
         expect(parseValue("number", "{ratio.golden}", [])).toStrictEqual({
             ok: true,
-            value: { alias: "ratio.golden" },
+            value: { syntax: "curly-brace", path: "ratio.golden" },
             ignored: [],
         });
     });

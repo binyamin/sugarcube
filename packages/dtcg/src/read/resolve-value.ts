@@ -13,7 +13,7 @@ import type { MergedToken, Merged } from "./merge.js";
 import { type Occurrence, occurrence } from "./occurrence.js";
 import type { LocatedReference, ValueReader } from "./parse-value.js";
 import { refSteps } from "./pointer.js";
-import { reach } from "./ref-meaning.js";
+import { reach, stepInto } from "./ref-meaning.js";
 
 export const UNRESOLVED = Symbol("unresolved");
 
@@ -103,8 +103,8 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
             ? syntax.adjust(part)
             : part;
 
-    if ("alias" in ref) {
-        const target = { path: ref.alias, shown: ref.alias };
+    if (ref.syntax === "curly-brace") {
+        const target = { path: ref.path, shown: ref.path };
         return adjusted(substitute(resolving, token, target, expected, use, element));
     }
 
@@ -123,14 +123,15 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
     };
     if (reached.kind === "group" || reached.kind === "nothing") return unreachable();
 
-    const whole = reached.kind === "token" || reached.inside.length === 0;
+    const whole = reached.kind === "token";
     if (whole && (syntax.kind === "ofType" || element)) {
         const target = { path: reached.path, shown: written };
         return adjusted(substitute(resolving, token, target, expected, use, element));
     }
     const { authored } = reached.token;
-    const raw = whole ? authored : stepInto(authored, reached.inside);
-    if (raw === UNRESOLVED) return unreachable();
+    const stepped = whole ? { value: authored } : stepInto(authored, reached.inside);
+    if (!stepped) return unreachable();
+    const raw = stepped.value;
 
     const place = { syntax, at, owner, element };
     const { result, notes } = readValue.readTarget(token, place, raw, permutation);
@@ -191,18 +192,6 @@ function replaced(value: unknown, place: JsonPath, part: unknown): unknown {
         return { ...value, [step]: replaced(value[step], rest, part) };
     }
     return value;
-}
-
-function stepInto(raw: unknown, steps: string[]): unknown {
-    let current = raw;
-    for (const step of steps) {
-        if (Array.isArray(current) && /^(?:0|[1-9]\d*)$/.test(step)) {
-            current = current[Number(step)];
-        } else if (isJsonObject(current) && Object.hasOwn(current, step)) current = current[step];
-        else return UNRESOLVED;
-        if (current === undefined) return UNRESOLVED;
-    }
-    return current;
 }
 
 function startsWith(path: JsonPath, start: JsonPath): boolean {

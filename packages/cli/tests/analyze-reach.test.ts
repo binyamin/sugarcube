@@ -58,6 +58,20 @@ describe("hopsTo", () => {
     it("leaves out a reference whose token the change does not reach in that permutation", () => {
         expect(hopsTo([dark], "red")).toStrictEqual([]);
     });
+
+    it("never lists the token as depending on itself, round a loop", () => {
+        const loop = readFromMemory({
+            files: {
+                "tokens.json": JSON.stringify({
+                    a: { $type: "number", $value: "{b}" },
+                    b: { $type: "number", $value: "{a}" },
+                }),
+            },
+        });
+        expect(hopsTo(loop.permutations, "a")).toStrictEqual([
+            { from: "b", to: "a", in: loop.permutations },
+        ]);
+    });
 });
 
 describe("parentsOf", () => {

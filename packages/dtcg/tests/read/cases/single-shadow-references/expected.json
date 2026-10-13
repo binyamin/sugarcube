@@ -1,41 +1,56 @@
 {
   "entry": "tokens.json",
-  "spec": "Format 9.6: a single shadow is read as a list of one, so a reference in it is at [0, …] in the value, but it is written without [0]. Each reference's edge and each problem with one is placed where the file writes it",
+  "spec": "Format 9.6: a single shadow is read as a list of one, so a reference in it is at [0, …] in the value, but it is written without [0]. Each reference, and each problem with one, is placed where the file writes it",
   "permutations": [
     {
-      "edges": [
+      "tokens": [
         {
-          "from": "lifted",
-          "to": "color.ink",
-          "at": {
-            "file": "tokens.json",
-            "text": "\"{color.ink}\""
-          }
+          "path": "color.ink"
         },
         {
-          "from": "lifted",
-          "to": "space.sm",
-          "at": {
-            "file": "tokens.json",
-            "text": "{ \"$ref\": \"#/space/sm/$value\" }"
-          }
+          "path": "space.sm"
         },
         {
-          "from": "lifted",
-          "to": "color.ink",
-          "at": {
-            "file": "tokens.json",
-            "text": "\"{color.ink}\"",
-            "occurrence": 2
-          }
-        },
-        {
-          "from": "lifted",
-          "to": "space.missing",
-          "at": {
-            "file": "tokens.json",
-            "text": "\"{space.missing}\""
-          }
+          "path": "lifted",
+          "references": [
+            {
+              "syntax": "curly-brace",
+              "path": "color.ink",
+              "span": {
+                "file": "tokens.json",
+                "text": "\"{color.ink}\""
+              },
+              "property": [0, "color"]
+            },
+            {
+              "syntax": "json-pointer",
+              "pointer": "#/space/sm/$value",
+              "span": {
+                "file": "tokens.json",
+                "text": "{ \"$ref\": \"#/space/sm/$value\" }"
+              },
+              "property": [0, "offsetX"]
+            },
+            {
+              "syntax": "curly-brace",
+              "path": "color.ink",
+              "span": {
+                "file": "tokens.json",
+                "text": "\"{color.ink}\"",
+                "occurrence": 2
+              },
+              "property": [0, "offsetY"]
+            },
+            {
+              "syntax": "curly-brace",
+              "path": "space.missing",
+              "span": {
+                "file": "tokens.json",
+                "text": "\"{space.missing}\""
+              },
+              "property": [0, "blur"]
+            }
+          ]
         }
       ]
     }

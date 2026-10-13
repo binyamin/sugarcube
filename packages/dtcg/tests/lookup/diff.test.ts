@@ -565,14 +565,32 @@ describe("sameValue", () => {
     });
 
     it("compares references as references", () => {
-        expect(sameValue("dimension", { alias: "space.sm" }, { alias: "space.sm" })).toBe(true);
-        expect(sameValue("dimension", { alias: "space.sm" }, { alias: "space.md" })).toBe(false);
-        expect(sameValue("dimension", { alias: "space.sm" }, { value: 4, unit: "px" })).toBe(false);
         expect(
             sameValue(
                 "dimension",
-                { pointer: "#/space/sm/$value" },
-                { pointer: "#/space/sm/$value" },
+                { syntax: "curly-brace", path: "space.sm" },
+                { syntax: "curly-brace", path: "space.sm" },
+            ),
+        ).toBe(true);
+        expect(
+            sameValue(
+                "dimension",
+                { syntax: "curly-brace", path: "space.sm" },
+                { syntax: "curly-brace", path: "space.md" },
+            ),
+        ).toBe(false);
+        expect(
+            sameValue(
+                "dimension",
+                { syntax: "curly-brace", path: "space.sm" },
+                { value: 4, unit: "px" },
+            ),
+        ).toBe(false);
+        expect(
+            sameValue(
+                "dimension",
+                { syntax: "json-pointer", pointer: "#/space/sm/$value" },
+                { syntax: "json-pointer", pointer: "#/space/sm/$value" },
             ),
         ).toBe(true);
     });

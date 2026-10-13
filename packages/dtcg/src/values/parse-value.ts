@@ -7,12 +7,11 @@ import type {
     ValueByType,
 } from "../index.js";
 import { type Notes, readToken } from "./read-syntax.js";
-import { isAlias } from "./references.js";
 import { valueError } from "./value-errors.js";
 
 /**
  * Reads one value of a type given at run time, with that type's parser. A reference is read as
- * an `Alias` or `Pointer`, as the parsers read it.
+ * a `WrittenReference`, as the parsers read it.
  *
  * @example
  * parseValue(token.type, input, [])
@@ -53,7 +52,7 @@ export function parseValue<T extends TokenType>(
         valueError(written, {
             type,
             reason: "reference-not-allowed",
-            reference: isAlias(ref) ? `{${ref.alias}}` : ref.pointer,
+            reference: ref.syntax === "curly-brace" ? `{${ref.path}}` : ref.pointer,
         }),
     );
     return { ok: false, errors, ignored: read.ignored };
