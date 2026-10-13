@@ -1,5 +1,14 @@
 import { diagnosticMessages } from "../error-messages.js";
-import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind, Input } from "../index.js";
+import type {
+    Diagnostic,
+    DiagnosticDetailByKind,
+    DiagnosticKind,
+    Input,
+    Permutations,
+} from "../index.js";
+import { permutationsOf } from "./linked.js";
+
+const foundIn = new WeakMap<Diagnostic, Input[]>();
 
 export type DiagnosticExtra = Partial<Pick<Diagnostic, "span" | "path" | "related" | "tags">> & {
     permutation?: Input;
@@ -11,15 +20,16 @@ export function diagnostic<K extends DiagnosticKind>(
     { permutation, ...extra }: DiagnosticExtra = {},
 ): Diagnostic {
     const { severity, message } = diagnosticMessages[kind];
-    return {
+    const made = {
         kind,
         severity: typeof severity === "function" ? severity(detail) : severity,
         message: message(detail),
         ...extra,
-        ...(permutation !== undefined && { permutations: [permutation] }),
         docs: docsFor(kind, detail),
         detail,
     } as Diagnostic;
+    if (permutation !== undefined) foundIn.set(made, [permutation]);
+    return made;
 }
 
 function docsFor<K extends DiagnosticKind>(kind: K, detail: DiagnosticDetailByKind[K]): string {
@@ -38,20 +48,23 @@ export function onceEach(diagnostics: Diagnostic[]): Diagnostic[] {
     });
 }
 
-export function collapse(diagnostics: Diagnostic[], inputs: Input[]): Diagnostic[] {
+export function collapse(diagnostics: Diagnostic[], permutations: Permutations): Diagnostic[] {
     const alike = new Map<string, Diagnostic>();
     for (const found of diagnostics) {
-        const key = JSON.stringify({ ...found, permutations: undefined });
+        const key = JSON.stringify(found);
         const earlier = alike.get(key);
+        const theirs = foundIn.get(found);
+        const ours = earlier && foundIn.get(earlier);
         if (!earlier) alike.set(key, found);
-        else if (earlier.permutations && found.permutations) {
-            const both = new Set([...earlier.permutations, ...found.permutations]);
-            earlier.permutations = inputs.filter((input) => both.has(input));
-        }
+        else if (ours && theirs) foundIn.set(earlier, [...ours, ...theirs]);
     }
     const collapsed = [...alike.values()];
     for (const found of collapsed) {
-        if (found.permutations?.length === inputs.length) delete found.permutations;
+        const inputs = foundIn.get(found);
+        const narrowed = permutations.filter(({ input }) => inputs?.includes(input));
+        if (inputs && narrowed.length < permutations.length) {
+            found.permutations = permutationsOf(narrowed, permutations);
+        }
     }
     return collapsed;
 }

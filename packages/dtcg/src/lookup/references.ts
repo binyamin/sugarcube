@@ -9,6 +9,7 @@ import type {
     Token,
 } from "../index.js";
 import { within } from "../path.js";
+import { permutationsOf } from "../read/linked.js";
 import { acrossPermutations } from "../read/reference.js";
 
 interface WrittenIn {
@@ -106,16 +107,16 @@ function across(
     ds: DesignSystem,
     inPermutation: (permutation: Permutation) => Reference[],
 ): ReferenceInPermutations[] {
-    const merged = new Map<Span, ReferenceInPermutations>();
+    const merged = new Map<Span, { reference: Reference; permutations: Permutation[] }>();
     for (const permutation of ds.permutations) {
         for (const reference of inPermutation(permutation)) {
             const found = merged.get(reference.span);
-            if (!found)
-                merged.set(reference.span, acrossPermutations(reference, permutation.input));
-            else if (!found.permutations.includes(permutation.input)) {
-                found.permutations.push(permutation.input);
-            }
+            if (!found) merged.set(reference.span, { reference, permutations: [permutation] });
+            else if (!found.permutations.includes(permutation))
+                found.permutations.push(permutation);
         }
     }
-    return [...merged.values()];
+    return [...merged.values()].map(({ reference, permutations }) =>
+        acrossPermutations(reference, permutationsOf(permutations, ds.permutations)),
+    );
 }

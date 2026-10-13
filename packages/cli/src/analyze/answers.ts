@@ -1,4 +1,4 @@
-import type { DesignSystem, Input, Permutation, Token } from "@sugarcube-sh/dtcg";
+import type { DesignSystem, Permutation, Permutations, Token } from "@sugarcube-sh/dtcg";
 import type { Use, Uses } from "./uses.js";
 
 export interface Analysis {
@@ -48,7 +48,7 @@ export function tokenAt(ds: DesignSystem, path: string): Token | "group" | undef
 
 interface Named {
     path: string;
-    permutations: Input[];
+    permutations: Permutations;
 }
 
 export function impact({ ds, uses }: Analysis, token: Token): Impact {
@@ -67,7 +67,7 @@ export function impact({ ds, uses }: Analysis, token: Token): Impact {
 function dependent(ds: DesignSystem, path: string, references: Named[]): Dependent {
     const paths = (named: Named[]) => [...new Set(named.map((each) => each.path))].sort();
     const namedIn = (permutation: Permutation) =>
-        paths(references.filter(({ permutations }) => permutations.includes(permutation.input)));
+        paths(references.filter(({ permutations }) => permutations.includes(permutation)));
     const found: Dependent = { path, references: paths(references) };
     const defaultTheme = ds.permutations.find((each) => each.isDefault);
     const [inDefault] = defaultTheme ? namedIn(defaultTheme) : [];

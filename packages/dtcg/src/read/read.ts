@@ -13,7 +13,7 @@ import { fileName, filePath, folderOf, normalise } from "./paths.js";
 import { parseJson } from "./json.js";
 import { isResolver } from "./resolver.js";
 import { thrownMessages } from "../error-messages.js";
-import { linkedDocument } from "./linked.js";
+import { linkedDocument, permutationsOf } from "./linked.js";
 
 const { performance } = globalThis as unknown as { performance: { now(): number } };
 
@@ -205,7 +205,8 @@ function toDesignSystem(
     const resolving = performance.now();
     onStage?.("generate", generating);
     onStage?.("normalise", resolving - normalising - generating);
-    const permutations = resolvePermutations(normalised, readValue, found);
+    const resolved = resolvePermutations(normalised, readValue, found);
+    const permutations = permutationsOf(resolved, resolved);
     onStage?.("resolve", performance.now() - resolving);
     validateExtensions(
         normalised,
@@ -220,12 +221,6 @@ function toDesignSystem(
         sources,
         permutations,
         parseOptions,
-        diagnostics: [
-            ...loaded.diagnostics,
-            ...collapse(
-                found,
-                permutations.map(({ input }) => input),
-            ),
-        ],
+        diagnostics: [...loaded.diagnostics, ...collapse(found, permutations)],
     });
 }

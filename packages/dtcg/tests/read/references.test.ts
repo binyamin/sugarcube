@@ -312,10 +312,12 @@ describe("moved", () => {
 describe("on the design system", () => {
     it("referencedBy gives every reference to a path, each with the permutations it is in", () => {
         const reaching = doc.referencedBy("color.red");
-        expect(reaching.map(({ from, permutations }) => [from, permutations])).toStrictEqual([
-            ["color.brand", [{ mode: "light" }]],
-            ["color.tint", [{ mode: "light" }, { mode: "dark" }]],
-        ]);
+        expect(reaching.map(({ from, permutations }) => [from, permutations.inputs])).toStrictEqual(
+            [
+                ["color.brand", [{ mode: "light" }]],
+                ["color.tint", [{ mode: "light" }, { mode: "dark" }]],
+            ],
+        );
         expect(reaching[0]).not.toHaveProperty("token");
         expect(reaching[0] && written(reaching[0].span)).toBe('"{color.red}"');
     });
@@ -323,7 +325,7 @@ describe("on the design system", () => {
     it("references gives the references a path writes, in every permutation", () => {
         const writes = doc.references("color.brand");
         expect(
-            writes.map(({ path, span, permutations }) => [path, span.file, permutations]),
+            writes.map(({ path, span, permutations }) => [path, span.file, permutations.inputs]),
         ).toStrictEqual([
             ["color.red", "base.json", [{ mode: "light" }]],
             ["color.blue", "dark.json", [{ mode: "dark" }]],

@@ -1,3 +1,4 @@
+import type { Permutations } from "@sugarcube-sh/dtcg";
 import type { Reported } from "../src/types/diagnostics.js";
 import { describe, expect, it } from "vitest";
 import { type Where, problemCount, problemLines, problemsText } from "../src/shared/problems.js";
@@ -47,9 +48,13 @@ function ignored(place: ReturnType<typeof spanAt>): Reported {
 
 const hex = value("`#000` is not a six-digit hex color", spanAt("base.json", 6, 81));
 const missing = missingReference("color.inc", spanAt("base.json", 7, 25));
+function themes(label: string): Permutations {
+    return Object.assign([], { label, inputs: [] }) as unknown as Permutations;
+}
+
 const darkOnly = {
     ...missingReference("color.brnd", spanAt("dark.json", 1, 54)),
-    permutations: [{ theme: "dark" }, { theme: "dim" }],
+    permutations: themes("theme: dark, dim"),
 };
 const polyfill: Reported = {
     kind: "option-deprecated",
@@ -77,23 +82,10 @@ describe("problemLines", () => {
         ]);
     });
 
-    it("names the permutations when only some have the problem, each by its label", () => {
+    it("names the permutations by their label when only some have the problem", () => {
         expect(problemLines([darkOnly], where, { colors: false })).toStrictEqual([
-            "tokens/dark.json:1:54  error  `color.brnd` does not exist  in theme: dark; theme: dim  missing-reference",
+            "tokens/dark.json:1:54  error  `color.brnd` does not exist  in theme: dark, dim  missing-reference",
         ]);
-    });
-
-    it("names a permutation by its whole label, every modifier included", () => {
-        const some = {
-            ...darkOnly,
-            permutations: [
-                { theme: "dark", size: "large" },
-                { theme: "light", size: "default" },
-            ],
-        };
-        expect(problemLines([some], where, { colors: false })[0]).toContain(
-            "in theme: dark, size: large; theme: light, size: default  ",
-        );
     });
 
     it("leaves the place empty for a config problem when there is no config file", () => {

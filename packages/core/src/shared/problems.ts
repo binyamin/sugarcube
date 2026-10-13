@@ -1,4 +1,4 @@
-import { type Span, filePath, permutationLabel } from "@sugarcube-sh/dtcg";
+import { type Span, filePath } from "@sugarcube-sh/dtcg";
 import { relative } from "pathe";
 import color from "picocolors";
 import type { Reported } from "../types/diagnostics.js";
@@ -58,7 +58,7 @@ export function problemLines(
         hint: colors.cyan,
     };
     return placed.flatMap(({ problem, place }) => {
-        const some = problem.permutations?.map(permutationLabel).join("; ") ?? "";
+        const some = problem.permutations?.label ?? "";
         const words: Word[] = [
             ...problem.message.split(" ").map((text) => ({ text })),
             ...(some ? [{ text: `in ${some}`, apart: true, dim: true }] : []),

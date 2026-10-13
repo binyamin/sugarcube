@@ -58,7 +58,7 @@ export function defineExtensionValidator<
 
 export function validateExtensions(
     normalised: NormalisedPermutation[],
-    permutations: Permutation[],
+    permutations: readonly Permutation[],
     { validators, parseOptions }: { validators: ExtensionValidator[]; parseOptions: ParseOptions },
     diagnostics: Diagnostic[],
 ): void {

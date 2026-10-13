@@ -1,9 +1,9 @@
 import type {
     Group,
-    Input,
     JsonPath,
     JsonValue,
     Move,
+    Permutations,
     Reference,
     ReferenceInPermutations,
     Span,
@@ -40,8 +40,8 @@ class CurlyBraceReferenceIn {
         return writtenAfter(this, moves, false);
     }
 
-    across(input: Input): ReferenceAcrossPermutations {
-        return new ReferenceAcrossPermutations(this, input, false);
+    across(permutations: Permutations): ReferenceAcrossPermutations {
+        return new ReferenceAcrossPermutations(this, permutations, false);
     }
 
     toJSON() {
@@ -83,8 +83,8 @@ class JsonPointerReferenceIn {
         return writtenAfter(this, moves, this.#pointerAlone);
     }
 
-    across(input: Input): ReferenceAcrossPermutations {
-        return new ReferenceAcrossPermutations(this, input, this.#pointerAlone);
+    across(permutations: Permutations): ReferenceAcrossPermutations {
+        return new ReferenceAcrossPermutations(this, permutations, this.#pointerAlone);
     }
 
     toJSON() {
@@ -104,10 +104,10 @@ class ReferenceAcrossPermutations {
     readonly targetProperty: JsonPath | undefined;
     readonly span: Span;
     readonly property: JsonPath | undefined;
-    readonly permutations: Input[];
+    readonly permutations: Permutations;
     readonly #pointerAlone: boolean;
 
-    constructor(reference: ReferenceIn, input: Input, alone: boolean) {
+    constructor(reference: ReferenceIn, permutations: Permutations, alone: boolean) {
         this.syntax = reference.syntax;
         this.path = reference.path;
         this.pointer = reference.syntax === "json-pointer" ? reference.pointer : undefined;
@@ -116,7 +116,7 @@ class ReferenceAcrossPermutations {
             reference.syntax === "json-pointer" ? reference.targetProperty : undefined;
         this.span = reference.span;
         this.property = reference.property;
-        this.permutations = [input];
+        this.permutations = permutations;
         this.#pointerAlone = alone;
     }
 
@@ -139,8 +139,11 @@ export function linkedReference(
     return made as unknown as Reference;
 }
 
-export function acrossPermutations(reference: Reference, input: Input): ReferenceInPermutations {
-    const across = (reference as unknown as ReferenceIn).across(input);
+export function acrossPermutations(
+    reference: Reference,
+    permutations: Permutations,
+): ReferenceInPermutations {
+    const across = (reference as unknown as ReferenceIn).across(permutations);
     return across as unknown as ReferenceInPermutations;
 }
 

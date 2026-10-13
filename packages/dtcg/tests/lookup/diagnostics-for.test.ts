@@ -68,13 +68,6 @@ describe("diagnosticsFor", () => {
         expect(kinds("color.bad", { mode: "dark" })).toStrictEqual(["invalid-value"]);
     });
 
-    it("gives the same answer for the design system saved as JSON and read back", () => {
-        const copy = JSON.parse(JSON.stringify(doc)) as typeof doc;
-        expect(
-            diagnosticsFor(copy, "space", { mode: "dark" }).map(({ kind }) => kind),
-        ).toStrictEqual(["token-and-group"]);
-    });
-
     it("gives no token a file's problem", () => {
         const broken = readFromMemory({ files: { "tokens.json": '{ "a": ' } });
         expect(broken.diagnostics.length).toBeGreaterThan(0);

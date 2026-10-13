@@ -267,7 +267,7 @@ export interface ReferenceBase {
 export type ReferenceInPermutations = Omit<ReferenceBase, "from" | "token" | "moved"> &
     (CurlyBraceReference | (JsonPointerReference & { path?: string })) & {
         from: string;
-        permutations: Input[];
+        permutations: Permutations;
         moved(moves: readonly Move[]): JsonValue;
     };
 
@@ -769,7 +769,7 @@ export interface Place {
 export interface PlaceInPermutations {
     span: Span;
     sources: Source[];
-    permutations: Input[];
+    permutations: Permutations;
 }
 
 /**
@@ -1296,14 +1296,14 @@ export type DiagnosticOf<DetailByKind> = {
         /** The token or group it concerns. */
         path?: string;
         /**
-         * The inputs of the permutations that have it, in the order of
-         * {@link DesignSystem.permutations}, when only some do. Absent when every permutation has
-         * it, or it concerns none, such as a file that is not valid JSON.
+         * The permutations that have it, when only some do. Absent when every permutation has it,
+         * or it concerns none, such as a file that is not valid JSON.
          *
          * @example
-         * diagnostic.permutations // [{ mode: "dark" }]
+         * const where = diagnostic.permutations?.label;
+         * show(where ? `${diagnostic.message} in ${where}` : diagnostic.message);
          */
-        permutations?: Input[];
+        permutations?: Permutations;
         /** Other places involved, such as every token that uses a missing one. */
         related?: { message: string; span: Span }[];
         /** How an editor may show it: struck through for a deprecated reference. */
@@ -1340,7 +1340,8 @@ export interface DesignSystem {
      * permutation's {@link Permutation.sources | sources} are among these, the same objects.
      */
     sources: Source[];
-    permutations: Permutation[];
+    /** Every permutation the read built, in the order it built them; with no label. */
+    permutations: Permutations;
     /**
      * How the values were read. To read a value from the design system again, such as one inside
      * `$extensions`, the same way, give these to `parseValue` or `extensionReader`.
@@ -1417,6 +1418,29 @@ export interface DesignSystem {
      * if (ds.has("color.danger")) refuse("taken");
      */
     has(path: string): boolean;
+}
+
+/**
+ * Some of a design system's permutations, in its order: the ones an answer, a problem or the design
+ * system itself covers. A read-only list, so `find`, `map`, `includes` and `length` work as on any
+ * array, with the inputs and a label beside it.
+ *
+ * @example
+ * for (const { from, permutations } of ds.referencedBy("color.red")) {
+ *   row(from, permutations.label ?? "");   // "mode: dark, sepia", or nothing when it's everywhere
+ * }
+ */
+export interface Permutations extends ReadonlyArray<Permutation> {
+    /** Each permutation's input, in the same order. */
+    readonly inputs: Input[];
+    /**
+     * The contexts that narrow it, each modifier with the contexts it keeps, such as
+     * `"mode: dark, sepia"` or `"mode: dark, density: compact"`; a modifier that narrows nothing
+     * among the permutations read is left out. Each permutation's own label, joined with `"; "`,
+     * when it is not one choice of contexts per modifier. Absent when it is every permutation the
+     * read built: nothing narrows it.
+     */
+    readonly label: string | undefined;
 }
 
 /**

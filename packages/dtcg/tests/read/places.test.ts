@@ -154,7 +154,9 @@ describe("a group's writtenAt", () => {
 describe("on the design system", () => {
     it("writtenAt gives every place a path is written, in any permutation, each once with where", () => {
         const places = doc.writtenAt("color.bg");
-        expect(places.map(({ span, permutations }) => [span.file, permutations])).toStrictEqual([
+        expect(
+            places.map(({ span, permutations }) => [span.file, permutations.inputs]),
+        ).toStrictEqual([
             ["base.json", [{ mode: "light" }, { mode: "dark" }]],
             ["dark.json", [{ mode: "dark" }]],
         ]);
@@ -199,7 +201,7 @@ describe("on the design system, a file several contexts list", () => {
         expect(rest).toStrictEqual([]);
         expect(night?.span.file).toBe("night.json");
         expect(night?.sources.map(({ context }) => context?.name)).toStrictEqual(["dark", "dim"]);
-        expect(night?.permutations).toStrictEqual([{ mode: "dark" }, { mode: "dim" }]);
+        expect(night?.permutations.inputs).toStrictEqual([{ mode: "dark" }, { mode: "dim" }]);
     });
 });
 

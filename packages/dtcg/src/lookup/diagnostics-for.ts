@@ -1,5 +1,5 @@
 import type { Diagnostic, DesignSystem, Input } from "../index.js";
-import { findPermutation, sameInput } from "./permutation.js";
+import { findPermutation } from "./permutation.js";
 
 /**
  * The diagnostics about one token or group, for showing on its own page: those at its path, and
@@ -18,9 +18,7 @@ export function diagnosticsFor(ds: DesignSystem, path: string, input?: Input): D
     return ds.diagnostics.filter(
         (found) =>
             isAbout(found, path) &&
-            (!chosen ||
-                !found.permutations ||
-                found.permutations.some((each) => sameInput(ds, each, chosen.input))),
+            (!chosen || !found.permutations || found.permutations.includes(chosen)),
     );
 }
 

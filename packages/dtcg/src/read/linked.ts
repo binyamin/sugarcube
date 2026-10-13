@@ -5,6 +5,7 @@ import type {
     JsonPath,
     Part,
     Permutation,
+    Permutations,
     Place,
     Reference,
     ReferenceOptions,
@@ -15,6 +16,7 @@ import type {
     Token,
 } from "../index.js";
 import { partsOf } from "../lookup/parts.js";
+import { labelFor } from "../lookup/permutation-label.js";
 import { modifierIn, permutationIn } from "../lookup/permutation.js";
 import { referencedByIn, referencedIn, referencesIn } from "../lookup/references.js";
 import { writtenAtIn } from "../lookup/written-at.js";
@@ -135,6 +137,9 @@ const documentShared = {
     groupPaths(this: DesignSystem) {
         return pathsIn(this, "groups");
     },
+    toJSON(this: DesignSystem) {
+        return { ...this, permutations: [...this.permutations] };
+    },
     has(this: DesignSystem, path: string) {
         return this.permutations.some(
             (each) => (each.token(path) ?? each.group(path)) !== undefined,
@@ -175,6 +180,21 @@ export function linkedPermutation(
     fields: Omit<Permutation, keyof typeof permutationShared>,
 ): Permutation {
     return Object.assign(Object.create(permutationShared), fields);
+}
+
+export function permutationsOf(list: Permutation[], all: readonly Permutation[]): Permutations {
+    let label: string | undefined | null = null;
+    const inputs = () => list.map(({ input }) => input);
+    return Object.defineProperties(list, {
+        inputs: { get: inputs },
+        label: {
+            get: () => {
+                if (label === null) label = labelFor(list, all);
+                return label;
+            },
+        },
+        toJSON: { value: inputs },
+    }) as unknown as Permutations;
 }
 
 export function withIndex(
