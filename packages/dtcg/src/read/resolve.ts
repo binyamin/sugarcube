@@ -10,7 +10,7 @@ import type {
     Reference,
     Span,
     Token,
-    TokenBase,
+    UnresolvedValue,
     TokenType,
     TopLevel,
     ValueByType,
@@ -31,7 +31,7 @@ import { type Occurrence, wholeReference } from "./occurrence.js";
 import { type Resolving, UNRESOLVED, resolveValue } from "./resolve-value.js";
 import { NO_REFERENCES, linkedGroup, linkedPermutation, linkedToken } from "./linked.js";
 import { linkedReference } from "./reference.js";
-import { parentOf, withoutRoot } from "../path.js";
+import { withoutRoot } from "../path.js";
 
 interface Resolved {
     type: TokenType;
@@ -233,22 +233,32 @@ function resolvePermutation(
     for (const group of merged.groups.values()) {
         groups.set(group.path, publicGroup(group, applying(merged, group)));
     }
-    const groupOf = (path: string) => {
-        const parent = parentOf(path);
-        return parent === undefined ? undefined : groups.get(parent);
-    };
 
     const built = new Map<string, Token>();
     const written: [Token, LocatedReference[]][] = [];
-    for (const [path, entry] of tokens) {
-        const outcome = resolveToken(entry);
-        if (outcome === "untyped") continue;
-        const group = groupOf(path);
-        const token = toToken(entry.token, outcome, merged, group, linked);
-        if (group && withoutRoot(path) === group.path) group.rootToken = token;
-        built.set(path, token);
-        if (outcome.references.length > 0) written.push([token, outcome.references]);
-    }
+    const childrenOf = (parentPath: string | undefined, parent: Group | undefined) => {
+        const children: (Token | Group)[] = [];
+        for (const path of merged.children.get(parentPath) ?? []) {
+            const entry = tokens.get(path);
+            if (entry) {
+                const outcome = resolveToken(entry);
+                if (outcome === "untyped") continue;
+                const token = toToken(entry.token, outcome, merged, parent, linked);
+                if (parent && withoutRoot(path) === parent.path) parent.rootToken = token;
+                built.set(path, token);
+                if (outcome.references.length > 0) written.push([token, outcome.references]);
+                children.push(token);
+                continue;
+            }
+            const group = groups.get(path);
+            if (!group) continue;
+            group.group = parent;
+            group.children = childrenOf(path, group);
+            children.push(group);
+        }
+        return children;
+    };
+    linked.children = childrenOf(undefined, undefined);
 
     const referenceOf = (
         from: Token | Group,
@@ -292,19 +302,6 @@ function resolvePermutation(
         });
     }
 
-    const childrenOf = (parent: string | undefined) => {
-        const children: (Token | Group)[] = [];
-        for (const path of merged.children.get(parent) ?? []) {
-            const child = built.get(path) ?? groups.get(path);
-            if (child) children.push(child);
-        }
-        return children;
-    };
-    for (const group of groups.values()) {
-        group.group = groupOf(group.path);
-        group.children = childrenOf(group.path);
-    }
-    linked.children = childrenOf(undefined);
     linked.tokens = [...built.values()];
     linked.groups = [...groups.values()];
     return linked;
@@ -362,31 +359,29 @@ function toToken<T extends TokenType>(
     group: Group | undefined,
     permutation: Permutation,
 ): Token {
-    const deprecated = inherited(token, merged, "deprecated");
-    const built: Omit<TokenBase<T>, "kind" | "referenceAt" | "referencedBy" | "aliasChain"> = {
+    const { read } = outcome;
+    return linkedToken({
         path: token.path,
+        type: outcome.type,
         group,
         permutation,
         references: NO_REFERENCES,
-        type: outcome.type,
-        ...(token.description !== undefined && { description: token.description }),
-        ...(deprecated !== undefined && { deprecated }),
-        ...(token.extensions && { extensions: token.extensions }),
         source: { index: token.piece.source, at: token.at },
-        ...(token.replaces && { replaces: token.replaces }),
-        ...(!token.added && {
-            authored: {
-                value: token.authored,
-                ...publicProperties({ type: token.type, deprecated: token.deprecated }),
-            },
-        }),
-        ...(token.generated && { generated: token.generated }),
-        ...(token.inherited && { inherited: token.inherited }),
-    };
-    if (!outcome.read.ok) built.invalid = true;
-    else {
-        built.value = outcome.read.value as TokenBase<T>["value"];
-        if ("resolved" in outcome) built.resolved = outcome.resolved as ValueByType[T];
-    }
-    return linkedToken(built as Parameters<typeof linkedToken>[0]);
+        value: read.ok ? (read.value as UnresolvedValue<T>) : undefined,
+        resolved:
+            read.ok && "resolved" in outcome ? (outcome.resolved as ValueByType[T]) : undefined,
+        invalid: read.ok ? undefined : true,
+        description: token.description,
+        deprecated: inherited(token, merged, "deprecated"),
+        extensions: token.extensions,
+        replaces: token.replaces,
+        authored: token.added
+            ? undefined
+            : {
+                  value: token.authored,
+                  ...publicProperties({ type: token.type, deprecated: token.deprecated }),
+              },
+        generated: token.generated,
+        inherited: token.inherited,
+    } as Parameters<typeof linkedToken>[0]);
 }
