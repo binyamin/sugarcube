@@ -3,22 +3,19 @@
 // can being used as the font size of a typography token or the width of a border.
 import {
     defaultPermutation,
-    group,
     isAlias,
     isPointer,
     token,
     type Document,
+    type Group,
+    type Token,
 } from "@sugarcube-sh/dtcg";
 
 declare const doc: Document;
 
 function declared(path: string): string | undefined {
-    const parts = path.split(".");
-    for (let depth = parts.length; depth > 0; depth--) {
-        const at = parts.slice(0, depth).join(".");
-        const extensions =
-            depth === parts.length ? token(doc, at)?.extensions : group(doc, at)?.extensions;
-        const setting = extensions?.["com.example"] as { measures?: string } | undefined;
+    for (let at: Token | Group | undefined = token(doc, path); at; at = at.group) {
+        const setting = at.extensions?.["com.example"] as { measures?: string } | undefined;
         if (setting?.measures) return setting.measures;
     }
     return undefined;

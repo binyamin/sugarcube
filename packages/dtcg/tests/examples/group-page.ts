@@ -4,7 +4,6 @@ import {
     acrossPermutations,
     defaultPermutation,
     group,
-    token,
     tokensIn,
     type Document,
 } from "@sugarcube-sh/dtcg";
@@ -16,12 +15,11 @@ const base = defaultPermutation(doc);
 const children = (base && group(base, path)?.children) ?? [];
 
 for (const child of children) {
-    if (base && group(base, child)) row(child, tokensIn(base, child).length);
+    if (base && child.kind === "group") row(child.path, tokensIn(base, child.path).length);
 }
 
-for (const child of children) {
-    const t = base && token(base, child);
-    if (!t) continue;
+for (const t of children) {
+    if (t.kind !== "token") continue;
     const overrides = acrossPermutations(doc, t.path)
         .filter(({ from }) => from && "modifier" in from)
         .map(({ permutation, token: there }) => `${permutation.label} in ${there.source.at.file}`);

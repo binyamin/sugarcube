@@ -26,6 +26,8 @@ import { reach, wholeValueTarget } from "./ref-meaning.js";
 import { similarName } from "./similar.js";
 import { type Occurrence, wholeReference } from "./occurrence.js";
 import { type Resolving, UNRESOLVED, resolveValue } from "./resolve-value.js";
+import { linkedGroup, linkedPermutation, linkedToken } from "./linked.js";
+import { parentOf, withoutRoot } from "../path.js";
 
 interface Resolved {
     type: TokenType;
@@ -211,12 +213,24 @@ function resolvePermutation(
         reportUnreachable,
     };
 
-    const built: Token[] = [];
+    const groups = new Map<string, Group>();
+    for (const group of merged.groups.values()) {
+        groups.set(group.path, publicGroup(group, applying(merged, group)));
+    }
+    const groupOf = (path: string) => {
+        const parent = parentOf(path);
+        return parent === undefined ? undefined : groups.get(parent);
+    };
+
+    const built = new Map<string, Token>();
     const edges: Edge[] = [];
     for (const [path, entry] of tokens) {
         const outcome = resolveToken(entry);
         if (outcome === "untyped") continue;
-        built.push(toToken(entry.token, outcome, merged));
+        const group = groupOf(path);
+        const token = toToken(entry.token, outcome, merged, group);
+        if (group && withoutRoot(path) === group.path) group.rootToken = token;
+        built.set(path, token);
         for (const { occurrence } of outcome.references) {
             edges.push({ from: path, to: targetOf(occurrence, merged), at: occurrence.at });
         }
@@ -237,23 +251,29 @@ function resolvePermutation(
         });
     }
 
-    const kept = new Set(built.map(({ path }) => path));
-    const childrenOf = (parent: string | undefined) =>
-        (merged.children.get(parent) ?? []).filter(
-            (path) => kept.has(path) || merged.groups.has(path),
-        );
-    const toGroup = (group: MergedGroup) =>
-        publicGroup(group, applying(merged, group), childrenOf(group.path));
+    const childrenOf = (parent: string | undefined) => {
+        const children: (Token | Group)[] = [];
+        for (const path of merged.children.get(parent) ?? []) {
+            const child = built.get(path) ?? groups.get(path);
+            if (child) children.push(child);
+        }
+        return children;
+    };
+    for (const group of groups.values()) {
+        group.group = groupOf(group.path);
+        group.children = childrenOf(group.path);
+    }
     const { input, label, sources } = permutation;
-    return {
+    return linkedPermutation({
         input,
         label,
         sources,
-        root: publicTopLevel(merged.root, childrenOf(undefined)),
-        tokens: built,
-        groups: [...merged.groups.values()].map(toGroup),
+        root: publicTopLevel(merged.root),
+        children: childrenOf(undefined),
+        tokens: [...built.values()],
+        groups: [...groups.values()],
         edges,
-    };
+    });
 }
 
 function targetOf(use: Occurrence, merged: Merged): string {
@@ -262,22 +282,22 @@ function targetOf(use: Occurrence, merged: Merged): string {
     return reached.kind === "nothing" ? use.written : reached.path;
 }
 
-function publicTopLevel(top: MergedTopLevel, children: string[]): TopLevel {
-    return { ...publicProperties(top), declaredIn: top.declaredIn, children };
+function publicTopLevel(top: MergedTopLevel): TopLevel {
+    return { ...publicProperties(top), declaredIn: top.declaredIn };
 }
 
-function publicGroup(group: MergedGroup, applies: Properties, children: string[]): Group {
+function publicGroup(group: MergedGroup, applies: Properties): Group {
     const { path, declaredIn, extendsGroup, inherited: from } = group;
     const authored = publicProperties(group);
-    return {
+    return linkedGroup({
         path,
         ...publicProperties(applies),
         declaredIn,
-        children,
+        children: [],
         ...(extendsGroup !== undefined && { extends: extendsGroup }),
         ...(from && { inherited: from }),
         ...(Object.keys(authored).length > 0 && { authored }),
-    };
+    });
 }
 
 function publicProperties({ type, description, deprecated, extensions }: Properties): Written {
@@ -293,10 +313,12 @@ function toToken<T extends TokenType>(
     token: MergedToken,
     outcome: Resolved & { type: T },
     merged: Merged,
+    group: Group | undefined,
 ): Token {
     const deprecated = inherited(token, merged, "deprecated");
-    const built: TokenBase<T> = {
+    const built: Omit<TokenBase<T>, "kind"> = {
         path: token.path,
+        group,
         type: outcome.type,
         ...(token.description !== undefined && { description: token.description }),
         ...(deprecated !== undefined && { deprecated }),
@@ -317,5 +339,5 @@ function toToken<T extends TokenType>(
         built.value = outcome.read.value as TokenBase<T>["value"];
         if ("resolved" in outcome) built.resolved = outcome.resolved as ValueByType[T];
     }
-    return built as Token;
+    return linkedToken(built as Omit<Token, "kind">);
 }

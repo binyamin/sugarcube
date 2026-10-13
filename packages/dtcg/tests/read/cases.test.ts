@@ -24,7 +24,8 @@ const cases = readdirSync(casesFolder, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
 
-function observed(doc: Document, expected: Expected) {
+function observed(found: Document, expected: Expected) {
+    const doc: Document = JSON.parse(JSON.stringify(found));
     return {
         entry: expected.entry,
         spec: expected.spec,

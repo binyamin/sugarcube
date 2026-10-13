@@ -419,11 +419,18 @@ export interface Span {
 
 /** What every token has, whatever its type. */
 export interface TokenBase<T extends TokenType> {
+    /** Tells a token from a group: an object with `$value` is a token (Format 6.1). */
+    readonly kind: "token";
     /**
      * Where the token sits in the tree, such as `"color.brand"`. A group's own `$root` token has
      * the path `"color.brand.$root"`, the way the spec writes a reference to it.
      */
     path: string;
+    /**
+     * The group the token is in, its parent group (Format 6.7.3); for a `$root` token, the group
+     * it is the root token of (Format 6.2). `undefined` at the top level of the files.
+     */
+    group?: Group;
     type: T;
     /**
      * The value, in one shape per type, with references kept as {@link Alias} and
@@ -496,7 +503,14 @@ export interface Written {
 
 /** A group of tokens. */
 export interface Group {
+    /** Tells a group from a token: an object without `$value` is a group (Format 6.1). */
+    readonly kind: "group";
     path: string;
+    /**
+     * The group it is in, its parent group (Format 6.7.3), as a token's
+     * {@link TokenBase.group | group} is. `undefined` at the top level of the files.
+     */
+    group?: Group;
     /**
      * The type its tokens take: its own, else the group it extends, else the group it is inside
      * (Format 6.7.3).
@@ -525,20 +539,24 @@ export interface Group {
     /** What the files write on the group itself; absent when they write none of it. */
     authored?: Written;
     /**
-     * The paths directly inside it, tokens and groups together, in the order the files write them.
-     * What a later file adds comes after what the first one wrote, and tokens it takes through
-     * `$extends` or a {@link Generator} makes come at the end. To show one, look it up.
+     * Its child tokens and nested groups (Format 6.1), together, in the order the files write
+     * them. What a later file adds comes after what the first one wrote, and tokens it takes
+     * through `$extends` or a {@link Generator} makes come at the end. Each says its
+     * {@link TokenBase.kind | kind}.
      *
      * @example
-     * for (const path of group(doc, "color")?.children ?? []) show(group(doc, path) ?? token(doc, path));
+     * for (const child of group(doc, "color")?.children ?? []) show(child.path, child.kind);
      */
-    children: string[];
+    children: (Token | Group)[];
+    /** Its root token, the token named `$root` in it (Format 6.2), when it has one. */
+    rootToken?: Token;
 }
 
 /**
- * The top level of a permutation's files: what is written there, `$type`, `$description`,
- * `$deprecated` and `$extensions`, and its {@link TopLevel.children | children}. It has no path,
- * since a group may be named `""` (Format 5.1) and so own the empty path.
+ * What is written at the top level of a permutation's files: `$type`, `$description`,
+ * `$deprecated` and `$extensions`. What sits there is the permutation's
+ * {@link Permutation.children | children}. It has no path, since a group may be named `""`
+ * (Format 5.1) and so own the empty path.
  */
 export interface TopLevel {
     type?: TokenType;
@@ -547,8 +565,6 @@ export interface TopLevel {
     extensions?: Record<string, unknown>;
     /** The top of each file that writes something there, each with its source. */
     declaredIn: { index: number; at: Span }[];
-    /** The paths written at the top of the files, tokens and groups together, in order. */
-    children: string[];
 }
 
 /**
@@ -688,8 +704,16 @@ export interface Permutation {
     label: string;
     /** Where the tokens come from, in the order they apply: a later source overrides an earlier one. */
     sources: Source[];
-    /** The top level of the files, where a tree starts. */
+    /** What is written at the top level of the files. */
     root: TopLevel;
+    /**
+     * The tokens and groups at the top level of the files, in the order they are read: where a
+     * tree starts, walked like a group's {@link Group.children | children}.
+     *
+     * @example
+     * for (const child of permutation.children) show(child);
+     */
+    children: (Token | Group)[];
     /**
      * Every token, in the order the files write them, invalid ones included. The files read as
      * one: a group's tokens stay together where the group is first written, whichever file adds
@@ -1015,8 +1039,11 @@ export { diagnosticsFor } from "./lookup/diagnostics-for.js";
 
 /**
  * A design system as the DTCG specifications define it: every permutation, with every value in
- * one shape and every reference followed. Plain data: it survives `JSON.stringify`, and nothing
- * changes it after {@link read} returns it.
+ * one shape and every reference followed. Its tokens and groups link to each other: a token's
+ * {@link TokenBase.group | group} is the group itself, a group's {@link Group.children | children}
+ * the tokens and groups themselves. `JSON.stringify` writes its plain form, with a path wherever
+ * one links to another, and leaves out what the rest says (a token's or group's `group`, a
+ * group's `rootToken`, `kind`). Nothing changes it after {@link read} returns it.
  */
 export interface Document {
     /**

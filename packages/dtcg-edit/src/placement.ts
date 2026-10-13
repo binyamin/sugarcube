@@ -196,8 +196,7 @@ function contextPlace(
     }
 
     const candidates = [...new Set(winning.map((each) => each.file))];
-    const parent = parentOf(path);
-    const declaredIn = parent === undefined ? [] : (group(perm, parent)?.declaredIn ?? []);
+    const declaredIn = written.group?.declaredIn ?? [];
     const into = chosenFile(path, candidates, declaredIn, place);
     if (typeof into !== "string") return into;
     return { token: written, into, alsoAffects: seenBy(doc, path, into, chosen) };
