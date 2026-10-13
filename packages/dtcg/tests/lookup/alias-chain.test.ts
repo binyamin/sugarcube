@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Input, permutation, readFromMemory, token } from "../../src/index.js";
+import { type Input, readFromMemory } from "../../src/index.js";
 
 const color = (value: unknown) => ({ $type: "color", $value: value });
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
@@ -41,7 +41,10 @@ const doc = readFromMemory({
 });
 
 const aliasChain = (path: string, input?: Input) =>
-    token(doc, path, input)?.aliasChain.map((each) => each.path);
+    doc
+        .permutation(input)
+        .token(path)
+        ?.aliasChain.map((each) => each.path);
 
 describe("a token's aliasChain", () => {
     it("follows whole-value references from the token to the one that holds a value", () => {
@@ -54,9 +57,9 @@ describe("a token's aliasChain", () => {
             "brand",
             "palette.rose",
         ]);
-        const dark = permutation(doc, { theme: "dark" });
-        const text = dark && token(dark, "text");
-        expect(text?.aliasChain[1]).toBe(dark && token(dark, "brand"));
+        const dark = doc.permutation({ theme: "dark" });
+        const text = dark.token("text");
+        expect(text?.aliasChain[1]).toBe(dark.token("brand"));
     });
 
     it("follows a pointer to a whole value, or to the token itself, as the read does", () => {

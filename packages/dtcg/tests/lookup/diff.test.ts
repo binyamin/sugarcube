@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
     type ColorValue,
-    type Document,
+    type DesignSystem,
     type Move,
     defineGenerator,
     diff,
     readFromMemory,
     sameValue,
-    token,
 } from "../../src/index.js";
 
 const resolver = JSON.stringify({
@@ -63,7 +62,7 @@ function changed(path: (string | number)[], value: unknown, from: object = base)
     return copy;
 }
 
-function brief(before: Document, after: Document, moved?: Move[]) {
+function brief(before: DesignSystem, after: DesignSystem, moved?: Move[]) {
     return diff(before, after, moved && { moved }).map((change) => {
         const shown: Record<string, unknown> = { kind: change.kind, path: change.path };
         if ("from" in change) shown.from = change.from;
@@ -597,9 +596,9 @@ describe("sameValue", () => {
 
     it("compares two tokens by type and by the value they say, not where it leads", () => {
         const doc = read();
-        const sm = token(doc, "space.sm");
-        const gap = token(doc, "space.gap");
-        const body = token(doc, "typography.body");
+        const sm = doc.permutation().token("space.sm");
+        const gap = doc.permutation().token("space.gap");
+        const body = doc.permutation().token("typography.body");
         if (!sm || !gap || !body) throw new Error("missing token");
         expect(sameValue(sm, structuredClone(sm))).toBe(true);
         expect(sameValue(sm, gap)).toBe(false);

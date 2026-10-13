@@ -1,4 +1,4 @@
-import { type Document, type Move, type Project, diff, movedPath } from "@sugarcube-sh/dtcg";
+import { type DesignSystem, type Move, type Project, diff, movedPath } from "@sugarcube-sh/dtcg";
 import { applyWhatFits, commit } from "./apply.js";
 import { clashesOf } from "./clashes.js";
 import type { Committed, Edits, OpResult, Session } from "./index.js";
@@ -115,7 +115,7 @@ interface Ids {
 function followed(
     ids: Ids | undefined,
     moved: Move[],
-    doc: Document,
+    doc: DesignSystem,
     counter: { made: number },
     known?: Ids,
 ): Ids {
@@ -147,7 +147,7 @@ function followed(
     return { byId, byPath };
 }
 
-function kept(moved: Move[], doc: Document): Move[] {
+function kept(moved: Move[], doc: DesignSystem): Move[] {
     const paths = pathsIn(doc);
     const later: Move[] = [];
     for (let index = moved.length - 1; index >= 0; index--) {
@@ -157,11 +157,6 @@ function kept(moved: Move[], doc: Document): Move[] {
     return later;
 }
 
-function pathsIn(doc: Document): Set<string> {
-    return new Set(
-        doc.permutations.flatMap((permutation) => [
-            ...permutation.groups.map(({ path }) => path),
-            ...permutation.tokens.map(({ path }) => path),
-        ]),
-    );
+function pathsIn(ds: DesignSystem): Set<string> {
+    return new Set([...ds.groupPaths(), ...ds.tokenPaths()]);
 }

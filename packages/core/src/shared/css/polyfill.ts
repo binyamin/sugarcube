@@ -1,4 +1,4 @@
-import { type ColorSpace, type Part, type Reference, type Token, parts } from "@sugarcube-sh/dtcg";
+import type { ColorSpace, Part, Reference, Token } from "@sugarcube-sh/dtcg";
 
 export interface Fallbacks {
     spaces: ColorSpace[];
@@ -11,7 +11,7 @@ export function fallbacksIn(from: Token, isPrivate: (each: Token) => boolean): F
     const walk = (each: Token) => {
         if (seen.has(each)) return;
         seen.add(each);
-        const whole = parts(each);
+        const whole = each.parts;
         if (whole) visit(each, whole);
     };
     const followed = (ref: Reference | undefined): boolean => {

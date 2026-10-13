@@ -1,4 +1,12 @@
-import type { Change, Input, JsonPath, Move, Project, TokenType } from "@sugarcube-sh/dtcg";
+import type {
+    Change,
+    Input,
+    JsonPath,
+    Move,
+    PermutationErrorDetail,
+    Project,
+    TokenType,
+} from "@sugarcube-sh/dtcg";
 
 /**
  * A replacement of some text in a file. The offset and length count UTF-16 code units, as a
@@ -122,7 +130,7 @@ export type Refusal = { reason: string } & (
     | {
           kind: "no-permutation";
           context: Input;
-          why: "unknown-modifier" | "unknown-context" | "no-default" | "not-read";
+          why: PermutationErrorDetail["reason"];
       }
     | { kind: "several-contexts"; context: Input }
     | { kind: "no-file-for-context"; path: string; context: Input }

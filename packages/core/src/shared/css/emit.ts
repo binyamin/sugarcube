@@ -21,8 +21,8 @@ import { files } from "./text.js";
  * reading and declaring found is in `declared.diagnostics`.
  *
  * @example
- * const doc = await read(config.resolver, readOptions(config));
- * const { files, diagnostics } = emitCSS(declare(doc, config), config);
+ * const ds = await read(config.resolver, readOptions(config));
+ * const { files, diagnostics } = emitCSS(declare(ds, config), config);
  */
 export function emitCSS(
     declared: Declarations,

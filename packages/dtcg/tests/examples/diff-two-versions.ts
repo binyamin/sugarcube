@@ -1,9 +1,9 @@
 // Lists what changed between two versions of the tokens: added, removed and changed, and in which
 // themes.
-import { diff, type Document } from "@sugarcube-sh/dtcg";
+import { diff, type DesignSystem } from "@sugarcube-sh/dtcg";
 
-declare const before: Document;
-declare const after: Document;
+declare const before: DesignSystem;
+declare const after: DesignSystem;
 
 for (const change of diff(before, after)) {
     if (change.kind === "changed")

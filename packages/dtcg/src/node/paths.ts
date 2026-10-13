@@ -2,8 +2,9 @@ import { resolve } from "node:path";
 import { filePath, folderOf } from "../read/paths.js";
 
 /**
- * Where a file the Document names is on disk, for a design system opened from `entry`: the file
- * name joined to the entry's folder, as `open` reads it, made absolute, with `/` between folders.
+ * Where a file the design system names is on disk, for a design system opened from `entry`: the
+ * file name joined to the entry's folder, as `open` reads it, made absolute, with `/` between
+ * folders.
  *
  * @example
  * // run in /work

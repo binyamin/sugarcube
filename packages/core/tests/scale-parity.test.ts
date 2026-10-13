@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
-import { type Document, read, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type DesignSystem, read, readFromMemory } from "@sugarcube-sh/dtcg";
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadTokens } from "../src/node/load-tokens.js";
 import { SUGARCUBE_NAMESPACE } from "../src/shared/extensions.js";
@@ -84,7 +84,7 @@ function madeByOldExpand(trees: TokenTree[]): Made[] {
     });
 }
 
-function madeByDtcg(doc: Document): Made[] {
+function madeByDtcg(doc: DesignSystem): Made[] {
     return doc.permutations.flatMap((permutation) =>
         permutation.tokens
             .filter((token) => token.generated && !token.authored)

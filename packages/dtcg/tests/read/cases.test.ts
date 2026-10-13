@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { type Document, read, readFromMemory } from "../../src/index.js";
+import { type DesignSystem, read, readFromMemory } from "../../src/index.js";
 import { type CaseOptions, inputFiles, readOptions } from "./case-options.js";
 import { withSpans } from "./positions.js";
 
@@ -12,10 +12,10 @@ interface Expected {
     options?: CaseOptions;
     files?: string[];
     sources?: unknown[];
-    resolver?: Document["resolver"];
-    permutations?: Partial<Document["permutations"][number]>[];
+    resolver?: DesignSystem["resolver"];
+    permutations?: Partial<DesignSystem["permutations"][number]>[];
     diagnostics: Pick<
-        Document["diagnostics"][number],
+        DesignSystem["diagnostics"][number],
         "kind" | "detail" | "span" | "related" | "path" | "permutations"
     >[];
 }
@@ -25,8 +25,8 @@ const cases = readdirSync(casesFolder, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
 
-function observed(found: Document, expected: Expected) {
-    const doc: Document = JSON.parse(JSON.stringify(found));
+function observed(found: DesignSystem, expected: Expected) {
+    const doc: DesignSystem = JSON.parse(JSON.stringify(found));
     return {
         entry: expected.entry,
         spec: expected.spec,
@@ -51,8 +51,8 @@ function observed(found: Document, expected: Expected) {
 }
 
 function observedPermutation(
-    permutation: Document["permutations"][number],
-    expected: Partial<Document["permutations"][number]> = {},
+    permutation: DesignSystem["permutations"][number],
+    expected: Partial<DesignSystem["permutations"][number]> = {},
 ) {
     const { input, label, sources, tokens, groups } = permutation;
     return {

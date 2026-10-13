@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-    defineGenerator,
-    group,
-    openFromMemory,
-    permutation,
-    readFromMemory,
-    token,
-    type Span,
-} from "../../src/index.js";
+import { defineGenerator, openFromMemory, readFromMemory, type Span } from "../../src/index.js";
 
 const color = (hex: string) => `{ "$type": "color", "$value": "${hex}" }`;
 
@@ -37,8 +29,8 @@ const written = (span: Span) =>
 
 describe("a token's writtenAt, across sources", () => {
     it("lists every place its sources write it, in order, the one that wins last", () => {
-        const light = token(doc, "bg");
-        const dark = token(doc, "bg", { mode: "dark" });
+        const light = doc.permutation().token("bg");
+        const dark = doc.permutation({ mode: "dark" }).token("bg");
 
         expect(light?.writtenAt.map(({ span }) => span.file)).toStrictEqual([
             "base.json",
@@ -61,15 +53,15 @@ describe("a token's writtenAt, across sources", () => {
             },
             entry: "tokens.resolver.json",
         });
-        const places = group(twice, "brand")?.writtenAt ?? [];
+        const places = twice.permutation().group("brand")?.writtenAt ?? [];
 
         expect(places.map(({ source }) => source.file)).toStrictEqual(["base.json", "brand.json"]);
         expect(places.map(({ span }) => span.file)).toStrictEqual(["base.json", "brand.json"]);
     });
 
     it("says which of the permutation's sources writes each place", () => {
-        const sources = permutation(doc, { mode: "dark" })?.sources ?? [];
-        const dark = token(doc, "bg", { mode: "dark" });
+        const sources = doc.permutation({ mode: "dark" }).sources ?? [];
+        const dark = doc.permutation({ mode: "dark" }).token("bg");
         const winner = dark?.writtenAt.at(-1);
 
         expect(dark?.writtenAt.every(({ source }) => sources.includes(source))).toBe(true);
@@ -78,7 +70,7 @@ describe("a token's writtenAt, across sources", () => {
     });
 
     it("is one place for a token written once", () => {
-        expect(token(doc, "fg")?.writtenAt).toHaveLength(1);
+        expect(doc.permutation().token("fg")?.writtenAt).toHaveLength(1);
     });
 
     it("is where an inherited token's value is written, not every place the group it comes from is", () => {
@@ -103,10 +95,13 @@ describe("a token's writtenAt, across sources", () => {
             entry: "tokens.resolver.json",
         });
 
-        expect(token(extended, "button.bg")?.writtenAt).toHaveLength(2);
-        expect(token(extended, "danger.bg")?.writtenAt.map(({ span }) => span.file)).toStrictEqual([
-            "b.json",
-        ]);
+        expect(extended.permutation().token("button.bg")?.writtenAt).toHaveLength(2);
+        expect(
+            extended
+                .permutation()
+                .token("danger.bg")
+                ?.writtenAt.map(({ span }) => span.file),
+        ).toStrictEqual(["b.json"]);
     });
 
     it("is the extension that makes a token a generator adds, which no file writes", () => {
@@ -125,8 +120,8 @@ describe("a token's writtenAt, across sources", () => {
             { generators: [steps] },
         );
 
-        expect(token(generated, "space.1")?.writtenAt).toHaveLength(1);
-        expect(token(generated, "space.1")?.generated).toStrictEqual({
+        expect(generated.permutation().token("space.1")?.writtenAt).toHaveLength(1);
+        expect(generated.permutation().token("space.1")?.generated).toStrictEqual({
             from: "space",
             extension: ["com.example", "steps"],
         });

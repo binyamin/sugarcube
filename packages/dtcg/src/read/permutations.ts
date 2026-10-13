@@ -144,14 +144,15 @@ function checkInput(
     const problems: Diagnostic[] = [];
     const chosen: Input = {};
     const mentioned = new Set<Modifier>();
-    const invalid = (detail: Omit<DiagnosticDetailByKind["input-invalid"], "input">) =>
-        problems.push(diagnostic("input-invalid", { ...detail, input: index }));
+    const invalid = (detail: DiagnosticDetailByKind["input-invalid"]) =>
+        problems.push(diagnostic("input-invalid", detail));
 
     for (const [key, value] of Object.entries(raw)) {
         const modifier = findByName(modifiers, key, ({ name }) => name);
         if (!modifier) {
             invalid({
                 reason: "unknown-modifier",
+                input: index,
                 modifier: key,
                 valid: modifiers.map(({ name }) => name),
             });
@@ -159,13 +160,14 @@ function checkInput(
         }
         mentioned.add(modifier);
         if (typeof value !== "string") {
-            invalid({ reason: "not-a-string", modifier: modifier.name });
+            invalid({ reason: "not-a-string", input: index, modifier: modifier.name });
             continue;
         }
         const context = findByName(modifier.contexts, value, (each) => each);
         if (context === undefined) {
             invalid({
                 reason: "unknown-context",
+                input: index,
                 modifier: modifier.name,
                 context: value,
                 valid: modifier.contexts,
@@ -177,7 +179,12 @@ function checkInput(
 
     for (const modifier of modifiers) {
         if (mentioned.has(modifier) || modifier.default !== undefined) continue;
-        invalid({ reason: "missing-modifier", modifier: modifier.name, valid: modifier.contexts });
+        invalid({
+            reason: "missing-modifier",
+            input: index,
+            modifier: modifier.name,
+            valid: modifier.contexts,
+        });
     }
 
     diagnostics.push(...problems);

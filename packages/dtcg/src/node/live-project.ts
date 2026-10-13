@@ -10,8 +10,8 @@ export interface ProjectSource {
 }
 
 /**
- * Why a read happened and how long it took: the file whose save led to it, by the Document's
- * name for it, as in `Document.files`, and none for {@link LiveProject.reread}.
+ * Why a read happened and how long it took: the file whose save led to it, by the design system's
+ * name for it, as in `DesignSystem.files`, and none for {@link LiveProject.reread}.
  */
 export interface ReadEvent {
     file?: string;
@@ -30,7 +30,10 @@ export interface FileWatcher {
     ): unknown;
 }
 
-/** A project kept current with its files: the Document and the text it was read from. Made by {@link liveProject}. */
+/**
+ * A project kept current with its files: the design system and the text it was read from. Made by
+ * {@link liveProject}.
+ */
 export interface LiveProject {
     /**
      * The project as last read, once any read in progress or waiting to start has finished.
@@ -60,9 +63,9 @@ export interface LiveProject {
      */
     reread(): Promise<void>;
     /**
-     * Adds the files the Document lists to `watcher`, and each file a later read gains, and
-     * reads again when one of them is saved, added or deleted. Files are never removed from it:
-     * an event for a file the latest Document does not list is ignored. Its files are added once
+     * Adds the files the design system lists to `watcher`, and each file a later read gains, and
+     * reads again when one of them is saved, added or deleted. Files are never removed from it: an
+     * event for a file the latest design system does not list is ignored. Its files are added once
      * the first read has finished, so a host waiting for its watcher to be ready awaits
      * {@link LiveProject.project} first.
      *
@@ -73,12 +76,12 @@ export interface LiveProject {
 }
 
 /**
- * Opens a design system from disk and keeps it current with its files, the Document and their
- * text together, for a host that runs for a while, such as a dev server, a watch command or an
- * editor. It reads at once; once given a watcher, it
- * reads again when a file the Document lists is saved, added or deleted. Saves during a read lead
- * to one more read, a file a read gains that was saved during it is read again, and so is a save
- * whose last write the watcher never reported ({@link onFileChanged}).
+ * Opens a design system from disk and keeps it, and the text of its files, current together, for a
+ * host that runs for a while, such as a dev server, a watch command or an editor. It reads at once;
+ * once given a watcher, it reads again when a file the design system lists is saved, added or
+ * deleted. Saves during a read lead to one more read, a file a read gains that was saved during it
+ * is read again, and so is a save whose last write the watcher never reported
+ * ({@link onFileChanged}).
  *
  * What a listener throws, and a read that fails, go to `onError`, never into the watcher's event.
  *

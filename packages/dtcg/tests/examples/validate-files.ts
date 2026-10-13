@@ -10,8 +10,8 @@ const files = Object.fromEntries(
     await Promise.all(paths.map(async (p) => [p, await readFile(p, "utf8")] as const)),
 );
 try {
-    const doc = readFromMemory({ files });
-    for (const d of doc.diagnostics)
+    const ds = readFromMemory({ files });
+    for (const d of ds.diagnostics)
         showMessage(`${d.severity}  ${d.span?.file ?? ""}  ${d.message}`);
 } catch (error) {
     if (!(error instanceof TypeError)) throw error;

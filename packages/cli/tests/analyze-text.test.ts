@@ -1,4 +1,4 @@
-import { readFromMemory, token } from "@sugarcube-sh/dtcg";
+import { readFromMemory } from "@sugarcube-sh/dtcg";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Dependent, Impact } from "../src/analyze/answers.js";
 import {
@@ -114,7 +114,7 @@ describe("impactHeading", () => {
         },
     });
     const heading = (path: string) => {
-        const found = token(doc, path);
+        const found = doc.permutation().token(path);
         if (!found) throw new Error(path);
         return strip(impactHeading({ token: found, dependents: [], uses: [] }));
     };

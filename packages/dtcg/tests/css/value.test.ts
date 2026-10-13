@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type CSSValueOptions, cssValue, cssVariable } from "../../src/css.js";
-import { type Token, parts, readFromMemory, token } from "../../src/index.js";
+import { type Token, readFromMemory } from "../../src/index.js";
 
 const px = (value: number) => ({ value, unit: "px" });
 const color = (value: unknown) => ({ $type: "color", $value: value });
@@ -11,7 +11,7 @@ function read(tokens: Record<string, unknown>): (path: string) => Token {
         { hexStringColors: true },
     );
     return (path) => {
-        const found = token(doc, path);
+        const found = doc.permutation().token(path);
         if (!found) throw new Error(`no token at ${path}`);
         return found;
     };
@@ -296,7 +296,7 @@ describe("cssValue", () => {
         const at = read({
             edge: { $type: "border", $value: { color: "#e11d48", width: px(1), style: "solid" } },
         });
-        const border = parts(at("edge"));
+        const border = at("edge").parts;
         if (border?.type !== "border") throw new Error("edge is a border");
         expect(cssValue(border.color)).toBe("#e11d48");
         expect(cssValue(border.width)).toBe("1px");

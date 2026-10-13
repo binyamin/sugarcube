@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { type Diagnostic, type Document, read, readFromMemory } from "../../src/index.js";
+import { type Diagnostic, type DesignSystem, read, readFromMemory } from "../../src/index.js";
 
 const repo = join(import.meta.dirname, "../../../..");
 
@@ -291,7 +291,7 @@ function jsonFilesIn(folder: string): string[] {
         .sort();
 }
 
-const projects = new Map<string, Document>();
+const projects = new Map<string, DesignSystem>();
 
 beforeAll(async () => {
     const files = tokenFolders.flatMap(jsonFilesIn);

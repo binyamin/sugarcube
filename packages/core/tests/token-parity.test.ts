@@ -2,12 +2,7 @@ import { copyFileSync, mkdtempSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import {
-    type Input,
-    type TokenType,
-    permutation as permutationFor,
-    read,
-} from "@sugarcube-sh/dtcg";
+import { type Input, PermutationError, type TokenType, read } from "@sugarcube-sh/dtcg";
 import { compositeParts, parseValue } from "@sugarcube-sh/dtcg/values";
 import { describe, expect, it } from "vitest";
 import { fillDefaults } from "../src/node/config/normalize.js";
@@ -215,8 +210,11 @@ async function differences(each: Case): Promise<string[]> {
     }
 
     for (const { input, tokens } of old.permutations) {
-        const permutation = permutationFor(doc, input);
-        if (!permutation) {
+        let permutation;
+        try {
+            permutation = doc.permutation(input);
+        } catch (error) {
+            if (!(error instanceof PermutationError)) throw error;
             found.push(`no permutation for ${JSON.stringify(input)}`);
             continue;
         }

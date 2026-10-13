@@ -1,12 +1,4 @@
-import {
-    type Document,
-    type Project,
-    childPath,
-    forbiddenInName,
-    group,
-    parentOf,
-    token,
-} from "@sugarcube-sh/dtcg";
+import { type Project, childPath, forbiddenInName, parentOf } from "@sugarcube-sh/dtcg";
 import { refused } from "./error-messages.js";
 import type { FileOp, OpResult } from "./index.js";
 import { groupCopies, tokenCopies } from "./placement.js";
@@ -40,7 +32,7 @@ export function rename(project: Project, path: string, newName: string): OpResul
     if ("refused" in copies) return copies;
     const to = childPath(parentOf(path), newName);
     if (to === path) return { ops: [], alsoAffects: copies.alsoAffects, moved: [] };
-    if (taken(project.doc, to)) return refused({ kind: "taken", path: to });
+    if (project.doc.has(to)) return refused({ kind: "taken", path: to });
 
     const moved = [{ from: path, to }];
     const keys = copies.places.map(({ span, path: at, written }): FileOp => ({
@@ -58,10 +50,6 @@ export function rename(project: Project, path: string, newName: string): OpResul
         return [{ kind: "set", file: place.span.file, path: at, value, was: place.written }];
     });
     return { ops: [...keys, ...references], alsoAffects: copies.alsoAffects, moved };
-}
-
-function taken(doc: Document, path: string): boolean {
-    return doc.permutations.some((perm) => (token(perm, path) ?? group(perm, path)) !== undefined);
 }
 
 function afterKeys(place: Place, keys: Place[], name: string): Place["path"] {

@@ -1,7 +1,7 @@
 import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { token } from "@sugarcube-sh/dtcg";
+
 import { open } from "@sugarcube-sh/dtcg/node";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setValue } from "../src/index.js";
@@ -46,7 +46,7 @@ describe("applyToDisk", () => {
         const result = await applyToDisk({ entry }, opsOf(setValue(demo, "radius.md", half)));
 
         if (!("project" in result)) throw new Error(JSON.stringify(result));
-        expect(token(result.project.doc, "radius.md")?.authored?.value).toEqual(half);
+        expect(result.project.doc.permutation().token("radius.md")?.authored?.value).toEqual(half);
         expect(result.project.files).toEqual((await open(entry)).files);
     });
 

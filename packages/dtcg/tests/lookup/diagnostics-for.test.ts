@@ -68,7 +68,7 @@ describe("diagnosticsFor", () => {
         expect(kinds("color.bad", { mode: "dark" })).toStrictEqual(["invalid-value"]);
     });
 
-    it("gives the same answer for the Document saved as JSON and read back", () => {
+    it("gives the same answer for the design system saved as JSON and read back", () => {
         const copy = JSON.parse(JSON.stringify(doc)) as typeof doc;
         expect(
             diagnosticsFor(copy, "space", { mode: "dark" }).map(({ kind }) => kind),

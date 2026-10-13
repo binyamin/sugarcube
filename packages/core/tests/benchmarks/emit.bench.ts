@@ -26,7 +26,7 @@ const projects = {
     ),
 };
 
-describe("declare and emitCSS, on a Document already read", () => {
+describe("declare and emitCSS, on a design system already read", () => {
     for (const [name, { config, doc }] of Object.entries(projects)) {
         bench(name, () => {
             emitCSS(declare(doc, config), config);

@@ -6,11 +6,11 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 declare function codeFrame(text: string, line: number, column: number, length: number): string;
-declare function emitCSS(doc: unknown): Promise<void>;
+declare function emitCSS(ds: unknown): Promise<void>;
 
 const entry = "tokens/tokens.resolver.json";
-const doc = await read(entry);
-const problems = errors(doc);
+const ds = await read(entry);
+const problems = errors(ds);
 if (problems.length) {
     for (const d of problems) {
         const where = d.span ? `${d.span.file}:${d.span.start.line}:${d.span.start.column}` : "";
@@ -25,5 +25,5 @@ if (problems.length) {
         showMessage(`${where}  ${d.message}\n${frame}\n  see ${d.docs}`);
     }
 } else {
-    await emitCSS(doc);
+    await emitCSS(ds);
 }

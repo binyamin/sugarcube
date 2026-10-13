@@ -1,4 +1,4 @@
-import { defineGenerator, token } from "@sugarcube-sh/dtcg";
+import { defineGenerator } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { setDescription, setValue } from "../src/index.js";
 import { demo, at, opsOf, committed, resolver, opened } from "./helpers.js";
@@ -16,10 +16,12 @@ describe("setValue, the shared value", () => {
             },
         ]);
         const after = committed(demo, result);
-        expect(token(after.doc, "color.text.brand")?.authored?.value).toBe("{color.brand.800}");
-        expect(token(after.doc, "color.text.brand", { mode: "dark" })?.authored?.value).toBe(
-            "{color.brand.300}",
+        expect(after.doc.permutation().token("color.text.brand")?.authored?.value).toBe(
+            "{color.brand.800}",
         );
+        expect(
+            after.doc.permutation({ mode: "dark" }).token("color.text.brand")?.authored?.value,
+        ).toBe("{color.brand.300}");
     });
 
     it("says which contexts see the change", () => {
@@ -154,11 +156,14 @@ describe("setValue, for one context", () => {
             },
         ]);
         const after = committed(demo, result);
-        expect(token(after.doc, "radius.md", { mode: "dark" })?.resolved).toEqual({
+        expect(after.doc.permutation({ mode: "dark" }).token("radius.md")?.resolved).toEqual({
             value: 0.5,
             unit: "rem",
         });
-        expect(token(after.doc, "radius.md")?.resolved).toEqual({ value: 0.25, unit: "rem" });
+        expect(after.doc.permutation().token("radius.md")?.resolved).toEqual({
+            value: 0.25,
+            unit: "rem",
+        });
     });
 
     it("writes the type into a new override when the token declared its own", () => {
@@ -203,7 +208,9 @@ describe("setValue, for one context", () => {
         expect(opsOf(result)).toEqual([
             { kind: "add", file: "dark.json", path: ["bg"], value: { ...bg, $value: "#000000" } },
         ]);
-        expect(token(committed(project, result).doc, "bg", { mode: "dark" })).toMatchObject({
+        expect(
+            committed(project, result).doc.permutation({ mode: "dark" }).token("bg"),
+        ).toMatchObject({
             description: "The page.",
             deprecated: "Use surface.",
             extensions: { "com.example": { role: "page" } },
@@ -227,9 +234,10 @@ describe("setValue, for one context", () => {
         expect(opsOf(result)).toEqual([
             { kind: "add", file: "dark.json", path: ["old", "bg"], value: { $value: "#000000" } },
         ]);
-        expect(token(committed(project, result).doc, "old.bg", { mode: "dark" })?.deprecated).toBe(
-            true,
-        );
+        expect(
+            committed(project, result).doc.permutation({ mode: "dark" }).token("old.bg")
+                ?.deprecated,
+        ).toBe(true);
     });
 
     it("asks which file when the context reads several, and takes the answer", () => {
@@ -538,7 +546,7 @@ describe("setDescription", () => {
         ]);
         const after = committed(project, result).doc;
         for (const mode of ["light", "dark", "dim"]) {
-            expect(token(after, "bg", { mode })?.description).toBe("The page.");
+            expect(after.permutation({ mode }).token("bg")?.description).toBe("The page.");
         }
     });
 
@@ -560,7 +568,7 @@ describe("setDescription", () => {
     it("adds one to a token that has none", () => {
         const after = committed(demo, setDescription(demo, "color.brand.600", "Hover."));
 
-        expect(token(after.doc, "color.brand.600")?.description).toBe("Hover.");
+        expect(after.doc.permutation().token("color.brand.600")?.description).toBe("Hover.");
     });
 
     it("changes a group's description where the group writes it", () => {
@@ -596,7 +604,7 @@ describe("setDescription", () => {
     it("removes one with null, and does nothing when there is none", () => {
         const after = committed(demo, setDescription(demo, "color.brand.500", null));
 
-        expect(token(after.doc, "color.brand.500")?.description).toBeUndefined();
+        expect(after.doc.permutation().token("color.brand.500")?.description).toBeUndefined();
         expect(opsOf(setDescription(demo, "color.brand.600", null))).toEqual([]);
     });
 

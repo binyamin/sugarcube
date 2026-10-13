@@ -1,4 +1,4 @@
-import { type Document, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type DesignSystem, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { scaleGenerator } from "../src/shared/scale/generator.js";
 
@@ -11,7 +11,7 @@ const exponential = {
 };
 const multipliers = { mode: "multipliers", base, multipliers: { sm: 1, md: 1.5, lg: 2 } };
 
-function read(group: Record<string, unknown>): Document {
+function read(group: Record<string, unknown>): DesignSystem {
     const text = JSON.stringify({ size: { $type: "dimension", ...group } });
     return readFromMemory(
         { files: { "tokens.json": text } },
@@ -23,7 +23,7 @@ function withScale(scale: unknown, written: Record<string, unknown> = {}) {
     return read({ $extensions: { "sh.sugarcube": { scale } }, ...written });
 }
 
-function tokens(doc: Document) {
+function tokens(doc: DesignSystem) {
     return doc.permutations[0]?.tokens ?? [];
 }
 

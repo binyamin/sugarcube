@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Reference, type WrittenReference, readFromMemory, token } from "../../src/index.js";
+import { type Reference, type WrittenReference, readFromMemory } from "../../src/index.js";
 import { movedReference } from "../../src/values/references.js";
 
 const color = { colorSpace: "srgb", components: [1, 0, 0] };
@@ -61,7 +61,7 @@ const tokens = {
 
 const doc = readFromMemory({ files: { "tokens.json": JSON.stringify(tokens) } });
 const tokenAt = (path: string) => {
-    const found = token(doc, path);
+    const found = doc.permutation().token(path);
     if (!found) throw new Error(`no token ${path}`);
     return found;
 };

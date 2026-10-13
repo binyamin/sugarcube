@@ -1,12 +1,11 @@
-import type { Document, PlaceInPermutations, Span } from "../index.js";
-import { group, token } from "./token.js";
+import type { DesignSystem, PlaceInPermutations, Span } from "../index.js";
 
-export function writtenAtIn(doc: Document, path: string): PlaceInPermutations[] {
+export function writtenAtIn(ds: DesignSystem, path: string): PlaceInPermutations[] {
     const found = new Map<Span, PlaceInPermutations>();
-    for (const permutation of doc.permutations) {
+    for (const permutation of ds.permutations) {
         const places = [
-            ...(token(permutation, path)?.writtenAt ?? []),
-            ...(group(permutation, path)?.writtenAt ?? []),
+            ...(permutation.token(path)?.writtenAt ?? []),
+            ...(permutation.group(path)?.writtenAt ?? []),
         ];
         for (const { source, span } of places) {
             const known = found.get(span);

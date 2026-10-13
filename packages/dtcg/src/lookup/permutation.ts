@@ -1,41 +1,57 @@
-import type { CompleteInput, Document, Input, Permutation, ResolverModifier } from "../index.js";
+import { thrownMessages } from "../error-messages.js";
+import type {
+    CompleteInput,
+    DesignSystem,
+    Input,
+    Permutation,
+    PermutationErrorDetail,
+    ResolverModifier,
+} from "../index.js";
 import { findByName } from "../read/permutations.js";
 
 /**
- * The permutation for an input. Modifiers left out take their default, and names match whatever
- * their case, as the resolver spec asks.
- *
- * @returns `undefined` when the input names a modifier or context the resolver does not declare,
- * leaves out a modifier that has no default, or asks for a permutation the read did not build.
+ * Thrown by {@link DesignSystem.permutation} when there is no permutation for the input. The
+ * message says why in plain words; `detail` holds the facts it is worded from, for a tool to word
+ * it itself.
  *
  * @example
- * permutation(doc, { theme: "dark" })   // the dark theme, every other modifier at its default
+ * try {
+ *   ds.permutation({ mode: "sepia" });
+ * } catch (error) {
+ *   if (error instanceof PermutationError) error.detail // { reason: "unknown-context", … }
+ * }
  */
-export function permutation(doc: Document, input: Input = {}): Permutation | undefined {
-    const complete = completeInput(doc, input);
-    if (!complete.ok) return undefined;
-    return doc.permutations.find((each) => sameInput(doc, each.input, complete.input));
+export class PermutationError extends Error {
+    readonly detail: PermutationErrorDetail;
+
+    constructor(detail: PermutationErrorDetail) {
+        super(thrownMessages.permutation(detail));
+        this.name = "PermutationError";
+        this.detail = detail;
+    }
 }
 
-export function sameInput(doc: Document, a: Input, b: Input): boolean {
-    return modifiersOf(doc).every(({ name }) => a[name] === b[name]);
+export function permutationIn(ds: DesignSystem, input: Input = {}): Permutation {
+    const found = findPermutation(ds, input);
+    if ("reason" in found) throw new PermutationError(found);
+    return found;
 }
 
-/**
- * The permutation in which every modifier is at its default.
- *
- * @returns `undefined` when a modifier has no default, or the read did not build it.
- */
-export function defaultPermutation(doc: Document): Permutation | undefined {
-    return permutation(doc);
+export function findPermutation(
+    ds: DesignSystem,
+    input: Input = {},
+): Permutation | PermutationErrorDetail {
+    const complete = completeInput(ds, input);
+    if (!complete.ok) {
+        const { ok: _, ...detail } = complete;
+        return detail;
+    }
+    const found = ds.permutations.find((each) => sameInput(ds, each.input, complete.input));
+    return found ?? { reason: "not-read", input: complete.input };
 }
 
-export function chosenPermutation(
-    doc: Document,
-    input: Input | undefined,
-): Permutation | undefined {
-    if (input !== undefined) return permutation(doc, input);
-    return defaultPermutation(doc) ?? doc.permutations[0];
+export function sameInput(ds: DesignSystem, a: Input, b: Input): boolean {
+    return modifiersOf(ds).every(({ name }) => a[name] === b[name]);
 }
 
 /**
@@ -43,13 +59,13 @@ export function chosenPermutation(
  * it, or why there is none. Names match whatever their case, as the resolver spec asks.
  *
  * @example
- * completeInput(doc, { Theme: "DARK" })   // { ok: true, input: { theme: "dark", density: "comfy" } }
- * completeInput(doc, { theme: "sepia" })  // { ok: false, reason: "unknown-context", modifier: "theme", context: "sepia" }
+ * completeInput(ds, { Theme: "DARK" })   // { ok: true, input: { theme: "dark", density: "comfy" } }
+ * completeInput(ds, { theme: "sepia" })  // { ok: false, reason: "unknown-context", modifier: "theme", context: "sepia" }
  */
-export function completeInput(doc: Document, input: Input): CompleteInput {
+export function completeInput(ds: DesignSystem, input: Input): CompleteInput {
     const full: Input = {};
     for (const [key, value] of Object.entries(input)) {
-        const found = modifier(doc, key);
+        const found = modifierIn(ds, key);
         if (!found) return { ok: false, reason: "unknown-modifier", modifier: key };
         const context = findByName(found.contexts, value, ({ name }) => name);
         if (context === undefined) {
@@ -57,26 +73,21 @@ export function completeInput(doc: Document, input: Input): CompleteInput {
         }
         full[found.name] = context.name;
     }
-    for (const { name, default: fallback } of modifiersOf(doc)) {
+    for (const { name, default: fallback, contexts } of modifiersOf(ds)) {
         const context = full[name] ?? fallback;
-        if (context === undefined) return { ok: false, reason: "no-default", modifier: name };
+        if (context === undefined) {
+            const valid = contexts.map((each) => each.name);
+            return { ok: false, reason: "no-default", modifier: name, valid };
+        }
         full[name] = context;
     }
     return { ok: true, input: full };
 }
 
-/**
- * A modifier that takes part, by its name, whatever its case, as the resolver spec asks; with its
- * contexts and default, as {@link Resolver} has them.
- *
- * @example
- * modifier(doc, "mode")?.default                       // "light"
- * modifier(doc, "mode")?.contexts.map(({ name }) => name) // ["light", "dark"]
- */
-export function modifier(doc: Document, name: string): ResolverModifier | undefined {
-    return findByName(modifiersOf(doc), name, (each) => each.name);
+export function modifierIn(ds: DesignSystem, name: string): ResolverModifier | undefined {
+    return findByName(modifiersOf(ds), name, (each) => each.name);
 }
 
-function modifiersOf(doc: Document): ResolverModifier[] {
-    return doc.resolver?.modifiers ?? [];
+function modifiersOf(ds: DesignSystem): ResolverModifier[] {
+    return ds.resolver?.modifiers ?? [];
 }

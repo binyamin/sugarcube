@@ -1,4 +1,4 @@
-import { defineGenerator, openFromMemory, token, tokensIn } from "@sugarcube-sh/dtcg";
+import { defineGenerator, openFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { create, remove } from "../src/index.js";
 import { demo, at, opsOf, committed, resolver, opened } from "./helpers.js";
@@ -79,11 +79,11 @@ describe("create, which file", () => {
             { kind: "add", file: "dark.json", path: ["radius", "xl"], value },
         ]);
         const after = committed(demo, result);
-        expect(token(after.doc, "radius.xl", { mode: "dark" })?.resolved).toEqual({
+        expect(after.doc.permutation({ mode: "dark" }).token("radius.xl")?.resolved).toEqual({
             value: 1,
             unit: "rem",
         });
-        expect(token(after.doc, "radius.xl")).toBeUndefined();
+        expect(after.doc.permutation().token("radius.xl")).toBeUndefined();
     });
 
     const split = {
@@ -318,13 +318,15 @@ describe("remove", () => {
             "dark.json",
         ]);
         const after = committed(project, result);
-        expect(token(after.doc, "bg")).toBeUndefined();
-        expect(token(after.doc, "bg", { mode: "dark" })).toBeUndefined();
+        expect(after.doc.permutation().token("bg")).toBeUndefined();
+        expect(after.doc.permutation({ mode: "dark" }).token("bg")).toBeUndefined();
     });
 
     it("takes out a group and everything under it, listing only what points in from outside", () => {
         const result = remove(demo, "color.brand");
-        const inside = tokensIn(demo.doc, "color.brand").map(({ path }) => path);
+        const inside = (demo.doc.permutation().group("color.brand")?.tokens ?? []).map(
+            ({ path }) => path,
+        );
 
         expect(opsOf(result)).toEqual([
             {
@@ -337,7 +339,9 @@ describe("remove", () => {
         const broken = "ops" in result ? (result.broken ?? []) : [];
         expect(broken.length).toBeGreaterThan(0);
         expect(broken.filter((path) => inside.includes(path))).toEqual([]);
-        expect(tokensIn(committed(demo, result).doc, "color.brand")).toEqual([]);
+        expect(
+            committed(demo, result).doc.permutation().group("color.brand")?.tokens ?? [],
+        ).toEqual([]);
     });
 
     it("leaves out of broken a token inside the group that refers to another inside it", () => {

@@ -1,9 +1,9 @@
 // A code editor showing token problems as squiggles, with their severity and a link to docs.
-import type { Document, Span } from "@sugarcube-sh/dtcg";
+import type { DesignSystem, Span } from "@sugarcube-sh/dtcg";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-declare const doc: Document;
+declare const ds: DesignSystem;
 declare const folder: string;
 declare function publish(uri: string, items: unknown[]): void;
 
@@ -17,7 +17,7 @@ const range = (span: Span) => ({
 });
 
 const byFile = new Map<string, unknown[]>();
-for (const d of doc.diagnostics) {
+for (const d of ds.diagnostics) {
     if (!d.span) continue;
     const item = {
         range: range(d.span),

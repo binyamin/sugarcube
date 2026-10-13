@@ -10,7 +10,7 @@ import { scaleGenerator } from "./scale/generator.js";
  * set aside with a warning, so a design tool's `paragraphSpacing` does not lose its token.
  *
  * @example
- * const doc = await read(config.resolver, readOptions(config));
+ * const ds = await read(config.resolver, readOptions(config));
  */
 export function readOptions(config: InternalConfig): ReadOptions {
     const listed = config.variables.permutations ?? [];

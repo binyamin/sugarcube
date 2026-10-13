@@ -1,4 +1,4 @@
-import { openFromMemory, token } from "@sugarcube-sh/dtcg";
+import { openFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it, vi } from "vitest";
 import {
     type FileOp,
@@ -33,8 +33,12 @@ describe("adopt", () => {
         const fresh = changed(demo, [["color.json", ["color", "brand", "600", "$value"], blue]]);
 
         expect(session.adopt(fresh)).toEqual([]);
-        expect(token(session.project.doc, "color.brand.500")?.authored?.value).toEqual(red);
-        expect(token(session.project.doc, "color.brand.600")?.authored?.value).toEqual(blue);
+        expect(session.project.doc.permutation().token("color.brand.500")?.authored?.value).toEqual(
+            red,
+        );
+        expect(session.project.doc.permutation().token("color.brand.600")?.authored?.value).toEqual(
+            blue,
+        );
         expect(session.unsaved.ops).toHaveLength(1);
         expect(session.changes().map((change) => change.path)).toEqual(["color.brand.500"]);
     });
@@ -48,7 +52,9 @@ describe("adopt", () => {
 
         session.adopt(fresh);
         expect(session.project.files["radius.json"]).toBe(fresh.files["radius.json"]);
-        expect(token(session.project.doc, "color.brand.500")?.authored?.value).toEqual(red);
+        expect(session.project.doc.permutation().token("color.brand.500")?.authored?.value).toEqual(
+            red,
+        );
     });
 
     it("hands back one clash when you both changed a token, and shows theirs", () => {
@@ -252,7 +258,7 @@ describe("restore", () => {
                 theirs: expect.objectContaining({ $value: blue }),
             },
         ]);
-        expect(token(session.project.doc, "radius.md")?.authored?.value).toEqual({
+        expect(session.project.doc.permutation().token("radius.md")?.authored?.value).toEqual({
             value: 1,
             unit: "rem",
         });

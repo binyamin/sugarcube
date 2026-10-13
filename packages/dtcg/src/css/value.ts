@@ -9,7 +9,6 @@ import type {
     Token,
     TypographyPart,
 } from "../index.js";
-import { parts } from "../lookup/parts.js";
 
 /** A typography value written as CSS: one value for each CSS property it sets, in this order. */
 export interface TypographyCSS {
@@ -60,7 +59,7 @@ type TypographyToken = Extract<Token, { type: "typography" }>;
  *
  * @example
  * // a border part, for a swatch of its color
- * const border = parts(token);
+ * const border = token.parts;
  * if (border?.type === "border") swatch(cssValue(border.color));
  */
 export function cssValue(
@@ -79,7 +78,7 @@ export function cssValue(
     of: Token | Part,
     options: CSSValueOptions = {},
 ): string | TypographyCSS | undefined {
-    const whole = "path" in of ? parts(of) : of;
+    const whole = "path" in of ? of.parts : of;
     if (!whole) return undefined;
     return whole.type === "typography" ? typography(whole, options) : write(whole, options);
 }

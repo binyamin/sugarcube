@@ -53,7 +53,10 @@ export interface DurationValue {
     unit: "ms" | "s";
 }
 
-/** The control points of a cubic Bézier easing curve: `[x1, y1, x2, y2]`, with both x values from 0 to 1. */
+/**
+ * The control points of a cubic Bézier easing curve: `[x1, y1, x2, y2]`, with both x values from 0
+ * to 1.
+ */
 export type CubicBezierValue = [number, number, number, number];
 
 /** Font names in order of preference. A single name is a list of one. */
@@ -114,7 +117,9 @@ export type ShadowValue = ShadowLayer[];
 /** One color stop in a gradient. */
 export interface GradientStop {
     color: ColorValue;
-    /** Where the stop sits along the gradient, from 0 to 1. Values outside that range are clamped. */
+    /**
+     * Where the stop sits along the gradient, from 0 to 1. Values outside that range are clamped.
+     */
     position: number;
 }
 
@@ -195,8 +200,8 @@ export type WrittenReference = CurlyBraceReference | JsonPointerReference;
 
 /**
  * A reference a token or group writes, in the permutation that holds it: what is written, where,
- * and the token it references. Each is listed in its token's {@link TokenBase.references | references}
- * and its group's {@link Group.references | references}.
+ * and the token it references. Each is listed in its token's {@link TokenBase.references |
+ * references} and its group's {@link Group.references | references}.
  *
  * @example
  * // in mode: dark, "text": { "$value": "{color.brand}" }
@@ -255,8 +260,8 @@ export interface ReferenceBase {
 }
 
 /**
- * A reference, as {@link Document.references} and {@link Document.referencedBy} give it: written
- * once, holding in each of `permutations`. `from` is the path that writes it, since in each
+ * A reference, as {@link DesignSystem.references} and {@link DesignSystem.referencedBy} give it:
+ * written once, holding in each of `permutations`. `from` is the path that writes it, since in each
  * permutation that is a different token.
  */
 export type ReferenceInPermutations = Omit<ReferenceBase, "from" | "token" | "moved"> &
@@ -266,7 +271,7 @@ export type ReferenceInPermutations = Omit<ReferenceBase, "from" | "token" | "mo
         moved(moves: readonly Move[]): JsonValue;
     };
 
-/** How far {@link TokenBase.referencedBy} and the Document's reference questions look. */
+/** How far {@link TokenBase.referencedBy} and the design system's reference questions look. */
 export interface ReferenceOptions {
     /**
      * Follow chained references (Format 7.2.2): those through other tokens, however indirectly.
@@ -276,7 +281,9 @@ export interface ReferenceOptions {
     chained?: boolean;
 }
 
-/** `V`, with a {@link JsonPointerReference} allowed in place of the whole of it or any part of it. */
+/**
+ * `V`, with a {@link JsonPointerReference} allowed in place of the whole of it or any part of it.
+ */
 export type WithPointers<V> =
     | JsonPointerReference
     | (V extends object ? { [K in keyof V]: WithPointers<V[K]> } : V);
@@ -287,7 +294,9 @@ export type WithPointers<V> =
  */
 export type Unresolved<V> = CurlyBraceReference | WithPointers<V>;
 
-/** A stroke style whose references have not been followed yet, where the specification allows them. */
+/**
+ * A stroke style whose references have not been followed yet, where the specification allows them.
+ */
 export type UnresolvedStrokeStyle =
     | WrittenReference
     | Extract<StrokeStyleValue, { kind: "keyword" }>
@@ -359,7 +368,8 @@ export interface UnresolvedValueByType {
 /**
  * A value of type `T` in its one agreed shape, with its references not yet followed: the type of
  * {@link TokenBase.value | Token.value}. {@link TokenBase.resolved | Token.resolved} is the same
- * value with them followed, and {@link TokenBase.authored | Token.authored} is how the file wrote it.
+ * value with them followed, and {@link TokenBase.authored | Token.authored} is how the file wrote
+ * it.
  */
 export type UnresolvedValue<T extends TokenType> = UnresolvedValueByType[T];
 
@@ -371,7 +381,7 @@ export { isReference } from "./values/references.js";
  * token stand. Checking `type` narrows `resolved` and the part's own parts.
  *
  * @example
- * const border = parts(token);
+ * const border = token.parts;
  * if (border?.type === "border") border.width.resolved   // { value: 1, unit: "px" }
  */
 export type Part =
@@ -474,8 +484,6 @@ export interface TypographyPart extends PartBase<TypographyValue> {
     lineHeight: SimplePart<"number">;
 }
 
-export { parts } from "./lookup/parts.js";
-
 /**
  * A choice of context for each modifier, which is how every function names a permutation.
  * Modifiers left out take their default, and matching ignores case.
@@ -525,9 +533,15 @@ export interface TokenBase<T extends TokenType> {
      * ({@link WrittenReference}). Absent when the token is {@link TokenBase.invalid | invalid}.
      */
     value?: UnresolvedValue<T>;
-    /** The value with every reference followed. Absent when invalid or when a reference cannot be followed. */
+    /**
+     * The value with every reference followed. Absent when invalid or when a reference cannot be
+     * followed.
+     */
     resolved?: ValueByType[T];
-    /** Set when the value could not be read. The reasons are in {@link Document.diagnostics}, under this token's path. */
+    /**
+     * Set when the value could not be read. The reasons are in {@link DesignSystem.diagnostics},
+     * under this token's path.
+     */
     invalid?: true;
     description?: string;
     /** `true`, or a message explaining what to use instead. */
@@ -556,14 +570,17 @@ export interface TokenBase<T extends TokenType> {
      */
     authored?: { value: unknown } & Pick<Written, "type" | "deprecated">;
     /**
-     * Set when a {@link Generator} makes the token from an extension on the group at `from`, whether
-     * a file writes the token or it was added. `from` is absent for an extension on the top level of
-     * a file, and `extension` is where the extension sits in the group's `$extensions`, as the
-     * generator names it. An added token has no {@link TokenBase.authored | authored}, and its
+     * Set when a {@link Generator} makes the token from an extension on the group at `from`,
+     * whether a file writes the token or it was added. `from` is absent for an extension on the top
+     * level of a file, and `extension` is where the extension sits in the group's `$extensions`, as
+     * the generator names it. An added token has no {@link TokenBase.authored | authored}, and its
      * {@link TokenBase.writtenAt | place} is the extension.
      */
     generated?: { from?: string; extension: [string, ...string[]] };
-    /** Set when the token is here only because of `$extends`, or a `$ref` to another group, at `from`. */
+    /**
+     * Set when the token is here only because of `$extends`, or a `$ref` to another group, at
+     * `from`.
+     */
     inherited?: { from: string };
     /**
      * Each reference its value writes, in the order the value lists them, each with what it
@@ -605,6 +622,32 @@ export interface TokenBase<T extends TokenType> {
      * text.aliasChain.map(({ path }) => path) // ["color.text", "color.brand", "palette.red"]
      */
     readonly aliasChain: Token[];
+    /**
+     * The place whose value wins: the last of {@link TokenBase.writtenAt | writtenAt}, as a later
+     * source replaces a token whole (Resolver 6.2).
+     *
+     * @example
+     * text.valueFrom.source.file     // "dark.json"
+     * text.valueFrom.source.context  // the context whose own file writes it, if one does
+     * goTo(text.valueFrom.span)      // where in the file
+     */
+    readonly valueFrom: Place;
+    /**
+     * Its value's parts: the whole value, each part of a composite, each shadow layer or gradient
+     * stop, and each length of a dash pattern, every one with where it sits, what it resolved to
+     * and the reference written there. `undefined` when its value can't be worked out. An emitter
+     * writes each type, and asks of each part's `ref` whether to write a reference to another
+     * token instead.
+     *
+     * @example
+     * // a border written { "color": "{color.ink}", "width": { "value": 1, "unit": "px" }, "style": "solid" }
+     * const border = token.parts;
+     * if (border?.type === "border") {
+     *   border.color.ref?.token // color.ink
+     *   border.width.resolved   // { value: 1, unit: "px" }
+     * }
+     */
+    readonly parts: Part | undefined;
 }
 
 /**
@@ -662,10 +705,14 @@ export interface Group {
     references: Reference[];
     /**
      * Every place a source declares the group, in the order read. Groups can be spread across
-     * files, so there may be several, and a group only {@link Group.inherited | inherited} has none.
+     * files, so there may be several, and a group only {@link Group.inherited | inherited} has
+     * none.
      */
     writtenAt: Place[];
-    /** Set when the group is here only because of `$extends`, or a `$ref` to another group, at `from`. */
+    /**
+     * Set when the group is here only because of `$extends`, or a `$ref` to another group, at
+     * `from`.
+     */
     inherited?: { from: string };
     /** What the files write on the group itself; absent when they write none of it. */
     authored?: Written;
@@ -676,11 +723,19 @@ export interface Group {
      * {@link TokenBase.kind | kind}.
      *
      * @example
-     * for (const child of group(doc, "color")?.children ?? []) show(child.path, child.kind);
+     * for (const child of dark.group("color")?.children ?? []) show(child.path, child.kind);
      */
     children: (Token | Group)[];
     /** Its root token, the token named `$root` in it (Format 6.2), when it has one. */
     rootToken?: Token;
+    /**
+     * Every token inside it, however deeply nested, in the order the files write them, its root
+     * token included.
+     *
+     * @example
+     * dark.group("color")?.tokens.map(({ path }) => path)
+     */
+    readonly tokens: Token[];
 }
 
 /**
@@ -708,7 +763,7 @@ export interface Place {
 }
 
 /**
- * A place, as {@link Document.writtenAt} gives it: written once at `span`, read through each of
+ * A place, as {@link DesignSystem.writtenAt} gives it: written once at `span`, read through each of
  * `sources` (a file several contexts list is a source for each), in each of `permutations`.
  */
 export interface PlaceInPermutations {
@@ -722,7 +777,7 @@ export interface PlaceInPermutations {
  * resolver. Keys written beside a source's `$ref` are part of that source, so a token written there
  * belongs to it, and its place is in the resolver. One object for each source the resolver lists,
  * per context that lists it (a set several contexts pull in gives one for each), shared by every
- * permutation that reads it: {@link Document.sources} lists each once.
+ * permutation that reads it: {@link DesignSystem.sources} lists each once.
  */
 export interface Source {
     /** The file its tokens are written in, or the resolver for tokens written there. */
@@ -735,7 +790,7 @@ export interface Source {
     pointer?: string;
     /**
      * The context it is listed under, when the resolver lists it under one: the context itself, as
-     * {@link Document.resolver} holds it. "Did a context's own file write this?" is this.
+     * {@link DesignSystem.resolver} holds it. "Did a context's own file write this?" is this.
      *
      * @example
      * token.writtenAt.at(-1)?.source.context?.name // "dark"
@@ -752,7 +807,7 @@ export interface Source {
     /**
      * The source's own vendor data, passed through untouched: the `$extensions` written beside its
      * `$ref`, or else those at the top of its file. A set's and a modifier's stay on them, in
-     * {@link Document.resolver}.
+     * {@link DesignSystem.resolver}.
      */
     extensions?: Record<string, unknown>;
     /**
@@ -768,7 +823,7 @@ export interface Source {
 
 /**
  * A set a source was reached through, as it is in effect at that step of the route: its name, which
- * finds its entry in {@link Document.resolver}, and its `$extensions`, those written beside the
+ * finds its entry in {@link DesignSystem.resolver}, and its `$extensions`, those written beside the
  * `$ref` that named it there when there are any, as keys beside a `$ref` replace the target's
  * (Resolver 4.2.2), otherwise its own.
  *
@@ -793,11 +848,11 @@ export interface SetOnRoute {
  * is left out too, as it doesn't take part as a set, but isn't reported, as part of it is read.
  *
  * @example
- * doc.resolver?.name                         // "Acme"
- * doc.resolver?.modifiers.map(({ name }) => name) // ["mode", "density"]
+ * ds.resolver?.name                         // "Acme"
+ * ds.resolver?.modifiers.map(({ name }) => name) // ["mode", "density"]
  */
 export interface Resolver {
-    /** The resolver, as {@link Document.files} names it. */
+    /** The resolver, as {@link DesignSystem.files} names it. */
     file: string;
     /** The spec version the resolver declares, such as `"2025.10"`. */
     version?: string;
@@ -853,8 +908,8 @@ export interface ResolverContext {
 }
 
 /**
- * A source as the resolver writes it: a file, or part of one, as {@link Document.files} names it,
- * or a set it names. Tokens written in the resolver are part of the resolver, with a pointer to
+ * A source as the resolver writes it: a file, or part of one, as {@link DesignSystem.files} names
+ * it, or a set it names. Tokens written in the resolver are part of the resolver, with a pointer to
  * where they sit.
  *
  * @example
@@ -874,7 +929,9 @@ export interface Permutation {
      * {@link Input}, never a label.
      */
     label: string;
-    /** Where the tokens come from, in the order they apply: a later source overrides an earlier one. */
+    /**
+     * Where the tokens come from, in the order they apply: a later source overrides an earlier one.
+     */
     sources: Source[];
     /**
      * The context it picks for each modifier, in the order `resolutionOrder` names them, as its
@@ -885,6 +942,16 @@ export interface Permutation {
      * permutation.contexts.filter((context) => !context.isDefault) // what sets it apart
      */
     contexts: ResolverContext[];
+    /**
+     * Whether every modifier is at its `default` (Resolver 4.1.5.3): the permutation an empty input
+     * names, since only a modifier with a default may be left out (Resolver 6.1). False for every
+     * permutation when a modifier has no default; true for the one permutation of a token file read
+     * without a resolver.
+     *
+     * @example
+     * const base = ds.permutations.find((p) => p.isDefault) ?? ds.permutations[0];
+     */
+    readonly isDefault: boolean;
     /** What is written at the top level of the files. */
     root: TopLevel;
     /**
@@ -899,14 +966,30 @@ export interface Permutation {
      * Every token, in the order the files write them, invalid ones included. The files read as
      * one: a group's tokens stay together where the group is first written, whichever file adds
      * them, and a token a later file replaces keeps its place. Tokens a group inherits, or a
-     * {@link Generator} adds, come at the end of their group. To find one by path, use {@link token}.
+     * {@link Generator} adds, come at the end of their group. To find one by path, use
+     * {@link Permutation.token | token}.
      */
     tokens: Token[];
     /**
      * Every group, in the same order as {@link Permutation.tokens | tokens}. To find one by path,
-     * use {@link group}.
+     * use {@link Permutation.group | group}.
      */
     groups: Group[];
+    /**
+     * The token at `path`, or `undefined` when this permutation has none there: no token at all, a
+     * group, or one only another permutation has.
+     *
+     * @example
+     * dark.token("color.text")?.resolved
+     */
+    token(path: string): Token | undefined;
+    /**
+     * The group at `path`, or `undefined` when this permutation has none there.
+     *
+     * @example
+     * dark.group("color")?.children
+     */
+    group(path: string): Group | undefined;
 }
 
 /**
@@ -920,7 +1003,10 @@ export interface DiagnosticDetailByKind {
         /** The file that names it, when it is not the entry. */
         referencedFrom?: string;
     };
-    /** A file is not valid JSON (or, for a resolver, JSON with comments), or its top level is not an object. */
+    /**
+     * A file is not valid JSON (or, for a resolver, JSON with comments), or its top level is not an
+     * object.
+     */
     "invalid-json": { reason: JsonErrorReason };
     /** A key is written twice in one object. The last one is used. */
     "duplicate-key": { key: string };
@@ -928,17 +1014,28 @@ export interface DiagnosticDetailByKind {
     "resolver-invalid": ResolverProblem;
     /** An input does not fit the resolver's modifiers. */
     "input-invalid": {
-        reason: "unknown-modifier" | "unknown-context" | "missing-modifier" | "not-a-string";
         /** Which input, as its index in {@link ReadOptions.inputs}. */
         input: number;
         modifier: string;
-        context?: string;
-        /**
-         * For `unknown-modifier`, the modifiers the resolver declares; for `unknown-context` and
-         * `missing-modifier`, the contexts the modifier allows.
-         */
-        valid?: string[];
-    };
+    } & (
+        | {
+              reason: "unknown-modifier";
+              /** The modifiers the resolver declares. */
+              valid: string[];
+          }
+        | {
+              reason: "unknown-context";
+              context: string;
+              /** The contexts the modifier allows. */
+              valid: string[];
+          }
+        | {
+              reason: "missing-modifier";
+              /** The contexts the modifier allows. */
+              valid: string[];
+          }
+        | { reason: "not-a-string" }
+    );
     /** A token or group name uses a character the specification forbids. */
     "invalid-name": { name: string; character: "." | "{" | "}" | "$" };
     /**
@@ -953,12 +1050,17 @@ export interface DiagnosticDetailByKind {
         | { reason: "ref"; ref: string };
     /** Something inside a group is neither a token nor a group: it is not an object. */
     "invalid-member": { name: string; found: "string" | "number" | "boolean" | "null" | "array" };
-    /** A property the specification defines, such as `$description`, holds the wrong kind of JSON. */
+    /**
+     * A property the specification defines, such as `$description`, holds the wrong kind of JSON.
+     */
     "invalid-property": {
         property: "$type" | "$description" | "$deprecated" | "$extensions" | "$extends" | "$ref";
         /** `"reference"`: a `"{group}"` reference, or a `{ "$ref": "#/…" }` pointer. */
         expected: "string" | "object" | "boolean-or-string" | "reference";
-        /** For `$extends` written as a plain name, such as `base`, that name as a reference: `{base}`. */
+        /**
+         * For `$extends` written as a plain name, such as `base`, that name as a reference:
+         * `{base}`.
+         */
         reference?: string;
     };
     /** No type can be worked out for a token. */
@@ -1011,7 +1113,10 @@ export interface DiagnosticDetailByKind {
          */
         corrected?: string;
     };
-    /** A reference to a token points at a group (Format 6.2: `{color.accent}` names a group, not a token). */
+    /**
+     * A reference to a token points at a group (Format 6.2: `{color.accent}` names a group, not a
+     * token).
+     */
     "not-a-token": { ref: string };
     /**
      * A reference in a shadow or gradient list points at a token holding several layers or stops.
@@ -1022,7 +1127,10 @@ export interface DiagnosticDetailByKind {
         /** How many layers or stops the token holds. */
         count: number;
     };
-    /** References that lead back to where they started; `toTopLevel` when the last refers to the whole document. */
+    /**
+     * References that lead back to where they started; `toTopLevel` when the last refers to the
+     * whole document.
+     */
     "circular-reference": { chain: string[]; toTopLevel?: true };
     /** A reference points at a token of the wrong type. */
     "type-mismatch": { ref: string; expected: TokenType; found: TokenType };
@@ -1042,7 +1150,9 @@ export interface DiagnosticDetailByKind {
           }
         | {
               property: string;
-              /** The type of the value it is in, which for a part of a composite is the part's type. */
+              /**
+               * The type of the value it is in, which for a part of a composite is the part's type.
+               */
               owner: TokenType;
               /** Where in the token or group, such as `["$value", "paragraphSpacing"]`. */
               jsonPath: JsonPath;
@@ -1060,7 +1170,10 @@ export interface DiagnosticDetailByKind {
     };
     /** A reference points at a token marked `$deprecated`. */
     "deprecated-reference": { ref: string; reason?: string };
-    /** A resolver has more combinations than `permutationLimit`, so `"each-context"` was built instead. */
+    /**
+     * A resolver has more combinations than `permutationLimit`, so `"each-context"` was built
+     * instead.
+     */
     "permutation-limit": {
         /** How many combinations the resolver's modifiers make. */
         count: number;
@@ -1143,7 +1256,10 @@ export type ResolverProblem =
           expected: "string" | "object" | "array";
       };
 
-/** What a diagnostic is about, as a stable name to switch on. Each has a page at {@link Diagnostic.docs}. */
+/**
+ * What a diagnostic is about, as a stable name to switch on. Each has a page at
+ * {@link Diagnostic.docs}.
+ */
 export type DiagnosticKind = keyof DiagnosticDetailByKind;
 
 /**
@@ -1168,7 +1284,7 @@ export type Diagnostic = DiagnosticOf<DiagnosticDetailByKind>;
  *
  * @example
  * type Ours = DiagnosticOf<{ "selector-empty": { entry: number } }>;
- * const reported: (Diagnostic | Ours)[] = [...doc.diagnostics, ...checkConfig(doc)];
+ * const reported: (Diagnostic | Ours)[] = [...ds.diagnostics, ...checkConfig(ds)];
  */
 export type DiagnosticOf<DetailByKind> = {
     [K in keyof DetailByKind]: {
@@ -1181,8 +1297,8 @@ export type DiagnosticOf<DetailByKind> = {
         path?: string;
         /**
          * The inputs of the permutations that have it, in the order of
-         * {@link Document.permutations}, when only some do. Absent when every permutation has it,
-         * or it concerns none, such as a file that is not valid JSON.
+         * {@link DesignSystem.permutations}, when only some do. Absent when every permutation has
+         * it, or it concerns none, such as a file that is not valid JSON.
          *
          * @example
          * diagnostic.permutations // [{ mode: "dark" }]
@@ -1203,15 +1319,15 @@ export { errors } from "./lookup/errors.js";
 export { diagnosticsFor } from "./lookup/diagnostics-for.js";
 
 /**
- * A design system as the DTCG specifications define it: every permutation, with every value in
- * one shape and every reference followed. Its tokens and groups link to each other: a token's
+ * A design system as the DTCG specifications define it: every permutation, with every value in one
+ * shape and every reference followed. Its tokens and groups link to each other: a token's
  * {@link TokenBase.group | group} is the group itself, a group's {@link Group.children | children}
  * the tokens and groups themselves. `JSON.stringify` writes its plain form, with a path wherever
- * one links to another, and leaves out what the rest says: a token's or group's `group`, a
- * token's `permutation`, a group's `rootToken` and `extends`, `kind`, a reference's `from`, `token`
- * and `targetProperty`, and a JSON Pointer's `path`. Nothing changes it after {@link read} returns it.
+ * one links to another, and leaves out what the rest says: a token's or group's `group`, a token's
+ * `permutation`, a group's `rootToken` and `extends`, `kind`, a reference's `from`, `token` and
+ * `targetProperty`, and a JSON Pointer's `path`. Nothing changes it after {@link read} returns it.
  */
-export interface Document {
+export interface DesignSystem {
     /**
      * Every file the read used, the entry first, in the order they were read. For watching and
      * reloading. Paths are as described at {@link ReadText}.
@@ -1226,7 +1342,7 @@ export interface Document {
     sources: Source[];
     permutations: Permutation[];
     /**
-     * How the values were read. To read a value from the Document again, such as one inside
+     * How the values were read. To read a value from the design system again, such as one inside
      * `$extensions`, the same way, give these to `parseValue` or `extensionReader`.
      */
     parseOptions: Required<ParseOptions>;
@@ -1242,7 +1358,7 @@ export interface Document {
      * property-level reference, the token holding the property), however indirectly.
      *
      * @example
-     * doc.references("color.text", { chained: true }).map(({ path }) => path)
+     * ds.references("color.text", { chained: true }).map(({ path }) => path)
      */
     references(path: string, options?: ReferenceOptions): ReferenceInPermutations[];
     /**
@@ -1251,7 +1367,7 @@ export interface Document {
      * covers what is written to it, such as an `$extends`, and to everything inside it.
      *
      * @example
-     * for (const { from, span } of doc.referencedBy("color.brand")) show(from, span);
+     * for (const { from, span } of ds.referencedBy("color.brand")) show(from, span);
      */
     referencedBy(path: string, options?: ReferenceOptions): ReferenceInPermutations[];
     /**
@@ -1259,10 +1375,61 @@ export interface Document {
      * the sources and permutations that read it, in the order first met.
      *
      * @example
-     * for (const { span } of doc.writtenAt("color.brand")) rename(span);
+     * for (const { span } of ds.writtenAt("color.brand")) rename(span);
      */
     writtenAt(path: string): PlaceInPermutations[];
+    /**
+     * The permutation for an input: modifiers left out take their default (Resolver 4.1.5.3), and
+     * names match whatever their case (Resolver 5.1). With no input, the default permutation.
+     *
+     * @throws {@link PermutationError} when there is none: the input names a modifier or context
+     * the resolver does not declare, leaves out a modifier that has no default (Resolver 6.1), or
+     * names a permutation the read did not build. Its `detail` says which.
+     *
+     * @example
+     * const dark = ds.permutation({ mode: "dark" });
+     */
+    permutation(input?: Input): Permutation;
+    /**
+     * A modifier that takes part, by its name, whatever its case (Resolver 5.1), with its contexts
+     * and default.
+     *
+     * @example
+     * ds.modifier("mode")?.contexts.map(({ name }) => name) // ["light", "dark"]
+     */
+    modifier(name: string): ResolverModifier | undefined;
+    /**
+     * Every token's path in any permutation, each once, in the order the permutations list them:
+     * a token only a later permutation has comes after the earlier ones' tokens.
+     *
+     * @example
+     * for (const path of ds.tokenPaths()) row(path, dark.token(path)?.resolved);
+     */
+    tokenPaths(): string[];
+    /**
+     * Every group's path in any permutation, each once, in the order the permutations list them.
+     */
+    groupPaths(): string[];
+    /**
+     * Whether a token or group is at `path` in any permutation.
+     *
+     * @example
+     * if (ds.has("color.danger")) refuse("taken");
+     */
+    has(path: string): boolean;
 }
+
+/**
+ * Why {@link DesignSystem.permutation} found no permutation, with the facts its message is worded
+ * from.
+ */
+export type PermutationErrorDetail =
+    | { reason: "unknown-modifier"; modifier: string }
+    | { reason: "unknown-context"; modifier: string; context: string }
+    | { reason: "no-default"; modifier: string; valid: string[] }
+    | { reason: "not-read"; input: Input };
+
+export { PermutationError } from "./lookup/permutation.js";
 
 export type { ValueErrorCode, ValueErrorDetail, ValueErrorFacts } from "./values/value-errors.js";
 
@@ -1441,8 +1608,8 @@ export interface Generator {
     extension: [string, ...string[]];
     /**
      * A schema the extension must pass before `generate` sees it, from any library that implements
-     * Standard Schema. Each issue is reported as `extension-invalid` with the library's message, and
-     * `generate` is not called. It must validate synchronously.
+     * Standard Schema. Each issue is reported as `extension-invalid` with the library's message,
+     * and `generate` is not called. It must validate synchronously.
      */
     schema?: StandardSchemaV1;
     /** The wording for each reason `generate` reports. */
@@ -1505,7 +1672,9 @@ export interface ReadOptions extends ParseOptions {
      * each permutation, before values are read.
      */
     generators?: Generator[];
-    /** Called as each stage of reading finishes, with how long it took. For progress and benchmarks. */
+    /**
+     * Called as each stage of reading finishes, with how long it took. For progress and benchmarks.
+     */
     onStage?: (stage: "load" | "generate" | "normalise" | "resolve", milliseconds: number) => void;
 }
 
@@ -1517,14 +1686,14 @@ export interface ReadOptions extends ParseOptions {
  * that is absolute or a URL is passed as written. Throwing, or rejecting, reports the file as not
  * found.
  *
- * Every file path in the results, in `Document.files` and every `Span`, is relative to the entry's
- * folder, with forward slashes, such as `"themes/dark.json"`; one written from the root or as a
- * URL stays as written. The entry itself is its file name. That name is passed as `file`, for
+ * Every file path in the results, in `DesignSystem.files` and every `Span`, is relative to the
+ * entry's folder, with forward slashes, such as `"themes/dark.json"`; one written from the root or
+ * as a URL stays as written. The entry itself is its file name. That name is passed as `file`, for
  * keeping each text by the name the results use, and {@link filePath} turns it back into `path`.
  *
  * @example
  * const texts = new Map<string, string>();
- * const doc = await read("tokens/tokens.resolver.json", {
+ * const ds = await read("tokens/tokens.resolver.json", {
  *   readText: async (path, file) => {
  *     const text = await readFile(path, "utf8");
  *     texts.set(file, text); // "dark.json"
@@ -1539,39 +1708,38 @@ export { filePath } from "./read/paths.js";
 
 /**
  * A design system and the text of its files: what {@link open} and {@link openFromMemory} give,
- * for a tool that changes the files. The Document holds no text; the text sits beside it.
+ * for a tool that changes the files. The design system holds no text; the text sits beside it.
  *
  * A project never changes. It remembers the options it was read with, functions included, so it
  * cannot be sent to another process as it is: send its `files` and `entry`, and open it there with
- * {@link openFromMemory} and the same options, which gives the same Document.
+ * {@link openFromMemory} and the same options, which gives the same design system.
  */
 export interface Project {
-    readonly doc: Document;
+    readonly doc: DesignSystem;
     /**
-     * The file the read started from, a resolver or a token file, by the Document's name for it,
-     * so `files[entry]` is its text.
+     * The file the read started from, a resolver or a token file, by the design system's name for
+     * it, so `files[entry]` is its text.
      */
     readonly entry: string;
-    /** The text of every file the Document read, by the name the Document gives it, as at {@link ReadText}. */
+    /**
+     * The text of every file the design system read, by the name the design system gives it, as at
+     * {@link ReadText}.
+     */
     readonly files: Readonly<Record<string, string>>;
     /** The options it was read with, for reading it again. */
     readonly options: ReadOptions;
 }
 
 export { childPath, forbiddenInName, movedPath, parentOf, pathBelow, withoutRoot } from "./path.js";
-export { completeInput, defaultPermutation, modifier, permutation } from "./lookup/permutation.js";
+export { completeInput } from "./lookup/permutation.js";
 export { permutationLabel } from "./lookup/permutation-label.js";
 
-/** What {@link completeInput} gives: the full input, or the modifier or context it could not match. */
+/**
+ * What {@link completeInput} gives: the full input, or the modifier or context it could not match.
+ */
 export type CompleteInput =
     | { ok: true; input: Input }
-    | { ok: false; reason: "unknown-modifier"; modifier: string }
-    | { ok: false; reason: "unknown-context"; modifier: string; context: string }
-    | { ok: false; reason: "no-default"; modifier: string };
-export { group, token, tokensIn } from "./lookup/token.js";
-
-export { acrossPermutations } from "./lookup/across-permutations.js";
-export { tokenPaths } from "./lookup/token-paths.js";
+    | ({ ok: false } & Exclude<PermutationErrorDetail, { reason: "not-read" }>);
 
 /** A token or group whose path changed, such as after a rename. */
 export interface Move {
@@ -1660,7 +1828,7 @@ export type AtOffset =
  * What is at a position in a file: a token, a group, or a reference, with the type a value there
  * must have. For editors and language servers.
  */
-export function atOffset(doc: Document, file: string, offset: number): AtOffset {
+export function atOffset(ds: DesignSystem, file: string, offset: number): AtOffset {
     throw new Error("not implemented yet");
 }
 
@@ -1722,7 +1890,7 @@ export interface ExportOptions {
  * @param input Which permutation. Defaults to the default permutation.
  */
 export function toDTCG(
-    doc: Document,
+    doc: DesignSystem,
     input?: Input,
     options?: ExportOptions,
 ): { tokens: JsonObject; skipped: string[] } {
@@ -1734,7 +1902,7 @@ export function toDTCG(
  * then, for each other context, only what differs.
  */
 export function toDTCGProject(
-    doc: Document,
+    doc: DesignSystem,
     options?: ExportOptions & {
         /**
          * Write a single resolver file with every source inline.

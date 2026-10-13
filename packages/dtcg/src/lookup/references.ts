@@ -1,5 +1,5 @@
 import type {
-    Document,
+    DesignSystem,
     Group,
     Permutation,
     Reference,
@@ -10,7 +10,6 @@ import type {
 } from "../index.js";
 import { within } from "../path.js";
 import { acrossPermutations } from "../read/reference.js";
-import { group, token } from "./token.js";
 
 interface WrittenIn {
     position: Map<Reference, number>;
@@ -31,7 +30,7 @@ export function referencedIn(
             within(named, each) ? references : [],
         );
     };
-    const first = reaching(path, token(permutation, path) !== undefined);
+    const first = reaching(path, permutation.token(path) !== undefined);
     const found = new Set<Reference>(first);
     const seen = new Set([path]);
     const waiting = chained ? [first] : [];
@@ -48,20 +47,20 @@ export function referencedIn(
 }
 
 export function referencedByIn(
-    doc: Document,
+    ds: DesignSystem,
     path: string,
     options?: ReferenceOptions,
 ): ReferenceInPermutations[] {
-    return across(doc, (permutation) => referencedIn(permutation, path, options));
+    return across(ds, (permutation) => referencedIn(permutation, path, options));
 }
 
 export function referencesIn(
-    doc: Document,
+    ds: DesignSystem,
     path: string,
     { chained = false }: ReferenceOptions = {},
 ): ReferenceInPermutations[] {
-    return across(doc, (permutation) => {
-        const start = token(permutation, path) ?? group(permutation, path);
+    return across(ds, (permutation) => {
+        const start = permutation.token(path) ?? permutation.group(path);
         if (!start) return [];
         const found: Reference[] = [];
         const seen = new Set<Token | Group>([start]);
@@ -70,7 +69,7 @@ export function referencesIn(
             for (const reference of each.references) {
                 found.push(reference);
                 const next =
-                    reference.path === undefined ? undefined : token(permutation, reference.path);
+                    reference.path === undefined ? undefined : permutation.token(reference.path);
                 if (!chained || !next || seen.has(next)) continue;
                 seen.add(next);
                 waiting.push(next);
@@ -104,11 +103,11 @@ function writtenIn(permutation: Permutation): WrittenIn {
 }
 
 function across(
-    doc: Document,
+    ds: DesignSystem,
     inPermutation: (permutation: Permutation) => Reference[],
 ): ReferenceInPermutations[] {
     const merged = new Map<Span, ReferenceInPermutations>();
-    for (const permutation of doc.permutations) {
+    for (const permutation of ds.permutations) {
         for (const reference of inPermutation(permutation)) {
             const found = merged.get(reference.span);
             if (!found)

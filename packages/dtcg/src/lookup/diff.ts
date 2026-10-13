@@ -1,6 +1,6 @@
 import type {
     Change,
-    Document,
+    DesignSystem,
     Group,
     GroupProperty,
     Move,
@@ -14,7 +14,7 @@ import type {
 import { movedPath } from "../path.js";
 import { isReference, movedReference } from "../values/references.js";
 import { sameJson, saysTheSame } from "../values/same-value.js";
-import { permutation } from "./permutation.js";
+import { findPermutation } from "./permutation.js";
 
 /**
  * What changed between two reads, and in which permutations: tokens and groups added, removed,
@@ -33,17 +33,21 @@ import { permutation } from "./permutation.js";
  * moves rewrote are not changes, and a reference pointed somewhere else is.
  *
  * Each permutation of `after` is compared with the one its input names in `before`, as
- * {@link permutation} finds it; a permutation `before` has no match for is left out.
+ * {@link DesignSystem.permutation} finds it; a permutation `before` has no match for is left out.
  *
  * @example
  * for (const change of diff(before, after, { moved })) row(change.kind, change.path);
  */
-export function diff(before: Document, after: Document, options?: { moved?: Move[] }): Change[] {
+export function diff(
+    before: DesignSystem,
+    after: DesignSystem,
+    options?: { moved?: Move[] },
+): Change[] {
     const moved = options?.moved ?? [];
     const changes = new Changes();
     for (const now of after.permutations) {
-        const was = permutation(before, now.input);
-        if (!was) continue;
+        const was = findPermutation(before, now.input);
+        if ("reason" in was) continue;
         changes.add(topLevelChange(was.root, now));
         for (const pair of matched(was.groups, now.groups, moved)) {
             changes.add(groupChange(pair, now, moved));

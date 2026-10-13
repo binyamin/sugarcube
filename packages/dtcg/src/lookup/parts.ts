@@ -3,22 +3,7 @@ import { syntaxes } from "../values/syntaxes.js";
 import { isJsonObject } from "../values/json.js";
 import { type ArraySyntax, type Syntax, choiceOf, syntaxOf } from "../values/syntax.js";
 
-/**
- * A token's value as its parts: the whole value, and within it each part of a composite, each
- * shadow layer or gradient stop, and each length of a dash pattern, every one with where it sits,
- * what it resolved to and the reference written there. `undefined` for a token with no resolved
- * value. An emitter writes each type, and asks of each part's `ref` whether to write a reference
- * to another token instead.
- *
- * @example
- * // a border written { "color": "{color.ink}", "width": { "value": 1, "unit": "px" }, "style": "solid" }
- * const border = parts(token);
- * if (border?.type === "border") {
- *   border.color.ref?.token // color.ink
- *   border.width.resolved   // { value: 1, unit: "px" }
- * }
- */
-export function parts(token: Token): Part | undefined {
+export function partsOf(token: Token): Part | undefined {
     if (token.resolved === undefined) return undefined;
     return partOf(token, token.type, token.resolved, []) as Part;
 }

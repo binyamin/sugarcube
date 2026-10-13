@@ -1,8 +1,9 @@
 import {
+    type DesignSystem,
     type Diagnostic,
-    type Document,
+    type Input,
     type Permutation,
-    permutation as permutationFor,
+    PermutationError,
 } from "@sugarcube-sh/dtcg";
 import type { InternalConfig } from "../../types/config.js";
 import type { Reported } from "../../types/diagnostics.js";
@@ -35,12 +36,12 @@ export interface Declarations {
  * on `:root`, so nothing is declared.
  *
  * @example
- * const declared = declare(doc, config);
+ * const declared = declare(ds, config);
  * const { files } = emitCSS(declared, config);
  * const { rules, safelist } = utilityRules(utilityTokens(declared), config.utilities.classes);
  */
-export function declare(doc: Document, config: InternalConfig): Declarations {
-    const reported = doc.diagnostics.map(asReported);
+export function declare(ds: DesignSystem, config: InternalConfig): Declarations {
+    const reported = ds.diagnostics.map(asReported);
     const deprecated =
         config.variables.transforms.colorFallbackStrategy === "polyfill"
             ? [diagnostic("option-deprecated", { option: 'colorFallbackStrategy: "polyfill"' })]
@@ -48,14 +49,14 @@ export function declare(doc: Document, config: InternalConfig): Declarations {
     if (reported.some(({ kind }) => kind === "default-required"))
         return { entries: [], diagnostics: [...reported, ...deprecated] };
 
-    const options = declarationOptions(doc, config);
+    const options = declarationOptions(ds, config);
     const declaredIn = new Map<Permutation, Declared>();
     const declaredFor = (permutation: Permutation) => {
         const found = declaredIn.get(permutation) ?? declarations(permutation, options);
         declaredIn.set(permutation, found);
         return found;
     };
-    const toWrite = entries(doc, config, declaredFor);
+    const toWrite = entries(ds, config, declaredFor);
     const once = [...declaredIn.values()];
 
     return {
@@ -71,13 +72,13 @@ export function declare(doc: Document, config: InternalConfig): Declarations {
 }
 
 function entries(
-    doc: Document,
+    ds: DesignSystem,
     config: InternalConfig,
     declaredFor: (permutation: Permutation) => Declared,
 ): Entry[] {
     const listed = config.variables.permutations ?? [];
     if (listed.length === 0) {
-        return doc.permutations.map((permutation) => ({
+        return ds.permutations.map((permutation) => ({
             permutation,
             selector: derivedSelector(permutation),
             path: config.variables.path,
@@ -85,7 +86,7 @@ function entries(
         }));
     }
     return listed.flatMap(({ input, selector, atRule, path }) => {
-        const permutation = permutationFor(doc, input);
+        const permutation = configured(ds, input);
         if (!permutation) return [];
         return [
             {
@@ -97,6 +98,15 @@ function entries(
             },
         ];
     });
+}
+
+function configured(ds: DesignSystem, input: Input): Permutation | undefined {
+    try {
+        return ds.permutation(input);
+    } catch (error) {
+        if (error instanceof PermutationError) return undefined;
+        throw error;
+    }
 }
 
 function derivedSelector(permutation: Permutation): string {

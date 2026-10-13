@@ -1,8 +1,9 @@
+import { fillDefaults, readOptions } from "@sugarcube-sh/core";
+import { readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { type Analysis, impact, tokenAt, unused } from "../src/analyze/answers.js";
-import { systemOf } from "../src/analyze/system.js";
 import type { Use } from "../src/analyze/uses.js";
-import { buildFiles } from "../src/build.js";
+import { buildFiles, buildFrom } from "../src/build.js";
 
 const color = (value: unknown) => ({ $type: "color", $value: value });
 const black = { colorSpace: "srgb", components: [0, 0, 0] };
@@ -60,9 +61,9 @@ async function analysisOf(...uses: Use[]): Promise<Analysis> {
     const texts = Object.fromEntries(
         Object.entries(themed).map(([name, json]) => [name, JSON.stringify(json)]),
     );
-    const system = systemOf(await buildFiles(texts, "/project"));
+    const { ds } = await buildFiles(texts, "/project");
     return {
-        system,
+        ds,
         uses: {
             uses,
             scanned: { forVarReferences: ["/project/app.css"], forUtilityClasses: [] },
@@ -72,7 +73,7 @@ async function analysisOf(...uses: Use[]): Promise<Analysis> {
 }
 
 function impactOf(analysis: Analysis, path: string) {
-    const found = tokenAt(analysis.system, path);
+    const found = tokenAt(analysis.ds, path);
     if (!found || found === "group") throw new Error(`no token ${path}`);
     return impact(analysis, found);
 }
@@ -167,10 +168,180 @@ describe("impact", () => {
 
 describe("tokenAt", () => {
     it("says when a path is a group, not a token", async () => {
-        expect(tokenAt((await analysisOf()).system, "color")).toBe("group");
+        expect(tokenAt((await analysisOf()).ds, "color")).toBe("group");
     });
 
     it("says when a path is nothing", async () => {
-        expect(tokenAt((await analysisOf()).system, "nowhere")).toBeUndefined();
+        expect(tokenAt((await analysisOf()).ds, "nowhere")).toBeUndefined();
+    });
+
+    it("gives the default theme's token, whichever theme is read first", () => {
+        const config = fillDefaults({
+            variables: {
+                permutations: [
+                    { input: { theme: "dark" }, selector: ".dark" },
+                    { input: { theme: "light" }, selector: ":root" },
+                ],
+            },
+        });
+        const texts = Object.fromEntries(
+            Object.entries(themed).map(([name, json]) => [name, JSON.stringify(json)]),
+        );
+        const ds = readFromMemory({ files: texts }, readOptions(config));
+        expect(ds.permutations[0]?.input).toStrictEqual({ theme: "dark" });
+        const found = tokenAt(ds, "color.surface");
+        expect(found !== "group" && found?.authored?.value).toBe("{color.target}");
+    });
+});
+
+describe("impact, across themes", () => {
+    const dimension = (value: unknown) => ({ $type: "dimension", $value: value });
+    const blue = { colorSpace: "srgb", components: [0, 0, 1] };
+    const files = {
+        "tokens.resolver.json": {
+            version: "2025.10",
+            resolutionOrder: [
+                { type: "set", name: "base", sources: [{ $ref: "base.json" }] },
+                {
+                    type: "modifier",
+                    name: "theme",
+                    default: "light",
+                    contexts: {
+                        light: [],
+                        dark: [{ $ref: "dark.json" }],
+                        alt: [{ $ref: "alt.json" }],
+                    },
+                },
+                {
+                    type: "modifier",
+                    name: "brand",
+                    default: "a",
+                    contexts: { a: [], b: [{ $ref: "b.json" }] },
+                },
+                {
+                    type: "modifier",
+                    name: "debug",
+                    default: "off",
+                    contexts: { off: [], on: [] },
+                },
+            ],
+        },
+        "base.json": {
+            red: color({ colorSpace: "srgb", components: [1, 0, 0] }),
+            blue: color(blue),
+            brand: color("{red}"),
+            danger: color("{brand}"),
+            edge: { $type: "border", $value: { color: "{brand}", width: "{gap}", style: "solid" } },
+            gap: dimension({ value: 1, unit: "px" }),
+            soft: color("{blue}"),
+            strong: color("{blue}"),
+            muted: color("{blue}"),
+            button: color("{soft}"),
+            surface: color("{soft}"),
+            mixed: color("{soft}"),
+            only: color("{soft}"),
+            size: dimension({ value: 1, unit: "px" }),
+            small: dimension("{size}"),
+            large: dimension("{size}"),
+            lift: {
+                $type: "shadow",
+                $value: {
+                    color: "{blue}",
+                    offsetX: "{small}",
+                    offsetY: "{large}",
+                    blur: { value: 0, unit: "px" },
+                    spread: { value: 0, unit: "px" },
+                },
+            },
+        },
+        "dark.json": {
+            brand: color("{blue}"),
+            button: color("{soft}"),
+            surface: color("{strong}"),
+            mixed: color("{strong}"),
+        },
+        "alt.json": { surface: color("{soft}") },
+        "b.json": { button: color("{strong}"), mixed: color("{muted}") },
+    };
+    const texts = (changed: Record<string, unknown> = {}) =>
+        Object.fromEntries(
+            Object.entries({ ...files, ...changed }).map(([name, json]) => [
+                name,
+                JSON.stringify(json),
+            ]),
+        );
+    const noUses = {
+        uses: [],
+        scanned: { forVarReferences: [], forUtilityClasses: [] },
+        unread: [],
+    };
+    const dependentsOf = async (path: string, built?: Awaited<ReturnType<typeof buildFiles>>) => {
+        const { ds } = built ?? (await buildFiles(texts(), "/project"));
+        const found = tokenAt(ds, path);
+        if (!found || found === "group") throw new Error(`no token ${path}`);
+        return new Map(
+            impact({ ds, uses: noUses }, found).dependents.map((each) => [each.path, each]),
+        );
+    };
+
+    it("gives what reaches a token in any theme, through the references that reach it", async () => {
+        const reaching = await dependentsOf("red");
+        expect(reaching.get("brand")).toStrictEqual({
+            path: "brand",
+            references: ["red"],
+            inDefault: "red",
+        });
+        expect(reaching.get("danger")?.references).toStrictEqual(["brand"]);
+        expect(reaching.get("edge")?.references).toStrictEqual(["brand"]);
+    });
+
+    it("never lists the token as depending on itself, round a loop", async () => {
+        const { ds } = await buildFiles(
+            {
+                "tokens.json": JSON.stringify({
+                    a: { $type: "number", $value: "{b}" },
+                    b: { $type: "number", $value: "{a}" },
+                }),
+            },
+            "/project",
+        );
+        const a = tokenAt(ds, "a");
+        if (!a || a === "group") throw new Error("no a");
+        expect(impact({ ds, uses: noUses }, a).dependents).toStrictEqual([
+            { path: "b", references: ["a"], inDefault: "a" },
+        ]);
+    });
+
+    it("names the modifier whose files set the token to another reference", async () => {
+        const reaching = await dependentsOf("blue");
+        expect(reaching.get("button")?.label).toBe("per brand");
+        expect(reaching.get("surface")?.label).toBe("per theme");
+    });
+
+    it("says 'per context' when more than one modifier sets it", async () => {
+        expect((await dependentsOf("blue")).get("mixed")?.label).toBe("per context");
+    });
+
+    it("says nothing about a token with a single parent", async () => {
+        expect((await dependentsOf("blue")).get("only")).not.toHaveProperty("label");
+    });
+
+    it("names the modifier whose files set it, even when another lines up by chance", async () => {
+        const config = fillDefaults({
+            variables: {
+                permutations: [
+                    { input: { theme: "light", brand: "a" }, selector: ":root" },
+                    { input: { theme: "dark", brand: "b" }, selector: ".dark-b" },
+                ],
+            },
+        });
+        const ds = readFromMemory({ files: texts({ "dark.json": {} }) }, readOptions(config));
+        const loaded = { config: { ...config, resolver: "tokens.resolver.json" } };
+        const built = await buildFrom(ds, loaded);
+        expect((await dependentsOf("blue", built)).get("button")?.label).toBe("per brand");
+    });
+
+    it("says how many references when the parents don't vary by theme", async () => {
+        expect((await dependentsOf("size")).get("lift")?.label).toBe("2 references");
     });
 });

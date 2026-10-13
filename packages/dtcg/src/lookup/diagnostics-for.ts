@@ -1,5 +1,5 @@
-import type { Diagnostic, Document, Input } from "../index.js";
-import { permutation, sameInput } from "./permutation.js";
+import type { Diagnostic, DesignSystem, Input } from "../index.js";
+import { findPermutation, sameInput } from "./permutation.js";
 
 /**
  * The diagnostics about one token or group, for showing on its own page: those at its path, and
@@ -9,18 +9,18 @@ import { permutation, sameInput } from "./permutation.js";
  * permutation the read built gives none.
  *
  * @example
- * diagnosticsFor(doc, "color.brand")                   // includes "color.missing does not exist" if it refers to it
- * diagnosticsFor(doc, "color.brand", { mode: "dark" }) // only those in mode: dark
+ * diagnosticsFor(ds, "color.brand")                   // includes "color.missing does not exist" if it refers to it
+ * diagnosticsFor(ds, "color.brand", { mode: "dark" }) // only those in mode: dark
  */
-export function diagnosticsFor(doc: Document, path: string, input?: Input): Diagnostic[] {
-    const chosen = input && permutation(doc, input);
-    if (input && !chosen) return [];
-    return doc.diagnostics.filter(
+export function diagnosticsFor(ds: DesignSystem, path: string, input?: Input): Diagnostic[] {
+    const chosen = input && findPermutation(ds, input);
+    if (chosen && "reason" in chosen) return [];
+    return ds.diagnostics.filter(
         (found) =>
             isAbout(found, path) &&
             (!chosen ||
                 !found.permutations ||
-                found.permutations.some((each) => sameInput(doc, each, chosen.input))),
+                found.permutations.some((each) => sameInput(ds, each, chosen.input))),
     );
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Part, parts, readFromMemory, token } from "../../src/index.js";
+import { type Part, readFromMemory } from "../../src/index.js";
 
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 const redRead = { colorSpace: "srgb", components: [1, 0, 0], alpha: 1 };
@@ -69,19 +69,19 @@ const tokens = {
 };
 
 const doc = readFromMemory({ files: { "tokens.json": JSON.stringify(tokens) } });
-const partsOf = (path: string) => {
-    const found = token(doc, path);
+const partsOfPath = (path: string) => {
+    const found = doc.permutation().token(path);
     if (!found) throw new Error(`no token ${path}`);
-    return parts(found);
+    return found.parts;
 };
 
-describe("parts", () => {
+describe("token.parts", () => {
     it("gives a simple value as one part, with what it resolved to", () => {
-        expect(partsOf("thin")).toStrictEqual({ type: "dimension", resolved: px(1) });
+        expect(partsOfPath("thin")).toStrictEqual({ type: "dimension", resolved: px(1) });
     });
 
     it("gives a whole value written as a reference that reference", () => {
-        expect(partsOf("accent")).toStrictEqual({
+        expect(partsOfPath("accent")).toStrictEqual({
             type: "color",
             resolved: redRead,
             ref: expect.objectContaining({ syntax: "curly-brace", path: "red" }),
@@ -89,7 +89,7 @@ describe("parts", () => {
     });
 
     it("gives each part of a composite, typed, with the reference written there", () => {
-        expect(partsOf("edge")).toStrictEqual({
+        expect(partsOfPath("edge")).toStrictEqual({
             type: "border",
             resolved: {
                 color: redRead,
@@ -112,7 +112,7 @@ describe("parts", () => {
     });
 
     it("gives a JSON Pointer written at a part as its reference", () => {
-        const border = partsOf("pointed");
+        const border = partsOfPath("pointed");
         expect(border?.type === "border" && border.color.ref).toMatchObject({
             syntax: "json-pointer",
             pointer: "#/red/$value",
@@ -124,11 +124,11 @@ describe("parts", () => {
     });
 
     it("leaves a pointer inside a part, such as at one color component, in what it resolved to", () => {
-        expect(partsOf("mixed")).toStrictEqual({ type: "color", resolved: redRead });
+        expect(partsOfPath("mixed")).toStrictEqual({ type: "color", resolved: redRead });
     });
 
     it("gives a shadow its layers, a single shadow as a list of one", () => {
-        const shadow = partsOf("lone");
+        const shadow = partsOfPath("lone");
         expect(shadow?.type === "shadow" && shadow.layers).toStrictEqual([
             {
                 property: [0],
@@ -155,7 +155,7 @@ describe("parts", () => {
     });
 
     it("gives a layer written as a reference to a shadow token that reference, and its parts", () => {
-        const shadow = partsOf("layered");
+        const shadow = partsOfPath("layered");
         if (shadow?.type !== "shadow") throw new Error("not a shadow");
         const [first, second] = shadow.layers;
         expect(first?.ref).toMatchObject({ syntax: "curly-brace", path: "lone" });
@@ -170,7 +170,7 @@ describe("parts", () => {
     });
 
     it("gives a gradient its stops, each with its color and position", () => {
-        const gradient = partsOf("fade");
+        const gradient = partsOfPath("fade");
         if (gradient?.type !== "gradient") throw new Error("not a gradient");
         expect(gradient.stops.map(({ color, position }) => [color.ref, position])).toStrictEqual([
             [undefined, { type: "number", property: [0, "position"], resolved: 0 }],
@@ -187,7 +187,7 @@ describe("parts", () => {
     });
 
     it("gives a dash pattern its lengths, and a keyword none", () => {
-        const dash = partsOf("dash");
+        const dash = partsOfPath("dash");
         expect(dash?.type === "strokeStyle" && "dashArray" in dash && dash.dashArray).toStrictEqual(
             [
                 {
@@ -199,12 +199,12 @@ describe("parts", () => {
                 { type: "dimension", property: ["dashArray", 1], resolved: px(2) },
             ],
         );
-        const plain = partsOf("plain");
+        const plain = partsOfPath("plain");
         expect(plain?.type === "strokeStyle" && "dashArray" in plain).toBe(false);
     });
 
     it("gives typography its five parts, in the spec's order", () => {
-        const typography = partsOf("body");
+        const typography = partsOfPath("body");
         if (typography?.type !== "typography") throw new Error("not typography");
         expect(typePartsOf(typography)).toStrictEqual([
             ["fontFamily", "fontFamily"],
@@ -223,10 +223,10 @@ describe("parts", () => {
     });
 
     it("gives every composite its parts, with their types, in the spec's order", () => {
-        const motion = partsOf("motion");
-        const edge = partsOf("edge");
-        const shadow = partsOf("lone");
-        const gradient = partsOf("fade");
+        const motion = partsOfPath("motion");
+        const edge = partsOfPath("edge");
+        const shadow = partsOfPath("lone");
+        const gradient = partsOfPath("fade");
         if (
             motion?.type !== "transition" ||
             edge?.type !== "border" ||
@@ -258,7 +258,7 @@ describe("parts", () => {
     });
 
     it("is undefined for a token whose value could not be read", () => {
-        expect(partsOf("broken")).toBeUndefined();
+        expect(partsOfPath("broken")).toBeUndefined();
     });
 });
 

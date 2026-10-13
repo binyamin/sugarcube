@@ -6,7 +6,6 @@ import {
     filePath,
     read,
     readFromMemory,
-    token,
 } from "../../src/index.js";
 
 const valid = '{ "a": { "$type": "number", "$value": 1 } }';
@@ -141,7 +140,7 @@ describe("what is set aside is a warning, and what cannot be read an error", () 
     });
 });
 
-describe("the options a Document was read with", () => {
+describe("the options a design system was read with", () => {
     it("are recorded, so its values can be read again the same way", () => {
         const options = { hexStringColors: true, ignoreUnknownProperties: true };
         const doc = readFromMemory({ files: { "tokens.json": valid } }, options);
@@ -240,7 +239,7 @@ describe("paths in a resolver", () => {
         expect(doc.diagnostics).toStrictEqual([]);
     });
 
-    it("names each file it asks for as the Document will name it", async () => {
+    it("names each file it asks for as the design system will name it", async () => {
         const asked: [string, string][] = [];
         await read("tokens/design.resolver.json", {
             readText: async (path, file) => {
@@ -257,7 +256,7 @@ describe("paths in a resolver", () => {
         ]);
     });
 
-    it("gives back, through filePath, the path it asked for each file the Document names", async () => {
+    it("gives back, through filePath, the path it asked for each file the design system names", async () => {
         const asked: [string, string][] = [];
         await read("tokens/design.resolver.json", {
             readText: async (path, file) => {
@@ -559,7 +558,7 @@ describe("a group referring to the whole document", () => {
         };
         const doc = readFromMemory({ files });
         expect(doc.diagnostics).toStrictEqual([]);
-        expect(token(doc, "g.x")?.inherited).toStrictEqual({ from: "" });
+        expect(doc.permutation().token("g.x")?.inherited).toStrictEqual({ from: "" });
     });
     it('never reaches a token named "" through #, the whole document', () => {
         const files = {
@@ -568,7 +567,7 @@ describe("a group referring to the whole document", () => {
                 "t": { $type: "number", $value: { $ref: "#" } },
             }),
         };
-        expect(token(readFromMemory({ files }), "t")?.resolved).toBeUndefined();
+        expect(readFromMemory({ files }).permutation().token("t")?.resolved).toBeUndefined();
     });
 });
 
@@ -614,7 +613,7 @@ describe("labels", () => {
     });
 });
 
-describe("what a Document holds", () => {
+describe("what a design system holds", () => {
     it("is the files, the resolver part, the sources, the permutations, how values were read and the problems", () => {
         const resolver = JSON.stringify({ version: "2025.10", resolutionOrder: [] });
         const doc = readFromMemory({

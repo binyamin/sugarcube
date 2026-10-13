@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type Project, token } from "@sugarcube-sh/dtcg";
+import type { Project } from "@sugarcube-sh/dtcg";
 import { type Logger, type ViteDevServer, createServer } from "vite";
 import { afterEach, describe, expect, it } from "vitest";
 import dtcg, { type DtcgPlugin } from "../src/index.js";
@@ -92,7 +92,7 @@ describe("dtcg's Vite plugin", () => {
         await until(
             () =>
                 reads.some(({ project: read }) =>
-                    JSON.stringify(token(read.doc, "color.ink")).includes("#222"),
+                    JSON.stringify(read.doc.permutation().token("color.ink")).includes("#222"),
                 ),
             "the save",
             () => tokens({ color: { ink: color("#222222") } }),

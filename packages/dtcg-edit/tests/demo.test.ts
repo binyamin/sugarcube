@@ -1,4 +1,3 @@
-import { token } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { demo } from "./helpers.js";
 
@@ -9,8 +8,10 @@ describe("the demo the tests edit", () => {
     });
 
     it("keeps its type sizes bound to the sizing scale", () => {
-        expect(token(demo.doc, "typography.text.base")?.authored?.value).toBe("{size.step.0}");
-        expect(token(demo.doc, "typography.text.base")?.resolved).toEqual({
+        expect(demo.doc.permutation().token("typography.text.base")?.authored?.value).toBe(
+            "{size.step.0}",
+        );
+        expect(demo.doc.permutation().token("typography.text.base")?.resolved).toEqual({
             value: 1,
             unit: "rem",
         });

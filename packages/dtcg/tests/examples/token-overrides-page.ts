@@ -1,14 +1,16 @@
 // A token's detail page. It shows the value as written, then each theme that overrides it, with the
 // file each value comes from.
-import { acrossPermutations, token, type Document } from "@sugarcube-sh/dtcg";
+import { type DesignSystem } from "@sugarcube-sh/dtcg";
 
-declare const doc: Document;
+declare const ds: DesignSystem;
 const path = "color.danger";
 
-const base = token(doc, path);
-row("Base", base?.authored?.value, base?.writtenAt.at(-1)?.span.file);
+const base = ds.permutation().token(path);
+row("Base", base?.authored?.value, base?.valueFrom.source.file);
 
-for (const { permutation, token: there } of acrossPermutations(doc, path)) {
-    const place = there.writtenAt.at(-1);
-    if (place?.source.context) row(permutation.label, there.authored?.value, place.span.file);
+for (const permutation of ds.permutations) {
+    const there = permutation.token(path);
+    if (there?.valueFrom.source.context) {
+        row(permutation.label, there.authored?.value, there.valueFrom.source.file);
+    }
 }

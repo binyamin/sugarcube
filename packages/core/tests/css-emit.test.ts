@@ -1,4 +1,4 @@
-import { type Document, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type DesignSystem, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { fillDefaults } from "../src/node/config/normalize.js";
 import { declare } from "../src/shared/css/declare.js";
@@ -8,7 +8,7 @@ import { readOptions } from "../src/shared/read-options.js";
 
 type Variables = Parameters<typeof fillDefaults>[0]["variables"];
 
-function built(doc: Document, config: InternalConfig) {
+function built(doc: DesignSystem, config: InternalConfig) {
     const declared = declare(doc, config);
     const { files, diagnostics } = emitCSS(declared, config);
     return { files, diagnostics: [...declared.diagnostics, ...diagnostics] };
@@ -1542,7 +1542,7 @@ describe("emitCSS", () => {
             ]);
         });
 
-        it("reading a fluid range as the Document's values were read", () => {
+        it("reading a fluid range as the design system's values were read", () => {
             const config = fillDefaults({
                 variables: {
                     path: "variables.css",

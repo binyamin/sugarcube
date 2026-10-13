@@ -3,9 +3,11 @@ import type {
     DiagnosticDetailByKind,
     DiagnosticKind,
     JsonErrorReason,
+    PermutationErrorDetail,
     ResolverProblem,
     ResolverRule,
 } from "./index.js";
+import { permutationLabel } from "./lookup/permutation-label.js";
 import {
     didYouMean,
     ignoredMessage,
@@ -62,11 +64,25 @@ const propertyWords: Record<DiagnosticDetailByKind["invalid-property"]["expected
     "reference": 'a reference, such as "{group}" or { "$ref": "#/group" }',
 };
 
+const inputWords = {
+    unknownModifier: (modifier: string) => `there is no modifier named \`${modifier}\``,
+    unknownContext: (modifier: string, context: string) =>
+        `\`${context}\` is not a context of the modifier \`${modifier}\``,
+    noContextChosen: (modifier: string, valid: string[]) =>
+        `the input doesn't choose a context for the modifier \`${modifier}\`, which has no default: choose ${oneOf(valid)}`,
+};
+
+function oneOf(names: string[]): string {
+    const quoted = names.map((name) => `\`${name}\``);
+    const last = quoted.pop();
+    return quoted.length === 0 ? (last ?? "") : `${quoted.join(", ")} or ${last}`;
+}
+
 const resolverRules: Record<Exclude<ResolverRule, "wrong-type">, (name: string) => string> = {
     "version": () => 'the resolver\'s version must be "2025.10"',
     "missing-property": (name) => `\`${name}\` is missing`,
     "unknown-set": (name) => `there is no set named \`${name}\``,
-    "unknown-modifier": (name) => `there is no modifier named \`${name}\``,
+    "unknown-modifier": (name) => inputWords.unknownModifier(name),
     "invalid-pointer": (name) => `\`${name}\` cannot be referred to from here`,
     "circular-reference": (name) => `\`${name}\` leads back to itself`,
     "resolver-as-source": (name) => `\`${name}\` is a resolver, and a source must hold tokens`,
@@ -84,6 +100,17 @@ const resolverRules: Record<Exclude<ResolverRule, "wrong-type">, (name: string) 
 };
 
 export const thrownMessages = {
+    permutation: (detail: PermutationErrorDetail) => {
+        if (detail.reason === "unknown-modifier")
+            return inputWords.unknownModifier(detail.modifier);
+        if (detail.reason === "unknown-context") {
+            return inputWords.unknownContext(detail.modifier, detail.context);
+        }
+        if (detail.reason === "no-default") {
+            return inputWords.noContextChosen(detail.modifier, detail.valid);
+        }
+        return `\`${permutationLabel(detail.input)}\` was not built by this read`;
+    },
     noResolver: (files: string[]) =>
         files.length === 0
             ? "no files were given to read"
@@ -133,12 +160,15 @@ export const diagnosticMessages: { [K in DiagnosticKind]: Entry<K> } = {
     },
     "input-invalid": {
         severity: "error",
-        message: ({ reason, modifier, context }) => {
-            if (reason === "unknown-modifier") return `there is no modifier named \`${modifier}\``;
-            if (reason === "unknown-context")
-                return `\`${context}\` is not a context of the modifier \`${modifier}\``;
-            if (reason === "missing-modifier")
-                return `the modifier \`${modifier}\` has no default, so an input must choose one of its contexts`;
+        message: (detail) => {
+            const { modifier } = detail;
+            if (detail.reason === "unknown-modifier") return inputWords.unknownModifier(modifier);
+            if (detail.reason === "unknown-context") {
+                return inputWords.unknownContext(modifier, detail.context);
+            }
+            if (detail.reason === "missing-modifier") {
+                return inputWords.noContextChosen(modifier, detail.valid);
+            }
             return `the input for the modifier \`${modifier}\` must be a string`;
         },
     },

@@ -63,7 +63,7 @@ const examples: { [K in DiagnosticKind]: DiagnosticDetailByKind[K][] } = {
             context: "blue",
             valid: ["light", "dark"],
         },
-        { reason: "missing-modifier", input: 0, modifier: "theme" },
+        { reason: "missing-modifier", input: 0, modifier: "theme", valid: ["light", "dark"] },
         { reason: "not-a-string", input: 0, modifier: "beta" },
     ],
     "invalid-name": [
@@ -560,6 +560,19 @@ describe("diagnostic messages that say what would mend the problem", () => {
             expect(worded(found)).toBe(message);
         },
     );
+});
+
+describe("the message for an input that leaves out a modifier with no default", () => {
+    it("says the input doesn't choose a context for it, and names each context to choose", () => {
+        const { message } = diagnosticMessages["input-invalid"];
+        const missing = { reason: "missing-modifier", input: 0, modifier: "theme" } as const;
+        expect(message({ ...missing, valid: ["light", "dark"] })).toBe(
+            "the input doesn't choose a context for the modifier `theme`, which has no default: choose `light` or `dark`",
+        );
+        expect(message({ ...missing, valid: ["light", "dark", "dim"] })).toBe(
+            "the input doesn't choose a context for the modifier `theme`, which has no default: choose `light`, `dark` or `dim`",
+        );
+    });
 });
 
 describe("diagnostic messages for a token's or group's own properties", () => {

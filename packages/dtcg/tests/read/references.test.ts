@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-    type Document,
-    type Span,
-    group,
-    isReference,
-    permutation,
-    readFromMemory,
-    token,
-} from "../../src/index.js";
+import { type DesignSystem, type Span, isReference, readFromMemory } from "../../src/index.js";
 
 const color = (red: number) => ({ $value: { colorSpace: "srgb", components: [red, 0, 0] } });
 const px = (value: number) => ({ value, unit: "px" });
@@ -52,16 +44,16 @@ const files: Record<string, string> = {
 };
 
 const doc = readFromMemory({ files, entry: "tokens.resolver.json" });
-const light = permutation(doc, { mode: "light" });
-const dark = permutation(doc, { mode: "dark" });
-const inLight = (path: string) => (light ? token(light, path) : undefined);
-const inDark = (path: string) => (dark ? token(dark, path) : undefined);
+const light = doc.permutation({ mode: "light" });
+const dark = doc.permutation({ mode: "dark" });
+const inLight = (path: string) => (light ? light.token(path) : undefined);
+const inDark = (path: string) => (dark ? dark.token(path) : undefined);
 
 function written(span: Span, from: Record<string, string> = files): string {
     return (from[span.file] ?? "").slice(span.offset, span.offset + span.length);
 }
 
-function oneFile(tokens: unknown): Document {
+function oneFile(tokens: unknown): DesignSystem {
     return readFromMemory({ files: { "tokens.json": JSON.stringify(tokens) } });
 }
 
@@ -108,7 +100,7 @@ describe("a token's references", () => {
                 },
             },
         });
-        const [reference] = token(pointed, "tint")?.references ?? [];
+        const [reference] = pointed.permutation().token("tint")?.references ?? [];
         expect(reference?.path).toBe("red");
         expect(reference?.token).toBeUndefined();
         expect(reference?.targetProperty).toBeUndefined();
@@ -134,10 +126,10 @@ describe("a token's references", () => {
             gap: { $type: "number", $value: "{size.two}" },
             all: { $type: "number", $value: "{size}" },
         });
-        const [missing] = token(broken, "gap")?.references ?? [];
+        const [missing] = broken.permutation().token("gap")?.references ?? [];
         expect(missing?.path).toBe("size.two");
         expect(missing?.token).toBeUndefined();
-        expect(token(broken, "all")?.references[0]?.token).toBeUndefined();
+        expect(broken.permutation().token("all")?.references[0]?.token).toBeUndefined();
     });
 
     it("are kept for a value that can't be read as a whole", () => {
@@ -148,10 +140,10 @@ describe("a token's references", () => {
                 $value: { color: "{color.ink}", width: "wide", style: "solid" },
             },
         });
-        const line = token(invalid, "line");
+        const line = invalid.permutation().token("line");
         expect(line?.invalid).toBe(true);
         expect(line?.references.map(({ path }) => path)).toStrictEqual(["color.ink"]);
-        expect(token(invalid, "color.ink")?.referencedBy()[0]?.from).toBe(line);
+        expect(invalid.permutation().token("color.ink")?.referencedBy()[0]?.from).toBe(line);
     });
 });
 
@@ -232,7 +224,7 @@ describe("a token's referencedBy", () => {
             a: { $type: "number", $value: "{b}" },
             b: { $type: "number", $value: "{a}" },
         });
-        const chained = token(loop, "a")?.referencedBy({ chained: true }) ?? [];
+        const chained = loop.permutation().token("a")?.referencedBy({ chained: true }) ?? [];
         expect(chained.map(({ from }) => from.path)).toStrictEqual(["a", "b"]);
     });
 
@@ -243,15 +235,15 @@ describe("a token's referencedBy", () => {
 
 describe("a group's $extends", () => {
     it("links the group to the group it extends (Format 6.4)", () => {
-        expect(group(doc, "primary")?.extends).toBe(group(doc, "button"));
+        expect(doc.permutation().group("primary")?.extends).toBe(doc.permutation().group("button"));
     });
 
     it("is a reference the group writes, referencing no token (Format 6.4.5)", () => {
-        const [reference, ...rest] = group(doc, "primary")?.references ?? [];
+        const [reference, ...rest] = doc.permutation().group("primary")?.references ?? [];
         expect(rest).toStrictEqual([]);
         expect(reference?.syntax).toBe("curly-brace");
         expect(reference?.path).toBe("button");
-        expect(reference?.from).toBe(group(doc, "primary"));
+        expect(reference?.from).toBe(doc.permutation().group("primary"));
         expect(reference?.token).toBeUndefined();
         expect(reference && written(reference.span)).toBe('"{button}"');
     });
@@ -263,16 +255,18 @@ describe("a group's $extends", () => {
             secondary: { $ref: "#/button" },
         });
         for (const path of ["primary", "secondary"]) {
-            const [reference] = group(pointed, path)?.references ?? [];
+            const [reference] = pointed.permutation().group(path)?.references ?? [];
             expect(reference?.syntax).toBe("json-pointer");
             expect(reference?.path).toBe("button");
-            expect(group(pointed, path)?.extends).toBe(group(pointed, "button"));
+            expect(pointed.permutation().group(path)?.extends).toBe(
+                pointed.permutation().group("button"),
+            );
         }
     });
 
     it("leaves a group that extends nothing without references", () => {
-        expect(group(doc, "button")?.references).toStrictEqual([]);
-        expect(group(doc, "button")?.extends).toBeUndefined();
+        expect(doc.permutation().group("button")?.references).toStrictEqual([]);
+        expect(doc.permutation().group("button")?.extends).toBeUndefined();
     });
 });
 
@@ -307,15 +301,15 @@ describe("moved", () => {
             secondary: { $ref: "#/button" },
         });
         const pointed = readFromMemory({ files: { "tokens.json": text } });
-        const [extending] = group(pointed, "primary")?.references ?? [];
-        const [referring] = group(pointed, "secondary")?.references ?? [];
+        const [extending] = pointed.permutation().group("primary")?.references ?? [];
+        const [referring] = pointed.permutation().group("secondary")?.references ?? [];
         expect(extending?.moved(moves("button", "control"))).toBe("{control}");
         expect(referring?.moved(moves("button", "control"))).toBe("#/control");
         expect(referring && written(referring.span, { "tokens.json": text })).toBe('"#/button"');
     });
 });
 
-describe("on the Document", () => {
+describe("on the design system", () => {
     it("referencedBy gives every reference to a path, each with the permutations it is in", () => {
         const reaching = doc.referencedBy("color.red");
         expect(reaching.map(({ from, permutations }) => [from, permutations])).toStrictEqual([
@@ -412,7 +406,7 @@ describe("the plain form", () => {
     });
 
     it("writes a group's $extends among its references, and no extends link", () => {
-        const primary = plain(group(doc, "primary"));
+        const primary = plain(doc.permutation().group("primary"));
         expect(primary.references.map(({ path }: { path: string }) => path)).toStrictEqual([
             "button",
         ]);

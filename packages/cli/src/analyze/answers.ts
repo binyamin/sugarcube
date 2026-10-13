@@ -1,10 +1,8 @@
-import { type Token, group } from "@sugarcube-sh/dtcg";
-import { describeElidedParents, hopsTo, parentsOf } from "./reach.js";
-import type { System } from "./system.js";
+import type { DesignSystem, Input, Permutation, Token } from "@sugarcube-sh/dtcg";
 import type { Use, Uses } from "./uses.js";
 
 export interface Analysis {
-    system: System;
+    ds: DesignSystem;
     uses: Uses;
 }
 
@@ -26,47 +24,67 @@ export interface Impact {
     uses: Use[];
 }
 
-export function unused({ system, uses }: Analysis): Unused {
-    const used = [...new Set(uses.uses.map(({ token }) => token))];
+export function unused({ ds, uses }: Analysis): Unused {
+    const used = uses.uses.map(({ token }) => token);
     const reached = new Set(used);
     for (const path of used) {
-        for (const reference of system.doc.references(path, { chained: true })) {
-            if (reference.path !== undefined) reached.add(reference.path);
+        for (const { path: named } of ds.references(path, { chained: true })) {
+            if (named !== undefined) reached.add(named);
         }
     }
-    const left = [...system.tokens.keys()].filter((path) => !reached.has(path)).sort();
-    return { unused: left, total: system.tokens.size };
+    const paths = ds.tokenPaths();
+    return { unused: paths.filter((path) => !reached.has(path)).sort(), total: paths.length };
 }
 
-export function tokenAt(system: System, path: string): Token | "group" | undefined {
-    const found = system.tokens.get(path);
-    if (found) return found;
-    return system.permutations.some((permutation) => group(permutation, path))
-        ? "group"
-        : undefined;
-}
-
-export function impact({ system, uses }: Analysis, token: Token): Impact {
-    const { path } = token;
-    const hops = hopsTo(system.permutations, path);
-    const labels = describeElidedParents(hops, system);
-    const inDefault = new Map<string, string>();
-    const { defaultPermutation } = system;
-    for (const hop of hops) {
-        if (defaultPermutation && hop.in.includes(defaultPermutation)) {
-            inDefault.set(hop.from, hop.to);
-        }
+export function tokenAt(ds: DesignSystem, path: string): Token | "group" | undefined {
+    const inDefault = ds.permutations.find((each) => each.isDefault)?.token(path);
+    if (inDefault) return inDefault;
+    for (const permutation of ds.permutations) {
+        const found = permutation.token(path);
+        if (found) return found;
     }
-    const dependents = [...parentsOf(hops)]
-        .map(([dependent, references]) => {
-            const each: Dependent = { path: dependent, references: [...references].sort() };
-            const preferred = inDefault.get(dependent);
-            const label = labels.get(dependent);
-            if (preferred) each.inDefault = preferred;
-            if (label) each.label = label;
-            return each;
-        })
+    return ds.has(path) ? "group" : undefined;
+}
+
+interface Named {
+    path: string;
+    permutations: Input[];
+}
+
+export function impact({ ds, uses }: Analysis, token: Token): Impact {
+    const byDependent = new Map<string, Named[]>();
+    for (const { from, path, permutations } of ds.referencedBy(token.path, { chained: true })) {
+        if (from === token.path || path === undefined) continue;
+        byDependent.set(from, [...(byDependent.get(from) ?? []), { path, permutations }]);
+    }
+    const dependents = [...byDependent]
+        .map(([path, references]) => dependent(ds, path, references))
         .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-    const affected = new Set([path, ...dependents.map((each) => each.path)]);
+    const affected = new Set([token.path, ...byDependent.keys()]);
     return { token, dependents, uses: uses.uses.filter((each) => affected.has(each.token)) };
+}
+
+function dependent(ds: DesignSystem, path: string, references: Named[]): Dependent {
+    const paths = (named: Named[]) => [...new Set(named.map((each) => each.path))].sort();
+    const namedIn = (permutation: Permutation) =>
+        paths(references.filter(({ permutations }) => permutations.includes(permutation.input)));
+    const found: Dependent = { path, references: paths(references) };
+    const defaultTheme = ds.permutations.find((each) => each.isDefault);
+    const [inDefault] = defaultTheme ? namedIn(defaultTheme) : [];
+    if (inDefault) found.inDefault = inDefault;
+    if (found.references.length < 2) return found;
+
+    const base = defaultTheme ?? ds.permutations[0];
+    const before = base && namedIn(base).join("\0");
+    const changed = ds.permutations.filter((each) => namedIn(each).join("\0") !== before);
+    const setBy = new Set(
+        changed.flatMap((each) => {
+            const context = each.token(path)?.valueFrom.source.context;
+            return context ? [context.modifier.name] : [];
+        }),
+    );
+    if (changed.length === 0) found.label = `${found.references.length} references`;
+    else if (setBy.size === 1) found.label = `per ${[...setBy][0]}`;
+    else found.label = "per context";
+    return found;
 }

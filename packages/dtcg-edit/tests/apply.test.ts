@@ -1,4 +1,4 @@
-import { type Project, openFromMemory, token } from "@sugarcube-sh/dtcg";
+import { type Project, openFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { type FileOp, type Json, apply, commit } from "../src/index.js";
 import { demo, at, changed } from "./helpers.js";
@@ -19,11 +19,11 @@ const setBrand500 = (project: Project): FileOp => ({
 });
 
 describe("apply, set", () => {
-    it("changes the value, and the Document read again shows it", () => {
+    it("changes the value, and the design system read again shows it", () => {
         const after = applied(demo, [setBrand500(demo)]);
 
         expect(at(after, "color.json", brand500)).toEqual(red);
-        expect(token(after.doc, "color.brand.500")?.authored?.value).toEqual(red);
+        expect(after.doc.permutation().token("color.brand.500")?.authored?.value).toEqual(red);
     });
 
     it("still applies after someone changed another token in the same file", () => {
@@ -86,7 +86,7 @@ describe("apply, add", () => {
         ]);
 
         expect(at(after, "space.json", ["color", "raw", "red", "$value"])).toEqual(red);
-        expect(token(after.doc, "color.raw.red")?.authored?.value).toEqual(red);
+        expect(after.doc.permutation().token("color.raw.red")?.authored?.value).toEqual(red);
     });
 
     it("is a conflict when someone already made something different there", () => {
@@ -152,7 +152,7 @@ describe("apply, remove", () => {
         const after = applied(demo, [removeSm()]);
 
         expect(at(after, "radius.json", sm)).toBeUndefined();
-        expect(token(after.doc, "radius.sm")).toBeUndefined();
+        expect(after.doc.permutation().token("radius.sm")).toBeUndefined();
     });
 
     it("does nothing when it is already gone", () => {
@@ -275,7 +275,7 @@ describe("apply, several edits", () => {
             value: 2,
             unit: "px",
         });
-        expect(token(after.doc, "radius.sm")).toBeUndefined();
+        expect(after.doc.permutation().token("radius.sm")).toBeUndefined();
     });
 
     it("applies none when one is a conflict, and names every conflict", () => {
@@ -341,7 +341,7 @@ describe("apply, files", () => {
         expect(after.files["more.json"]).toBe(
             '{\n  "b": {\n    "$type": "number",\n    "$value": 2\n  }\n}\n',
         );
-        expect(token(after.doc, "b")).toBeDefined();
+        expect(after.doc.permutation().token("b")).toBeDefined();
     });
 
     it("does nothing when the file already holds the same, and is a conflict when it holds other", () => {
@@ -374,7 +374,7 @@ describe("apply, files", () => {
 
         const after = applied(both, [deleted]);
         expect(after.files["more.json"]).toBeUndefined();
-        expect(token(after.doc, "b")).toBeUndefined();
+        expect(after.doc.permutation().token("b")).toBeUndefined();
         expect(applied(after, [deleted]).files).toEqual(after.files);
 
         const edited = { ...deleted, was: "{}" };

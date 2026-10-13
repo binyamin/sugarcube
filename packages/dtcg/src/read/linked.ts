@@ -1,7 +1,9 @@
 import type {
-    Document,
+    DesignSystem,
     Group,
+    Input,
     JsonPath,
+    Part,
     Permutation,
     Place,
     Reference,
@@ -12,6 +14,8 @@ import type {
     Span,
     Token,
 } from "../index.js";
+import { partsOf } from "../lookup/parts.js";
+import { modifierIn, permutationIn } from "../lookup/permutation.js";
 import { referencedByIn, referencedIn, referencesIn } from "../lookup/references.js";
 import { writtenAtIn } from "../lookup/written-at.js";
 
@@ -37,6 +41,13 @@ const tokenShared = {
         }
         return chain;
     },
+    get valueFrom(): Place {
+        const { writtenAt } = this as unknown as Token;
+        return writtenAt[writtenAt.length - 1] as Place;
+    },
+    get parts(): Part | undefined {
+        return partsOf(this as unknown as Token);
+    },
     toJSON(this: Token) {
         return { ...this, group: undefined, permutation: undefined };
     },
@@ -44,6 +55,17 @@ const tokenShared = {
 
 const groupShared = {
     kind: "group",
+    get tokens(): Token[] {
+        const found: Token[] = [];
+        const visit = (items: (Token | Group)[]) => {
+            for (const each of items) {
+                if (each.kind === "token") found.push(each);
+                else visit(each.children);
+            }
+        };
+        visit((this as unknown as Group).children);
+        return found;
+    },
     toJSON(this: Group) {
         return {
             ...this,
@@ -55,7 +77,23 @@ const groupShared = {
     },
 };
 
+interface Index {
+    tokens: Map<string, Token>;
+    groups: Map<string, Group>;
+}
+
+const indexes = new WeakMap<Permutation, Index>();
+
 const permutationShared = {
+    get isDefault(): boolean {
+        return (this as unknown as Permutation).contexts.every((context) => context.isDefault);
+    },
+    token(this: Permutation, path: string): Token | undefined {
+        return indexes.get(this)?.tokens.get(path);
+    },
+    group(this: Permutation, path: string): Group | undefined {
+        return indexes.get(this)?.groups.get(path);
+    },
     toJSON(this: Permutation) {
         const sources = this.sources.map(positionOf);
         return { ...this, contexts: undefined, sources, children: paths(this.children) };
@@ -76,18 +114,35 @@ const contextShared = {
 };
 
 const documentShared = {
-    references(this: Document, path: string, options?: ReferenceOptions) {
+    references(this: DesignSystem, path: string, options?: ReferenceOptions) {
         return referencesIn(this, path, options);
     },
-    referencedBy(this: Document, path: string, options?: ReferenceOptions) {
+    referencedBy(this: DesignSystem, path: string, options?: ReferenceOptions) {
         return referencedByIn(this, path, options);
     },
-    writtenAt(this: Document, path: string) {
+    writtenAt(this: DesignSystem, path: string) {
         return writtenAtIn(this, path);
+    },
+    permutation(this: DesignSystem, input?: Input) {
+        return permutationIn(this, input);
+    },
+    modifier(this: DesignSystem, name: string) {
+        return modifierIn(this, name);
+    },
+    tokenPaths(this: DesignSystem) {
+        return pathsIn(this, "tokens");
+    },
+    groupPaths(this: DesignSystem) {
+        return pathsIn(this, "groups");
+    },
+    has(this: DesignSystem, path: string) {
+        return this.permutations.some(
+            (each) => (each.token(path) ?? each.group(path)) !== undefined,
+        );
     },
 };
 
-type TokenFields = Omit<Token, "kind" | "referenceAt" | "referencedBy" | "aliasChain">;
+type TokenFields = Omit<Token, keyof typeof tokenShared>;
 
 function TokenObject(this: Record<string, unknown>, fields: TokenFields): void {
     this.path = fields.path;
@@ -112,12 +167,22 @@ export function linkedToken(fields: TokenFields): Token {
     return new (TokenObject as unknown as new (fields: TokenFields) => Token)(fields);
 }
 
-export function linkedGroup(fields: Omit<Group, "kind">): Group {
+export function linkedGroup(fields: Omit<Group, keyof typeof groupShared>): Group {
     return Object.assign(Object.create(groupShared), fields);
 }
 
-export function linkedPermutation(fields: Permutation): Permutation {
+export function linkedPermutation(
+    fields: Omit<Permutation, keyof typeof permutationShared>,
+): Permutation {
     return Object.assign(Object.create(permutationShared), fields);
+}
+
+export function withIndex(
+    permutation: Permutation,
+    tokens: Map<string, Token>,
+    groups: Map<string, Group>,
+): void {
+    indexes.set(permutation, { tokens, groups });
 }
 
 export function linkedModifier(fields: ResolverModifier): ResolverModifier {
@@ -179,9 +244,17 @@ export function placesIn(): Places {
 }
 
 export function linkedDocument(
-    fields: Omit<Document, "references" | "referencedBy" | "writtenAt">,
-): Document {
+    fields: Omit<DesignSystem, keyof typeof documentShared>,
+): DesignSystem {
     return Object.assign(Object.create(documentShared), fields);
+}
+
+function pathsIn(ds: DesignSystem, kind: "tokens" | "groups"): string[] {
+    const found = new Set<string>();
+    for (const permutation of ds.permutations) {
+        for (const { path } of permutation[kind]) found.add(path);
+    }
+    return [...found];
 }
 
 function paths(items: (Token | Group)[]): string[] {

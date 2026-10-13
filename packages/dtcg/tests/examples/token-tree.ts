@@ -1,7 +1,7 @@
 // A sidebar tree of groups and tokens, nested, in the order the files list them.
-import { defaultPermutation, type Document, type Group, type Token } from "@sugarcube-sh/dtcg";
+import { type DesignSystem, type Group, type Token } from "@sugarcube-sh/dtcg";
 
-declare const doc: Document;
+declare const ds: DesignSystem;
 
 type Node = { path: string; token: boolean; children: Node[] };
 
@@ -10,4 +10,4 @@ function node(child: Token | Group): Node {
     return { path: child.path, token: false, children: child.children.map(node) };
 }
 
-export const tree = defaultPermutation(doc)?.children.map(node) ?? [];
+export const tree = ds.permutation().children.map(node);

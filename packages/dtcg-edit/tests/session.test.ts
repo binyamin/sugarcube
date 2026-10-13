@@ -1,4 +1,4 @@
-import { diff, openFromMemory, token } from "@sugarcube-sh/dtcg";
+import { diff, openFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it, vi } from "vitest";
 import {
     apply,
@@ -31,7 +31,9 @@ describe("createSession", () => {
             expect.objectContaining({ kind: "set", file: "color.json" }),
         ]);
         expect(session.unsaved).not.toHaveProperty("files");
-        expect(token(session.project.doc, "color.brand.500")?.authored?.value).toEqual(red);
+        expect(session.project.doc.permutation().token("color.brand.500")?.authored?.value).toEqual(
+            red,
+        );
         expect(session.opened).toBe(demo);
     });
 

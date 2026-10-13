@@ -3,7 +3,7 @@ import { mkdtemp, realpath, rm, stat, utimes, writeFile } from "node:fs/promises
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { type Project, token } from "../../src/index.js";
+import { type Project } from "../../src/index.js";
 import { type ProjectSource, type ReadEvent, liveProject } from "../../src/node.js";
 
 const afterRead = vi.hoisted(() => ({ once: undefined as (() => Promise<void>) | undefined }));
@@ -85,7 +85,7 @@ function live(source: ProjectSource | (() => ProjectSource), whenReading?: (read
     return { live: current, errors, reads, watcher, added, save };
 }
 
-const hexOf = (opened: Project) => JSON.stringify(token(opened.doc, "color.ink"));
+const hexOf = (opened: Project) => JSON.stringify(opened.doc.permutation().token("color.ink"));
 
 describe("a project kept current with its files", () => {
     it("reads at once, and reads again when a file it lists is saved", async () => {
@@ -102,7 +102,7 @@ describe("a project kept current with its files", () => {
         expect(reads.map(({ project: read }) => read)).toStrictEqual([next]);
     });
 
-    it("keeps the text of each file it read with the Document", async () => {
+    it("keeps the text of each file it read with the design system", async () => {
         const entry = await project();
         const { live: current } = live({ entry });
         const first = await current.project();
@@ -111,7 +111,7 @@ describe("a project kept current with its files", () => {
         expect(first.files["base.json"]).toBe(JSON.stringify({ color: { ink: color("#111111") } }));
     });
 
-    it("holds the text a save wrote, with the Document read from it", async () => {
+    it("holds the text a save wrote, with the design system read from it", async () => {
         const entry = await project();
         const { live: current, save } = live({ entry });
         await current.project();
@@ -261,7 +261,7 @@ describe("a project kept current with its files", () => {
         expect(reads[0]?.project.doc.files).toContain("more.json");
     });
 
-    it("does not read again for a file the Document never listed", async () => {
+    it("does not read again for a file the design system never listed", async () => {
         const entry = await project();
         const { live: current, reads, save } = live({ entry });
         const first = await current.project();
@@ -273,7 +273,7 @@ describe("a project kept current with its files", () => {
         expect(reads).toHaveLength(0);
     });
 
-    it("does not read again for a file the Document no longer lists", async () => {
+    it("does not read again for a file the design system no longer lists", async () => {
         const entry = await project();
         await resolver(["base.json", "more.json"]);
         const { live: current, reads, save } = live({ entry });
@@ -288,7 +288,7 @@ describe("a project kept current with its files", () => {
         expect(reads).toHaveLength(1);
     });
 
-    it("names the saved file as the Document does, and times the read", async () => {
+    it("names the saved file as the design system does, and times the read", async () => {
         const entry = await project();
         const { live: current, reads, save } = live({ entry });
         await current.project();

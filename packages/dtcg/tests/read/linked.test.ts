@@ -1,17 +1,9 @@
 import { describe, expect, it } from "vitest";
-import {
-    type Document,
-    defaultPermutation,
-    defineGenerator,
-    group,
-    permutation,
-    readFromMemory,
-    token,
-} from "../../src/index.js";
+import { type DesignSystem, defineGenerator, readFromMemory } from "../../src/index.js";
 
 const color = (red: number) => ({ $value: { colorSpace: "srgb", components: [red, 0, 0] } });
 
-function oneFile(tokens: unknown): Document {
+function oneFile(tokens: unknown): DesignSystem {
     return readFromMemory({ files: { "tokens.json": JSON.stringify(tokens) } });
 }
 
@@ -24,16 +16,20 @@ describe("a token's group", () => {
     });
 
     it("is the group it is written in", () => {
-        expect(token(doc, "color.bg")?.group).toBe(group(doc, "color"));
-        expect(token(doc, "color.brand.500")?.group).toBe(group(doc, "color.brand"));
+        expect(doc.permutation().token("color.bg")?.group).toBe(doc.permutation().group("color"));
+        expect(doc.permutation().token("color.brand.500")?.group).toBe(
+            doc.permutation().group("color.brand"),
+        );
     });
 
     it("is the group whose root token it is (Format 6.2)", () => {
-        expect(token(doc, "color.brand.$root")?.group).toBe(group(doc, "color.brand"));
+        expect(doc.permutation().token("color.brand.$root")?.group).toBe(
+            doc.permutation().group("color.brand"),
+        );
     });
 
     it("is absent for a token at the top level", () => {
-        expect(token(doc, "gap")?.group).toBeUndefined();
+        expect(doc.permutation().token("gap")?.group).toBeUndefined();
     });
 
     it("is the group that takes it through $extends", () => {
@@ -41,7 +37,9 @@ describe("a token's group", () => {
             button: { $type: "number", pad: { $value: 1 } },
             primary: { $extends: "{button}" },
         });
-        expect(token(extending, "primary.pad")?.group).toBe(group(extending, "primary"));
+        expect(extending.permutation().token("primary.pad")?.group).toBe(
+            extending.permutation().group("primary"),
+        );
     });
 
     it("is the group a generator adds it to", () => {
@@ -60,7 +58,9 @@ describe("a token's group", () => {
             },
             { generators: [steps] },
         );
-        expect(token(generated, "space.1")?.group).toBe(group(generated, "space"));
+        expect(generated.permutation().token("space.1")?.group).toBe(
+            generated.permutation().group("space"),
+        );
     });
 
     it("is its own permutation's group", () => {
@@ -82,11 +82,11 @@ describe("a token's group", () => {
                 "dark.json": JSON.stringify({ color: { bg: color(0) } }),
             },
         });
-        const dark = permutation(themed, { mode: "dark" });
-        const light = permutation(themed, { mode: "light" });
-        const darkBg = dark && token(dark, "color.bg");
-        expect(darkBg?.group).toBe(dark && group(dark, "color"));
-        expect(darkBg?.group).not.toBe(light && group(light, "color"));
+        const dark = themed.permutation({ mode: "dark" });
+        const light = themed.permutation({ mode: "light" });
+        const darkBg = dark.token("color.bg");
+        expect(darkBg?.group).toBe(dark.group("color"));
+        expect(darkBg?.group).not.toBe(light.group("color"));
     });
 });
 
@@ -94,16 +94,19 @@ describe("a group's group", () => {
     const doc = oneFile({ color: { $type: "color", brand: { "500": color(0.5) } } });
 
     it("is the group it is in, its parent group (Format 6.7.3)", () => {
-        expect(group(doc, "color.brand")?.group).toBe(group(doc, "color"));
+        expect(doc.permutation().group("color.brand")?.group).toBe(
+            doc.permutation().group("color"),
+        );
     });
 
     it("is absent for a group at the top level", () => {
-        expect(group(doc, "color")?.group).toBeUndefined();
+        expect(doc.permutation().group("color")?.group).toBeUndefined();
     });
 
     it("walks up from a token to the top level", () => {
         const trail: string[] = [];
-        for (let at = token(doc, "color.brand.500")?.group; at; at = at.group) trail.push(at.path);
+        for (let at = doc.permutation().token("color.brand.500")?.group; at; at = at.group)
+            trail.push(at.path);
         expect(trail).toStrictEqual(["color.brand", "color"]);
     });
 });
@@ -114,11 +117,13 @@ describe("a group's root token", () => {
     });
 
     it("is the token named $root in it (Format 6.2)", () => {
-        expect(group(doc, "color.brand")?.rootToken).toBe(token(doc, "color.brand.$root"));
+        expect(doc.permutation().group("color.brand")?.rootToken).toBe(
+            doc.permutation().token("color.brand.$root"),
+        );
     });
 
     it("is absent when the group has none", () => {
-        expect(group(doc, "color")?.rootToken).toBeUndefined();
+        expect(doc.permutation().group("color")?.rootToken).toBeUndefined();
     });
 });
 
@@ -126,13 +131,16 @@ describe("kind", () => {
     const doc = oneFile({ color: { $type: "color", bg: color(1) } });
 
     it("says a token is a token and a group a group (Format 6.1)", () => {
-        expect(token(doc, "color.bg")?.kind).toBe("token");
-        expect(group(doc, "color")?.kind).toBe("group");
+        expect(doc.permutation().token("color.bg")?.kind).toBe("token");
+        expect(doc.permutation().group("color")?.kind).toBe("group");
     });
 
     it("tells a group's children apart", () => {
         const nested = oneFile({ color: { $type: "color", bg: color(1), brand: {} } });
-        const kinds = group(nested, "color")?.children.map(({ kind }) => kind);
+        const kinds = nested
+            .permutation()
+            .group("color")
+            ?.children.map(({ kind }) => kind);
         expect(kinds).toStrictEqual(["token", "group"]);
     });
 });
@@ -142,14 +150,14 @@ describe("the plain form", () => {
         color: { $type: "color", bg: color(1), brand: { "500": color(0.5), "$root": color(0.6) } },
         gap: { $type: "number", $value: 2 },
     });
-    const base = defaultPermutation(doc);
+    const base = doc.permutation();
 
     it("is what JSON.stringify writes, though the links go in circles", () => {
         expect(() => JSON.stringify(doc)).not.toThrow();
     });
 
     it("writes a token without its group, permutation or kind", () => {
-        const bg = token(doc, "color.bg");
+        const bg = doc.permutation().token("color.bg");
         const written = plain(bg);
         expect(written).not.toHaveProperty("group");
         expect(written).not.toHaveProperty("kind");
@@ -158,7 +166,7 @@ describe("the plain form", () => {
     });
 
     it("writes a group's children as their paths, without its root token or kind", () => {
-        const written = plain(group(doc, "color.brand"));
+        const written = plain(doc.permutation().group("color.brand"));
         expect(written.children).toStrictEqual(["color.brand.500", "color.brand.$root"]);
         expect(written).not.toHaveProperty("rootToken");
         expect(written).not.toHaveProperty("group");
@@ -173,7 +181,9 @@ describe("the plain form", () => {
 
     it("writes every permutation's tokens and groups the same way", () => {
         const written = plain(doc);
-        expect(written.permutations[0].tokens[0]).toStrictEqual(plain(token(doc, "color.bg")));
+        expect(written.permutations[0].tokens[0]).toStrictEqual(
+            plain(doc.permutation().token("color.bg")),
+        );
         expect(written.permutations[0].groups[0].children).toStrictEqual([
             "color.bg",
             "color.brand",

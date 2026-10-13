@@ -1,4 +1,4 @@
-import type { Document, Input, Project, ReadOptions, ReadText } from "../index.js";
+import type { DesignSystem, Input, Project, ReadOptions, ReadText } from "../index.js";
 import type { Answer, FileText, Request } from "./files.js";
 import { collapse } from "./diagnostics.js";
 import { type Loaded, load } from "./load.js";
@@ -24,26 +24,26 @@ const { performance } = globalThis as unknown as { performance: { now(): number 
  * Node. `@sugarcube-sh/dtcg/node` provides a version that reads from disk.
  *
  * Never rejects because of what is, or is not, in the files. A file that cannot be fetched
- * (`readText` throws) or cannot be read is reported in {@link Document.diagnostics}, and the rest
- * is still read.
+ * (`readText` throws) or cannot be read is reported in {@link DesignSystem.diagnostics}, and the
+ * rest is still read.
  *
  * @param entry A resolver document or a token file.
  *
  * @example
- * const doc = await read("tokens.resolver.json", {
+ * const ds = await read("tokens.resolver.json", {
  *   readText: (path) => fetch(path).then((r) => r.text()),
  * });
  */
 export async function read(
     entry: string,
     options: ReadOptions & { readText: ReadText },
-): Promise<Document> {
+): Promise<DesignSystem> {
     return (await open(entry, options)).doc;
 }
 
 /**
  * Reads a design system as {@link read} does, and keeps the text of every file it read beside
- * the Document, for a tool that changes the files.
+ * the design system, for a tool that changes the files.
  *
  * @param entry A resolver document or a token file.
  *
@@ -91,7 +91,7 @@ async function fetchAll(files: Request, folder: string, readText: ReadText): Pro
  * with a `TypeError` naming the files.
  *
  * @example
- * const doc = readFromMemory({ files: { "tokens.json": text } });
+ * const ds = readFromMemory({ files: { "tokens.json": text } });
  */
 export function readFromMemory(
     sources: {
@@ -103,17 +103,17 @@ export function readFromMemory(
         entry?: string | undefined;
     },
     options: ReadOptions = {},
-): Document {
+): DesignSystem {
     return openFromMemory(sources, options).doc;
 }
 
 /**
  * Reads a design system from text already in memory, as {@link readFromMemory} does, and keeps
- * the text of every file it read beside the Document. Files it did not read are left out.
+ * the text of every file it read beside the design system. Files it did not read are left out.
  *
  * @example
  * const project = openFromMemory({ files, entry: "tokens.resolver.json" });
- * const again = openFromMemory(project, project.options); // the same Document
+ * const again = openFromMemory(project, project.options); // the same design system
  */
 export function openFromMemory(
     sources: {
@@ -159,9 +159,9 @@ function entryAmong(texts: Map<string, string>): string {
 }
 
 function projectOf(loaded: Loaded, options: ReadOptions): Project {
-    const doc = toDocument(loaded, options);
+    const ds = toDesignSystem(loaded, options);
     const { entry, texts } = loaded;
-    return { doc, entry, files: texts, options };
+    return { doc: ds, entry, files: texts, options };
 }
 
 function permutationOptions({
@@ -172,7 +172,7 @@ function permutationOptions({
     return { ...(inputs && { inputs }), permutations, limit: permutationLimit };
 }
 
-function toDocument(
+function toDesignSystem(
     loaded: Loaded,
     {
         onStage,
@@ -181,8 +181,8 @@ function toDocument(
         hexStringColors,
         ignoreUnknownProperties,
     }: ReadOptions,
-): Document {
-    const found: Document["diagnostics"] = [];
+): DesignSystem {
+    const found: DesignSystem["diagnostics"] = [];
     const parseOptions = {
         hexStringColors: hexStringColors ?? false,
         ignoreUnknownProperties: ignoreUnknownProperties ?? false,

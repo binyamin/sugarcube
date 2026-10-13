@@ -1,4 +1,4 @@
-import { type Project, defineGenerator, group, openFromMemory, token } from "@sugarcube-sh/dtcg";
+import { type Project, defineGenerator, openFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { type FileOp, createSession, create, rename, setValue } from "../src/index.js";
 import { at, committed, demo, opsOf } from "./helpers.js";
@@ -58,17 +58,19 @@ describe("rename, on the demo", () => {
             project.doc.diagnostics.map(({ kind }) => kind).sort();
         expect(problems(after)).toEqual(problems(demo));
         for (const step of ["50", "300", "500", "700", "900"]) {
-            expect(token(after.doc, `color.primary.${step}`)?.resolved).toEqual(
-                token(demo.doc, `color.brand.${step}`)?.resolved,
+            expect(after.doc.permutation().token(`color.primary.${step}`)?.resolved).toEqual(
+                demo.doc.permutation().token(`color.brand.${step}`)?.resolved,
             );
         }
         for (const path of ["color.text.brand", "border.focus", "gradient.brand"]) {
-            expect(token(after.doc, path)?.resolved).toEqual(token(demo.doc, path)?.resolved);
-            expect(token(after.doc, path, { mode: "dark" })?.resolved).toEqual(
-                token(demo.doc, path, { mode: "dark" })?.resolved,
+            expect(after.doc.permutation().token(path)?.resolved).toEqual(
+                demo.doc.permutation().token(path)?.resolved,
+            );
+            expect(after.doc.permutation({ mode: "dark" }).token(path)?.resolved).toEqual(
+                demo.doc.permutation({ mode: "dark" }).token(path)?.resolved,
             );
         }
-        expect(token(after.doc, "color.brand.500")).toBeUndefined();
+        expect(after.doc.permutation().token("color.brand.500")).toBeUndefined();
     });
 
     it("renames a single token and only the references to it", () => {
@@ -148,7 +150,7 @@ describe("rename, references of every kind", () => {
         expect(at(after, "tokens.json", ["alpha", "$value"])).toEqual({
             $ref: "#/color/primary/$value/components/0",
         });
-        expect(token(after.doc, "alpha")?.resolved).toBe(1);
+        expect(after.doc.permutation().token("alpha")?.resolved).toBe(1);
     });
 
     it("rewrites a group's $extends", () => {
@@ -162,7 +164,7 @@ describe("rename, references of every kind", () => {
         const after = committed(project, rename(project, "button.base", "core"));
 
         expect(at(after, "tokens.json", ["button", "primary", "$extends"])).toBe("{button.core}");
-        expect(group(after.doc, "button.primary")?.extends?.path).toBe("button.core");
+        expect(after.doc.permutation().group("button.primary")?.extends?.path).toBe("button.core");
         expect(after.doc.diagnostics).toEqual([]);
     });
 
@@ -177,7 +179,7 @@ describe("rename, references of every kind", () => {
         const after = committed(project, rename(project, "button.base", "core"));
 
         expect(at(after, "tokens.json", ["button", "primary", "$ref"])).toBe("#/button/core");
-        expect(group(after.doc, "button.primary")?.extends?.path).toBe("button.core");
+        expect(after.doc.permutation().group("button.primary")?.extends?.path).toBe("button.core");
     });
 
     it("rewrites a reference written inside the group it renames", () => {
@@ -185,7 +187,7 @@ describe("rename, references of every kind", () => {
         const after = committed(project, rename(project, "g", "h"));
 
         expect(at(after, "tokens.json", ["h", "b", "$value"])).toBe("{h.a}");
-        expect(token(after.doc, "h.b")?.resolved).toBe(1);
+        expect(after.doc.permutation().token("h.b")?.resolved).toBe(1);
     });
 
     it("rewrites a reference in a value that has another mistake", () => {
@@ -236,7 +238,9 @@ describe("rename, references of every kind", () => {
 
         expect(after.files["tokens.resolver.json"]).toContain("// The design system.");
         expect(after.files["tokens.resolver.json"]).toContain('"$value": "{danger}"');
-        expect(token(after.doc, "text")?.resolved).toEqual(token(project.doc, "text")?.resolved);
+        expect(after.doc.permutation().token("text")?.resolved).toEqual(
+            project.doc.permutation().token("text")?.resolved,
+        );
     });
 });
 
@@ -268,7 +272,9 @@ describe("rename, a file several contexts list", () => {
         const result = rename(project, "gap", "space");
 
         expect(opsOf(result).map(({ file }) => file)).toStrictEqual(["base.json", "night.json"]);
-        expect(token(committed(project, result).doc, "space", { mode: "dim" })?.resolved).toBe(2);
+        expect(
+            committed(project, result).doc.permutation({ mode: "dim" }).token("space")?.resolved,
+        ).toBe(2);
     });
 });
 

@@ -39,6 +39,7 @@ import {
     linkedToken,
     type Places,
     placesIn,
+    withIndex,
 } from "./linked.js";
 import { linkedReference } from "./reference.js";
 import { withoutRoot } from "../path.js";
@@ -334,6 +335,7 @@ function resolvePermutation(
 
     linked.tokens = [...built.values()];
     linked.groups = [...groups.values()];
+    withIndex(linked, built, groups);
     return linked;
 }
 

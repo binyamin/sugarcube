@@ -4,9 +4,9 @@ import { open as openAnywhere } from "../read/read.js";
 import { slashed } from "./paths.js";
 
 /**
- * Reads a design system from disk and keeps the text of every file it read beside the Document.
- * Paths in the result are relative to the entry's folder: join them with it to reach a file on
- * disk.
+ * Reads a design system from disk and keeps the text of every file it read beside the design
+ * system. Paths in the result are relative to the entry's folder: join them with it to reach a file
+ * on disk.
  *
  * @example
  * const project = await open("tokens/tokens.resolver.json");
