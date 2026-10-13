@@ -13,12 +13,12 @@ function read(raw: unknown, options?: ParseOptions) {
 function details(raw: unknown, options?: ParseOptions) {
     const result = parseStrokeStyle(raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
-    return result.errors.map(({ path, detail }) => ({ path, detail }));
+    return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
     const result = parseStrokeStyle(raw, ["$value"], options);
-    return result.ignored.map(({ path, detail }) => ({ path, detail }));
+    return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 const px = (value: number) => ({ value, unit: "px" });
@@ -88,7 +88,7 @@ describe("parseStrokeStyle", () => {
             ([part, raw]) => {
                 expect(details(raw)).toStrictEqual([
                     {
-                        path: ["$value", part],
+                        jsonPath: ["$value", part],
                         detail: {
                             type: "strokeStyle",
                             reason: "alias-not-allowed-here",
@@ -104,7 +104,7 @@ describe("parseStrokeStyle", () => {
             (raw) => {
                 expect(details(raw)).toStrictEqual([
                     {
-                        path: ["$value"],
+                        jsonPath: ["$value"],
                         detail: {
                             type: "strokeStyle",
                             reason: "unknown-stroke-style-keyword",
@@ -119,7 +119,7 @@ describe("parseStrokeStyle", () => {
         it.for([42, null, true, ["solid"]])("%j, which is not a stroke style", (raw) => {
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: { type: "strokeStyle", reason: "wrong-shape", value: raw },
                 },
             ]);
@@ -128,7 +128,7 @@ describe("parseStrokeStyle", () => {
         it("a dash pattern with neither part", () => {
             expect(details({})).toStrictEqual([
                 {
-                    path: ["$value", "dashArray"],
+                    jsonPath: ["$value", "dashArray"],
                     detail: {
                         type: "strokeStyle",
                         reason: "missing-property",
@@ -136,7 +136,7 @@ describe("parseStrokeStyle", () => {
                     },
                 },
                 {
-                    path: ["$value", "lineCap"],
+                    jsonPath: ["$value", "lineCap"],
                     detail: {
                         type: "strokeStyle",
                         reason: "missing-property",
@@ -149,7 +149,7 @@ describe("parseStrokeStyle", () => {
         it("a dashArray that is not a list", () => {
             expect(details({ dashArray: px(4), lineCap: "round" })).toStrictEqual([
                 {
-                    path: ["$value", "dashArray"],
+                    jsonPath: ["$value", "dashArray"],
                     detail: { type: "strokeStyle", reason: "dash-array-not-a-list", value: px(4) },
                 },
             ]);
@@ -158,7 +158,7 @@ describe("parseStrokeStyle", () => {
         it("an empty dashArray", () => {
             expect(details({ dashArray: [], lineCap: "round" })).toStrictEqual([
                 {
-                    path: ["$value", "dashArray"],
+                    jsonPath: ["$value", "dashArray"],
                     detail: { type: "strokeStyle", reason: "empty-dash-array" },
                 },
             ]);
@@ -169,7 +169,7 @@ describe("parseStrokeStyle", () => {
                 details({ dashArray: [px(4), "4px", { value: 2, unit: "em" }], lineCap: "round" }),
             ).toStrictEqual([
                 {
-                    path: ["$value", "dashArray", 1],
+                    jsonPath: ["$value", "dashArray", 1],
                     detail: {
                         type: "dimension",
                         reason: "string-with-unit",
@@ -178,7 +178,7 @@ describe("parseStrokeStyle", () => {
                     },
                 },
                 {
-                    path: ["$value", "dashArray", 2, "unit"],
+                    jsonPath: ["$value", "dashArray", 2, "unit"],
                     detail: {
                         type: "dimension",
                         reason: "unit-not-allowed",
@@ -192,7 +192,7 @@ describe("parseStrokeStyle", () => {
         it.for(["Round", "flat", 1])("the line cap %j", (lineCap) => {
             expect(details({ dashArray: [px(4)], lineCap })).toStrictEqual([
                 {
-                    path: ["$value", "lineCap"],
+                    jsonPath: ["$value", "lineCap"],
                     detail: {
                         type: "strokeStyle",
                         reason: "unknown-line-cap",
@@ -209,7 +209,7 @@ describe("parseStrokeStyle", () => {
             const raw = { dashArray: [px(4)], lineCap: "round", dashOffset: px(1) };
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value", "dashOffset"],
+                    jsonPath: ["$value", "dashOffset"],
                     detail: {
                         type: "strokeStyle",
                         reason: "unknown-property",
@@ -230,7 +230,7 @@ describe("parseStrokeStyle", () => {
                 });
                 expect(ignored(raw, lenient)).toStrictEqual([
                     {
-                        path: ["$value", "dashOffset"],
+                        jsonPath: ["$value", "dashOffset"],
                         detail: { type: "strokeStyle", property: "dashOffset" },
                     },
                 ]);
@@ -245,7 +245,7 @@ describe("parseStrokeStyle", () => {
                 });
                 expect(ignored(raw, lenient)).toStrictEqual([
                     {
-                        path: ["$value", "dashArray", 0, "fluid"],
+                        jsonPath: ["$value", "dashArray", 0, "fluid"],
                         detail: { type: "dimension", property: "fluid" },
                     },
                 ]);

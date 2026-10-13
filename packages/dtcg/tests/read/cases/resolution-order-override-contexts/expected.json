@@ -12,7 +12,7 @@
           {
             "name": "dim",
             "sources": [],
-            "at": {
+            "span": {
               "file": "tokens.resolver.json",
               "offset": 204,
               "length": 2,
@@ -29,7 +29,7 @@
           {
             "name": "bright",
             "sources": [],
-            "at": {
+            "span": {
               "file": "tokens.resolver.json",
               "offset": 218,
               "length": 2,
@@ -44,7 +44,7 @@
             }
           }
         ],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "offset": 56,
           "length": 63,
@@ -71,9 +71,9 @@
       "detail": {
         "rule": "invalid-default",
         "name": "theme",
-        "at": ["resolutionOrder", 0]
+        "jsonPath": ["resolutionOrder", 0]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 152,
         "length": 72,

@@ -72,7 +72,7 @@ describe("scale generator", () => {
                 kind: "extension-invalid",
                 detail: {
                     key: "sh.sugarcube",
-                    at: ["$extensions", "sh.sugarcube", "scale", "ratio", "min"],
+                    jsonPath: ["$extensions", "sh.sugarcube", "scale", "ratio", "min"],
                     reason: "ratio-not-above-one",
                     data: { ratio: 1 },
                 },
@@ -87,7 +87,7 @@ describe("scale generator", () => {
             {
                 kind: "invalid-value",
                 detail: {
-                    at: ["$extensions", "sh.sugarcube", "scale", "base", "min", "unit"],
+                    jsonPath: ["$extensions", "sh.sugarcube", "scale", "base", "min", "unit"],
                     type: "dimension",
                     reason: "missing-property",
                     property: "unit",
@@ -101,7 +101,7 @@ describe("scale generator", () => {
         expect(doc.diagnostics.map(({ detail }) => detail)).toEqual([
             {
                 key: "sh.sugarcube",
-                at: ["$extensions", "sh.sugarcube", "scale", "multipliers"],
+                jsonPath: ["$extensions", "sh.sugarcube", "scale", "multipliers"],
                 reason: "no-multipliers",
             },
         ]);
@@ -113,7 +113,7 @@ describe("scale generator", () => {
             {
                 kind: "invalid-value",
                 detail: {
-                    at: ["$extensions", "sh.sugarcube", "scale", "base", "min"],
+                    jsonPath: ["$extensions", "sh.sugarcube", "scale", "base", "min"],
                     type: "dimension",
                     reason: "string-with-unit",
                     value: "16px",
@@ -132,7 +132,7 @@ describe("scale generator", () => {
             {
                 kind: "invalid-value",
                 detail: {
-                    at: ["$extensions", "sh.sugarcube", "scale", "base", "min"],
+                    jsonPath: ["$extensions", "sh.sugarcube", "scale", "base", "min"],
                     type: "dimension",
                     reason: "reference-not-allowed",
                     reference: "#/size/base/$value",
@@ -156,7 +156,7 @@ describe("scale generator", () => {
                 detail: {
                     property: "fluid",
                     owner: "dimension",
-                    at: ["$extensions", "sh.sugarcube", "scale", "base", "min", "fluid"],
+                    jsonPath: ["$extensions", "sh.sugarcube", "scale", "base", "min", "fluid"],
                 },
             },
         ]);
@@ -172,7 +172,7 @@ describe("scale generator", () => {
             {
                 kind: "invalid-value",
                 detail: {
-                    at: ["$extensions", "sh.sugarcube", "scale", "multipliers", "sm"],
+                    jsonPath: ["$extensions", "sh.sugarcube", "scale", "multipliers", "sm"],
                     type: "number",
                     reason: "reference-not-allowed",
                     reference: "{multiplier.small}",

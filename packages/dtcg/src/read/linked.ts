@@ -28,9 +28,12 @@ const tokenShared = {
     },
     get aliasChain(): Token[] {
         const chain: Token[] = [];
-        for (let at: Token | undefined = this as unknown as Token; at && !chain.includes(at);) {
-            chain.push(at);
-            at = at.referenceAt()?.token;
+        for (
+            let current: Token | undefined = this as unknown as Token;
+            current && !chain.includes(current);
+        ) {
+            chain.push(current);
+            current = current.referenceAt()?.token;
         }
         return chain;
     },
@@ -61,7 +64,7 @@ const permutationShared = {
 
 const modifierShared = {
     toJSON(this: ResolverModifier) {
-        const contexts = this.contexts.map(({ name, sources, at }) => ({ name, sources, at }));
+        const contexts = this.contexts.map(({ name, sources, span }) => ({ name, sources, span }));
         return { ...this, contexts };
     },
 };

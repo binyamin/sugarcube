@@ -131,9 +131,9 @@
       "detail": {
         "property": "paragraphSpacing",
         "owner": "typography",
-        "at": ["$value", "paragraphSpacing"]
+        "jsonPath": ["$value", "paragraphSpacing"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"paragraphSpacing\""
       },
@@ -144,9 +144,9 @@
       "detail": {
         "property": "textDecoration",
         "owner": "typography",
-        "at": ["$value", "textDecoration"]
+        "jsonPath": ["$value", "textDecoration"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"textDecoration\""
       },
@@ -157,9 +157,9 @@
       "detail": {
         "property": "radius",
         "owner": "border",
-        "at": ["$value", "radius"]
+        "jsonPath": ["$value", "radius"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"radius\""
       },
@@ -170,9 +170,9 @@
       "detail": {
         "property": "extra",
         "owner": "dimension",
-        "at": ["$value", "extra"]
+        "jsonPath": ["$value", "extra"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"extra\""
       },

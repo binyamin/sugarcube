@@ -67,8 +67,10 @@ export function normalisePermutations(
             const type = inherited(token, merged, "type");
             if (type === "unusable") continue;
             if (type === undefined) {
-                const where = { at: token.at, path: token.path, permutation: input };
-                diagnostics.push(diagnostic("missing-type", {}, where));
+                const { span, path } = token;
+                diagnostics.push(
+                    diagnostic("missing-type", {}, { span, path, permutation: input }),
+                );
                 continue;
             }
             tokens.set(token.path, { token, type, read: readValue.read(token, type) });

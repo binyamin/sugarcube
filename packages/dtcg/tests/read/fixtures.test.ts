@@ -66,7 +66,7 @@ const oldForms: OldForm[] = [
     {
         form: "a string in a dashArray that is not a reference",
         inRepo: false,
-        matches: (d) => d.kind === "invalid-value" && d.detail.at.includes("dashArray"),
+        matches: (d) => d.kind === "invalid-value" && d.detail.jsonPath.includes("dashArray"),
     },
     {
         form: "an empty dashArray",
@@ -143,7 +143,7 @@ const oldForms: OldForm[] = [
         inRepo: false,
         matches: (d) =>
             d.kind === "resolver-invalid" &&
-            d.detail.at[0] === "resolutionOrder" &&
+            d.detail.jsonPath[0] === "resolutionOrder" &&
             ["invalid-default", "wrong-type", "no-contexts"].includes(d.detail.rule),
     },
     {
@@ -153,7 +153,7 @@ const oldForms: OldForm[] = [
             d.kind === "resolver-invalid" &&
             d.detail.rule === "wrong-type" &&
             d.detail.name === "$ref" &&
-            d.detail.at.includes("sources"),
+            d.detail.jsonPath.includes("sources"),
     },
     {
         form: "a token file whose top level is a list",
@@ -324,7 +324,7 @@ beforeAll(async () => {
 });
 
 function located(d: Diagnostic): string {
-    const where = d.at ? `${d.at.file}:${d.at.start.line}` : "no position";
+    const where = d.span ? `${d.span.file}:${d.span.start.line}` : "no position";
     return `${d.kind} ${JSON.stringify(d.detail)} at ${where}`;
 }
 

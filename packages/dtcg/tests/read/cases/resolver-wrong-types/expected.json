@@ -7,10 +7,10 @@
       "detail": {
         "rule": "wrong-type",
         "name": "sources",
-        "at": ["sets", "base", "sources"],
+        "jsonPath": ["sets", "base", "sources"],
         "expected": "array"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 63,
         "length": 25,
@@ -29,10 +29,10 @@
       "detail": {
         "rule": "wrong-type",
         "name": "sources[0]",
-        "at": ["sets", "brand", "sources", 0],
+        "jsonPath": ["sets", "brand", "sources", 0],
         "expected": "object"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 119,
         "length": 13,
@@ -51,10 +51,10 @@
       "detail": {
         "rule": "wrong-type",
         "name": "dark",
-        "at": ["modifiers", "theme", "contexts", "dark"],
+        "jsonPath": ["modifiers", "theme", "contexts", "dark"],
         "expected": "array"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 208,
         "length": 23,
@@ -74,7 +74,7 @@
         "item": "set",
         "name": "brand"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 105,
         "length": 30,
@@ -94,7 +94,7 @@
         "item": "modifier",
         "name": "theme"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 171,
         "length": 64,

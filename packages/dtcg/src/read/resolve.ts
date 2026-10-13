@@ -58,7 +58,7 @@ type Whole =
     | { kind: "unreachable" };
 
 interface Missing {
-    first: { from: string; at: Span };
+    first: { from: string; span: Span };
     referencedBy: string[];
     uses: Span[];
 }
@@ -86,24 +86,24 @@ function resolvePermutation(
 ): Permutation {
     const { tokens, merged } = permutation;
     const outcomes = new Map<string, Outcome | "resolving">();
-    const stack: { path: string; at: Span }[] = [];
+    const stack: { path: string; span: Span }[] = [];
     const missing = new Map<string, Missing>();
 
     const report = <K extends DiagnosticKind>(
         kind: K,
         detail: DiagnosticDetailByKind[K],
         path: string,
-        at: Span,
-        extra: Omit<DiagnosticExtra, "at" | "path" | "permutation"> = {},
+        span: Span,
+        extra: Omit<DiagnosticExtra, "span" | "path" | "permutation"> = {},
     ) =>
         diagnostics.push(
-            diagnostic(kind, detail, { at, path, permutation: permutation.input, ...extra }),
+            diagnostic(kind, detail, { span, path, permutation: permutation.input, ...extra }),
         );
 
-    const recordMissing = (ref: string, from: string, at: Span) => {
-        const entry = missing.get(ref) ?? { first: { from, at }, referencedBy: [], uses: [] };
+    const recordMissing = (ref: string, from: string, span: Span) => {
+        const entry = missing.get(ref) ?? { first: { from, span }, referencedBy: [], uses: [] };
         if (!entry.referencedBy.includes(from)) entry.referencedBy.push(from);
-        entry.uses.push(at);
+        entry.uses.push(span);
         missing.set(ref, entry);
     };
 
@@ -112,7 +112,7 @@ function resolvePermutation(
         const malformed =
             reference.syntax === "json-pointer" && malformation(reference.pointer, merged);
         if (malformed) {
-            report("malformed-pointer", malformed, from, use.at);
+            report("malformed-pointer", malformed, from, use.span);
             return;
         }
         const ref = referenceText(reference);
@@ -120,14 +120,14 @@ function resolvePermutation(
             reference.syntax === "curly-brace"
                 ? merged.groups.has(reference.path)
                 : reach(use.steps, merged).kind === "group";
-        if (isGroup) report("not-a-token", { ref }, from, use.at);
-        else recordMissing(ref, from, use.at);
+        if (isGroup) report("not-a-token", { ref }, from, use.span);
+        else recordMissing(ref, from, use.span);
     };
 
-    const outcomeOf = (path: string, from: string, at: Span): Outcome | undefined => {
+    const outcomeOf = (path: string, from: string, span: Span): Outcome | undefined => {
         const entry = tokens.get(path);
         if (!entry) return merged.tokens.has(path) ? "untyped" : undefined;
-        stack.push({ path: from, at });
+        stack.push({ path: from, span });
         const outcome = resolveToken(entry);
         stack.pop();
         return outcome;
@@ -143,9 +143,9 @@ function resolvePermutation(
                 const chain = [...loop.map((frame) => frame.path), path];
                 const related = rest.map((frame) => ({
                     message: relatedMessages.partOfTheLoop,
-                    at: frame.at,
+                    span: frame.span,
                 }));
-                report("circular-reference", { chain }, first.path, first.at, { related });
+                report("circular-reference", { chain }, first.path, first.span, { related });
             }
             return "untyped";
         }
@@ -159,12 +159,12 @@ function resolvePermutation(
     const followWhole = (token: MergedToken, whole: Occurrence): Whole => {
         if (whole.reference.syntax === "curly-brace") {
             const { path } = whole.reference;
-            return { kind: "token", path, outcome: outcomeOf(path, token.path, whole.at) };
+            return { kind: "token", path, outcome: outcomeOf(path, token.path, whole.span) };
         }
         const reached = reach(whole.steps, merged);
         if (reached.kind === "token") {
             const { path } = reached;
-            return { kind: "token", path, outcome: outcomeOf(path, token.path, whole.at) };
+            return { kind: "token", path, outcome: outcomeOf(path, token.path, whole.span) };
         }
         return reached.kind === "part" ? { kind: "part" } : { kind: "unreachable" };
     };
@@ -183,7 +183,7 @@ function resolvePermutation(
             if (followed.kind === "part") {
                 type ??= groupType(token);
                 if (type === undefined) {
-                    report("missing-type", {}, token.path, token.at);
+                    report("missing-type", {}, token.path, token.span);
                     return "untyped";
                 }
             } else {
@@ -235,8 +235,8 @@ function resolvePermutation(
     const placed = (written: WrittenAt[]): Place[] => {
         const [first, ...rest] = written;
         if (!first) return NO_PLACES;
-        if (rest.length === 0) return places.only(sourceAt(first.index), first.at);
-        return written.map(({ index, at }) => places.at(sourceAt(index), at));
+        if (rest.length === 0) return places.only(sourceAt(first.index), first.span);
+        return written.map(({ index, span }) => places.at(sourceAt(index), span));
     };
     const linked = linkedPermutation({
         input,
@@ -264,10 +264,10 @@ function resolvePermutation(
             if (entry) {
                 const outcome = resolveToken(entry);
                 if (outcome === "untyped") continue;
-                const { replaces, piece, at } = entry.token;
+                const { replaces, piece, span } = entry.token;
                 const writtenAt = replaces
-                    ? [...placed(replaces), places.at(sourceAt(piece.source), at)]
-                    : places.only(sourceAt(piece.source), at);
+                    ? [...placed(replaces), places.at(sourceAt(piece.source), span)]
+                    : places.only(sourceAt(piece.source), span);
                 const token = toToken(entry.token, outcome, merged, parent, linked, writtenAt);
                 if (parent && withoutRoot(path) === parent.path) parent.rootToken = token;
                 built.set(path, token);
@@ -290,25 +290,30 @@ function resolvePermutation(
         reference: WrittenReference,
         steps: string[] | undefined,
         span: Span,
-        place: JsonPath,
+        property: JsonPath,
         { pointerAlone = false } = {},
     ): Reference => {
         const { path, token, targetProperty } = targetOf(reference, steps, merged, built);
-        const property = place.length > 0 ? place : undefined;
-        const facts = { reference, path, span, property, targetProperty };
+        const facts = {
+            reference,
+            path,
+            span,
+            property: property.length > 0 ? property : undefined,
+            targetProperty,
+        };
         return linkedReference(facts, from, token, { pointerAlone });
     };
     for (const [token, located] of written) {
-        token.references = located.map(({ occurrence: { reference, steps, at, place } }) =>
-            referenceOf(token, reference, steps, at, place),
+        token.references = located.map(({ occurrence: { reference, steps, span, property } }) =>
+            referenceOf(token, reference, steps, span, property),
         );
     }
     for (const each of merged.groups.values()) {
         const group = groups.get(each.path);
         if (!group || !each.extends) continue;
-        const { reference, steps, at, keyword } = each.extends;
+        const { reference, steps, span, keyword } = each.extends;
         const pointerAlone = keyword === "$ref";
-        group.references = [referenceOf(group, reference, steps, at, [], { pointerAlone })];
+        group.references = [referenceOf(group, reference, steps, span, [], { pointerAlone })];
         if (each.extendsGroup) group.extends = groups.get(each.extendsGroup);
     }
 
@@ -319,10 +324,10 @@ function resolvePermutation(
             knownPaths.filter((path) => !referencedBy.includes(path)),
         );
         const related = uses
-            .filter((at) => at !== first.at)
-            .map((at) => ({ message: relatedMessages.alsoUsedHere, at }));
+            .filter((span) => span !== first.span)
+            .map((span) => ({ message: relatedMessages.alsoUsedHere, span }));
         const detail = { ref, referencedBy, ...(similar !== undefined && { similar }) };
-        report("missing-reference", detail, first.from, first.at, {
+        report("missing-reference", detail, first.from, first.span, {
             ...(related.length > 0 && { related }),
         });
     }
@@ -346,7 +351,7 @@ function targetOf(
     if (reached.kind === "group") return { path: reached.path };
     const { path } = reached;
     if (reached.kind === "token") return { path, token: built.get(path) };
-    const targetProperty = stepInto(reached.token.authored, reached.inside)?.at;
+    const targetProperty = stepInto(reached.token.authored, reached.inside)?.property;
     return targetProperty ? { path, targetProperty } : { path };
 }
 

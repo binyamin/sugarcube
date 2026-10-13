@@ -17,7 +17,7 @@
         "reason": "no-leading-slash",
         "corrected": "all.json#/color"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"all.json#color\""
       }

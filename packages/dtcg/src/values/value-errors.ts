@@ -257,8 +257,8 @@ export function valueErrorMessage(detail: ValueErrorDetail): string {
     return (valueErrorMessages[detail.reason] as (detail: ValueErrorDetail) => string)(detail);
 }
 
-export function valueError(path: JsonPath, detail: ValueErrorDetail): ValueError {
-    return { kind: "invalid-value", path, message: valueErrorMessage(detail), detail };
+export function valueError(jsonPath: JsonPath, detail: ValueErrorDetail): ValueError {
+    return { kind: "invalid-value", jsonPath, message: valueErrorMessage(detail), detail };
 }
 
 export function ignoredMessage(type: TokenType, property: string): string {
@@ -266,13 +266,13 @@ export function ignoredMessage(type: TokenType, property: string): string {
 }
 
 export function ignoredProperty(
-    path: JsonPath,
+    jsonPath: JsonPath,
     type: TokenType,
     property: string,
 ): IgnoredProperty {
     return {
         kind: "unknown-property",
-        path,
+        jsonPath,
         message: ignoredMessage(type, property),
         detail: { type, property },
     };

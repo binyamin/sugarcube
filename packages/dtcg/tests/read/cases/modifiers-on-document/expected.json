@@ -12,16 +12,16 @@
           {
             "name": "light",
             "sources": [],
-            "at": { "file": "tokens.resolver.json", "valueAfter": "\"light\":" }
+            "span": { "file": "tokens.resolver.json", "valueAfter": "\"light\":" }
           },
           {
             "name": "dark",
             "sources": [],
-            "at": { "file": "tokens.resolver.json", "valueAfter": "\"dark\":" }
+            "span": { "file": "tokens.resolver.json", "valueAfter": "\"dark\":" }
           }
         ],
         "default": "dark",
-        "at": { "file": "tokens.resolver.json", "valueAfter": "\"theme\":" }
+        "span": { "file": "tokens.resolver.json", "valueAfter": "\"theme\":" }
       },
       {
         "name": "brand",
@@ -29,15 +29,15 @@
           {
             "name": "house",
             "sources": [],
-            "at": { "file": "tokens.resolver.json", "valueAfter": "\"house\":" }
+            "span": { "file": "tokens.resolver.json", "valueAfter": "\"house\":" }
           },
           {
             "name": "ocean",
             "sources": [],
-            "at": { "file": "tokens.resolver.json", "valueAfter": "\"ocean\":" }
+            "span": { "file": "tokens.resolver.json", "valueAfter": "\"ocean\":" }
           }
         ],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "text": "{ \"type\": \"modifier\", \"name\": \"brand\", \"contexts\": { \"house\": [], \"ocean\": [] } }"
         }
@@ -49,7 +49,7 @@
     {
       "kind": "not-in-resolution-order",
       "detail": { "item": "modifier", "name": "unused" },
-      "at": { "file": "tokens.resolver.json", "valueAfter": "\"unused\":" }
+      "span": { "file": "tokens.resolver.json", "valueAfter": "\"unused\":" }
     }
   ]
 }

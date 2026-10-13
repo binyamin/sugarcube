@@ -24,8 +24,8 @@ describe("defineGenerator", () => {
             generate: () => ({
                 ok: false,
                 errors: [
-                    { path: ["ratio"], reason: "ratio-not-above-one", data: { ratio: 1 } },
-                    { path: ["multipliers"], reason: "no-multipliers" },
+                    { jsonPath: ["ratio"], reason: "ratio-not-above-one", data: { ratio: 1 } },
+                    { jsonPath: ["multipliers"], reason: "no-multipliers" },
                 ],
             }),
         });
@@ -37,7 +37,7 @@ describe("defineGenerator", () => {
             extension: ["com.example", "scale"],
             messages,
             // @ts-expect-error
-            generate: () => ({ ok: false, errors: [{ path: [], reason: "ratio-too-small" }] }),
+            generate: () => ({ ok: false, errors: [{ jsonPath: [], reason: "ratio-too-small" }] }),
         });
     });
 
@@ -49,7 +49,7 @@ describe("defineGenerator", () => {
                 ok: false,
                 errors: [
                     // @ts-expect-error
-                    { path: [], reason: "ratio-not-above-one", data: { ratio: "1" } },
+                    { jsonPath: [], reason: "ratio-not-above-one", data: { ratio: "1" } },
                 ],
             }),
         });
@@ -59,7 +59,7 @@ describe("defineGenerator", () => {
         defineGenerator({
             extension: ["com.example", "scale"],
             // @ts-expect-error
-            generate: () => ({ ok: false, errors: [{ path: [], reason: "anything" }] }),
+            generate: () => ({ ok: false, errors: [{ jsonPath: [], reason: "anything" }] }),
         });
     });
 
@@ -96,7 +96,7 @@ describe("defineExtensionValidator", () => {
                 expectTypeOf(extension).toEqualTypeOf<{ ratio: number }>();
                 return extension.ratio > 1
                     ? []
-                    : [{ path: ["ratio"], reason: "ratio-not-above-one", data: extension }];
+                    : [{ jsonPath: ["ratio"], reason: "ratio-not-above-one", data: extension }];
             },
         });
         expectTypeOf(validator).toEqualTypeOf<ExtensionValidator>();
@@ -108,7 +108,7 @@ describe("defineExtensionValidator", () => {
             appliesTo: ["number"],
             messages,
             // @ts-expect-error
-            validate: () => [{ path: [], reason: "ratio-too-small" }],
+            validate: () => [{ jsonPath: [], reason: "ratio-too-small" }],
         });
     });
 });

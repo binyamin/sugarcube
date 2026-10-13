@@ -2,7 +2,7 @@
   "diagnostics": [
     {
       "kind": "hex-string-color",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#e11d48\""
       },

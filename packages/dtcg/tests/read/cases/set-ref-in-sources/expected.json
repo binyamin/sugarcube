@@ -18,7 +18,7 @@
             "file": "palette.json"
           }
         ],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "valueAfter": "\"palette\":"
         }
@@ -33,7 +33,7 @@
             "file": "semantic.json"
           }
         ],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "valueAfter": "\"base\":"
         }

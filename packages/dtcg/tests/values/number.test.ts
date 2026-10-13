@@ -27,10 +27,12 @@ describe("parseNumber", () => {
         (raw) => {
             const result = parseNumber(raw, ["$value"]);
             expect(
-                result.ok ? [] : result.errors.map(({ path, detail }) => ({ path, detail })),
+                result.ok
+                    ? []
+                    : result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail })),
             ).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: { type: "number", reason: "not-a-number", value: raw },
                 },
             ]);

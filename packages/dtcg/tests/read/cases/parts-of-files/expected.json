@@ -82,7 +82,7 @@
       "detail": {
         "key": "sm"
       },
-      "at": {
+      "span": {
         "file": "base.json",
         "text": "\"sm\"",
         "occurrence": 3
@@ -90,7 +90,7 @@
       "related": [
         {
           "message": "also written here",
-          "at": {
+          "span": {
             "file": "base.json",
             "text": "\"sm\"",
             "occurrence": 2

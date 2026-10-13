@@ -13,12 +13,12 @@ function read(raw: unknown, options?: ParseOptions) {
 function details(raw: unknown, options?: ParseOptions) {
     const result = parseShadow(raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
-    return result.errors.map(({ path, detail }) => ({ path, detail }));
+    return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
     const result = parseShadow(raw, ["$value"], options);
-    return result.ignored.map(({ path, detail }) => ({ path, detail }));
+    return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 const rem = (value: number) => ({ value, unit: "rem" });
@@ -76,7 +76,7 @@ describe("parseShadow", () => {
         it("a curly-brace reference as inset, where a JSON Pointer can stand", () => {
             expect(details({ ...layer, inset: "{shadow.inset}" })).toStrictEqual([
                 {
-                    path: ["$value", "inset"],
+                    jsonPath: ["$value", "inset"],
                     detail: {
                         type: "shadow",
                         reason: "alias-not-allowed-here",
@@ -88,13 +88,16 @@ describe("parseShadow", () => {
 
         it("an empty list", () => {
             expect(details([])).toStrictEqual([
-                { path: ["$value"], detail: { type: "shadow", reason: "no-shadows" } },
+                { jsonPath: ["$value"], detail: { type: "shadow", reason: "no-shadows" } },
             ]);
         });
 
         it.for(["0 1px 2px black", 1, null])("%j, which is not a shadow", (raw) => {
             expect(details(raw)).toStrictEqual([
-                { path: ["$value"], detail: { type: "shadow", reason: "wrong-shape", value: raw } },
+                {
+                    jsonPath: ["$value"],
+                    detail: { type: "shadow", reason: "wrong-shape", value: raw },
+                },
             ]);
         });
 
@@ -103,7 +106,7 @@ describe("parseShadow", () => {
             delete raw[part];
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value", part],
+                    jsonPath: ["$value", part],
                     detail: { type: "shadow", reason: "missing-property", property: part },
                 },
             ]);
@@ -112,7 +115,7 @@ describe("parseShadow", () => {
         it.for(["true", 1, null])("inset %j, which is not true or false", (inset) => {
             expect(details({ ...layer, inset })).toStrictEqual([
                 {
-                    path: ["$value", "inset"],
+                    jsonPath: ["$value", "inset"],
                     detail: { type: "shadow", reason: "not-a-boolean", value: inset },
                 },
             ]);
@@ -121,7 +124,7 @@ describe("parseShadow", () => {
         it("a bad part in the second shadow of a list, at its full path", () => {
             expect(details([layer, { ...layer, blur: "4px" }])).toStrictEqual([
                 {
-                    path: ["$value", 1, "blur"],
+                    jsonPath: ["$value", 1, "blur"],
                     detail: {
                         type: "dimension",
                         reason: "string-with-unit",
@@ -135,7 +138,7 @@ describe("parseShadow", () => {
         it("something in a list that is neither a shadow nor a reference", () => {
             expect(details([layer, 42])).toStrictEqual([
                 {
-                    path: ["$value", 1],
+                    jsonPath: ["$value", 1],
                     detail: { type: "shadow", reason: "wrong-shape", value: 42 },
                 },
             ]);
@@ -147,7 +150,7 @@ describe("parseShadow", () => {
             const raw = { ...layer, opacity: 0.5 };
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value", "opacity"],
+                    jsonPath: ["$value", "opacity"],
                     detail: { type: "shadow", reason: "unknown-property", property: "opacity" },
                 },
             ]);
@@ -160,7 +163,7 @@ describe("parseShadow", () => {
                 expect(read(raw, lenient)).toStrictEqual(read(layer, lenient));
                 expect(ignored(raw, lenient)).toStrictEqual([
                     {
-                        path: ["$value", "opacity"],
+                        jsonPath: ["$value", "opacity"],
                         detail: { type: "shadow", property: "opacity" },
                     },
                 ]);
@@ -171,7 +174,7 @@ describe("parseShadow", () => {
                 expect(read(raw, lenient)).toStrictEqual(read([layer, layer], lenient));
                 expect(ignored(raw, lenient)).toStrictEqual([
                     {
-                        path: ["$value", 1, "color", "name"],
+                        jsonPath: ["$value", 1, "color", "name"],
                         detail: { type: "color", property: "name" },
                     },
                 ]);
@@ -179,12 +182,12 @@ describe("parseShadow", () => {
 
             it("a property set aside beside a part that fails", () => {
                 const raw = { ...layer, blur: "4px", opacity: 0.5 };
-                expect(details(raw, lenient).map(({ path }) => path)).toStrictEqual([
+                expect(details(raw, lenient).map(({ jsonPath }) => jsonPath)).toStrictEqual([
                     ["$value", "blur"],
                 ]);
                 expect(ignored(raw, lenient)).toStrictEqual([
                     {
-                        path: ["$value", "opacity"],
+                        jsonPath: ["$value", "opacity"],
                         detail: { type: "shadow", property: "opacity" },
                     },
                 ]);

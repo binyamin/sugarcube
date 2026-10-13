@@ -23,14 +23,14 @@ export interface Resolving {
     readValue: ValueReader;
     merged: Merged;
     permutation: Input;
-    outcomeOf(path: string, from: string, at: Span): Target | undefined;
+    outcomeOf(path: string, from: string, span: Span): Target | undefined;
     report<K extends DiagnosticKind>(
         kind: K,
         detail: DiagnosticDetailByKind[K],
         path: string,
-        at: Span,
+        span: Span,
     ): void;
-    recordMissing(ref: string, from: string, at: Span): void;
+    recordMissing(ref: string, from: string, span: Span): void;
     reportUnreachable(use: Occurrence, from: string): void;
 }
 
@@ -62,13 +62,13 @@ function resolveIn(
     let resolved = value;
     let failed = false;
     for (const located of references) {
-        const { place } = located.reference;
-        if (readAgain.some((each) => startsWith(place, each.place))) continue;
+        const { property } = located.reference;
+        if (readAgain.some((each) => startsWith(property, each.property))) continue;
         const part = follow(resolving, following, located);
         if (part === UNRESOLVED) failed = true;
         else {
             followed.push([located, part]);
-            resolved = replaced(resolved, place, part);
+            resolved = replaced(resolved, property, part);
         }
     }
     if (failed) return UNRESOLVED;
@@ -76,10 +76,10 @@ function resolveIn(
     const { readValue, permutation } = resolving;
     const { token, within } = following;
     for (const again of readAgain) {
-        const { at, owner, raw } = again;
+        const { jsonPath, owner, raw } = again;
         const syntax = again.from(siblingsOf(again, followed));
-        const place = { syntax, at, owner, element: false };
-        const { result, notes } = readValue.readTarget(token, place, raw, permutation);
+        const slot = { syntax, jsonPath, owner, element: false };
+        const { result, notes } = readValue.readTarget(token, slot, raw, permutation);
         if (!result.ok) return UNRESOLVED;
         const inner = notes.references.map((reference) => ({
             reference,
@@ -87,7 +87,7 @@ function resolveIn(
         }));
         const part = resolveIn(resolving, following, result.value, inner, notes.readAgain);
         if (part === UNRESOLVED) return UNRESOLVED;
-        resolved = replaced(resolved, again.place, part);
+        resolved = replaced(resolved, again.property, part);
     }
     return resolved;
 }
@@ -95,7 +95,7 @@ function resolveIn(
 function follow(resolving: Resolving, following: Following, located: LocatedReference): unknown {
     const { merged, readValue, permutation, report, recordMissing, reportUnreachable } = resolving;
     const { token, seen, within } = following;
-    const { ref, syntax, owner, element, at } = located.reference;
+    const { ref, syntax, owner, element, jsonPath } = located.reference;
     const use = within ?? located.occurrence;
     const expected = syntax.kind === "ofType" ? syntax.type : owner;
     const adjusted = (part: unknown) =>
@@ -110,15 +110,15 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
 
     const { pointer: written } = ref;
     if (seen.includes(written)) {
-        report("circular-reference", { chain: [...seen, written] }, token.path, use.at);
+        report("circular-reference", { chain: [...seen, written] }, token.path, use.span);
         return UNRESOLVED;
     }
     const reached = reach(refSteps(written), merged);
     const unreachable = () => {
         if (!within) reportUnreachable(located.occurrence, token.path);
         else if (reached.kind === "group") {
-            report("not-a-token", { ref: written }, token.path, use.at);
-        } else recordMissing(written, token.path, use.at);
+            report("not-a-token", { ref: written }, token.path, use.span);
+        } else recordMissing(written, token.path, use.span);
         return UNRESOLVED;
     };
     if (reached.kind === "group" || reached.kind === "nothing") return unreachable();
@@ -133,8 +133,8 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
     if (!stepped) return unreachable();
     const raw = stepped.value;
 
-    const place = { syntax, at, owner, element };
-    const { result, notes } = readValue.readTarget(token, place, raw, permutation);
+    const slot = { syntax, jsonPath, owner, element };
+    const { result, notes } = readValue.readTarget(token, slot, raw, permutation);
     if (!result.ok) return UNRESOLVED;
     const inner = notes.references.map((reference) => ({ reference, occurrence: use }));
     const deeper = { token, seen: [...seen, written], within: use };
@@ -149,41 +149,41 @@ function substitute(
     use: Occurrence,
     element: boolean,
 ): unknown {
-    const { at } = use;
-    const target = outcomeOf(path, token.path, at);
+    const { span } = use;
+    const target = outcomeOf(path, token.path, span);
     if (target === undefined) {
-        if (merged.groups.has(path)) report("not-a-token", { ref: shown }, token.path, at);
-        else recordMissing(shown, token.path, at);
+        if (merged.groups.has(path)) report("not-a-token", { ref: shown }, token.path, span);
+        else recordMissing(shown, token.path, span);
         return UNRESOLVED;
     }
     if (target === "untyped" || !("resolved" in target)) return UNRESOLVED;
     if (target.type !== expected) {
-        report("type-mismatch", { ref: shown, expected, found: target.type }, token.path, at);
+        report("type-mismatch", { ref: shown, expected, found: target.type }, token.path, span);
         return UNRESOLVED;
     }
     if (!element) return target.resolved;
     const list = Array.isArray(target.resolved) ? target.resolved : [target.resolved];
     if (list.length !== 1) {
-        report("reference-to-several", { ref: shown, count: list.length }, token.path, at);
+        report("reference-to-several", { ref: shown, count: list.length }, token.path, span);
         return UNRESOLVED;
     }
     return list[0];
 }
 
 function siblingsOf(again: ReadAgain, followed: [LocatedReference, unknown][]): Siblings {
-    const parent = again.place.slice(0, -1);
+    const parent = again.property.slice(0, -1);
     const siblings: Record<string, unknown> = { ...again.siblings };
     for (const [{ reference }, part] of followed) {
-        const { place } = reference;
-        const name = place.at(-1);
-        const beside = place.length === again.place.length && startsWith(place, parent);
+        const { property } = reference;
+        const name = property.at(-1);
+        const beside = property.length === again.property.length && startsWith(property, parent);
         if (beside && typeof name === "string") siblings[name] = part;
     }
     return siblings;
 }
 
-function replaced(value: unknown, place: JsonPath, part: unknown): unknown {
-    const [step, ...rest] = place;
+function replaced(value: unknown, property: JsonPath, part: unknown): unknown {
+    const [step, ...rest] = property;
     if (step === undefined) return part;
     if (Array.isArray(value)) {
         return value.map((item, index) => (index === step ? replaced(item, rest, part) : item));
@@ -194,6 +194,6 @@ function replaced(value: unknown, place: JsonPath, part: unknown): unknown {
     return value;
 }
 
-function startsWith(path: JsonPath, start: JsonPath): boolean {
-    return start.length <= path.length && start.every((step, i) => path[i] === step);
+function startsWith(jsonPath: JsonPath, start: JsonPath): boolean {
+    return start.length <= jsonPath.length && start.every((step, i) => jsonPath[i] === step);
 }

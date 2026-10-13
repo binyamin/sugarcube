@@ -41,7 +41,7 @@ export function openFile(
     files: Files,
     path: string,
     kind: FileKind,
-    referencedFrom?: { file: string; at: Span },
+    referencedFrom?: { file: string; span: Span },
 ): JsonFile | undefined {
     if (files.opened.has(path)) return files.opened.get(path);
     files.used.push(path);
@@ -54,7 +54,7 @@ function openOnce(
     files: Files,
     path: string,
     kind: FileKind,
-    referencedFrom?: { file: string; at: Span },
+    referencedFrom?: { file: string; span: Span },
 ): JsonFile | undefined {
     const { diagnostics } = files;
     const parsed = parseFile(files, path);
@@ -63,14 +63,13 @@ function openOnce(
             diagnostic(
                 "file-not-found",
                 { file: path, ...(referencedFrom && { referencedFrom: referencedFrom.file }) },
-                { ...(referencedFrom && { at: referencedFrom.at }) },
+                { ...(referencedFrom && { span: referencedFrom.span }) },
             ),
         );
         return undefined;
     }
 
-    const at = (node: { offset: number; length: number }) =>
-        spanOf(path, parsed.lineStarts, node.offset, node.length);
+    const file = { path, lineStarts: parsed.lineStarts };
     const { root, syntax } = parsed;
     const problems: JsonProblem[] = [
         ...(kind === "tokens" ? parsed.comments : []),
@@ -81,14 +80,16 @@ function openOnce(
     ];
     for (const problem of problems.sort((a, b) => a.offset - b.offset)) {
         diagnostics.push(
-            diagnostic("invalid-json", { reason: problem.reason }, { at: at(problem) }),
+            diagnostic("invalid-json", { reason: problem.reason }, { span: spanOf(file, problem) }),
         );
     }
     if (problems.length > 0 || !root) return undefined;
 
     for (const { key, first, last } of parsed.duplicates) {
-        const related = [{ message: relatedMessages.alsoWrittenHere, at: at(first) }];
-        diagnostics.push(diagnostic("duplicate-key", { key }, { at: at(last), related }));
+        const related = [{ message: relatedMessages.alsoWrittenHere, span: spanOf(file, first) }];
+        diagnostics.push(
+            diagnostic("duplicate-key", { key }, { span: spanOf(file, last), related }),
+        );
     }
     return { path, root, lineStarts: parsed.lineStarts };
 }

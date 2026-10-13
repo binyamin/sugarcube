@@ -2,7 +2,7 @@
   "diagnostics": [
     {
       "kind": "invalid-value",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"16px\""
       },
@@ -22,7 +22,7 @@
     },
     {
       "kind": "invalid-value",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"200ms\""
       },
@@ -42,7 +42,7 @@
     },
     {
       "kind": "invalid-value",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{font.brand}\""
       },
@@ -62,7 +62,7 @@
     },
     {
       "kind": "invalid-value",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#f00\""
       },
@@ -82,7 +82,7 @@
     },
     {
       "kind": "invalid-value",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#000\""
       },
@@ -102,7 +102,7 @@
     },
     {
       "kind": "invalid-value",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"0px\""
       },

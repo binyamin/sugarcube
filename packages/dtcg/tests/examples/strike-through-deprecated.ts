@@ -4,9 +4,9 @@ import type { Document } from "@sugarcube-sh/dtcg";
 declare const doc: Document;
 
 for (const d of doc.diagnostics) {
-    if (d.kind === "deprecated-reference" && d.tags?.includes("deprecated") && d.at) {
+    if (d.kind === "deprecated-reference" && d.tags?.includes("deprecated") && d.span) {
         report(
-            d.at,
+            d.span,
             `${d.detail.ref} is deprecated${d.detail.reason ? `: ${d.detail.reason}` : ""}`,
         );
     }

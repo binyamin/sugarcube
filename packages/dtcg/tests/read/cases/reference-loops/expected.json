@@ -59,7 +59,7 @@
       "detail": {
         "chain": ["a", "b", "c", "a"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{b}\""
       },
@@ -67,14 +67,14 @@
       "related": [
         {
           "message": "part of the same loop",
-          "at": {
+          "span": {
             "file": "tokens.json",
             "text": "\"{c}\""
           }
         },
         {
           "message": "part of the same loop",
-          "at": {
+          "span": {
             "file": "tokens.json",
             "text": "\"{a}\""
           }

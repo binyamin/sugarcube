@@ -33,7 +33,7 @@
         "expected": "reference",
         "reference": "{button}"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"$extends\":",
         "occurrence": 9
@@ -45,7 +45,7 @@
         "property": "$extends",
         "expected": "reference"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"$extends\":",
         "occurrence": 10
@@ -57,7 +57,7 @@
         "ref": "nothing.here",
         "referencedBy": ["missing"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{nothing.here}\""
       },
@@ -68,7 +68,7 @@
       "detail": {
         "ref": "token"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{token}\""
       },
@@ -79,7 +79,7 @@
       "detail": {
         "chain": ["button.secondary", "button"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{button}\""
       },
@@ -90,7 +90,7 @@
       "detail": {
         "chain": ["groupA", "groupB", "groupA"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{groupB}\""
       },
@@ -98,7 +98,7 @@
       "related": [
         {
           "message": "part of the same loop",
-          "at": {
+          "span": {
             "file": "tokens.json",
             "text": "\"{groupA}\""
           }
@@ -110,7 +110,7 @@
       "detail": {
         "chain": ["c1", "c2", "c3", "c1"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{c2}\""
       },
@@ -118,14 +118,14 @@
       "related": [
         {
           "message": "part of the same loop",
-          "at": {
+          "span": {
             "file": "tokens.json",
             "text": "\"{c3}\""
           }
         },
         {
           "message": "part of the same loop",
-          "at": {
+          "span": {
             "file": "tokens.json",
             "text": "\"{c1}\""
           }

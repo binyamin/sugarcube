@@ -5,14 +5,14 @@
   "diagnostics": [
     {
       "kind": "extension-invalid",
-      "detail": { "key": "com.example", "at": ["$extensions", "com.example", "fluid"] },
-      "at": { "file": "tokens.json", "text": "\"yes\"" },
+      "detail": { "key": "com.example", "jsonPath": ["$extensions", "com.example", "fluid"] },
+      "span": { "file": "tokens.json", "text": "\"yes\"" },
       "path": "base"
     },
     {
       "kind": "extension-invalid",
-      "detail": { "key": "com.example", "at": ["$extensions", "com.example", "fluid"] },
-      "at": { "file": "tokens.json", "text": "\"no\"" },
+      "detail": { "key": "com.example", "jsonPath": ["$extensions", "com.example", "fluid"] },
+      "span": { "file": "tokens.json", "text": "\"no\"" },
       "path": "base.sm"
     }
   ]

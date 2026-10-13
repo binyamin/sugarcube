@@ -782,11 +782,11 @@ describe("utilityRules' warning for an entry that makes no classes", () => {
             },
         );
         expect(
-            diagnostics.map(({ kind, severity, path, at, detail }) => [
+            diagnostics.map(({ kind, severity, path, span, detail }) => [
                 kind,
                 severity,
                 path,
-                at,
+                span,
                 detail,
             ]),
         ).toStrictEqual([
@@ -901,11 +901,11 @@ describe("utilityRules' warning for a safelisted class no token makes", () => {
             ],
         });
         expect(
-            diagnostics.map(({ kind, severity, path, at, detail }) => [
+            diagnostics.map(({ kind, severity, path, span, detail }) => [
                 kind,
                 severity,
                 path,
-                at,
+                span,
                 detail,
             ]),
         ).toStrictEqual([

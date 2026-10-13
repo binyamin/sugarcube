@@ -13,7 +13,7 @@ import { acrossPermutations } from "../read/reference.js";
 import { group, token } from "./token.js";
 
 interface WrittenIn {
-    place: Map<Reference, number>;
+    position: Map<Reference, number>;
     byPath: Map<string, Reference[]>;
 }
 
@@ -24,7 +24,7 @@ export function referencedIn(
     path: string,
     { chained = false }: ReferenceOptions = {},
 ): Reference[] {
-    const { place, byPath } = writtenIn(permutation);
+    const { position, byPath } = writtenIn(permutation);
     const reaching = (each: string, isToken: boolean): Reference[] => {
         if (isToken) return byPath.get(each) ?? [];
         return [...byPath].flatMap(([named, references]) =>
@@ -44,7 +44,7 @@ export function referencedIn(
             waiting.push(reaching(from.path, from.kind === "token"));
         }
     }
-    return [...found].sort((a, b) => (place.get(a) ?? 0) - (place.get(b) ?? 0));
+    return [...found].sort((a, b) => (position.get(a) ?? 0) - (position.get(b) ?? 0));
 }
 
 export function referencedByIn(
@@ -83,12 +83,12 @@ export function referencesIn(
 function writtenIn(permutation: Permutation): WrittenIn {
     const cached = written.get(permutation);
     if (cached) return cached;
-    const place = new Map<Reference, number>();
+    const position = new Map<Reference, number>();
     const byPath = new Map<string, Reference[]>();
     const visit = (items: (Token | Group)[]) => {
         for (const each of items) {
             for (const reference of each.references) {
-                place.set(reference, place.size);
+                position.set(reference, position.size);
                 if (reference.path === undefined) continue;
                 const list = byPath.get(reference.path);
                 if (list) list.push(reference);
@@ -98,7 +98,7 @@ function writtenIn(permutation: Permutation): WrittenIn {
         }
     };
     visit(permutation.children);
-    const built = { place, byPath };
+    const built = { position, byPath };
     written.set(permutation, built);
     return built;
 }

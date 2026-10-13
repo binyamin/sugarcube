@@ -3,7 +3,8 @@ import type { ValueErrorFacts } from "./value-errors.js";
 
 export function hexStringColor(hex: string): ColorValue {
     const full = (hex.length <= 5 ? expandedHex(hex) : hex).slice(1);
-    const channel = (at: number) => rounded(Number.parseInt(full.slice(at, at + 2), 16) / 255);
+    const channel = (start: number) =>
+        rounded(Number.parseInt(full.slice(start, start + 2), 16) / 255);
     return {
         colorSpace: "srgb",
         components: [channel(0), channel(2), channel(4)],

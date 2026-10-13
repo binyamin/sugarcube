@@ -23,7 +23,7 @@
         "property": "$description",
         "expected": "string"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"$description\":"
       }
@@ -34,7 +34,7 @@
         "property": "$deprecated",
         "expected": "boolean-or-string"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"$deprecated\":"
       }
@@ -45,7 +45,7 @@
         "property": "$extensions",
         "expected": "object"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"$extensions\":"
       }
@@ -56,7 +56,7 @@
         "property": "$type",
         "expected": "string"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"$type\":",
         "occurrence": 2

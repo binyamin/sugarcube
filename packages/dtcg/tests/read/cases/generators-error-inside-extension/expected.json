@@ -7,11 +7,11 @@
       "kind": "extension-invalid",
       "detail": {
         "key": "com.example",
-        "at": ["$extensions", "com.example", "ramp", "count"],
+        "jsonPath": ["$extensions", "com.example", "ramp", "count"],
         "reason": "count-not-a-number",
         "data": { "count": "two" }
       },
-      "at": { "file": "tokens.json", "valueAfter": "\"count\":" },
+      "span": { "file": "tokens.json", "valueAfter": "\"count\":" },
       "path": "space"
     }
   ]

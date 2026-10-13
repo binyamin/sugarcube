@@ -12,7 +12,7 @@
           {
             "name": "light",
             "sources": [],
-            "at": {
+            "span": {
               "file": "tokens.resolver.json",
               "offset": 157,
               "length": 2,
@@ -29,7 +29,7 @@
           {
             "name": "dark",
             "sources": [],
-            "at": {
+            "span": {
               "file": "tokens.resolver.json",
               "offset": 169,
               "length": 2,
@@ -44,7 +44,7 @@
             }
           }
         ],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "offset": 132,
           "length": 62,
@@ -71,9 +71,9 @@
       "detail": {
         "rule": "no-contexts",
         "name": "empty",
-        "at": ["modifiers", "empty", "contexts"]
+        "jsonPath": ["modifiers", "empty", "contexts"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 70,
         "length": 2,
@@ -92,9 +92,9 @@
       "detail": {
         "rule": "single-context",
         "name": "only",
-        "at": ["modifiers", "only", "contexts"]
+        "jsonPath": ["modifiers", "only", "contexts"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 102,
         "length": 13,
@@ -113,9 +113,9 @@
       "detail": {
         "rule": "invalid-default",
         "name": "theme",
-        "at": ["modifiers", "theme", "default"]
+        "jsonPath": ["modifiers", "theme", "default"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 186,
         "length": 6,
@@ -135,7 +135,7 @@
         "item": "modifier",
         "name": "empty"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 56,
         "length": 18,
@@ -155,7 +155,7 @@
         "item": "modifier",
         "name": "only"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 88,
         "length": 29,

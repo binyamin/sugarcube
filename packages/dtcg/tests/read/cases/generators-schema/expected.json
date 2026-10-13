@@ -8,9 +8,9 @@
       "kind": "extension-invalid",
       "detail": {
         "key": "com.example",
-        "at": ["$extensions", "com.example", "counted", "count"]
+        "jsonPath": ["$extensions", "com.example", "counted", "count"]
       },
-      "at": { "file": "tokens.json", "text": "\"two\"" },
+      "span": { "file": "tokens.json", "text": "\"two\"" },
       "path": "b"
     }
   ]

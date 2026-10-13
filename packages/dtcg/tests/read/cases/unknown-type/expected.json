@@ -27,7 +27,7 @@
         "type": "colour",
         "similar": "color"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"colour\""
       },
@@ -39,7 +39,7 @@
         "type": "Color",
         "similar": "color"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"Color\""
       },
@@ -50,7 +50,7 @@
       "detail": {
         "type": "boolean"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"boolean\""
       },
@@ -61,7 +61,7 @@
       "detail": {
         "type": "banana"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"banana\""
       },

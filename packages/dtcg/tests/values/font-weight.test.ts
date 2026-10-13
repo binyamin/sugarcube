@@ -10,7 +10,7 @@ function read(raw: unknown) {
 function details(raw: unknown) {
     const result = parseFontWeight(raw, ["$value"]);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
-    return result.errors.map(({ path, detail }) => ({ path, detail }));
+    return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 describe("parseFontWeight", () => {
@@ -42,7 +42,7 @@ describe("parseFontWeight", () => {
         it.for([0, 1001, -100])("%s, outside 1 to 1000", (weight) => {
             expect(details(weight)).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: {
                         type: "fontWeight",
                         reason: "font-weight-out-of-range",
@@ -57,7 +57,7 @@ describe("parseFontWeight", () => {
             (raw) => {
                 expect(details(raw)).toStrictEqual([
                     {
-                        path: ["$value"],
+                        jsonPath: ["$value"],
                         detail: {
                             type: "fontWeight",
                             reason: "unknown-font-weight-keyword",
@@ -71,7 +71,7 @@ describe("parseFontWeight", () => {
         it.for([null, true, [700], { weight: 700 }])("%j, which is not a weight", (raw) => {
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: { type: "fontWeight", reason: "wrong-shape", value: raw },
                 },
             ]);

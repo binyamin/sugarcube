@@ -13,12 +13,12 @@ function read(raw: unknown, options?: ParseOptions) {
 function details(raw: unknown, options?: ParseOptions) {
     const result = parseColor(raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
-    return result.errors.map(({ path, detail }) => ({ path, detail }));
+    return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
     const result = parseColor(raw, ["$value"], options);
-    return result.ignored.map(({ path, detail }) => ({ path, detail }));
+    return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 const asObjects: Record<string, unknown> = {
@@ -157,7 +157,7 @@ describe("parseColor", () => {
             (raw) => {
                 expect(details(raw)).toStrictEqual([
                     {
-                        path: ["$value"],
+                        jsonPath: ["$value"],
                         detail: { type: "color", reason: "wrong-shape", value: raw },
                     },
                 ]);
@@ -166,7 +166,7 @@ describe("parseColor", () => {
 
         it("refuses a $ref with other keys beside it, and flags the $ref", () => {
             expect(details({ $ref: "#/color/brand/$value", alpha: 0.5 })).toContainEqual({
-                path: ["$value", "$ref"],
+                jsonPath: ["$value", "$ref"],
                 detail: { type: "color", reason: "pointer-not-alone" },
             });
         });
@@ -175,7 +175,7 @@ describe("parseColor", () => {
             const raw = { $ref: "#/color/brand/$value", colorSpace: "srgb", components: [1, 0, 0] };
             expect(details(raw, lenient)).toStrictEqual([
                 {
-                    path: ["$value", "$ref"],
+                    jsonPath: ["$value", "$ref"],
                     detail: { type: "color", reason: "pointer-not-alone" },
                 },
             ]);
@@ -188,7 +188,7 @@ describe("parseColor", () => {
                 const raw = { colorSpace: "srgb", components: [1, 0, 0], [part]: "{color.part}" };
                 expect(details(raw)).toStrictEqual([
                     {
-                        path: ["$value", part],
+                        jsonPath: ["$value", part],
                         detail: {
                             type: "color",
                             reason: "alias-not-allowed-here",
@@ -204,7 +204,7 @@ describe("parseColor", () => {
                 details({ colorSpace: "srgb", components: ["{color.red}", 0, 0] }),
             ).toStrictEqual([
                 {
-                    path: ["$value", "components", 0],
+                    jsonPath: ["$value", "components", 0],
                     detail: {
                         type: "color",
                         reason: "alias-not-allowed-here",
@@ -251,7 +251,7 @@ describe("parseColor", () => {
             (raw) => {
                 expect(details(raw)).toStrictEqual([
                     {
-                        path: ["$value"],
+                        jsonPath: ["$value"],
                         detail: {
                             type: "color",
                             reason: "hex-string",
@@ -265,18 +265,21 @@ describe("parseColor", () => {
 
         it.for(["#e11d4", "red", 42, null, [1, 0, 0], true])("%j, which is not a color", (raw) => {
             expect(details(raw)).toStrictEqual([
-                { path: ["$value"], detail: { type: "color", reason: "wrong-shape", value: raw } },
+                {
+                    jsonPath: ["$value"],
+                    detail: { type: "color", reason: "wrong-shape", value: raw },
+                },
             ]);
         });
 
         it("a color with no colorSpace or components", () => {
             expect(details({})).toStrictEqual([
                 {
-                    path: ["$value", "colorSpace"],
+                    jsonPath: ["$value", "colorSpace"],
                     detail: { type: "color", reason: "missing-property", property: "colorSpace" },
                 },
                 {
-                    path: ["$value", "components"],
+                    jsonPath: ["$value", "components"],
                     detail: { type: "color", reason: "missing-property", property: "components" },
                 },
             ]);
@@ -287,7 +290,7 @@ describe("parseColor", () => {
             (colorSpace) => {
                 expect(details({ colorSpace, components: [1, 0, 0] })).toStrictEqual([
                     {
-                        path: ["$value", "colorSpace"],
+                        jsonPath: ["$value", "colorSpace"],
                         detail: { type: "color", reason: "unknown-color-space", value: colorSpace },
                     },
                 ]);
@@ -299,7 +302,7 @@ describe("parseColor", () => {
             (components) => {
                 expect(details({ colorSpace: "srgb", components })).toStrictEqual([
                     {
-                        path: ["$value", "components"],
+                        jsonPath: ["$value", "components"],
                         detail: {
                             type: "color",
                             reason: "not-three-components",
@@ -313,11 +316,11 @@ describe("parseColor", () => {
         it("a component that is not a number or none", () => {
             expect(details({ colorSpace: "srgb", components: [1, "0", null] })).toStrictEqual([
                 {
-                    path: ["$value", "components", 1],
+                    jsonPath: ["$value", "components", 1],
                     detail: { type: "color", reason: "component-not-a-number", value: "0" },
                 },
                 {
-                    path: ["$value", "components", 2],
+                    jsonPath: ["$value", "components", 2],
                     detail: { type: "color", reason: "component-not-a-number", value: null },
                 },
             ]);
@@ -376,7 +379,7 @@ describe("parseColor", () => {
         ])("$name, which is out of range", ({ colorSpace, components, index, channel }) => {
             expect(details({ colorSpace, components })).toStrictEqual([
                 {
-                    path: ["$value", "components", index],
+                    jsonPath: ["$value", "components", index],
                     detail: {
                         type: "color",
                         reason: "component-out-of-range",
@@ -394,7 +397,7 @@ describe("parseColor", () => {
             { alpha: "0.5", reason: "not-a-number" },
         ])("alpha $alpha", ({ alpha, reason }) => {
             expect(details({ colorSpace: "srgb", components: [0, 0, 0], alpha })).toStrictEqual([
-                { path: ["$value", "alpha"], detail: { type: "color", reason, value: alpha } },
+                { jsonPath: ["$value", "alpha"], detail: { type: "color", reason, value: alpha } },
             ]);
         });
 
@@ -403,7 +406,7 @@ describe("parseColor", () => {
             (hex) => {
                 expect(details({ colorSpace: "srgb", components: [1, 0, 0], hex })).toStrictEqual([
                     {
-                        path: ["$value", "hex"],
+                        jsonPath: ["$value", "hex"],
                         detail: { type: "color", reason: "hex-not-six-digits", value: hex },
                     },
                 ]);
@@ -415,7 +418,7 @@ describe("parseColor", () => {
                 details({ colorSpace: "srgb", components: [1, 0, 0], hex: "#F0a" }),
             ).toStrictEqual([
                 {
-                    path: ["$value", "hex"],
+                    jsonPath: ["$value", "hex"],
                     detail: {
                         type: "color",
                         reason: "hex-not-six-digits",
@@ -431,19 +434,19 @@ describe("parseColor", () => {
                 details({ colorSpace: "cmyk", components: [1, 0], alpha: 2, hex: "#fff" }),
             ).toStrictEqual([
                 {
-                    path: ["$value", "colorSpace"],
+                    jsonPath: ["$value", "colorSpace"],
                     detail: { type: "color", reason: "unknown-color-space", value: "cmyk" },
                 },
                 {
-                    path: ["$value", "components"],
+                    jsonPath: ["$value", "components"],
                     detail: { type: "color", reason: "not-three-components", value: [1, 0] },
                 },
                 {
-                    path: ["$value", "alpha"],
+                    jsonPath: ["$value", "alpha"],
                     detail: { type: "color", reason: "alpha-out-of-range", value: 2 },
                 },
                 {
-                    path: ["$value", "hex"],
+                    jsonPath: ["$value", "hex"],
                     detail: {
                         type: "color",
                         reason: "hex-not-six-digits",
@@ -460,7 +463,7 @@ describe("parseColor", () => {
             const raw = { colorSpace: "srgb", components: [1, 0, 0], opacity: 1 };
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value", "opacity"],
+                    jsonPath: ["$value", "opacity"],
                     detail: { type: "color", reason: "unknown-property", property: "opacity" },
                 },
             ]);
@@ -474,7 +477,10 @@ describe("parseColor", () => {
                     read({ colorSpace: "srgb", components: [1, 0, 0] }, lenient),
                 );
                 expect(ignored(raw, lenient)).toStrictEqual([
-                    { path: ["$value", "opacity"], detail: { type: "color", property: "opacity" } },
+                    {
+                        jsonPath: ["$value", "opacity"],
+                        detail: { type: "color", property: "opacity" },
+                    },
                 ]);
             });
         });

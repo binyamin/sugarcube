@@ -112,7 +112,7 @@
         "property": "$ref",
         "expected": "string"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"$ref\":",
         "occurrence": 7
@@ -124,7 +124,7 @@
         "ref": "#/no/such/thing",
         "referencedBy": ["nowhere"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#/no/such/thing\""
       },
@@ -136,7 +136,7 @@
         "ref": "other.json#/base",
         "referencedBy": ["elsewhere"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"other.json#/base\""
       },
@@ -148,7 +148,7 @@
         "reason": "ref",
         "ref": "#/base"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#/base\"",
         "occurrence": 3

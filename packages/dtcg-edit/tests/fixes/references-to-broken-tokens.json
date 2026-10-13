@@ -2,7 +2,7 @@
   "diagnostics": [
     {
       "kind": "unknown-type",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"colour\""
       },

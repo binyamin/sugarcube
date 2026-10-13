@@ -19,7 +19,7 @@ export interface Piece {
 
 export interface WrittenAt {
     index: number;
-    at: Span;
+    span: Span;
 }
 
 export interface MergedToken extends SourceToken {
@@ -69,12 +69,12 @@ export function merge(
                 "token-and-group",
                 { reason: "declared", here: earlierIs === "token" ? "group" : "token" },
                 {
-                    at: later,
+                    span: later,
                     path,
                     permutation,
-                    related: earlier.map((at) => ({
+                    related: earlier.map((span) => ({
                         message: relatedMessages.declaredAs(earlierIs),
-                        at,
+                        span,
                     })),
                 },
             ),
@@ -90,7 +90,7 @@ export function merge(
                 merged.order.add(group.path);
                 const token = merged.tokens.get(group.path);
                 if (token) {
-                    conflict(group.path, group.at, [token.at], "token");
+                    conflict(group.path, group.span, [token.span], "token");
                     merged.tokens.delete(group.path);
                 }
                 mergeGroup(merged.groups, group, piece);
@@ -102,8 +102,8 @@ export function merge(
             if (group) {
                 conflict(
                     token.path,
-                    token.at,
-                    group.declaredIn.map(({ at }) => at),
+                    token.span,
+                    group.declaredIn.map(({ span }) => span),
                     "group",
                 );
                 removeGroup(merged, token.path);
@@ -111,7 +111,7 @@ export function merge(
             const earlier = merged.tokens.get(token.path);
             const replaces = earlier && [
                 ...(earlier.replaces ?? []),
-                { index: earlier.piece.source, at: earlier.at },
+                { index: earlier.piece.source, span: earlier.span },
             ];
             merged.tokens.set(token.path, { ...token, piece, ...(replaces && { replaces }) });
         }
@@ -128,9 +128,9 @@ function mergeGroup(groups: Map<string, MergedGroup>, group: SourceGroup, piece:
 }
 
 function mergeInto(existing: MergedTopLevel, source: SourceTopLevel, piece: Piece): void {
-    const { at, extensionsAt, ...properties } = source;
+    const { span, extensionsAt, ...properties } = source;
     mergeProperties(existing, properties);
-    existing.declaredIn.push({ index: piece.source, at });
+    existing.declaredIn.push({ index: piece.source, span });
     if (extensionsAt && properties.extensions) {
         const declared = { ...extensionsAt, piece };
         const keys = Object.keys(properties.extensions).map((key) => [key, declared]);

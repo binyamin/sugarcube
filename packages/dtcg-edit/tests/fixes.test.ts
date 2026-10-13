@@ -15,7 +15,7 @@ const cases = readdirSync(casesFolder, { withFileTypes: true })
 
 interface Offered {
     kind: Diagnostic["kind"];
-    at: Span | undefined;
+    span: Span | undefined;
     fixes: Fix[];
 }
 
@@ -39,7 +39,7 @@ function expectedFor(name: string): Offered[] {
 function offered(project: Project): Offered[] {
     return project.doc.diagnostics.flatMap((diagnostic) => {
         const fixes = fixesFor(project, diagnostic);
-        return fixes.length > 0 ? [{ kind: diagnostic.kind, at: diagnostic.at, fixes }] : [];
+        return fixes.length > 0 ? [{ kind: diagnostic.kind, span: diagnostic.span, fixes }] : [];
     });
 }
 
@@ -55,7 +55,8 @@ function leftAfter(project: Project, { edits: [edit] }: Fix): string[] {
     const end = offset + text.length;
     return doc.diagnostics
         .filter(
-            ({ at }) => at?.file === file && at.offset <= end && offset <= at.offset + at.length,
+            ({ span }) =>
+                span?.file === file && span.offset <= end && offset <= span.offset + span.length,
         )
         .map(({ message }) => message);
 }

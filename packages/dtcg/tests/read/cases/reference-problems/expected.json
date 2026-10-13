@@ -120,7 +120,7 @@
       "detail": {
         "ref": "color"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{color}\""
       },
@@ -133,7 +133,7 @@
         "expected": "color",
         "found": "dimension"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{space.sm}\"",
         "occurrence": 2
@@ -147,7 +147,7 @@
         "expected": "dimension",
         "found": "color"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{color.brand}\"",
         "occurrence": 2
@@ -160,7 +160,7 @@
         "ref": "shadow.two",
         "count": 2
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{shadow.two}\""
       },
@@ -173,7 +173,7 @@
         "referencedBy": ["color.danger", "color.warning"],
         "similar": "color.brand"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{color.brnad}\""
       },
@@ -181,7 +181,7 @@
       "related": [
         {
           "message": "also used here",
-          "at": {
+          "span": {
             "file": "tokens.json",
             "text": "\"{color.brnad}\"",
             "occurrence": 2
@@ -195,7 +195,7 @@
         "ref": "nowhere",
         "referencedBy": ["loose"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{nowhere}\""
       },

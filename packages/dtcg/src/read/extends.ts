@@ -15,11 +15,11 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
         kind: K,
         detail: DiagnosticDetailByKind[K],
         group: Extending,
-        extra: Omit<DiagnosticExtra, "at" | "path" | "permutation"> = {},
+        extra: Omit<DiagnosticExtra, "span" | "path" | "permutation"> = {},
     ) =>
         diagnostics.push(
             diagnostic(kind, detail, {
-                at: group.extends.at,
+                span: group.extends.span,
                 path: group.path,
                 permutation,
                 ...extra,
@@ -35,7 +35,7 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
             report("circular-reference", { chain: paths }, group, {
                 related: loop.slice(1).map((each) => ({
                     message: relatedMessages.partOfTheLoop,
-                    at: each.extends.at,
+                    span: each.extends.span,
                 })),
             });
             for (const each of loop) state.set(each.path, "in-a-loop");
@@ -152,7 +152,7 @@ function becomeToken(
             diagnostic(
                 "token-and-group",
                 { reason: "ref", ref: referenceText(extending.reference) },
-                { at: extending.at, path, permutation },
+                { span: extending.span, path, permutation },
             ),
         );
     }
@@ -163,7 +163,7 @@ function becomeToken(
         value: extending.node,
         authored: { $ref: referenceText(extending.reference) },
         reference: extending.reference,
-        at: extending.declaredAt,
+        span: extending.groupSpan,
         piece: extending.piece,
         ...(type !== undefined && { type }),
         ...(description !== undefined && { description }),

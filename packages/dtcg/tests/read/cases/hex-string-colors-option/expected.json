@@ -133,13 +133,13 @@
     {
       "kind": "invalid-value",
       "detail": {
-        "at": ["$value"],
+        "jsonPath": ["$value"],
         "type": "color",
         "reason": "short-hex-string",
         "value": "#fff",
         "expanded": "#ffffff"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#fff\""
       },
@@ -148,13 +148,13 @@
     {
       "kind": "invalid-value",
       "detail": {
-        "at": ["$value"],
+        "jsonPath": ["$value"],
         "type": "color",
         "reason": "short-hex-string",
         "value": "#0008",
         "expanded": "#00000088"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#0008\""
       },

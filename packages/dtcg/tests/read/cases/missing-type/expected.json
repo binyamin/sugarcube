@@ -51,7 +51,7 @@
     {
       "kind": "missing-type",
       "detail": {},
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"sm\":"
       },

@@ -19,7 +19,7 @@ import { valueError } from "./value-errors.js";
 export function parseValue<T extends TokenType>(
     type: T,
     raw: unknown,
-    at: JsonPath,
+    jsonPath: JsonPath,
     options?: ParseOptions & { references?: true },
 ): ParseResult<UnresolvedValue<T>>;
 /**
@@ -34,21 +34,21 @@ export function parseValue<T extends TokenType>(
 export function parseValue<T extends TokenType>(
     type: T,
     raw: unknown,
-    at: JsonPath,
+    jsonPath: JsonPath,
     options: ParseOptions & { references: false },
 ): ParseResult<ValueByType[T]>;
 export function parseValue<T extends TokenType>(
     type: T,
     raw: unknown,
-    at: JsonPath,
+    jsonPath: JsonPath,
     { references = true, ...options }: ParseOptions & { references?: boolean } = {},
 ): ParseResult<UnresolvedValue<T> | ValueByType[T]> {
-    if (references) return readToken(type, raw, at, options);
+    if (references) return readToken(type, raw, jsonPath, options);
 
     const notes: Notes = { references: [], readAgain: [] };
-    const read = readToken(type, raw, at, options, notes);
+    const read = readToken(type, raw, jsonPath, options, notes);
     if (!read.ok || notes.references.length === 0) return read;
-    const errors = notes.references.map(({ ref, at: written }) =>
+    const errors = notes.references.map(({ ref, jsonPath: written }) =>
         valueError(written, {
             type,
             reason: "reference-not-allowed",

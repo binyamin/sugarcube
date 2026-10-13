@@ -10,7 +10,7 @@ import {
     type Reader,
     type CheckedResolver,
     type SetDefinition,
-    type SourceNode,
+    type ResolverNode,
     createReader,
     isResolver,
     SET_KEYS,
@@ -27,7 +27,7 @@ export type SourceEntry =
     | {
           kind: "inline";
           node: Node;
-          path: JsonPath;
+          jsonPath: JsonPath;
           route: RouteStep[];
           overriddenKeys?: string[];
           pieces?: SourceEntry[];
@@ -37,7 +37,7 @@ export type SourceEntry =
           file: string;
           fragment: string[];
           ref: Node;
-          path: JsonPath;
+          jsonPath: JsonPath;
           route: RouteStep[];
           overriddenKeys?: string[];
           pieces?: SourceEntry[];
@@ -73,7 +73,7 @@ export function expandSources(
         expanded: new Map(),
         setsUsed,
     };
-    const expand = (sources: SourceNode[], route: RouteStep[]) =>
+    const expand = (sources: ResolverNode[], route: RouteStep[]) =>
         expandList(expander, sources, route, []);
     const items = resolver.order.map((item): ExpandedItem =>
         item.kind === "set"
@@ -120,7 +120,7 @@ function openSource(files: Files, resolver: CheckedResolver, entry: SourceEntry)
     if (entry.kind === "inline") {
         return {
             file: resolver.file.path,
-            pointer: encodePointer(entry.path),
+            pointer: encodePointer(entry.jsonPath),
             json: resolver.file,
             tree: entry.node,
             ...overridden,
@@ -130,35 +130,30 @@ function openSource(files: Files, resolver: CheckedResolver, entry: SourceEntry)
     const path = join(folderOf(resolver.file.path), entry.file);
     const pointer = entry.fragment.length > 0 ? { pointer: encodePointer(entry.fragment) } : {};
     const refText = entry.ref.value as string;
-    const at = [...entry.path, "$ref"];
+    const jsonPath = [...entry.jsonPath, "$ref"];
     const report = (problem: Parameters<typeof resolverProblem>[1]) =>
         files.diagnostics.push(resolverProblem(resolver.file, problem, entry.ref));
 
     const root = parseFile(files, path)?.root;
     if (root && isResolver(root)) {
         openFile(files, path, "resolver");
-        report({ rule: "resolver-as-source", name: path, at });
+        report({ rule: "resolver-as-source", name: path, jsonPath });
         return { file: path, ...pointer };
     }
 
     const json = openFile(files, path, "tokens", {
         file: resolver.file.path,
-        at: spanOf(
-            resolver.file.path,
-            resolver.file.lineStarts,
-            entry.ref.offset,
-            entry.ref.length,
-        ),
+        span: spanOf(resolver.file, entry.ref),
     });
     if (!json) return { file: path, ...pointer };
 
     const followed = follow(json.root, entry.fragment);
     if (!followed.ok) {
-        report({ rule: "invalid-pointer", name: refText, at });
+        report({ rule: "invalid-pointer", name: refText, jsonPath });
         return { file: path, ...pointer };
     }
     if (followed.node.type !== "object") {
-        report({ rule: "wrong-type", name: refText, at, expected: "object" });
+        report({ rule: "wrong-type", name: refText, jsonPath, expected: "object" });
         return { file: path, ...pointer };
     }
     return { file: path, ...pointer, json, tree: followed.node, ...overridden };
@@ -174,7 +169,7 @@ interface Expander {
 
 function expandList(
     expander: Expander,
-    sources: SourceNode[],
+    sources: ResolverNode[],
     route: RouteStep[],
     seen: string[],
 ): SourceEntry[] {
@@ -183,7 +178,7 @@ function expandList(
 
 function expandSource(
     expander: Expander,
-    source: SourceNode,
+    source: ResolverNode,
     route: RouteStep[],
     seen: string[],
 ): SourceEntry[] {
@@ -201,17 +196,17 @@ function expandSource(
 
 function followSource(
     expander: Expander,
-    source: SourceNode,
+    source: ResolverNode,
     route: RouteStep[],
     seen: string[],
-    pointedFrom: SourceNode[] = [],
+    pointedFrom: ResolverNode[] = [],
 ): SourceEntry[] {
     const { reader, root, sets, setsUsed } = expander;
     const refNode = member(source.node, "$ref");
-    if (!refNode) return [{ kind: "inline", node: source.node, path: source.path, route }];
+    if (!refNode) return [{ kind: "inline", node: source.node, jsonPath: source.jsonPath, route }];
 
-    const at = [...source.path, "$ref"];
-    if (!reader.expect(refNode, "string", "$ref", at)) return [];
+    const jsonPath = [...source.jsonPath, "$ref"];
+    if (!reader.expect(refNode, "string", "$ref", jsonPath)) return [];
     const ref = refNode.value as string;
     const overriding = [source, ...pointedFrom];
 
@@ -229,7 +224,7 @@ function followSource(
             file,
             fragment: steps,
             ref: refNode,
-            path: source.path,
+            jsonPath: source.jsonPath,
             route,
         };
         return withOverrides([entry], overriding, route);
@@ -245,11 +240,11 @@ function followSource(
     }
     const steps = read.steps;
     if (!pointable(steps)) {
-        reader.report({ rule: "invalid-pointer", name: ref, at }, refNode);
+        reader.report({ rule: "invalid-pointer", name: ref, jsonPath }, refNode);
         return [];
     }
     if (seen.includes(ref)) {
-        reader.report({ rule: "circular-reference", name: ref, at }, refNode);
+        reader.report({ rule: "circular-reference", name: ref, jsonPath }, refNode);
         return [];
     }
 
@@ -257,7 +252,7 @@ function followSource(
     if (name !== undefined) {
         const target = sets.get(name);
         if (!target) {
-            reader.report({ rule: "unknown-set", name, at }, refNode);
+            reader.report({ rule: "unknown-set", name, jsonPath }, refNode);
             return [];
         }
         setsUsed.reached.add(name);
@@ -270,13 +265,13 @@ function followSource(
 
     const followed = follow(root, steps);
     if (!followed.ok) {
-        reader.report({ rule: "invalid-pointer", name: ref, at }, refNode);
+        reader.report({ rule: "invalid-pointer", name: ref, jsonPath }, refNode);
         return [];
     }
     const [collection, inside] = steps;
     if (collection === "sets" && inside !== undefined) setsUsed.pointedInto.add(inside);
-    if (!reader.expect(followed.node, "object", ref, at)) return [];
-    const target = { node: followed.node, path: steps };
+    if (!reader.expect(followed.node, "object", ref, jsonPath)) return [];
+    const target = { node: followed.node, jsonPath: steps };
     if (member(target.node, "$ref")) {
         return followSource(expander, target, route, [...seen, ref], overriding);
     }
@@ -301,7 +296,7 @@ export function fileRef(ref: string): { file: string; read?: ReturnType<typeof r
     return fragment === "" ? { file } : { file, read: readPointerText(`#${fragment}`) };
 }
 
-function keysBeside(source: SourceNode): string[] {
+function keysBeside(source: ResolverNode): string[] {
     return members(source.node)
         .map(({ key }) => key)
         .filter((key) => key !== "$ref");
@@ -309,7 +304,7 @@ function keysBeside(source: SourceNode): string[] {
 
 function withOverrides(
     entries: SourceEntry[],
-    overriding: SourceNode[],
+    overriding: ResolverNode[],
     route: RouteStep[],
 ): SourceEntry[] {
     return overriding.reduce(
@@ -320,7 +315,7 @@ function withOverrides(
 
 function withOverride(
     entries: SourceEntry[],
-    source: SourceNode,
+    source: ResolverNode,
     route: RouteStep[],
     overridden: string[],
 ): SourceEntry[] {
@@ -330,7 +325,13 @@ function withOverride(
             ...entry,
             overriddenKeys: [...(entry.overriddenKeys ?? []), ...overridden],
         })),
-        { kind: "inline", node: source.node, path: source.path, route, overriddenKeys: ["$ref"] },
+        {
+            kind: "inline",
+            node: source.node,
+            jsonPath: source.jsonPath,
+            route,
+            overriddenKeys: ["$ref"],
+        },
     ];
     for (const piece of pieces) piece.pieces = pieces;
     return pieces;

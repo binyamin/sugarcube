@@ -2,7 +2,7 @@
   "diagnostics": [
     {
       "kind": "duplicate-key",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "offset": 65,
         "length": 4,

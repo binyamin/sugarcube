@@ -8,7 +8,7 @@
         "ref": "color.ink",
         "referencedBy": ["color.text"]
       },
-      "at": {
+      "span": {
         "file": "base.json",
         "text": "\"{color.ink}\""
       },

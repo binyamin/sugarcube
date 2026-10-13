@@ -9,7 +9,7 @@
         "reason": "no-leading-slash",
         "corrected": "#/color/ink"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#color/ink\""
       },
@@ -22,7 +22,7 @@
         "reason": "no-leading-slash",
         "corrected": "#/g"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#g\""
       },
@@ -35,7 +35,7 @@
         "reason": "no-leading-slash",
         "corrected": "#/g"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#g\" }",
         "occurrence": 2
@@ -49,7 +49,7 @@
         "reason": "no-leading-slash",
         "corrected": "#/color/ink/$value/colorSpace"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#color/ink/$value/colorSpace\" }"
       },
@@ -62,7 +62,7 @@
         "reason": "bad-escape",
         "corrected": "#/a~0b/$value"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#/a~b/$value\" }"
       },
@@ -74,7 +74,7 @@
         "ref": "#missing/$value",
         "reason": "no-leading-slash"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#missing/$value\" }"
       },

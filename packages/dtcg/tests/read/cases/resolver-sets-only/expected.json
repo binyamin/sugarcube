@@ -13,7 +13,7 @@
             "file": "tokens.json"
           }
         ],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "offset": 46,
           "length": 42,

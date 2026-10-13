@@ -40,18 +40,18 @@ export function refObjectMeaning(reached: Reached): "group" | "token" | "nothing
 export function stepInto(
     raw: unknown,
     steps: string[],
-): { value: unknown; at: JsonPath } | undefined {
+): { value: unknown; property: JsonPath } | undefined {
     let current = raw;
-    const at: JsonPath = [];
+    const property: JsonPath = [];
     for (const step of steps) {
         if (Array.isArray(current) && /^(?:0|[1-9]\d*)$/.test(step)) {
             current = current[Number(step)];
-            at.push(Number(step));
+            property.push(Number(step));
         } else if (isJsonObject(current) && Object.hasOwn(current, step)) {
             current = current[step];
-            at.push(step);
+            property.push(step);
         } else return undefined;
         if (current === undefined) return undefined;
     }
-    return { value: current, at };
+    return { value: current, property };
 }

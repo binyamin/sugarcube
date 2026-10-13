@@ -53,16 +53,18 @@ describe("extensionReader", () => {
         });
         const result = reader.result("done");
         expect(result.ok).toBe(true);
-        expect(result.ignored?.map(({ path, detail }) => ({ path, detail }))).toStrictEqual([
-            { path: ["min", "fluid"], detail: { type: "dimension", property: "fluid" } },
-        ]);
+        expect(result.ignored?.map(({ jsonPath, detail }) => ({ jsonPath, detail }))).toStrictEqual(
+            [{ jsonPath: ["min", "fluid"], detail: { type: "dimension", property: "fluid" } }],
+        );
     });
 
     it("refuses a reference, since an extension's values are not resolved", () => {
         const reader = extensionReader<typeof messages>();
         expect(reader.read("number", "{ratio.golden}", ["ratio"])).toBeUndefined();
         const result = reader.result(undefined);
-        expect(result.ok ? [] : result.errors.map(({ path }) => path)).toStrictEqual([["ratio"]]);
+        expect(result.ok ? [] : result.errors.map(({ jsonPath }) => jsonPath)).toStrictEqual([
+            ["ratio"],
+        ]);
     });
 
     it("reports a reason with its facts, and a reason that takes none without them", () => {
@@ -72,8 +74,8 @@ describe("extensionReader", () => {
         expect(reader.result(undefined)).toStrictEqual({
             ok: false,
             errors: [
-                { path: ["max"], reason: "missing-property", data: { name: "max" } },
-                { path: ["steps"], reason: "no-steps" },
+                { jsonPath: ["max"], reason: "missing-property", data: { name: "max" } },
+                { jsonPath: ["steps"], reason: "no-steps" },
             ],
         });
     });
@@ -83,7 +85,7 @@ describe("extensionReader", () => {
         reader.report(["max"], "missing-property", { name: "max" });
         reader.read("number", "two", ["ratio"]);
         const result = reader.result({ ratio: 2 });
-        expect(result.ok ? [] : result.errors.map(({ path }) => path)).toStrictEqual([
+        expect(result.ok ? [] : result.errors.map(({ jsonPath }) => jsonPath)).toStrictEqual([
             ["max"],
             ["ratio"],
         ]);

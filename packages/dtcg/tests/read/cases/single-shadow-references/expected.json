@@ -63,7 +63,7 @@
         "expected": "dimension",
         "found": "color"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{color.ink}\"",
         "occurrence": 2
@@ -76,7 +76,7 @@
         "ref": "space.missing",
         "referencedBy": ["lifted"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{space.missing}\""
       },

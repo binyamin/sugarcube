@@ -135,9 +135,12 @@ function findLineStarts(text: string): number[] {
     return starts;
 }
 
-export function spanOf(file: string, lineStarts: number[], offset: number, length: number): Span {
+export function spanOf(
+    { path, lineStarts }: Pick<JsonFile, "path" | "lineStarts">,
+    { offset, length }: { offset: number; length: number },
+): Span {
     return {
-        file,
+        file: path,
         offset,
         length,
         start: position(lineStarts, offset),

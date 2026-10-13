@@ -10,7 +10,7 @@ import type {
     StandardSchemaV1,
     ValueError,
 } from "../index.js";
-import { diagnostic } from "./diagnostics.js";
+import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { type JsonFile, deepestNode, spanOf } from "./json.js";
 import { ignoredDiagnostic, valueDiagnostic } from "./value-diagnostic.js";
 
@@ -22,7 +22,7 @@ export type ExtensionProblem =
     | ExtensionError
     | ValueError
     | IgnoredProperty
-    | { path: JsonPath; message: string };
+    | { jsonPath: JsonPath; message: string };
 
 export interface CheckedExtension {
     within: [string, ...string[]];
@@ -44,7 +44,10 @@ export function checkSchema(
     if (!result.issues) return { ok: true, value: result.value };
     return {
         ok: false,
-        problems: result.issues.map(({ message, path }) => ({ path: issuePath(path), message })),
+        problems: result.issues.map(({ message, path }) => ({
+            jsonPath: issuePath(path),
+            message,
+        })),
     };
 }
 
@@ -62,30 +65,33 @@ export function extensionDiagnostic(
     problem: ExtensionProblem,
     { within, messages, json, node, path, permutation }: CheckedExtension,
 ): Diagnostic {
-    const at = ["$extensions", ...within, ...problem.path];
+    const jsonPath = ["$extensions", ...within, ...problem.jsonPath];
     if ("kind" in problem && problem.kind === "unknown-property") {
-        const where = { node, steps: problem.path, json };
-        return ignoredDiagnostic(problem, at, where, {
+        const where = { node, steps: problem.jsonPath, json };
+        return ignoredDiagnostic(problem, jsonPath, where, {
             ...(path !== undefined && { path }),
             permutation,
         });
     }
-    const found = deepestNode(node, problem.path);
-    const extra = {
-        at: spanOf(json.path, json.lineStarts, found.offset, found.length),
+    const found = deepestNode(node, problem.jsonPath);
+    const extra: DiagnosticExtra = {
+        span: spanOf(json, found),
         ...(path !== undefined && { path }),
         permutation,
     };
-    if ("kind" in problem) return valueDiagnostic(problem.detail, at, found, extra);
+    if ("kind" in problem) return valueDiagnostic(problem.detail, jsonPath, found, extra);
 
     const key = within[0];
     if ("message" in problem) {
-        return { ...diagnostic("extension-invalid", { key, at }, extra), message: problem.message };
+        return {
+            ...diagnostic("extension-invalid", { key, jsonPath }, extra),
+            message: problem.message,
+        };
     }
     const { reason, data } = problem;
     const invalid = diagnostic(
         "extension-invalid",
-        { key, at, reason, ...(data !== undefined && { data }) },
+        { key, jsonPath, reason, ...(data !== undefined && { data }) },
         extra,
     );
     if (!messages || !Object.hasOwn(messages, reason)) return invalid;

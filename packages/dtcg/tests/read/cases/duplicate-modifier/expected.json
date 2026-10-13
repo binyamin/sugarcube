@@ -12,7 +12,7 @@
           {
             "name": "light",
             "sources": [],
-            "at": {
+            "span": {
               "file": "tokens.resolver.json",
               "offset": 77,
               "length": 2,
@@ -29,7 +29,7 @@
           {
             "name": "dark",
             "sources": [],
-            "at": {
+            "span": {
               "file": "tokens.resolver.json",
               "offset": 89,
               "length": 2,
@@ -44,7 +44,7 @@
             }
           }
         ],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "offset": 52,
           "length": 43,
@@ -71,9 +71,9 @@
       "detail": {
         "rule": "duplicate-name",
         "name": "theme",
-        "at": ["resolutionOrder", 1]
+        "jsonPath": ["resolutionOrder", 1]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 163,
         "length": 73,

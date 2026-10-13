@@ -19,11 +19,11 @@
       "kind": "extension-invalid",
       "detail": {
         "key": "com.example",
-        "at": ["$extensions", "com.example", "steps"],
+        "jsonPath": ["$extensions", "com.example", "steps"],
         "reason": "not-a-count",
         "data": { "steps": "three" }
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"steps\":"
       },
@@ -35,7 +35,7 @@
         "ref": "space.1",
         "referencedBy": ["gap"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{space.1}\""
       },

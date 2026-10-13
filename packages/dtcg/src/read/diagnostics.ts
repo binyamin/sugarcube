@@ -1,7 +1,7 @@
 import { diagnosticMessages } from "../error-messages.js";
 import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind, Input } from "../index.js";
 
-export type DiagnosticExtra = Partial<Pick<Diagnostic, "at" | "path" | "related" | "tags">> & {
+export type DiagnosticExtra = Partial<Pick<Diagnostic, "span" | "path" | "related" | "tags">> & {
     permutation?: Input;
 };
 

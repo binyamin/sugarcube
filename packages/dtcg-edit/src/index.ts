@@ -229,8 +229,8 @@ export function deprecate(project: Project, path: string, reason: string | true 
 
 /**
  * Changes one setting inside a token's or group's `$extensions`, leaving the rest as written, so
- * other tools' settings are never touched. `at` starts with the extension's key; give only the
- * key to replace the whole extension. `null` removes the setting.
+ * other tools' settings are never touched. `jsonPath` starts with the extension's key; give only
+ * the key to replace the whole extension. `null` removes the setting.
  *
  * @example
  * setExtension(project, "space", ["com.example", "scale", "ratio"], 1.333)
@@ -238,7 +238,7 @@ export function deprecate(project: Project, path: string, reason: string | true 
 export function setExtension(
     project: Project,
     path: string,
-    at: JsonPath,
+    jsonPath: JsonPath,
     value: Json | null,
 ): OpResult {
     throw new Error("not implemented yet");

@@ -221,12 +221,11 @@ function eachContext(modifiers: Modifier[], { diagnostics, file }: Reporting): I
     const withoutDefault = modifiers.filter(({ default: fallback }) => fallback === undefined);
     const [first] = withoutDefault;
     if (first) {
-        const { offset, length } = first.declared;
         diagnostics.push(
             diagnostic(
                 "no-default",
                 { modifiers: withoutDefault.map(({ name }) => name) },
-                { at: spanOf(file.path, file.lineStarts, offset, length) },
+                { span: spanOf(file, first.declared) },
             ),
         );
     }

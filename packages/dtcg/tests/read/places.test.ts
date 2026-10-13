@@ -229,7 +229,7 @@ describe("the plain form", () => {
         expect(plain.sources[1].context).toStrictEqual({ modifier: "mode", name: "dark" });
         expect(plain.sources[1].readBy).toStrictEqual([{ modifier: "mode", name: "dark" }]);
         const [, darkWritten] = plain.resolver.modifiers[0].contexts;
-        expect(Object.keys(darkWritten).sort()).toStrictEqual(["at", "name", "sources"]);
+        expect(Object.keys(darkWritten).sort()).toStrictEqual(["name", "sources", "span"]);
     });
 
     it("leaves out a permutation's contexts, which its input says", () => {

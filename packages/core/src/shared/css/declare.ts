@@ -106,10 +106,10 @@ function derivedSelector(permutation: Permutation): string {
 
 function asReported(found: Diagnostic): Reported {
     if (found.kind !== "no-default") return found;
-    const { at } = found;
+    const { span } = found;
     return {
         ...diagnostic("default-required", { modifiers: found.detail.modifiers }),
-        ...(at && { at }),
+        ...(span && { span }),
     };
 }
 

@@ -9,13 +9,14 @@ import type {
     UnresolvedValueByType,
     ValueError,
 } from "../index.js";
+import type { DiagnosticExtra } from "./diagnostics.js";
 import { ignoredDiagnostic, valueDiagnostic } from "./value-diagnostic.js";
 import {
     type Notes,
-    type Place,
+    type Slot,
     type ReadAgain,
     type ReferenceRead,
-    readPlace,
+    readSlot,
     readToken,
 } from "../values/read-syntax.js";
 import { deepestNode, spanOf } from "./json.js";
@@ -42,7 +43,7 @@ export interface ValueReader {
     read: Read;
     readTarget: (
         token: MergedToken,
-        place: Place,
+        slot: Slot,
         raw: unknown,
         permutation: Input,
     ) => { result: ParseResult<unknown>; notes: Notes };
@@ -78,9 +79,9 @@ export function createValueReader(diagnostics: Diagnostic[], options: ParseOptio
             cache.set(token.value, fresh);
             return fresh;
         },
-        readTarget: (token, place, raw, permutation) => {
+        readTarget: (token, slot, raw, permutation) => {
             const notes: Notes = { references: [], readAgain: [] };
-            const result = readPlace(place, raw, options, notes);
+            const result = readSlot(slot, raw, options, notes);
             if (!result.ok) {
                 for (const error of result.errors) {
                     diagnostics.push(toDiagnostic(token, error, permutation));
@@ -93,14 +94,18 @@ export function createValueReader(diagnostics: Diagnostic[], options: ParseOptio
 
 function ignoredToDiagnostic(token: MergedToken, ignored: IgnoredProperty): Diagnostic {
     const { json, value, path } = token;
-    const within = { node: value, steps: ignored.path.slice(1), json };
-    return ignoredDiagnostic(ignored, ignored.path, within, { path });
+    const within = { node: value, steps: ignored.jsonPath.slice(1), json };
+    return ignoredDiagnostic(ignored, ignored.jsonPath, within, { path });
 }
 
 function toDiagnostic(token: MergedToken, error: ValueError, permutation?: Input): Diagnostic {
     const { json, value, path } = token;
-    const node = deepestNode(value, error.path.slice(1));
-    const at = spanOf(json.path, json.lineStarts, node.offset, node.length);
-    const extra = { at, path, ...(permutation !== undefined && { permutation }) };
-    return valueDiagnostic(error.detail, error.path, node, extra);
+    const node = deepestNode(value, error.jsonPath.slice(1));
+    const span = spanOf(json, node);
+    const extra: DiagnosticExtra = {
+        span,
+        path,
+        ...(permutation !== undefined && { permutation }),
+    };
+    return valueDiagnostic(error.detail, error.jsonPath, node, extra);
 }

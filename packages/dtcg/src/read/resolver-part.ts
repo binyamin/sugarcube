@@ -1,17 +1,15 @@
 import type { Node } from "jsonc-parser";
-import type {
-    Diagnostic,
-    Resolver,
-    ResolverModifier,
-    ResolverSet,
-    SourceRef,
-    Span,
-} from "../index.js";
+import type { Diagnostic, Resolver, ResolverModifier, ResolverSet, SourceRef } from "../index.js";
 import { diagnostic } from "./diagnostics.js";
 import { member, plainObject, spanOf } from "./json.js";
 import { folderOf, join } from "./paths.js";
 import { encodePointer, readPointerText } from "./pointer.js";
-import type { CheckedResolver, ModifierDefinition, SetDefinition, SourceNode } from "./resolver.js";
+import type {
+    CheckedResolver,
+    ModifierDefinition,
+    SetDefinition,
+    ResolverNode,
+} from "./resolver.js";
 import { type SetsUsed, fileRef, setNamed } from "./sources.js";
 import { linkedContext, linkedModifier } from "./linked.js";
 
@@ -37,10 +35,10 @@ export function resolverPart(
     ) => {
         for (const [name, { declared: node }] of declared) {
             if (used.has(name)) continue;
-            const at = spanAt(resolver, node);
+            const span = spanOf(resolver.file, node);
             const detail = { item, name };
             diagnostics.push(
-                diagnostic("not-in-resolution-order", detail, { at, tags: ["unnecessary"] }),
+                diagnostic("not-in-resolution-order", detail, { span, tags: ["unnecessary"] }),
             );
         }
     };
@@ -68,7 +66,7 @@ function publicSet(resolver: CheckedResolver, set: SetDefinition): ResolverSet {
         ...(set.description !== undefined && { description: set.description }),
         ...(extensions && { extensions }),
         sources: sourcesAsWritten(resolver, set.sources),
-        at: spanAt(resolver, set.declared),
+        span: spanOf(resolver.file, set.declared),
     };
 }
 
@@ -80,7 +78,7 @@ function publicModifier(resolver: CheckedResolver, modifier: ModifierDefinition)
         ...(extensions && { extensions }),
         contexts: [],
         ...(modifier.default !== undefined && { default: modifier.default }),
-        at: spanAt(resolver, modifier.declared),
+        span: spanOf(resolver.file, modifier.declared),
     });
     made.contexts = [...modifier.contexts].map(([context, { sources, declared }]) =>
         linkedContext({
@@ -88,20 +86,20 @@ function publicModifier(resolver: CheckedResolver, modifier: ModifierDefinition)
             modifier: made,
             sources: sourcesAsWritten(resolver, sources),
             isDefault: context === modifier.default,
-            at: spanAt(resolver, declared),
+            span: spanOf(resolver.file, declared),
         }),
     );
     return made;
 }
 
-function sourcesAsWritten(resolver: CheckedResolver, sources: SourceNode[]): SourceRef[] {
+function sourcesAsWritten(resolver: CheckedResolver, sources: ResolverNode[]): SourceRef[] {
     return sources.flatMap((source) => sourceAsWritten(resolver, source) ?? []);
 }
 
-function sourceAsWritten(resolver: CheckedResolver, source: SourceNode): SourceRef | undefined {
+function sourceAsWritten(resolver: CheckedResolver, source: ResolverNode): SourceRef | undefined {
     const { file } = resolver;
     const ref = member(source.node, "$ref");
-    if (!ref) return { file: file.path, pointer: encodePointer(source.path) };
+    if (!ref) return { file: file.path, pointer: encodePointer(source.jsonPath) };
     if (ref.type !== "string") return undefined;
     const written = ref.value as string;
     if (!written.startsWith("#")) {
@@ -120,8 +118,4 @@ function sourceAsWritten(resolver: CheckedResolver, source: SourceNode): SourceR
 
 function inWrittenOrder<T extends { declared: Node }>(items: T[]): T[] {
     return [...items].sort((a, b) => a.declared.offset - b.declared.offset);
-}
-
-function spanAt({ file }: CheckedResolver, node: Node): Span {
-    return spanOf(file.path, file.lineStarts, node.offset, node.length);
 }

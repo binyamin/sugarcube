@@ -41,7 +41,7 @@
         "type": "colour",
         "similar": "color"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"colour\""
       },
@@ -50,7 +50,7 @@
     {
       "kind": "missing-type",
       "detail": {},
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"loose\":"
       },

@@ -108,7 +108,7 @@
         "ref": "color.highlight",
         "referencedBy": ["color.accent"]
       },
-      "at": {
+      "span": {
         "file": "dark.json",
         "text": "\"{color.highlight}\""
       },

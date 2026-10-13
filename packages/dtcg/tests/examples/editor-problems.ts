@@ -18,9 +18,9 @@ const range = (span: Span) => ({
 
 const byFile = new Map<string, unknown[]>();
 for (const d of doc.diagnostics) {
-    if (!d.at) continue;
+    if (!d.span) continue;
     const item = {
-        range: range(d.at),
+        range: range(d.span),
         severity: severity[d.severity],
         code: d.kind,
         codeDescription: { href: d.docs },
@@ -28,10 +28,10 @@ for (const d of doc.diagnostics) {
         message: d.message,
         tags: d.tags?.map((t) => tag[t]),
         relatedInformation: d.related?.map((r) => ({
-            location: { uri: uri(r.at.file), range: range(r.at) },
+            location: { uri: uri(r.span.file), range: range(r.span) },
             message: r.message,
         })),
     };
-    byFile.set(d.at.file, [...(byFile.get(d.at.file) ?? []), item]);
+    byFile.set(d.span.file, [...(byFile.get(d.span.file) ?? []), item]);
 }
 for (const [file, items] of byFile) publish(uri(file), items);

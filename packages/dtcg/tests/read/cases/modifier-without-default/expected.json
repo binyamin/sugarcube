@@ -16,7 +16,7 @@
                 "file": "light.json"
               }
             ],
-            "at": {
+            "span": {
               "file": "tokens.resolver.json",
               "offset": 95,
               "length": 68,
@@ -37,7 +37,7 @@
                 "file": "dark.json"
               }
             ],
-            "at": {
+            "span": {
               "file": "tokens.resolver.json",
               "offset": 181,
               "length": 67,
@@ -52,7 +52,7 @@
             }
           }
         ],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "offset": 56,
           "length": 206,

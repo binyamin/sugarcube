@@ -10,7 +10,7 @@ function read(raw: unknown) {
 function details(raw: unknown) {
     const result = parseFontFamily(raw, ["$value"]);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
-    return result.errors.map(({ path, detail }) => ({ path, detail }));
+    return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 describe("parseFontFamily", () => {
@@ -50,7 +50,7 @@ describe("parseFontFamily", () => {
         it.for(["", "   "])("the empty name %j", (raw) => {
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: { type: "fontFamily", reason: "not-a-font-name", value: raw },
                 },
             ]);
@@ -58,18 +58,18 @@ describe("parseFontFamily", () => {
 
         it("an empty list", () => {
             expect(details([])).toStrictEqual([
-                { path: ["$value"], detail: { type: "fontFamily", reason: "empty-font-list" } },
+                { jsonPath: ["$value"], detail: { type: "fontFamily", reason: "empty-font-list" } },
             ]);
         });
 
         it("a list with something other than a name in it", () => {
             expect(details(["Arial", 42, ""])).toStrictEqual([
                 {
-                    path: ["$value", 1],
+                    jsonPath: ["$value", 1],
                     detail: { type: "fontFamily", reason: "not-a-font-name", value: 42 },
                 },
                 {
-                    path: ["$value", 2],
+                    jsonPath: ["$value", 2],
                     detail: { type: "fontFamily", reason: "not-a-font-name", value: "" },
                 },
             ]);
@@ -78,7 +78,7 @@ describe("parseFontFamily", () => {
         it("a curly-brace reference in place of one name, rather than reading it as a font's name", () => {
             expect(details(["{font.brand}", "serif"])).toStrictEqual([
                 {
-                    path: ["$value", 0],
+                    jsonPath: ["$value", 0],
                     detail: {
                         type: "fontFamily",
                         reason: "alias-not-allowed-here",
@@ -91,7 +91,7 @@ describe("parseFontFamily", () => {
         it.for([42, null, true, { name: "Arial" }])("%j, which is not a name or a list", (raw) => {
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: { type: "fontFamily", reason: "wrong-shape", value: raw },
                 },
             ]);

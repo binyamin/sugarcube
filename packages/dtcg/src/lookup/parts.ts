@@ -25,21 +25,27 @@ export function parts(token: Token): Part | undefined {
 
 type Built = Record<string, unknown>;
 
-function partOf(token: Token, type: TokenType, resolved: unknown, at: JsonPath): unknown {
-    const part = placed(token, at, { type, resolved });
-    addParts(token, part, syntaxes[type], resolved, at);
+function partOf(token: Token, type: TokenType, resolved: unknown, property: JsonPath): unknown {
+    const part = placed(token, property, { type, resolved });
+    addParts(token, part, syntaxes[type], resolved, property);
     return part;
 }
 
-function addParts(token: Token, part: Built, syntax: Syntax, resolved: unknown, at: JsonPath) {
+function addParts(
+    token: Token,
+    part: Built,
+    syntax: Syntax,
+    resolved: unknown,
+    property: JsonPath,
+) {
     if (!syntax.hasParts) return;
     switch (syntax.kind) {
         case "object": {
             if (!isJsonObject(resolved)) return;
             if (syntax.tag !== undefined && resolved.kind !== syntax.tag) return;
-            for (const [name, property] of syntax.inOrder) {
-                const inner = syntaxOf(property, resolved);
-                const found = partsAt(token, inner, resolved[name], [...at, name]);
+            for (const [name, propertySyntax] of syntax.inOrder) {
+                const inner = syntaxOf(propertySyntax, resolved);
+                const found = partsAt(token, inner, resolved[name], [...property, name]);
                 if (found !== undefined) part[name] = found;
             }
             return;
@@ -47,9 +53,9 @@ function addParts(token: Token, part: Built, syntax: Syntax, resolved: unknown, 
         case "oneOf": {
             const choice = choiceOf(syntax, resolved);
             if (typeof choice === "function") return;
-            if (!("list" in choice)) addParts(token, part, choice, resolved, at);
+            if (!("list" in choice)) addParts(token, part, choice, resolved, property);
             else if (choice.list.kind === "elements") {
-                part[choice.list.parts] = listParts(token, choice.list, choice.items, at);
+                part[choice.list.parts] = listParts(token, choice.list, choice.items, property);
             }
             return;
         }
@@ -59,38 +65,45 @@ function addParts(token: Token, part: Built, syntax: Syntax, resolved: unknown, 
     }
 }
 
-function partsAt(token: Token, syntax: Syntax, value: unknown, at: JsonPath): unknown {
+function partsAt(token: Token, syntax: Syntax, value: unknown, property: JsonPath): unknown {
     if (!syntax.hasParts) return undefined;
-    if (syntax.kind === "ofType") return partOf(token, syntax.type, value, at);
+    if (syntax.kind === "ofType") return partOf(token, syntax.type, value, property);
     if (syntax.kind !== "oneOf") return undefined;
     const choice = choiceOf(syntax, value);
     if (typeof choice === "function") return undefined;
     return "list" in choice
-        ? listParts(token, choice.list, choice.items, at)
-        : partsAt(token, choice, value, at);
+        ? listParts(token, choice.list, choice.items, property)
+        : partsAt(token, choice, value, property);
 }
 
-function listParts(token: Token, syntax: ArraySyntax, items: unknown[], at: JsonPath): unknown[] {
+function listParts(
+    token: Token,
+    syntax: ArraySyntax,
+    items: unknown[],
+    property: JsonPath,
+): unknown[] {
     switch (syntax.kind) {
         case "elements":
             return items.map((item, index) => {
-                const where = [...at, index];
+                const where = [...property, index];
                 const element = placed(token, where, { resolved: item });
                 addParts(token, element, syntax.item, item, where);
                 return element;
             });
         case "list":
-            return items.map((item, index) => partsAt(token, syntax.item, item, [...at, index]));
+            return items.map((item, index) =>
+                partsAt(token, syntax.item, item, [...property, index]),
+            );
         case "tuple":
             return syntax.items.map((itemSyntax, index) =>
-                partsAt(token, itemSyntax, items[index], [...at, index]),
+                partsAt(token, itemSyntax, items[index], [...property, index]),
             );
     }
 }
 
-function placed(token: Token, at: JsonPath, part: Built): Built {
-    if (at.length > 0) part.property = at;
-    const ref = token.referenceAt(at);
+function placed(token: Token, property: JsonPath, part: Built): Built {
+    if (property.length > 0) part.property = property;
+    const ref = token.referenceAt(property);
     if (ref) part.ref = ref;
     return part;
 }

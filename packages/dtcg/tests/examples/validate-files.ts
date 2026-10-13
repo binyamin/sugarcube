@@ -12,7 +12,7 @@ const files = Object.fromEntries(
 try {
     const doc = readFromMemory({ files });
     for (const d of doc.diagnostics)
-        showMessage(`${d.severity}  ${d.at?.file ?? ""}  ${d.message}`);
+        showMessage(`${d.severity}  ${d.span?.file ?? ""}  ${d.message}`);
 } catch (error) {
     if (!(error instanceof TypeError)) throw error;
     showMessage(error.message);

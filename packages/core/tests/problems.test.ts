@@ -8,47 +8,47 @@ const where: Where = {
     configFile: "/project/sugarcube.config.ts",
 };
 
-function at(file: string, line: number, column: number) {
+function spanAt(file: string, line: number, column: number) {
     return { file, offset: 0, length: 1, start: { line, column }, end: { line, column } };
 }
 
-function value(message: string, place: ReturnType<typeof at>): Reported {
+function value(message: string, place: ReturnType<typeof spanAt>): Reported {
     return {
         kind: "invalid-value",
         severity: "error",
         message,
-        at: place,
+        span: place,
         docs: "",
         detail: { at: ["$value"], type: "color", reason: "wrong-shape", value: "" },
     };
 }
 
-function missingReference(ref: string, place: ReturnType<typeof at>): Reported {
+function missingReference(ref: string, place: ReturnType<typeof spanAt>): Reported {
     return {
         kind: "missing-reference",
         severity: "error",
         message: `\`${ref}\` does not exist`,
-        at: place,
+        span: place,
         docs: "",
         detail: { ref, referencedBy: [] },
     };
 }
 
-function ignored(place: ReturnType<typeof at>): Reported {
+function ignored(place: ReturnType<typeof spanAt>): Reported {
     return {
         kind: "unknown-property",
         severity: "warning",
         message: "`paragraphSpacing` is ignored",
-        at: place,
+        span: place,
         docs: "",
         detail: { property: "paragraphSpacing", owner: "typography", at: [] },
     };
 }
 
-const hex = value("`#000` is not a six-digit hex color", at("base.json", 6, 81));
-const missing = missingReference("color.inc", at("base.json", 7, 25));
+const hex = value("`#000` is not a six-digit hex color", spanAt("base.json", 6, 81));
+const missing = missingReference("color.inc", spanAt("base.json", 7, 25));
 const darkOnly = {
-    ...missingReference("color.brnd", at("dark.json", 1, 54)),
+    ...missingReference("color.brnd", spanAt("dark.json", 1, 54)),
     permutations: [{ theme: "dark" }, { theme: "dim" }],
 };
 const polyfill: Reported = {
@@ -105,7 +105,7 @@ describe("problemLines", () => {
     });
 
     it("places a file the resolver names from the root where it is, not under the tokens' folder", () => {
-        const shared = missingReference("color.nope", at("/shared/brand.json", 3, 12));
+        const shared = missingReference("color.nope", spanAt("/shared/brand.json", 3, 12));
         expect(problemLines([shared], where, { colors: false })[0]).toMatch(
             /^\.\.\/shared\/brand\.json:3:12 /,
         );
@@ -114,7 +114,7 @@ describe("problemLines", () => {
     it("wraps a long message under its column, never the place", () => {
         const long = value(
             "`{space.sm}` is a reference, which stands for a whole value and cannot be part of one",
-            at("base.json", 12, 34),
+            spanAt("base.json", 12, 34),
         );
         expect(problemLines([long], where, { colors: false, width: 74 })).toStrictEqual([
             "tokens/base.json:12:34  error  `{space.sm}` is a reference, which stands",
@@ -128,8 +128,8 @@ describe("problemLines", () => {
             kind: "token-and-group",
             severity: "error",
             message: "this is a token here but a group in another file",
-            at: at("dark.json", 3, 12),
-            related: [{ message: "declared as a group here", at: at("colors.json", 9, 17) }],
+            span: spanAt("dark.json", 3, 12),
+            related: [{ message: "declared as a group here", span: spanAt("colors.json", 9, 17) }],
             docs: "",
             detail: { reason: "declared", here: "token" },
         };
@@ -141,7 +141,7 @@ describe("problemLines", () => {
 
     it("prints every problem, however many share a message", () => {
         const many = Array.from({ length: 3 }, (_, index) =>
-            ignored(at("type.json", 17 + index, 9)),
+            ignored(spanAt("type.json", 17 + index, 9)),
         );
         expect(problemLines(many, where, { colors: false })).toHaveLength(3);
     });

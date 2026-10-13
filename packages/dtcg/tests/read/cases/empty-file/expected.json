@@ -7,7 +7,7 @@
       "detail": {
         "reason": "value-expected"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "offset": 0,
         "length": 0,

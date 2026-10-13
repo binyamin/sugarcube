@@ -820,7 +820,7 @@ export interface ResolverSet {
     /** Its sources, in order, as written. */
     sources: SourceRef[];
     /** Where it is written: under `sets`, or inline in `resolutionOrder`. */
-    at: Span;
+    span: Span;
 }
 
 /** A modifier that takes part, as it is in effect. */
@@ -833,7 +833,7 @@ export interface ResolverModifier {
     contexts: ResolverContext[];
     default?: string;
     /** Where it is written: under `modifiers`, or inline in `resolutionOrder`. */
-    at: Span;
+    span: Span;
 }
 
 /** One context of a modifier: one of the values an input can choose for it (Resolver 4.1.5.1). */
@@ -849,7 +849,7 @@ export interface ResolverContext {
      */
     isDefault: boolean;
     /** Where it is written. */
-    at: Span;
+    span: Span;
 }
 
 /**
@@ -972,7 +972,7 @@ export interface DiagnosticDetailByKind {
     /** A value does not fit its type. */
     "invalid-value": {
         /** Where in the token or group, such as `["$value", "unit"]`. */
-        at: JsonPath;
+        jsonPath: JsonPath;
     } & ValueErrorDetail;
     /** A color written as a hex string, which the 2025.10 Color module no longer allows. */
     "hex-string-color": ValueErrorFacts["hex-string"];
@@ -981,7 +981,7 @@ export interface DiagnosticDetailByKind {
         /** The `$extensions` key, such as `"com.example"`. */
         key: string;
         /** Where in the token or group, such as `["$extensions", "com.example", "steps"]`. */
-        at: JsonPath;
+        jsonPath: JsonPath;
         /** Why, as the check named it. A Standard Schema's issues have none. */
         reason?: string;
         /** The facts the check's message is worded from. */
@@ -1045,7 +1045,7 @@ export interface DiagnosticDetailByKind {
               /** The type of the value it is in, which for a part of a composite is the part's type. */
               owner: TokenType;
               /** Where in the token or group, such as `["$value", "paragraphSpacing"]`. */
-              at: JsonPath;
+              jsonPath: JsonPath;
           };
     /**
      * A member is almost certainly one of the specification's own properties written another way:
@@ -1133,12 +1133,12 @@ export type ResolverProblem =
           /** The property, set, modifier, pointer or file concerned. */
           name: string;
           /** Where in the resolver, such as `["sets", "base", "sources"]`. */
-          at: JsonPath;
+          jsonPath: JsonPath;
       }
     | {
           rule: "wrong-type";
           name: string;
-          at: JsonPath;
+          jsonPath: JsonPath;
           /** The JSON type the property must be. */
           expected: "string" | "object" | "array";
       };
@@ -1152,7 +1152,7 @@ export type DiagnosticKind = keyof DiagnosticDetailByKind;
  *
  * The message says what is wrong in plain words and, where the reader knows, what would mend it
  * ("did you mean `color.ink`?"); `detail` holds the same facts. It names no tool's command or flag,
- * and holds no location: that is in `at`, for the tool to present as it likes. The changes that
+ * and holds no location: that is in `span`, for the tool to present as it likes. The changes that
  * would mend a problem are made by `@sugarcube-sh/dtcg-edit`.
  *
  * @example
@@ -1176,7 +1176,7 @@ export type DiagnosticOf<DetailByKind> = {
         severity: "error" | "warning" | "info" | "hint";
         message: string;
         /** Where the problem is, when it is in a file. */
-        at?: Span;
+        span?: Span;
         /** The token or group it concerns. */
         path?: string;
         /**
@@ -1189,7 +1189,7 @@ export type DiagnosticOf<DetailByKind> = {
          */
         permutations?: Input[];
         /** Other places involved, such as every token that uses a missing one. */
-        related?: { message: string; at: Span }[];
+        related?: { message: string; span: Span }[];
         /** How an editor may show it: struck through for a deprecated reference. */
         tags?: ("deprecated" | "unnecessary")[];
         /** A page explaining this kind of diagnostic. */
@@ -1231,7 +1231,8 @@ export interface Document {
      */
     parseOptions: Required<ParseOptions>;
     /**
-     * Every error, warning and note, in the order the read found them; sort by `at` for file order.
+     * Every error, warning and note, in the order the read found them; sort by `span` for file
+     * order.
      * {@link errors} picks out the errors.
      */
     diagnostics: Diagnostic[];
@@ -1268,8 +1269,11 @@ export type { ValueErrorCode, ValueErrorDetail, ValueErrorFacts } from "./values
 /** Why a single value could not be read. */
 export interface ValueError {
     kind: "invalid-value";
-    /** Where in the value the problem is, such as `["color"]` inside a shadow. */
-    path: JsonPath;
+    /**
+     * Where the problem is: the `jsonPath` the value was read at, then the steps into it, such as
+     * `["$value", "color"]` in a shadow read at `["$value"]`.
+     */
+    jsonPath: JsonPath;
     message: string;
     /** Why, and the facts the message is worded from, so a tool can word it itself. */
     detail: ValueErrorDetail;
@@ -1282,7 +1286,7 @@ export interface ValueError {
 export interface IgnoredProperty {
     kind: "unknown-property";
     /** Where the property is, such as `["$value", "paragraphSpacing"]`. */
-    path: JsonPath;
+    jsonPath: JsonPath;
     message: string;
     /** The type of the value it is in, which for a part of a composite is the part's type. */
     detail: { type: TokenType; property: string };
@@ -1296,8 +1300,11 @@ export type ParseResult<V> =
     | { ok: true; value: V; ignored: IgnoredProperty[] }
     | { ok: false; errors: ValueError[]; ignored: IgnoredProperty[] };
 
-/** Reads one raw value into its shape, or explains why it cannot. */
-export type Parse<V> = (raw: unknown, at: JsonPath, options?: ParseOptions) => ParseResult<V>;
+/**
+ * Reads one raw value into its shape, or explains why it cannot. `jsonPath` is where the value
+ * sits, and each problem's `jsonPath` starts with it.
+ */
+export type Parse<V> = (raw: unknown, jsonPath: JsonPath, options?: ParseOptions) => ParseResult<V>;
 
 /** How values are read, for {@link read} and the parsers alike. */
 export interface ParseOptions {
@@ -1349,11 +1356,12 @@ export interface ExtensionValidator {
     /** The wording for each reason `validate` reports. */
     messages?: ExtensionMessages;
     /**
-     * Why the extension is not valid, if it is not. An error's `path` starts at the extension. An
-     * {@link ExtensionError} is worded from `messages`; a {@link ValueError}, from reading a value in
-     * the extension with `parseValue`, is reported as `invalid-value`; an {@link IgnoredProperty}
-     * from the same, as an `unknown-property` warning. `options` are how the read reads values, to
-     * read the extension's the same way: give them to `extensionReader` or `parseValue`.
+     * Why the extension is not valid, if it is not. An error's `jsonPath` starts at the extension.
+     * An {@link ExtensionError} is worded from `messages`; a {@link ValueError}, from reading a
+     * value in the extension with `parseValue`, is reported as `invalid-value`; an
+     * {@link IgnoredProperty} from the same, as an `unknown-property` warning. `options` are how
+     * the read reads values, to read the extension's the same way: give them to `extensionReader`
+     * or `parseValue`.
      */
     validate?(
         on: {
@@ -1398,19 +1406,19 @@ export type ExtensionMessages = Record<string, (data: any) => string>;
  * facts that reason is worded from. It carries no sentence: `dtcg` words it from the messages.
  *
  * @example
- * { path: ["ratio", "min"], reason: "ratio-not-above-one", data: { ratio: 1 } }
+ * { jsonPath: ["ratio", "min"], reason: "ratio-not-above-one", data: { ratio: 1 } }
  */
 export type ExtensionError<M extends ExtensionMessages = ExtensionMessages> = string extends keyof M
     ? {
           /** Where in the extension, such as `["ratio", "min"]`. */
-          path: JsonPath;
+          jsonPath: JsonPath;
           reason: string;
           data?: unknown;
       }
     : {
           [R in keyof M & string]: {
               /** Where in the extension, such as `["ratio", "min"]`. */
-              path: JsonPath;
+              jsonPath: JsonPath;
               reason: R;
           } & (Parameters<M[R]> extends [] ? { data?: undefined } : { data: Parameters<M[R]>[0] });
       }[keyof M & string];
@@ -1441,7 +1449,7 @@ export interface Generator {
     messages?: ExtensionMessages;
     /**
      * The tokens an extension makes, in the order to list them, or why the extension is not valid.
-     * Tokens no file writes are listed at the end of the group. An error's `path` starts at the
+     * Tokens no file writes are listed at the end of the group. An error's `jsonPath` starts at the
      * extension. An {@link ExtensionError} is reported as `extension-invalid`, worded from
      * `messages`; a {@link ValueError}, from reading a value in the extension with `parseValue`, is
      * reported as `invalid-value`, as it would be in a token, and each of its `ignored` properties

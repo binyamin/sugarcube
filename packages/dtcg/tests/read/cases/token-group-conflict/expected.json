@@ -48,7 +48,7 @@
         "name": "bad.name",
         "character": "."
       },
-      "at": {
+      "span": {
         "file": "base.json",
         "text": "\"bad.name\""
       }
@@ -59,14 +59,14 @@
         "reason": "declared",
         "here": "group"
       },
-      "at": {
+      "span": {
         "file": "dark.json",
         "valueAfter": "\"scale\":"
       },
       "related": [
         {
           "message": "declared as a token here",
-          "at": {
+          "span": {
             "file": "base.json",
             "valueAfter": "\"scale\":"
           }
@@ -85,14 +85,14 @@
         "reason": "declared",
         "here": "token"
       },
-      "at": {
+      "span": {
         "file": "dark.json",
         "valueAfter": "\"radius\":"
       },
       "related": [
         {
           "message": "declared as a group here",
-          "at": {
+          "span": {
             "file": "base.json",
             "valueAfter": "\"radius\":"
           }

@@ -12,7 +12,7 @@
           {
             "name": "light",
             "sources": [],
-            "at": {
+            "span": {
               "file": "tokens.resolver.json",
               "offset": 81,
               "length": 2,
@@ -29,7 +29,7 @@
           {
             "name": "dark",
             "sources": [],
-            "at": {
+            "span": {
               "file": "tokens.resolver.json",
               "offset": 93,
               "length": 2,
@@ -44,7 +44,7 @@
             }
           }
         ],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "offset": 56,
           "length": 63,
@@ -65,7 +65,7 @@
           {
             "name": "only",
             "sources": [],
-            "at": {
+            "span": {
               "file": "tokens.resolver.json",
               "offset": 157,
               "length": 2,
@@ -80,7 +80,7 @@
             }
           }
         ],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "offset": 133,
           "length": 30,
@@ -110,9 +110,9 @@
       "detail": {
         "rule": "single-context",
         "name": "size",
-        "at": ["modifiers", "size", "contexts"]
+        "jsonPath": ["modifiers", "size", "contexts"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 147,
         "length": 14,
@@ -131,9 +131,9 @@
       "detail": {
         "rule": "invalid-default",
         "name": "theme",
-        "at": ["resolutionOrder", 0, "default"]
+        "jsonPath": ["resolutionOrder", 0, "default"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 238,
         "length": 6,

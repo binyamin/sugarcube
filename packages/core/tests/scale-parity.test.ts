@@ -257,7 +257,9 @@ describe("the problems scale recipes report, old sugarcube's validator against t
                 ),
             );
             const result = readScaleRecipe(recipe, { ignoreUnknownProperties: true });
-            const now = new Set(result.ok ? [] : result.errors.map(({ path }) => place(path)));
+            const now = new Set(
+                result.ok ? [] : result.errors.map(({ jsonPath }) => place(jsonPath)),
+            );
             return onlyIn(old, now)
                 .map((at) => ({ recipe, only: "old", place: at }))
                 .concat(onlyIn(now, old).map((at) => ({ recipe, only: "new", place: at })));

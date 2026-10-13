@@ -13,7 +13,9 @@ const valid = '{ "a": { "$type": "number", "$value": 1 } }';
 
 function where(text: string) {
     const [first] = readFromMemory({ files: { "tokens.json": text } }).diagnostics;
-    return first?.at && { offset: first.at.offset, start: first.at.start, end: first.at.end };
+    return (
+        first?.span && { offset: first.span.offset, start: first.span.start, end: first.span.end }
+    );
 }
 
 describe("positions", () => {
@@ -306,7 +308,7 @@ describe("shared sets", () => {
                 detail: {
                     rule: "invalid-pointer",
                     name: "#/nowhere",
-                    at: ["sets", "palette", "sources", 0, "$ref"],
+                    jsonPath: ["sets", "palette", "sources", 0, "$ref"],
                 },
             },
         ]);
@@ -442,9 +444,9 @@ describe("each context on its own", () => {
             { files: { "tokens.resolver.json": text } },
             { permutations: "each-context" },
         ).diagnostics;
-        expect(found?.at && text.slice(found.at.offset, found.at.offset + found.at.length)).toBe(
-            '{"contexts":{"small":[],"large":[]}}',
-        );
+        expect(
+            found?.span && text.slice(found.span.offset, found.span.offset + found.span.length),
+        ).toBe('{"contexts":{"small":[],"large":[]}}');
     });
 });
 
@@ -636,7 +638,7 @@ describe("the top level of a file, to a generator or an extension check", () => 
         extension: ["com.example", "steps"],
         generate: (group) => {
             seen.generator = group;
-            return { ok: false, errors: [{ path: [], reason: "nope" }] };
+            return { ok: false, errors: [{ jsonPath: [], reason: "nope" }] };
         },
         messages: { nope: () => "not this time" },
     });

@@ -27,14 +27,13 @@ export function fixesFor(project: Project, diagnostic: Diagnostic): Fix[] {
 }
 
 function fixFor(project: Project, diagnostic: Diagnostic): Fix | undefined {
-    const { at } = diagnostic;
-    if (!at) return undefined;
-    const written = (span: Span) => nodeAt(project, span);
+    const { span } = diagnostic;
+    if (!span) return undefined;
 
     switch (diagnostic.kind) {
         case "duplicate-key": {
-            const earlier = diagnostic.related?.[0]?.at;
-            const edits = earlier && deletion(project, earlier.file, written(earlier));
+            const earlier = diagnostic.related?.[0]?.span;
+            const edits = earlier && deletion(project, earlier.file, nodeAt(project, earlier));
             return (
                 edits && {
                     title: fixTitles.deleteEarlier(diagnostic.detail.key),
@@ -45,46 +44,51 @@ function fixFor(project: Project, diagnostic: Diagnostic): Fix | undefined {
         }
         case "unknown-type": {
             const { type, similar } = diagnostic.detail;
-            if (type === "") return deleteEmptyType(project, at, written(at));
+            if (type === "") return deleteEmptyType(project, span, nodeAt(project, span));
             if (similar === undefined) return undefined;
-            return guess(fixTitles.useSimilar(similar), [replacing(at, similar)]);
+            return guess(fixTitles.useSimilar(similar), [replacing(span, similar)]);
         }
         case "invalid-property": {
             const { property, reference } = diagnostic.detail;
             if (reference !== undefined) {
-                return guess(fixTitles.extendsAsReference(reference), [replacing(at, reference)]);
+                return guess(fixTitles.extendsAsReference(reference), [replacing(span, reference)]);
             }
-            const node = written(at);
+            const node = nodeAt(project, span);
             if (property !== "$type" || node?.type !== "null") return undefined;
-            return deleteEmptyType(project, at, node);
+            return deleteEmptyType(project, span, node);
         }
         case "hex-string-color": {
             const { value, asObject } = diagnostic.detail;
-            if (written(at)?.value !== value) return undefined;
-            return safe(fixTitles.hexToObject, { ...range(at), text: inline(asObject) });
+            if (nodeAt(project, span)?.value !== value) return undefined;
+            return safe(fixTitles.hexToObject, { ...range(span), text: inline(asObject) });
         }
         case "invalid-value":
-            return valueFix(project, diagnostic.detail, at, written(at)?.value);
+            return valueFix(project, diagnostic.detail, span, nodeAt(project, span)?.value);
         case "malformed-pointer": {
             const { corrected } = diagnostic.detail;
-            const node = written(at);
+            const node = nodeAt(project, span);
             const ref = node && refString(node);
             if (corrected === undefined || !ref) return undefined;
             const { offset, length } = ref;
             const text = JSON.stringify(corrected);
-            return safe(fixTitles.writePointer(corrected), { file: at.file, offset, length, text });
+            return safe(fixTitles.writePointer(corrected), {
+                file: span.file,
+                offset,
+                length,
+                text,
+            });
         }
         case "unknown-property": {
             const similar = "similar" in diagnostic.detail ? diagnostic.detail.similar : undefined;
             if (similar === undefined) return undefined;
-            return guess(fixTitles.useSimilar(similar), [replacing(at, similar)]);
+            return guess(fixTitles.useSimilar(similar), [replacing(span, similar)]);
         }
         case "missing-reference": {
             const { ref, similar } = diagnostic.detail;
             if (similar === undefined) return undefined;
-            const uses = [at, ...(diagnostic.related ?? []).map((related) => related.at)];
+            const uses = [span, ...(diagnostic.related ?? []).map((related) => related.span)];
             const edits = uses
-                .filter((use) => writesCurlyBrace(written(use)?.value, ref))
+                .filter((use) => writesCurlyBrace(nodeAt(project, use)?.value, ref))
                 .map((use) => replacing(use, `{${similar}}`));
             return edits.length > 0 ? guess(fixTitles.useSimilar(similar), edits) : undefined;
         }
@@ -96,24 +100,27 @@ function fixFor(project: Project, diagnostic: Diagnostic): Fix | undefined {
 function valueFix(
     project: Project,
     detail: Extract<Diagnostic, { kind: "invalid-value" }>["detail"],
-    at: Span,
+    span: Span,
     written: unknown,
 ): Fix | undefined {
     switch (detail.reason) {
         case "string-with-unit": {
             const { value, asObject, type } = detail;
             if (written !== value || !asObject) return undefined;
-            return safe(fixTitles.measureAsObject(type), { ...range(at), text: inline(asObject) });
+            return safe(fixTitles.measureAsObject(type), {
+                ...range(span),
+                text: inline(asObject),
+            });
         }
         case "hex-not-six-digits": {
             const { value, sixDigits } = detail;
             if (written !== value || sixDigits === undefined) return undefined;
-            return safe(fixTitles.fullHex(sixDigits), replacing(at, sixDigits));
+            return safe(fixTitles.fullHex(sixDigits), replacing(span, sixDigits));
         }
         case "short-hex-string": {
             const { value, expanded } = detail;
             if (written !== value) return undefined;
-            return safe(fixTitles.fullHex(expanded), replacing(at, expanded));
+            return safe(fixTitles.fullHex(expanded), replacing(span, expanded));
         }
         case "alias-not-allowed-here": {
             const reference = readReference(detail.reference);
@@ -121,7 +128,7 @@ function valueFix(
                 return undefined;
             }
             const pointer = pointerTo(reference.path);
-            const change = { ...range(at), text: inline({ $ref: pointer }) };
+            const change = { ...range(span), text: inline({ $ref: pointer }) };
             if (!readsClean(project, [change])) return undefined;
             return safe(fixTitles.referenceAsPointer(pointer), change);
         }
@@ -130,8 +137,8 @@ function valueFix(
     }
 }
 
-function deleteEmptyType(project: Project, at: Span, written: Node | undefined): Fix | undefined {
-    const edits = deletion(project, at.file, written);
+function deleteEmptyType(project: Project, span: Span, written: Node | undefined): Fix | undefined {
+    const edits = deletion(project, span.file, written);
     if (!edits || !readsClean(project, edits)) return undefined;
     return { title: fixTitles.deleteType, safe: true, edits };
 }
@@ -146,7 +153,8 @@ function readsClean(project: Project, edits: TextEdit[]): boolean {
     const grown = edits.reduce((acc, { length, text }) => acc + text.length - length, 0);
     const end = Math.max(...edits.map(({ offset, length }) => offset + length)) + grown;
     return !doc.diagnostics.some(
-        ({ at }) => at?.file === file && at.offset <= end && start <= at.offset + at.length,
+        ({ span }) =>
+            span?.file === file && span.offset <= end && start <= span.offset + span.length,
     );
 }
 
@@ -180,8 +188,8 @@ function range({ file, offset, length }: Span): Omit<TextEdit, "text"> {
     return { file, offset, length };
 }
 
-function replacing(at: Span, value: string): TextEdit {
-    return { ...range(at), text: JSON.stringify(value) };
+function replacing(span: Span, value: string): TextEdit {
+    return { ...range(span), text: JSON.stringify(value) };
 }
 
 function safe(title: string, change: TextEdit): Fix {

@@ -53,7 +53,7 @@ interface Extension {
  *             $value: { value: i + 1, unit: "rem" },
  *           })),
  *         }
- *       : { ok: false, errors: [{ path: [], reason: "not-a-count", data: { steps } }] },
+ *       : { ok: false, errors: [{ jsonPath: [], reason: "not-a-count", data: { steps } }] },
  * });
  */
 export function defineGenerator<
@@ -152,17 +152,17 @@ function extensionOf(
     group: Settings,
     [key, ...inside]: Generator["extension"],
 ): Extension | undefined {
-    const at = group.extensionsAt?.[key];
-    if (!at) return undefined;
+    const written = group.extensionsAt?.[key];
+    if (!written) return undefined;
     let value = group.extensions?.[key];
-    let node: Node | undefined = member(at.node, key);
+    let node: Node | undefined = member(written.node, key);
     for (const step of inside) {
         if (!isJsonObject(value) || !node) return undefined;
         value = value[step];
         node = member(node, step);
     }
     if (value === undefined || !node) return undefined;
-    return { value, json: at.json, node, piece: at.piece };
+    return { value, json: written.json, node, piece: written.piece };
 }
 
 function addedToken(
@@ -177,7 +177,7 @@ function addedToken(
         value: node,
         authored: $value,
         reference: readReference($value),
-        at: spanOf(json.path, json.lineStarts, node.offset, node.length),
+        span: spanOf(json, node),
         piece,
         generated,
         added: true,

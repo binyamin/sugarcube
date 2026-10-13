@@ -30,7 +30,7 @@ export interface SourceToken extends Properties {
     value: Node;
     authored: unknown;
     reference: WrittenReference | undefined;
-    at: Span;
+    span: Span;
 }
 
 export interface GroupReference {
@@ -39,8 +39,8 @@ export interface GroupReference {
     steps: string[] | undefined;
     json: JsonFile;
     node: Node;
-    at: Span;
-    declaredAt: Span;
+    span: Span;
+    groupSpan: Span;
 }
 
 export interface ExtensionsAt {
@@ -49,7 +49,7 @@ export interface ExtensionsAt {
 }
 
 export interface SourceTopLevel extends Properties {
-    at: Span;
+    span: Span;
     extensionsAt?: ExtensionsAt;
 }
 
@@ -101,15 +101,14 @@ export function walkSource(
     const { json, tree } = source;
     if (!json || !tree) return undefined;
 
-    const at = (node: Node) => spanOf(json.path, json.lineStarts, node.offset, node.length);
-    const contents: SourceContents = { root: { at: at(tree) }, members: [] };
+    const contents: SourceContents = { root: { span: spanOf(json, tree) }, members: [] };
     const overridden = new Set(source.overriddenKeys);
     const report = <K extends DiagnosticKind>(
         kind: K,
         detail: DiagnosticDetailByKind[K],
         node: Node,
-        extra: Omit<DiagnosticExtra, "at"> = {},
-    ) => diagnostics.push(diagnostic(kind, detail, { at: at(node), ...extra }));
+        extra: Omit<DiagnosticExtra, "span"> = {},
+    ) => diagnostics.push(diagnostic(kind, detail, { span: spanOf(json, node), ...extra }));
 
     const readType = (path: string | undefined, node: Node, name: string) => {
         if (isTokenType(name)) return name;
@@ -172,8 +171,8 @@ export function walkSource(
                 ...read,
                 json,
                 node: value,
-                at: at(value),
-                declaredAt: at(node),
+                span: spanOf(json, value),
+                groupSpan: spanOf(json, node),
             };
         }
         return found;
@@ -190,7 +189,7 @@ export function walkSource(
                 value,
                 authored,
                 reference: readReference(authored),
-                at: at(node),
+                span: spanOf(json, node),
                 ...readProperties(path, entries),
             },
         });
@@ -202,7 +201,7 @@ export function walkSource(
         contents.members.push({
             group: {
                 path,
-                at: at(node),
+                span: spanOf(json, node),
                 ...readGroupProperties(path, entries),
                 ...(extending && { extends: extending }),
             },
@@ -285,7 +284,7 @@ export function walkSource(
         members(tree).filter(({ key }) => !overridden.has(key)),
         true,
     );
-    contents.root = { at: at(tree), ...readGroupProperties(undefined, rootEntries) };
+    contents.root = { span: spanOf(json, tree), ...readGroupProperties(undefined, rootEntries) };
     visitMembers([], rootEntries);
     return contents;
 }

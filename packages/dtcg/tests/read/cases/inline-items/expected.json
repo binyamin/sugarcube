@@ -7,9 +7,9 @@
       "detail": {
         "rule": "missing-property",
         "name": "name",
-        "at": ["resolutionOrder", 0]
+        "jsonPath": ["resolutionOrder", 0]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 53,
         "length": 32,
@@ -28,9 +28,9 @@
       "detail": {
         "rule": "missing-property",
         "name": "type",
-        "at": ["resolutionOrder", 1]
+        "jsonPath": ["resolutionOrder", 1]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 91,
         "length": 33,
@@ -49,9 +49,9 @@
       "detail": {
         "rule": "unknown-item-type",
         "name": "group",
-        "at": ["resolutionOrder", 2, "type"]
+        "jsonPath": ["resolutionOrder", 2, "type"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 140,
         "length": 7,
@@ -70,9 +70,9 @@
       "detail": {
         "rule": "duplicate-name",
         "name": "base",
-        "at": ["resolutionOrder", 4, "name"]
+        "jsonPath": ["resolutionOrder", 4, "name"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 264,
         "length": 6,
