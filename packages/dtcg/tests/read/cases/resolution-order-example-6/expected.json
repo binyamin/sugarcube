@@ -6,7 +6,7 @@
       "input": {
         "theme": "light"
       },
-      "label": "theme: light",
+      "label": "default",
       "sources": [0, 1, 2, 3]
     },
     {

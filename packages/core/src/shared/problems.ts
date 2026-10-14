@@ -58,7 +58,7 @@ export function problemLines(
         hint: colors.cyan,
     };
     return placed.flatMap(({ problem, place }) => {
-        const some = problem.permutations?.label ?? "";
+        const some = problem.permutations?.label;
         const words: Word[] = [
             ...problem.message.split(" ").map((text) => ({ text })),
             ...(some ? [{ text: `in ${some}`, apart: true, dim: true }] : []),

@@ -1,12 +1,12 @@
 // The list of unsaved changes in a token editor: what was added, removed, renamed or changed since
 // the files were opened, and in which permutations. A change made in every permutation is shown
-// without naming them, and the steps a generator makes are folded under the change to its setting.
+// as everywhere, and the steps a generator makes are folded under the change to its setting.
 import type { Session } from "@sugarcube-sh/dtcg-edit";
 
 declare const session: Session;
 
 for (const change of session.changes()) {
-    const where = change.permutations.label ?? "";
+    const where = change.permutations.label;
     switch (change.kind) {
         case "added":
             if (!change.generated) row("added", change.path, where);

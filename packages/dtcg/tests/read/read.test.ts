@@ -340,11 +340,11 @@ describe("the combination limit", () => {
             },
             resolutionOrder: [{ $ref: "#/modifiers/theme" }, { $ref: "#/modifiers/density" }],
         });
-        expect(readWith(resolver).permutations.map(({ label }) => label)).toStrictEqual([
-            "theme: dark, density: compact",
-            "theme: dark, density: comfy",
-            "theme: light, density: compact",
-            "theme: light, density: comfy",
+        expect(readWith(resolver).permutations.inputs).toStrictEqual([
+            { theme: "dark", density: "compact" },
+            { theme: "dark", density: "comfy" },
+            { theme: "light", density: "compact" },
+            { theme: "light", density: "comfy" },
         ]);
     });
 
@@ -409,31 +409,31 @@ describe("each context on its own", () => {
                 $ref: `#/modifiers/${name}`,
             })),
         });
-    const labels = (text: string) => {
+    const built = (text: string) => {
         const tokens = readFromMemory(
             { files: { "tokens.resolver.json": text } },
             { permutations: "each-context" },
         );
         return {
-            labels: tokens.permutations.map(({ label }) => label),
+            inputs: tokens.permutations.inputs,
             diagnostics: tokens.diagnostics.map(({ kind, detail }) => ({ kind, detail })),
         };
     };
 
     it("builds the default, then each context with the other modifiers at their defaults", () => {
         expect(
-            labels(
+            built(
                 resolver({
                     theme: { contexts: { light: [], dark: [], dim: [] }, default: "light" },
                     brand: { contexts: { house: [], ocean: [] }, default: "house" },
                 }),
             ),
         ).toStrictEqual({
-            labels: [
-                "theme: light, brand: house",
-                "theme: dark, brand: house",
-                "theme: dim, brand: house",
-                "theme: light, brand: ocean",
+            inputs: [
+                { theme: "light", brand: "house" },
+                { theme: "dark", brand: "house" },
+                { theme: "dim", brand: "house" },
+                { theme: "light", brand: "ocean" },
             ],
             diagnostics: [],
         });
@@ -441,30 +441,33 @@ describe("each context on its own", () => {
 
     it("lists them in the resolver's order, the default where its contexts are written", () => {
         expect(
-            labels(
+            built(
                 resolver({
                     theme: { contexts: { dark: [], light: [], dim: [] }, default: "light" },
                     brand: { contexts: { ocean: [], house: [] }, default: "house" },
                 }),
-            ).labels,
+            ).inputs,
         ).toStrictEqual([
-            "theme: dark, brand: house",
-            "theme: light, brand: house",
-            "theme: dim, brand: house",
-            "theme: light, brand: ocean",
+            { theme: "dark", brand: "house" },
+            { theme: "light", brand: "house" },
+            { theme: "dim", brand: "house" },
+            { theme: "light", brand: "ocean" },
         ]);
     });
 
     it("builds each context of the one modifier with no default, and says what it could not build", () => {
         expect(
-            labels(
+            built(
                 resolver({
                     size: { contexts: { small: [], large: [] } },
                     brand: { contexts: { house: [], ocean: [] }, default: "house" },
                 }),
             ),
         ).toStrictEqual({
-            labels: ["size: small, brand: house", "size: large, brand: house"],
+            inputs: [
+                { size: "small", brand: "house" },
+                { size: "large", brand: "house" },
+            ],
             diagnostics: [{ kind: "no-default", detail: { modifiers: ["size"] } }],
         });
     });
@@ -634,12 +637,12 @@ describe("labels", () => {
     });
     const tokens = readFromMemory({ files: { "tokens.resolver.json": resolver } });
 
-    it("write out the input, every modifier in the order the resolver declares them", () => {
+    it("name what is away from each modifier's default, even a context called default", () => {
         expect(tokens.permutations.map(({ input, label }) => [input, label])).toStrictEqual([
-            [{ theme: "light", size: "default" }, "theme: light, size: default"],
-            [{ theme: "light", size: "large" }, "theme: light, size: large"],
+            [{ theme: "light", size: "default" }, "size: default"],
+            [{ theme: "light", size: "large" }, "default"],
             [{ theme: "dark", size: "default" }, "theme: dark, size: default"],
-            [{ theme: "dark", size: "large" }, "theme: dark, size: large"],
+            [{ theme: "dark", size: "large" }, "theme: dark"],
         ]);
     });
 

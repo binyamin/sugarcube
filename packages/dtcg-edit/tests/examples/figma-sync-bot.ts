@@ -10,10 +10,9 @@ const result = setValue(tokens, "color.primary.600", figmaValue, { input: { mode
 if (result.ops) {
     const changes = changedFiles(tokens, result.ops);
     if (!changes.conflicts) {
-        const also = result.alsoAffects.length > 0 ? result.alsoAffects.label : undefined;
         await openPullRequest(changes, {
             title: "Figma: color.primary.600 in mode: dark",
-            body: `Also shows in: ${also ?? "every permutation"}`,
+            body: `Also shows in: ${result.alsoAffects.label}`,
         });
     }
 } else if (result.question) {

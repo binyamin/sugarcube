@@ -931,10 +931,11 @@ export type SourceRef = { file: string; pointer?: string } | { set: string };
 export interface Permutation {
     input: Input;
     /**
-     * The input written out for people: each modifier and its context, in the order the resolver
-     * declares them, such as `"theme: dark, brand: ocean"`. Empty when there are no modifiers, as
-     * for token files read without a resolver. For display only: functions take an
-     * {@link Input}, never a label.
+     * Its shortest input written out for people: each modifier away from its default, and any with
+     * no default, in the order the resolver declares them, such as `"theme: dark, brand: ocean"`,
+     * since a modifier with a default may be left out of an input (Resolver 6.1). `"default"` for the
+     * permutation an empty input names. Empty when there are no modifiers, as for token files read
+     * without a resolver. For display only: functions take an {@link Input}, never a label.
      */
     label: string;
     /**
@@ -1358,7 +1359,7 @@ export interface DesignTokens {
      * lists them, the first changing slowest, and each one's contexts as written, so the default
      * permutation comes where its contexts are written, not necessarily first. The spec sets no
      * order (Resolver 4.1.5.4); to find the default, ask {@link DesignTokens.permutation} with no
-     * input. With no label.
+     * input. Its label is `"everywhere"`.
      */
     permutations: Permutations;
     /**
@@ -1518,26 +1519,49 @@ export interface DesignTokens {
 }
 
 /**
+ * Which permutations a group holds, described by their contexts: parts joined by "or", each part
+ * naming, for each modifier that narrows it, the contexts it keeps. A modifier a part leaves out may
+ * be any of its contexts, unlike in an {@link Input}, where it is at its default (Resolver 6.1).
+ * Every part matches only permutations in the group, among those the read built. Modifiers come in
+ * the order `resolutionOrder` names them, contexts as they are written.
+ *
+ * @example
+ * [{ mode: ["dark", "dim"], contrast: ["high"] }]       // dark or dim, in high contrast
+ * [{ brand: ["cbus", "hesta-super"] }, { inverted: ["on"] }]  // those brands, or inverted
+ * [{}]                                                  // every permutation
+ * []                                                    // none
+ */
+export type Scope = Record<string, string[]>[];
+
+/**
  * Some of the design tokens' permutations, in their order: the ones an answer, a problem or the
  * design tokens themselves cover. A read-only list, so `find`, `map`, `includes` and `length` work
- * as on any array, with the inputs and a label beside it.
+ * as on any array, with the inputs, the scope and a label beside it.
  *
  * @example
  * for (const { from, permutations } of tokens.referencedBy("color.red")) {
- *   row(from, permutations.label ?? "");   // "mode: dark, sepia", or nothing when it's everywhere
+ *   row(from, permutations.label);   // "mode: dark, sepia", or "everywhere"
  * }
  */
 export interface Permutations extends ReadonlyArray<Permutation> {
     /** Each permutation's input, in the same order. */
     readonly inputs: Input[];
     /**
-     * The contexts that narrow it, each modifier with the contexts it keeps, such as
-     * `"mode: dark, sepia"` or `"mode: dark, density: compact"`; a modifier that narrows nothing
-     * among the permutations read is left out. Each permutation's own label, joined with `"; "`,
-     * when it is not one choice of contexts per modifier. Absent when it is every permutation the
-     * read built: nothing narrows it.
+     * Which permutations it holds, by their contexts, for a tool that words them its own way.
+     *
+     * @example
+     * const rest = tokens.permutations.where((each) => !group.includes(each));
+     * rest.scope; // what a tool could show as "except …"
      */
-    readonly label: string | undefined;
+    readonly scope: Scope;
+    /**
+     * Its {@link Permutations.scope | scope} written out: each modifier and the contexts it keeps,
+     * such as `"mode: dark, dim, contrast: high"`, parts joined with `"; "`. A part matching only the
+     * default permutation is `"default"`; every permutation is `"everywhere"`, none `"nowhere"`. A
+     * modifier left out may be any context, so `"mode: dark"` here is every dark permutation, where a
+     * permutation's own `"mode: dark"` is the one at the default otherwise.
+     */
+    readonly label: string;
     /**
      * The permutations that pass `test`, in the same order, as permutations of their own: labelled
      * against every permutation the read built, as an answer's are. Where `filter` gives a plain

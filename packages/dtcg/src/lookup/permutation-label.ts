@@ -1,9 +1,8 @@
-import type { Input, Permutation } from "../index.js";
+import type { Input, Permutation, ResolverContext, Scope } from "../index.js";
 
 /**
- * The label of the permutation an input picks: each modifier and its context, in the order the
- * input lists them. An input the read gives, a permutation's or a problem's, lists them in the
- * order the resolver declares them, so this is that permutation's {@link Permutation.label}.
+ * An input written out for people: each modifier and its context, in the order the input lists
+ * them, such as an input that names no permutation the read built.
  *
  * @example
  * permutationLabel({ mode: "dark", density: "comfy" }) // "mode: dark, density: comfy"
@@ -14,29 +13,96 @@ export function permutationLabel(input: Input): string {
         .join(", ");
 }
 
-export function labelFor(
-    set: readonly Permutation[],
-    all: readonly Permutation[],
-): string | undefined {
-    if (set.length === all.length) return undefined;
-    const [first] = set;
-    if (!first) return "";
-    const kept = first.contexts.map((_, index) => new Set(set.map((each) => each.contexts[index])));
-    const narrowed = kept.map(() => true);
-    const matching = () =>
-        all.filter((each) =>
-            each.contexts.every((context, index) => !narrowed[index] || kept[index]?.has(context)),
-        ).length;
-    if (matching() !== set.length) return set.map(({ label }) => label).join("; ");
-    for (const index of narrowed.keys()) {
-        narrowed[index] = false;
-        if (matching() !== set.length) narrowed[index] = true;
-    }
-    return first.contexts
-        .flatMap(({ modifier }, index) => {
-            if (!narrowed[index]) return [];
-            const names = modifier.contexts.filter((each) => kept[index]?.has(each));
-            return [`${modifier.name}: ${names.map(({ name }) => name).join(", ")}`];
+export function ownLabel(contexts: ResolverContext[]): string {
+    if (contexts.length === 0) return "";
+    const away = contexts.filter(({ isDefault }) => !isDefault);
+    if (away.length === 0) return "default";
+    return permutationLabel(
+        Object.fromEntries(away.map((each) => [each.modifier.name, each.name])),
+    );
+}
+
+type Part = Scope[number];
+
+export function scopeOf(set: readonly Permutation[], all: readonly Permutation[]): Scope {
+    if (set.length === 0) return [];
+    const inSet = (perm: Permutation) => set.includes(perm);
+    const exact = (part: Part) => all.every((perm) => !matches(part, perm) || inSet(perm));
+    const pinned = set.map((perm): Part => {
+        const part: Part = {};
+        for (const { modifier, name } of perm.contexts) part[modifier.name] = [name];
+        return part;
+    });
+    const widened = merged(merged(pinned).map((part) => widen(part, exact)));
+    return uncovered(widened, all);
+}
+
+export function scopeLabel(scope: Scope, all: readonly Permutation[]): string {
+    if (scope.length === 0) return "nowhere";
+    return scope
+        .map((part) => {
+            const covered = all.filter((perm) => matches(part, perm));
+            const [only] = covered;
+            if (Object.keys(part).length === 0) return "everywhere";
+            if (covered.length === 1 && only?.isDefault) return "default";
+            return Object.entries(part)
+                .map(([modifier, contexts]) => `${modifier}: ${contexts.join(", ")}`)
+                .join(", ");
         })
-        .join(", ");
+        .join("; ");
+}
+
+function matches(part: Part, perm: Permutation): boolean {
+    return perm.contexts.every(({ modifier, name }) => part[modifier.name]?.includes(name) ?? true);
+}
+
+function merged(parts: Part[]): Part[] {
+    const result = [...parts];
+    for (let i = 0; i < result.length; i++) {
+        for (let j = i + 1; j < result.length; j++) {
+            const joined = joinedOn(result[i], result[j]);
+            if (!joined) continue;
+            result[i] = joined;
+            result.splice(j, 1);
+            i = -1;
+            break;
+        }
+    }
+    return result;
+}
+
+function joinedOn(one: Part | undefined, other: Part | undefined): Part | undefined {
+    if (!one || !other) return undefined;
+    const keys = Object.keys(one);
+    if (!sameNames(keys, Object.keys(other))) return undefined;
+    const differing = keys.filter((key) => !sameNames(one[key] ?? [], other[key] ?? []));
+    const [key] = differing;
+    if (key === undefined || differing.length > 1) return undefined;
+    return { ...one, [key]: [...new Set([...(one[key] ?? []), ...(other[key] ?? [])])] };
+}
+
+function sameNames(one: string[], other: string[]): boolean {
+    return one.length === other.length && one.every((name) => other.includes(name));
+}
+
+function uncovered(parts: Part[], all: readonly Permutation[]): Part[] {
+    const kept = [...parts];
+    for (let i = kept.length - 1; i >= 0; i--) {
+        const part = kept[i];
+        const others = kept.filter((_, index) => index !== i);
+        const covered = all
+            .filter((perm) => part && matches(part, perm))
+            .every((perm) => others.some((other) => matches(other, perm)));
+        if (covered) kept.splice(i, 1);
+    }
+    return kept;
+}
+
+function widen(part: Part, exact: (part: Part) => boolean): Part {
+    let widest = part;
+    for (const key of Object.keys(part)) {
+        const { [key]: _, ...without } = widest;
+        if (exact(without)) widest = without;
+    }
+    return widest;
 }

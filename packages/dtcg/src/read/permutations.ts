@@ -8,7 +8,7 @@ import type {
     SetOnRoute,
     Source,
 } from "../index.js";
-import { permutationLabel } from "../lookup/permutation-label.js";
+import { ownLabel } from "../lookup/permutation-label.js";
 import { diagnostic } from "./diagnostics.js";
 import { type JsonFile, plainObject, spanOf } from "./json.js";
 import type { CheckedResolver } from "./resolver.js";
@@ -74,12 +74,15 @@ export function fromResolver(
             ?.contexts.find((each) => each.name === name);
     const listed = listedSources(items, sources, contextOf);
     return {
-        permutations: inputs.map((input) => ({
-            input,
-            label: permutationLabel(input),
-            contexts: modifiers.flatMap(({ name }) => contextOf(name, input[name]) ?? []),
-            sources: sourcesFor(items, listed, contextOf, input),
-        })),
+        permutations: inputs.map((input) => {
+            const contexts = modifiers.flatMap(({ name }) => contextOf(name, input[name]) ?? []);
+            return {
+                input,
+                label: ownLabel(contexts),
+                contexts,
+                sources: sourcesFor(items, listed, contextOf, input),
+            };
+        }),
     };
 }
 

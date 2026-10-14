@@ -37,6 +37,47 @@ function readWith(options?: ReadOptions): DesignTokens {
 const tokens = readWith();
 const named = (input: Record<string, string>) => tokens.permutation(input);
 
+describe("a permutation's label", () => {
+    it("is its shortest input: each modifier away from its default, in the resolver's order", () => {
+        expect(named({ mode: "dark" }).label).toBe("mode: dark");
+        expect(named({ density: "compact" }).label).toBe("density: compact");
+        expect(named({ mode: "sepia", density: "compact" }).label).toBe(
+            "mode: sepia, density: compact",
+        );
+    });
+
+    it("is default for the permutation an empty input names", () => {
+        expect(named({}).label).toBe("default");
+    });
+
+    it("always names a modifier with no default, as every input must", () => {
+        const { default: _, ...noDefault } = resolver.modifiers.mode;
+        const required = readFromMemory({
+            files: {
+                ...files,
+                "tokens.resolver.json": JSON.stringify({
+                    ...resolver,
+                    modifiers: { ...resolver.modifiers, mode: noDefault },
+                }),
+            },
+            entry: "tokens.resolver.json",
+        });
+        expect(required.permutations.map(({ label }) => label)).toStrictEqual([
+            "mode: light",
+            "mode: light, density: compact",
+            "mode: dark",
+            "mode: dark, density: compact",
+            "mode: sepia",
+            "mode: sepia, density: compact",
+        ]);
+    });
+
+    it("is empty without a resolver, with nothing to name", () => {
+        const plain = readFromMemory({ files: { "base.json": files["base.json"] } });
+        expect(plain.permutations[0]?.label).toBe("");
+    });
+});
+
 describe("tokens.permutations", () => {
     it("is every permutation the read built, as a list", () => {
         expect(tokens.permutations).toHaveLength(6);
@@ -46,8 +87,9 @@ describe("tokens.permutations", () => {
         ).toBe(named({ mode: "dark", density: "compact" }));
     });
 
-    it("has no label, since nothing narrows it", () => {
-        expect(tokens.permutations.label).toBeUndefined();
+    it("is everywhere: one part that narrows nothing", () => {
+        expect(tokens.permutations.scope).toStrictEqual([{}]);
+        expect(tokens.permutations.label).toBe("everywhere");
     });
 
     it("gives the inputs, in the same order", () => {
@@ -64,6 +106,7 @@ describe("permutations.where", () => {
             { mode: "dark", density: "comfy" },
             { mode: "dark", density: "compact" },
         ]);
+        expect(dark.scope).toStrictEqual([{ mode: ["dark"] }]);
         expect(dark.label).toBe("mode: dark");
     });
 
@@ -74,10 +117,17 @@ describe("permutations.where", () => {
         expect(darkCompact.label).toBe("mode: dark, density: compact");
     });
 
-    it("has no label when every permutation passes, and is written as its inputs", () => {
+    it("is everywhere when every permutation passes, and is written as its inputs", () => {
         const every = tokens.permutations.where(() => true);
-        expect(every.label).toBeUndefined();
+        expect(every.scope).toStrictEqual([{}]);
+        expect(every.label).toBe("everywhere");
         expect(JSON.parse(JSON.stringify(every))).toStrictEqual(every.inputs);
+    });
+
+    it("is nowhere when no permutation passes", () => {
+        const none = tokens.permutations.where(() => false);
+        expect(none.scope).toStrictEqual([]);
+        expect(none.label).toBe("nowhere");
     });
 
     it("gives the permutations themselves, in their order", () => {
@@ -105,10 +155,10 @@ describe("the permutations an answer holds in", () => {
         expect(compact?.permutations.label).toBe("density: compact");
     });
 
-    it("have no label when they are every permutation", () => {
+    it("are everywhere when they are every permutation", () => {
         const [base] = tokens.writtenAt("red");
         expect(base?.permutations).toHaveLength(6);
-        expect(base?.permutations.label).toBeUndefined();
+        expect(base?.permutations.label).toBe("everywhere");
     });
 
     it("are written in the plain form as their inputs", () => {
@@ -143,7 +193,7 @@ describe("a label", () => {
         expect(problem?.permutations?.label).toBe("mode: light, density: compact");
     });
 
-    it("lists each permutation's label when they are not one choice per modifier", () => {
+    it("joins parts that each match only permutations it holds, when one choice per modifier cannot", () => {
         const both = {
             ...resolver,
             modifiers: {
@@ -166,14 +216,42 @@ describe("a label", () => {
             entry: "tokens.resolver.json",
         });
         const shared = crossed.writtenAt("gap").find(({ span }) => span.file === "shared.json");
-        const labels = shared?.permutations.map(({ label }) => label);
-        expect(labels).toStrictEqual([
-            "mode: light, density: compact",
-            "mode: dark, density: comfy",
-            "mode: dark, density: compact",
-            "mode: sepia, density: compact",
+        expect(shared?.permutations).toHaveLength(4);
+        expect(shared?.permutations.scope).toStrictEqual([
+            { density: ["compact"] },
+            { mode: ["dark"] },
         ]);
-        expect(shared?.permutations.label).toBe(labels?.join("; "));
+        expect(shared?.permutations.label).toBe("density: compact; mode: dark");
+    });
+
+    it("is everywhere for every permutation, though no one choice per modifier covers them", () => {
+        expect(themed.permutations.scope).toStrictEqual([{}]);
+        expect(themed.permutations.label).toBe("everywhere");
+    });
+
+    it("gathers contexts of one modifier into a part, as with a resolver's chosen permutations", () => {
+        const picked = themed.permutations.where((each) => !each.isDefault);
+        expect(picked.scope).toStrictEqual([{ mode: ["dark", "sepia"] }, { density: ["compact"] }]);
+        expect(picked.label).toBe("mode: dark, sepia; density: compact");
+    });
+
+    it("names a modifier at its default where leaving it out would take in more", () => {
+        const dark = named({ mode: "dark" });
+        const alone = tokens.permutations.where((each) => each === dark);
+        expect(alone.scope).toStrictEqual([{ mode: ["dark"], density: ["comfy"] }]);
+        expect(alone.label).toBe("mode: dark, density: comfy");
+        expect(dark.label).toBe("mode: dark");
+    });
+
+    it("writes a part that matches only the default permutation as default", () => {
+        const ends = tokens.permutations.where(
+            (each) => each.isDefault || each === named({ mode: "dark", density: "compact" }),
+        );
+        expect(ends.scope).toStrictEqual([
+            { mode: ["light"], density: ["comfy"] },
+            { mode: ["dark"], density: ["compact"] },
+        ]);
+        expect(ends.label).toBe("default; mode: dark, density: compact");
     });
 });
 

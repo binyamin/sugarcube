@@ -1,14 +1,20 @@
-import type { Permutation, Permutations } from "../index.js";
-import { labelFor } from "../lookup/permutation-label.js";
+import type { Permutation, Permutations, Scope } from "../index.js";
+import { scopeLabel, scopeOf } from "../lookup/permutation-label.js";
 
 export function permutationsOf(list: Permutation[], all: readonly Permutation[]): Permutations {
-    let label: string | undefined | null = null;
+    let scope: Scope | undefined;
+    let label: string | undefined;
     const inputs = () => list.map(({ input }) => input);
+    const scoped = () => {
+        scope ??= scopeOf(list, all);
+        return scope;
+    };
     return Object.defineProperties(list, {
         inputs: { get: inputs },
+        scope: { get: scoped },
         label: {
             get: () => {
-                if (label === null) label = labelFor(list, all);
+                label ??= scopeLabel(scoped(), all);
                 return label;
             },
         },

@@ -251,15 +251,16 @@ describe("tokens.modifier", () => {
 });
 
 describe("permutationLabel", () => {
-    it("names each modifier and its context, in the order the resolver declares them", () => {
-        expect(permutationLabel({ theme: "dark", density: "compact" })).toBe(
-            "theme: dark, density: compact",
+    it("names each modifier and its context, in the order the input lists them", () => {
+        expect(permutationLabel({ density: "compact", theme: "dark" })).toBe(
+            "density: compact, theme: dark",
         );
     });
 
-    it("is the label the read gives each permutation", () => {
-        for (const each of tokens.permutations)
-            expect(permutationLabel(each.input)).toBe(each.label);
+    it("writes out every modifier it is given, where a permutation's label leaves out defaults", () => {
+        const compact = tokens.permutation({ density: "compact" });
+        expect(permutationLabel(compact.input)).not.toBe(compact.label);
+        expect(compact.label).toBe("density: compact");
     });
 });
 

@@ -6,7 +6,7 @@ declare const before: DesignTokens;
 declare const after: DesignTokens;
 
 for (const change of after.diff(before)) {
-    const where = change.permutations.label ?? "";
+    const where = change.permutations.label;
     if (change.kind === "changed") row(change.path, where, change.before.value, change.after.value);
     if (change.kind === "added") row(`+ ${change.path}`, where);
     if (change.kind === "removed") row(`- ${change.path}`, where);

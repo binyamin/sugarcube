@@ -19,7 +19,7 @@
         "theme": "dark",
         "brand": "house"
       },
-      "label": "theme: dark, brand: house",
+      "label": "theme: dark",
       "sources": [0]
     },
     {
@@ -27,7 +27,7 @@
         "theme": "light",
         "brand": "house"
       },
-      "label": "theme: light, brand: house",
+      "label": "default",
       "sources": []
     }
   ],
