@@ -1532,6 +1532,16 @@ export interface Permutations extends ReadonlyArray<Permutation> {
      * read built: nothing narrows it.
      */
     readonly label: string | undefined;
+    /**
+     * The permutations that pass `test`, in the same order, as permutations of their own: labelled
+     * against every permutation the read built, as an answer's are. Where `filter` gives a plain
+     * list, this keeps the label.
+     *
+     * @example
+     * const elsewhere = tokens.permutations.where((each) => each !== edited);
+     * elsewhere.label; // "mode: light"
+     */
+    where(test: (permutation: Permutation) => boolean): Permutations;
 }
 
 /**

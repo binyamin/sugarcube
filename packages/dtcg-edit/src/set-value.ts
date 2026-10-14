@@ -1,6 +1,7 @@
 import type { DesignTokens, Token } from "@sugarcube-sh/dtcg";
+import { refused } from "./error-messages.js";
 import type { FileOp, Json, OpResult, ValueOptions } from "./index.js";
-import { asked, groupPlace, placement, tokenCopies } from "./placement.js";
+import { asked, copiesOf, describedPlace, placement } from "./placement.js";
 import { type Member, writtenIn } from "./file-text.js";
 
 /**
@@ -49,15 +50,16 @@ function setValueIn(
     if ("choose" in placed) {
         return asked(placed.choose, (file) => setValueIn(tokens, path, value, options, file));
     }
-    if (!("token" in placed)) return placed;
-    const { token, alsoAffects } = placed;
+    if ("refused" in placed) return placed;
     if ("at" in placed) {
-        return { ops: written(tokens, placed.at, "$value", value), alsoAffects, moved: [] };
+        const { at, alsoAffects } = placed;
+        return { ops: written(tokens, at, "$value", value), alsoAffects, moved: [] };
     }
+    const { token, into, alsoAffects } = placed;
     const override = { ...ownProperties(token), $value: value };
     const op: FileOp = {
         kind: "add",
-        file: placed.into,
+        file: into,
         jsonPath: path.split("."),
         value: override,
     };
@@ -90,16 +92,16 @@ export function setDescription(
     path: string,
     description: string | null,
 ): OpResult {
-    const copies = tokenCopies(tokens, path);
-    if (copies && "refused" in copies) return copies;
-    if (copies) {
+    const copies = copiesOf(tokens, path);
+    if ("refused" in copies) return copies;
+    if (copies.of === "token") {
         const ops = copies.places.flatMap((at) => written(tokens, at, "$description", description));
         return { ops, alsoAffects: copies.alsoAffects, moved: [] };
     }
-    const placed = groupPlace(tokens, path);
-    if ("refused" in placed) return placed;
-    const ops = written(tokens, placed.at, "$description", description);
-    return { ops, alsoAffects: placed.alsoAffects, moved: [] };
+    const described = describedPlace(tokens, copies);
+    if (!described) return refused({ kind: "not-found", path });
+    const ops = written(tokens, described.at, "$description", description);
+    return { ops, alsoAffects: described.alsoAffects, moved: [] };
 }
 
 function written(tokens: DesignTokens, at: Member, key: string, value: Json | null): FileOp[] {

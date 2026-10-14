@@ -21,6 +21,10 @@ export const demo = readFromMemory({
 export const at = (tokens: DesignTokens, file: string, jsonPath: JsonPath): Json | undefined =>
     jsonPath.reduce((value, step) => value?.[step], JSON.parse(tokens.text(file) ?? "null"));
 
+export function plainly(result: OpResult) {
+    return result.ops ? { ...result, alsoAffects: result.alsoAffects.inputs } : result;
+}
+
 export function opsOf(result: OpResult): FileOp[] {
     if (!result.ops) throw new Error(JSON.stringify(result));
     return result.ops;

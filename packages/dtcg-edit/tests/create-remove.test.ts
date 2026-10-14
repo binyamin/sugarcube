@@ -1,7 +1,7 @@
 import { defineGenerator, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { create, remove } from "../src/index.js";
-import { demo, at, opsOf, committed, resolver, opened } from "./helpers.js";
+import { demo, at, opsOf, committed, resolver, opened, plainly } from "./helpers.js";
 const dark = { input: { mode: "dark" } };
 
 const refusal = (kind: string, facts: object) => ({
@@ -20,7 +20,10 @@ describe("create, which file", () => {
                 value: { $value: "#0a1f44" },
             },
         ]);
-        expect(result.ops && result.alsoAffects).toEqual([{ mode: "light" }, { mode: "dark" }]);
+        expect(result.ops && result.alsoAffects.inputs).toEqual([
+            { mode: "light" },
+            { mode: "dark" },
+        ]);
     });
 
     it("leaves out a file only one context reads, for a shared token", () => {
@@ -267,6 +270,73 @@ describe("create, what it refuses", () => {
     });
 });
 
+describe("create, for every permutation", () => {
+    const read = (
+        contexts: Record<string, object[]>,
+        extra: Record<string, string> = {},
+        more = {},
+    ) =>
+        readFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    resolutionOrder: [
+                        { type: "set", name: "base", sources: [{ $ref: "./base.json" }] },
+                        { type: "modifier", name: "mode", contexts, ...more },
+                    ],
+                }),
+                "base.json": JSON.stringify({
+                    color: { $type: "color", ink: { $value: "#111111" } },
+                }),
+                ...extra,
+            },
+            entry: "tokens.resolver.json",
+        });
+    const glowInDark = { "dark.json": JSON.stringify({ color: { glow: { $value: "#ffcc00" } } }) };
+    const darkFirst = { dark: [{ $ref: "./dark.json" }], light: [] };
+    const lightFirst = { light: [], dark: [{ $ref: "./dark.json" }] };
+
+    it("checks the files every permutation reads, whichever permutation the read built first", () => {
+        for (const contexts of [darkFirst, lightFirst]) {
+            expect(
+                opsOf(create(read(contexts, glowInDark), "color.glow", { $value: "#ff0000" })),
+            ).toEqual([
+                {
+                    kind: "add",
+                    file: "base.json",
+                    jsonPath: ["color", "glow"],
+                    value: { $value: "#ff0000" },
+                },
+            ]);
+        }
+    });
+
+    it("refuses a token inside one any permutation has, whichever the read built first", () => {
+        const brandInDark = {
+            "dark.json": JSON.stringify({ brand: { $type: "color", $value: "#e11d48" } }),
+        };
+        for (const contexts of [darkFirst, lightFirst]) {
+            expect(
+                create(read(contexts, brandInDark), "brand.x", { $value: "#ff0000" }).refused,
+            ).toMatchObject({
+                kind: "not-a-group",
+                path: "brand",
+            });
+        }
+    });
+
+    it("makes a shared token of a name only the default context's own file writes", () => {
+        const glowInLight = {
+            "light.json": JSON.stringify({ color: { glow: { $value: "#ffcc00" } } }),
+        };
+        const contexts = { light: [{ $ref: "./light.json" }], dark: [] };
+        const tokens = read(contexts, glowInLight, { default: "light" });
+        expect(opsOf(create(tokens, "color.glow", { $value: "#ff0000" }))).toMatchObject([
+            { kind: "add", file: "base.json", jsonPath: ["color", "glow"] },
+        ]);
+    });
+});
+
 describe("remove", () => {
     it("takes a token out, leaving its siblings in order, and lists what pointed at it", () => {
         const result = remove(demo, "color.brand.500");
@@ -283,7 +353,7 @@ describe("remove", () => {
         ];
 
         expect(pointing.length).toBeGreaterThan(0);
-        expect(result).toEqual({
+        expect(plainly(result)).toEqual({
             ops: [
                 {
                     kind: "remove",
@@ -370,7 +440,8 @@ describe("remove", () => {
             "base.json": '{ "bg": { "$type": "color", "$value": "#ffffff" } }',
         });
 
-        expect(remove(tokens, "bg")).toMatchObject({ alsoAffects: [] });
+        const removed = remove(tokens, "bg");
+        expect(removed.ops && removed.alsoAffects.inputs).toEqual([]);
     });
 
     it("is refused for a path that is neither a token nor a group", () => {

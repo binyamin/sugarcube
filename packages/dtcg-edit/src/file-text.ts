@@ -48,7 +48,3 @@ export function memberAt(tokens: DesignTokens, span: Span): Member | undefined {
     const node = nodeAt(tokens, span);
     return node && { span, jsonPath: getNodePath(node), written: getNodeValue(node) as Json };
 }
-
-export function spanKey({ file, offset }: Span): string {
-    return `${file}:${offset}`;
-}

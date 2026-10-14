@@ -57,6 +57,37 @@ describe("tokens.permutations", () => {
     });
 });
 
+describe("permutations.where", () => {
+    it("gives the permutations that pass the test, labelled against every permutation", () => {
+        const dark = tokens.permutations.where((each) => each.input.mode === "dark");
+        expect(dark.inputs).toStrictEqual([
+            { mode: "dark", density: "comfy" },
+            { mode: "dark", density: "compact" },
+        ]);
+        expect(dark.label).toBe("mode: dark");
+    });
+
+    it("narrows again, labelled against every permutation still", () => {
+        const darkCompact = tokens.permutations
+            .where((each) => each.input.mode === "dark")
+            .where((each) => each.input.density === "compact");
+        expect(darkCompact.label).toBe("mode: dark, density: compact");
+    });
+
+    it("has no label when every permutation passes, and is written as its inputs", () => {
+        const every = tokens.permutations.where(() => true);
+        expect(every.label).toBeUndefined();
+        expect(JSON.parse(JSON.stringify(every))).toStrictEqual(every.inputs);
+    });
+
+    it("gives the permutations themselves, in their order", () => {
+        const sepia = tokens.permutations.where((each) => each.input.mode === "sepia");
+        expect([...sepia]).toStrictEqual(
+            tokens.permutations.filter((each) => each.input.mode === "sepia"),
+        );
+    });
+});
+
 describe("the permutations an answer holds in", () => {
     const [reference] = tokens.referencedBy("red");
 

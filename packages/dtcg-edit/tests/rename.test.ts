@@ -313,8 +313,12 @@ describe("rename, in a session", () => {
         session.do(setValue(session.tokens, "color.primary.600", red));
         const ops: FileOp[] = session.unsaved.ops;
 
-        expect(committed(demo, { ops, alsoAffects: [], moved: [] }).toMemory().files).toEqual(
-            session.tokens.toMemory().files,
-        );
+        expect(
+            committed(demo, {
+                ops,
+                alsoAffects: demo.permutations.where(() => false),
+                moved: [],
+            }).toMemory().files,
+        ).toEqual(session.tokens.toMemory().files);
     });
 });

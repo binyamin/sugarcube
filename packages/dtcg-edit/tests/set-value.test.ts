@@ -1,7 +1,7 @@
-import { defineGenerator } from "@sugarcube-sh/dtcg";
+import { defineGenerator, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { setDescription, setValue } from "../src/index.js";
-import { demo, at, opsOf, committed, resolver, opened } from "./helpers.js";
+import { demo, at, opsOf, committed, resolver, opened, plainly } from "./helpers.js";
 describe("setValue, the shared value", () => {
     it("is one edit where the token is written, leaving dark's override alone", () => {
         const result = setValue(demo, "color.text.brand", "{color.brand.800}");
@@ -28,8 +28,11 @@ describe("setValue, the shared value", () => {
         const brand = setValue(demo, "color.text.brand", "{color.brand.800}");
         const radius = setValue(demo, "radius.md", { value: 0.3, unit: "rem" });
 
-        expect(brand.ops && brand.alsoAffects).toEqual([{ mode: "light" }]);
-        expect(radius.ops && radius.alsoAffects).toEqual([{ mode: "light" }, { mode: "dark" }]);
+        expect(brand.ops && brand.alsoAffects.inputs).toEqual([{ mode: "light" }]);
+        expect(radius.ops && radius.alsoAffects.inputs).toEqual([
+            { mode: "light" },
+            { mode: "dark" },
+        ]);
     });
 
     it("treats a context at its default as none", () => {
@@ -58,7 +61,7 @@ describe("setValue, the shared value", () => {
             "dark.json": '{ "bg": { "$type": "color", "$value": "#000000" } }',
         };
 
-        expect(setValue(opened(files), "bg", "#eeeeee")).toEqual({
+        expect(plainly(setValue(opened(files), "bg", "#eeeeee"))).toEqual({
             ops: [
                 {
                     kind: "set",
@@ -113,7 +116,7 @@ describe("setValue, the shared value", () => {
         };
         const result = setValue(opened(files), "bg", "#eeeeee");
 
-        expect(result.ops && result.alsoAffects).toEqual([]);
+        expect(result.ops && result.alsoAffects.inputs).toEqual([]);
     });
 
     it("is refused for a token that doesn't exist", () => {
@@ -124,12 +127,25 @@ describe("setValue, the shared value", () => {
 });
 
 describe("setValue, for one context", () => {
+    it("names no permutation of the context it changes as also affected", () => {
+        const files = {
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }], {
+                light: [],
+                dark: [{ $ref: "./dark.json" }],
+            }),
+            "base.json": '{ "bg": { "$type": "color", "$value": "#ffffff" } }',
+            "dark.json": "{}",
+        };
+        const edit = setValue(opened(files), "bg", "#000000", { input: { mode: "dark" } });
+        expect(edit.ops && edit.alsoAffects.inputs).toEqual([]);
+    });
+
     const dark = { input: { mode: "dark" } };
 
     it("changes dark's own override, in dark's file only", () => {
         const result = setValue(demo, "color.text.brand", "{color.brand.200}", dark);
 
-        expect(result.ops && result.alsoAffects).toEqual([]);
+        expect(result.ops && result.alsoAffects.inputs).toEqual([]);
         expect(opsOf(result)).toEqual([
             {
                 kind: "set",
@@ -457,6 +473,49 @@ describe("setValue, what it can't change", () => {
         });
     });
 
+    it("is refused for a token a generator makes in any permutation, whichever the read built first", () => {
+        const steps = defineGenerator({
+            extension: ["com.example", "steps"],
+            generate: () => ({
+                ok: true,
+                value: [{ name: "1", $value: { value: 2, unit: "rem" } }],
+            }),
+        });
+        for (const contexts of [
+            { dark: [{ $ref: "./dark.json" }], light: [] },
+            { light: [], dark: [{ $ref: "./dark.json" }] },
+        ]) {
+            const tokens = readFromMemory(
+                {
+                    files: {
+                        "tokens.resolver.json": JSON.stringify({
+                            version: "2025.10",
+                            resolutionOrder: [
+                                { type: "set", name: "base", sources: [{ $ref: "./base.json" }] },
+                                { type: "modifier", name: "mode", contexts },
+                            ],
+                        }),
+                        "base.json": JSON.stringify({
+                            space: {
+                                "$type": "dimension",
+                                "1": { $value: { value: 1, unit: "rem" } },
+                            },
+                        }),
+                        "dark.json": JSON.stringify({
+                            space: { $extensions: { "com.example": { steps: 1 } } },
+                        }),
+                    },
+                    entry: "tokens.resolver.json",
+                },
+                { generators: [steps] },
+            );
+            expect(setValue(tokens, "space.1", { value: 3, unit: "rem" }).refused).toMatchObject({
+                kind: "generated",
+                path: "space.1",
+            });
+        }
+    });
+
     it("is refused for a token a generator makes at the top of a file, naming no group", () => {
         const steps = defineGenerator({
             extension: ["com.example", "steps"],
@@ -502,6 +561,86 @@ describe("setValue, what it can't change", () => {
 });
 
 describe("setDescription", () => {
+    it("writes a group's new description in a file every permutation reads, though a context's is read first", () => {
+        const group = JSON.stringify({ accent: { glow: { $type: "number", $value: 1 } } });
+        const tokens = readFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    resolutionOrder: [
+                        {
+                            type: "modifier",
+                            name: "mode",
+                            default: "light",
+                            contexts: { light: [{ $ref: "./light.json" }], dark: [] },
+                        },
+                        { type: "set", name: "base", sources: [{ $ref: "./base.json" }] },
+                    ],
+                }),
+                "light.json": group,
+                "base.json": group,
+            },
+            entry: "tokens.resolver.json",
+        });
+        expect(tokens.writtenAt("accent").map(({ span }) => span.file)).toEqual([
+            "light.json",
+            "base.json",
+        ]);
+        expect(opsOf(setDescription(tokens, "accent", "Glow."))).toEqual([
+            {
+                kind: "add",
+                file: "base.json",
+                jsonPath: ["accent", "$description"],
+                value: "Glow.",
+            },
+        ]);
+    });
+
+    it("describes a path that is a group in one permutation and a token in another as a token, where each is written", () => {
+        const tokens = readFromMemory({
+            files: {
+                "tokens.resolver.json": resolver([{ $ref: "./base.json" }], {
+                    light: [],
+                    dark: [{ $ref: "./dark.json" }],
+                }),
+                "base.json": JSON.stringify({ x: { y: { $type: "number", $value: 2 } } }),
+                "dark.json": JSON.stringify({ x: { $type: "number", $value: 1 } }),
+            },
+            entry: "tokens.resolver.json",
+        });
+        expect(opsOf(setDescription(tokens, "x", "Both.")).map(({ file }) => file)).toEqual([
+            "base.json",
+            "dark.json",
+        ]);
+    });
+
+    it("finds a group only one context writes, whichever permutation the read built first", () => {
+        for (const contexts of [
+            { dark: [{ $ref: "./dark.json" }], light: [] },
+            { light: [], dark: [{ $ref: "./dark.json" }] },
+        ]) {
+            const tokens = readFromMemory({
+                files: {
+                    "tokens.resolver.json": JSON.stringify({
+                        version: "2025.10",
+                        resolutionOrder: [
+                            { type: "set", name: "base", sources: [{ $ref: "./base.json" }] },
+                            { type: "modifier", name: "mode", contexts },
+                        ],
+                    }),
+                    "base.json": "{}",
+                    "dark.json": JSON.stringify({
+                        accent: { glow: { $type: "number", $value: 1 } },
+                    }),
+                },
+                entry: "tokens.resolver.json",
+            });
+            expect(opsOf(setDescription(tokens, "accent", "Only in dark."))).toMatchObject([
+                { kind: "add", file: "dark.json", jsonPath: ["accent", "$description"] },
+            ]);
+        }
+    });
+
     it("changes a token's description", () => {
         const result = setDescription(demo, "color.brand.500", "The anchor.");
 
@@ -591,7 +730,7 @@ describe("setDescription", () => {
             "more.json": '{ "color": { "$description": "Old.", "b": { "$value": "#000000" } } }',
         };
 
-        expect(setDescription(opened(files), "color", "New.")).toEqual({
+        expect(plainly(setDescription(opened(files), "color", "New."))).toEqual({
             ops: [
                 {
                     kind: "set",

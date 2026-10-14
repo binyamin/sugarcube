@@ -13,5 +13,9 @@ export function permutationsOf(list: Permutation[], all: readonly Permutation[])
             },
         },
         toJSON: { value: inputs },
+        where: {
+            value: (test: (permutation: Permutation) => boolean) =>
+                permutationsOf(list.filter(test), all),
+        },
     }) as unknown as Permutations;
 }

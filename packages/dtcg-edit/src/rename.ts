@@ -1,7 +1,7 @@
 import { type DesignTokens, childPath, forbiddenInName, parentOf } from "@sugarcube-sh/dtcg";
 import { refused } from "./error-messages.js";
 import type { FileOp, OpResult } from "./index.js";
-import { groupCopies, tokenCopies } from "./placement.js";
+import { copiesOf } from "./placement.js";
 import { type Member, memberAt } from "./file-text.js";
 
 /**
@@ -25,10 +25,7 @@ export function rename(tokens: DesignTokens, path: string, newName: string): OpR
     const character = forbiddenInName(newName);
     if (character !== undefined) return refused({ kind: "invalid-name", name: newName, character });
 
-    const copies =
-        tokenCopies(tokens, path) ??
-        groupCopies(tokens, path) ??
-        refused({ kind: "not-found", path });
+    const copies = copiesOf(tokens, path);
     if ("refused" in copies) return copies;
     const to = childPath(parentOf(path), newName);
     if (to === path) return { ops: [], alsoAffects: copies.alsoAffects, moved: [] };

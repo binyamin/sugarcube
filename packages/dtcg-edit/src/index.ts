@@ -5,6 +5,7 @@ import type {
     JsonPath,
     Move,
     PermutationErrorDetail,
+    Permutations,
     TokenType,
 } from "@sugarcube-sh/dtcg";
 
@@ -94,11 +95,11 @@ export type OpResult =
     | {
           ops: FileOp[];
           /**
-           * The permutations, other than the one edited, where the change shows, by their input.
-           * Only permutations the read built are listed, so a read limited by `inputs` lists only
-           * those.
+           * The permutations, other than the one edited, where the change shows, labelled
+           * (`alsoAffects.label`, such as `"mode: dark"`). Only permutations the read built are
+           * listed, so a read limited by `inputs` lists only those.
            */
-          alsoAffects: Input[];
+          alsoAffects: Permutations;
           /** The tokens and groups left referring to nothing, after a {@link remove}. */
           broken?: string[];
           /** Tokens and groups whose path changed, such as after a {@link rename}. Empty when none did. */

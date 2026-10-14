@@ -1,7 +1,6 @@
 import { type DesignTokens, pathBelow } from "@sugarcube-sh/dtcg";
-import { refused } from "./error-messages.js";
 import type { FileOp, OpResult } from "./index.js";
-import { groupCopies, tokenCopies } from "./placement.js";
+import { copiesOf } from "./placement.js";
 
 /**
  * Removes a token or group from every file that writes it: the copy that wins, any copy an earlier
@@ -16,10 +15,7 @@ import { groupCopies, tokenCopies } from "./placement.js";
  * if (result.broken?.length) warn(result.broken);
  */
 export function remove(tokens: DesignTokens, path: string): OpResult {
-    const copies =
-        tokenCopies(tokens, path) ??
-        groupCopies(tokens, path) ??
-        refused({ kind: "not-found", path });
+    const copies = copiesOf(tokens, path);
     if ("refused" in copies) return copies;
 
     const ops = copies.places.map(({ span, jsonPath, written }): FileOp => ({

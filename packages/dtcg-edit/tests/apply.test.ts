@@ -404,7 +404,11 @@ describe("apply, files", () => {
 describe("commit", () => {
     it("applies an operation's edits and hands back what it did", () => {
         const ops = [setBrand500(demo)];
-        const done = commit(demo, { ops, alsoAffects: [], moved: [] });
+        const done = commit(demo, {
+            ops,
+            alsoAffects: demo.permutations.where(() => false),
+            moved: [],
+        });
 
         expect(done).toEqual({ tokens: expect.anything(), ops, moved: [] });
         if (!done.tokens) throw new Error("not committed");
@@ -429,7 +433,13 @@ describe("commit", () => {
         const op = setBrand500(demo);
         const theirs = changed(demo, [["color.json", brand500, "#000"]]);
 
-        expect(commit(theirs, { ops: [op], alsoAffects: [], moved: [] })).toEqual({
+        expect(
+            commit(theirs, {
+                ops: [op],
+                alsoAffects: demo.permutations.where(() => false),
+                moved: [],
+            }),
+        ).toEqual({
             conflicts: [{ op, kind: "changed", reason: expect.any(String) }],
         });
     });
