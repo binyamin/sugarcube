@@ -1,5 +1,7 @@
+import { readFile } from "node:fs/promises";
 import type { DesignTokens, ReadOptions } from "../index.js";
-import { open } from "./open.js";
+import { read as readAnywhere } from "../read/read.js";
+import { slashed } from "./paths.js";
 
 /**
  * Reads design tokens from disk. Paths in the result are relative to the entry's folder: join
@@ -8,6 +10,9 @@ import { open } from "./open.js";
  * @example
  * const tokens = await read("tokens/tokens.resolver.json");
  */
-export async function read(entry: string, options: ReadOptions = {}): Promise<DesignTokens> {
-    return (await open(entry, options)).doc;
+export function read(entry: string, options: ReadOptions = {}): Promise<DesignTokens> {
+    return readAnywhere(slashed(entry), {
+        ...options,
+        readText: (file) => readFile(file, "utf8"),
+    });
 }

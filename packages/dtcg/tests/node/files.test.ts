@@ -1,39 +1,35 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { openFromMemory } from "../../src/index.js";
-import { fileOnDisk, open } from "../../src/node.js";
+import { readFromMemory } from "../../src/index.js";
+import { fileOnDisk, read } from "../../src/node.js";
 
 const folder = join(import.meta.dirname, "../read/cases/every-combination/input");
 
-describe("open from disk", () => {
-    it("keeps each file's text by the design tokens' name for it, the entry by its file name", async () => {
-        const project = await open(join(folder, "tokens.resolver.json"));
-        expect(project.entry).toBe("tokens.resolver.json");
-        expect(Object.keys(project.files)).toStrictEqual(project.doc.files);
-        for (const file of project.doc.files) {
-            expect(project.files[file]).toBe(readFileSync(join(folder, file), "utf8"));
+describe("design tokens read from disk", () => {
+    it("name the entry by its file name, and give each file's text by their name for it", async () => {
+        const tokens = await read(join(folder, "tokens.resolver.json"));
+        const { entry, files } = tokens.toMemory();
+        expect(entry).toBe("tokens.resolver.json");
+        expect(Object.keys(files)).toStrictEqual(tokens.files);
+        for (const file of tokens.files) {
+            expect(files[file]).toBe(readFileSync(join(folder, file), "utf8"));
         }
     });
 
-    it("opens again from its own files and entry to the same design tokens", async () => {
-        const project = await open(join(folder, "tokens.resolver.json"), { hexStringColors: true });
-        expect(project.options).toStrictEqual({ hexStringColors: true });
-        expect(
-            openFromMemory(
-                { files: project.files, entry: "tokens.resolver.json" },
-                project.options,
-            ),
-        ).toStrictEqual(project);
+    it("read again from memory, with the same options, to the same design tokens", async () => {
+        const options = { hexStringColors: true };
+        const tokens = await read(join(folder, "tokens.resolver.json"), options);
+        expect(readFromMemory(tokens.toMemory(), options)).toStrictEqual(tokens);
     });
 });
 
 describe("fileOnDisk", () => {
     it("is where each file the design tokens name was read from", async () => {
         const entry = join(folder, "tokens.resolver.json");
-        const project = await open(entry);
-        for (const file of project.doc.files) {
-            expect(readFileSync(fileOnDisk(entry, file), "utf8")).toBe(project.files[file]);
+        const tokens = await read(entry);
+        for (const file of tokens.files) {
+            expect(readFileSync(fileOnDisk(entry, file), "utf8")).toBe(tokens.text(file));
         }
     });
 

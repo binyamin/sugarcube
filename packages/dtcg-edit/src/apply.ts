@@ -98,7 +98,7 @@ function editedFiles(tokens: DesignTokens, ops: FileOp[]) {
         },
     };
     const drafts = new Map<string, Draft>();
-    const style = texts.of(tokens.files[0] ?? "") ?? "";
+    const style = texts.of(tokens.entry) ?? "";
     const conflicts: Conflict[] = [];
     const written = (file: string) => {
         const draft = drafts.get(file);

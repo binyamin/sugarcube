@@ -1,4 +1,4 @@
-import type { DesignTokens, Input, Project, ReadOptions, ReadText } from "../index.js";
+import type { DesignTokens, Input, ReadOptions, ReadText, TokensInMemory } from "../index.js";
 import type { Answer, FileText, Request } from "./files.js";
 import { collapse, inReadingPermutations } from "./diagnostics.js";
 import { type Loaded, load } from "./load.js";
@@ -37,27 +37,8 @@ const { performance } = globalThis as unknown as { performance: { now(): number 
  */
 export async function read(
     entry: string,
-    options: ReadOptions & { readText: ReadText },
-): Promise<DesignTokens> {
-    return (await open(entry, options)).doc;
-}
-
-/**
- * Reads design tokens as {@link read} does, and keeps the text of every file it read beside
- * them, for a tool that changes the files.
- *
- * @param entry A resolver document or a token file.
- *
- * @example
- * const project = await open("tokens.resolver.json", {
- *   readText: (path) => fetch(path).then((r) => r.text()),
- * });
- * project.files["dark.json"];
- */
-export async function open(
-    entry: string,
     { readText, ...options }: ReadOptions & { readText: ReadText },
-): Promise<Project> {
+): Promise<DesignTokens> {
     const started = performance.now();
     const run = load(fileName(entry), permutationOptions(options));
     let step = run.next();
@@ -65,7 +46,7 @@ export async function open(
         step = run.next(await fetchAll(step.value, folderOf(entry), readText));
     }
     options.onStage?.("load", performance.now() - started);
-    return projectOf(step.value, options);
+    return toDesignTokens(step.value, options);
 }
 
 async function fetchAll(files: Request, folder: string, readText: ReadText): Promise<Answer> {
@@ -94,41 +75,12 @@ async function fetchAll(files: Request, folder: string, readText: ReadText): Pro
  * @example
  * const tokens = readFromMemory({ files: { "tokens.json": text } });
  */
-export function readFromMemory(
-    sources: {
-        files: Record<string, string>;
-        /**
-         * The file to start from.
-         * @default the one resolver among the files, or else the only file
-         */
-        entry?: string | undefined;
-    },
-    options: ReadOptions = {},
-): DesignTokens {
-    return openFromMemory(sources, options).doc;
-}
-
-/**
- * Reads design tokens from text already in memory, as {@link readFromMemory} does, and keeps
- * the text of every file it read beside them. Files it did not read are left out.
- *
- * @example
- * const project = openFromMemory({ files, entry: "tokens.resolver.json" });
- * const again = openFromMemory(project, project.options); // the same design tokens
- */
-export function openFromMemory(
-    sources: {
-        files: Record<string, string>;
-        /** @default the one resolver among the files, or else the only file */
-        entry?: string | undefined;
-    },
-    options: ReadOptions = {},
-): Project {
+export function readFromMemory(memory: TokensInMemory, options: ReadOptions = {}): DesignTokens {
     const started = performance.now();
     const texts = new Map(
-        Object.entries(sources.files).map(([path, text]) => [normalise(path), text]),
+        Object.entries(memory.files).map(([path, text]) => [normalise(path), text]),
     );
-    const entry = normalise(sources.entry ?? entryAmong(texts));
+    const entry = normalise(memory.entry ?? entryAmong(texts));
     const folder = folderOf(entry);
     const run = load(fileName(entry), permutationOptions(options));
 
@@ -142,7 +94,7 @@ export function openFromMemory(
         step = run.next(answer);
     }
     options.onStage?.("load", performance.now() - started);
-    return projectOf(step.value, options);
+    return toDesignTokens(step.value, options);
 }
 
 function entryAmong(texts: Map<string, string>): string {
@@ -157,12 +109,6 @@ function entryAmong(texts: Map<string, string>): string {
     if (resolvers.length === 1 && resolver !== undefined) return resolver;
     if (resolvers.length > 1) throw new TypeError(thrownMessages.severalResolvers(resolvers));
     throw new TypeError(thrownMessages.noResolver(names));
-}
-
-function projectOf(loaded: Loaded, options: ReadOptions): Project {
-    const tokens = toDesignTokens(loaded, options);
-    const { entry, texts } = loaded;
-    return { doc: tokens, entry, files: texts, options };
 }
 
 function permutationOptions({
@@ -217,6 +163,7 @@ function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
     return linkedDesignTokens(
         {
             files: loaded.files,
+            entry: loaded.entry,
             ...(loaded.resolver && { resolver: loaded.resolver }),
             sources,
             permutations,
@@ -228,7 +175,7 @@ function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
         },
         {
             texts: loaded.texts,
-            readAgain: (files) => readFromMemory({ files, entry: loaded.entry }, options),
+            readFiles: (files) => readFromMemory({ files, entry: loaded.entry }, options),
         },
     );
 }

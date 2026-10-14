@@ -18,9 +18,6 @@ export const demo = readFromMemory({
     entry: "tokens.resolver.json",
 });
 
-export const textsOf = (tokens: DesignTokens): Record<string, string | undefined> =>
-    Object.fromEntries(tokens.files.map((file) => [file, tokens.text(file)]));
-
 export const at = (tokens: DesignTokens, file: string, jsonPath: JsonPath): Json | undefined =>
     jsonPath.reduce((value, step) => value?.[step], JSON.parse(tokens.text(file) ?? "null"));
 

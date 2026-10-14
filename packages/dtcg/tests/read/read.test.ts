@@ -617,7 +617,7 @@ describe("labels", () => {
 });
 
 describe("what the design tokens hold", () => {
-    it("is the files, the resolver part, the sources, the permutations, how values were read and the problems", () => {
+    it("is the files and the entry, the resolver part, the sources, the permutations, how values were read and the problems", () => {
         const resolver = JSON.stringify({ version: "2025.10", resolutionOrder: [] });
         const tokens = readFromMemory({
             files: { "tokens.resolver.json": resolver },
@@ -625,6 +625,7 @@ describe("what the design tokens hold", () => {
         });
         expect(Object.keys(tokens)).toStrictEqual([
             "files",
+            "entry",
             "resolver",
             "sources",
             "permutations",

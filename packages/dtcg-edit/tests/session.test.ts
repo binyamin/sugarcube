@@ -9,7 +9,7 @@ import {
     setDescription,
     setValue,
 } from "../src/index.js";
-import { demo, textsOf } from "./helpers.js";
+import { demo } from "./helpers.js";
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 
 describe("createSession", () => {
@@ -80,7 +80,7 @@ describe("createSession", () => {
         session.discard();
 
         expect(session.tokens).toBe(demo);
-        expect(textsOf(session.tokens)).toEqual(textsOf(demo));
+        expect(session.tokens.toMemory().files).toEqual(demo.toMemory().files);
         expect(session.unsaved).toEqual({ ops: [], moved: [] });
         expect(session.changes()).toEqual([]);
     });
@@ -135,7 +135,7 @@ describe("createSession", () => {
         const replayed = apply(demo, session.unsaved.ops);
 
         if ("conflicts" in replayed) throw new Error(JSON.stringify(replayed.conflicts));
-        expect(textsOf(replayed)).toEqual(textsOf(session.tokens));
+        expect(replayed.toMemory().files).toEqual(session.tokens.toMemory().files);
         expect(replayed).toEqual(session.tokens);
     });
 });

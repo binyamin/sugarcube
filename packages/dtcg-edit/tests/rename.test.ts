@@ -1,7 +1,7 @@
 import { type DesignTokens, defineGenerator, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { type FileOp, createSession, create, rename, setValue } from "../src/index.js";
-import { at, committed, demo, opsOf, textsOf } from "./helpers.js";
+import { at, committed, demo, opsOf } from "./helpers.js";
 
 const refused = (kind: string, facts: object) => ({
     refused: { kind, ...facts, reason: expect.any(String) },
@@ -315,8 +315,8 @@ describe("rename, in a session", () => {
         session.do(setValue(session.tokens, "color.primary.600", red));
         const ops: FileOp[] = session.unsaved.ops;
 
-        expect(textsOf(committed(demo, { ops, alsoAffects: [], moved: [] }))).toEqual(
-            textsOf(session.tokens),
+        expect(committed(demo, { ops, alsoAffects: [], moved: [] }).toMemory().files).toEqual(
+            session.tokens.toMemory().files,
         );
     });
 });

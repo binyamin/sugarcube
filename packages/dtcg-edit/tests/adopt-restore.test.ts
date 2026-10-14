@@ -9,7 +9,7 @@ import {
     setDescription,
     setValue,
 } from "../src/index.js";
-import { demo, changed, textsOf } from "./helpers.js";
+import { demo, changed } from "./helpers.js";
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 const blue = { colorSpace: "srgb", components: [0, 0, 1] };
 
@@ -21,7 +21,7 @@ describe("adopt", () => {
         ]);
 
         expect(session.adopt(fresh)).toEqual([]);
-        expect(textsOf(session.tokens)).toEqual(textsOf(fresh));
+        expect(session.tokens.toMemory().files).toEqual(fresh.toMemory().files);
         expect(session.opened).toBe(fresh);
         expect(session.unsaved).toEqual({ ops: [], moved: [] });
         expect(session.changes()).toEqual([]);
@@ -215,7 +215,7 @@ describe("restore", () => {
         const session = createSession(demo);
         expect(session.restore(kept)).toEqual([]);
         expect(session.unsaved).toEqual(kept);
-        expect(textsOf(session.tokens)).toEqual(textsOf(before.tokens));
+        expect(session.tokens.toMemory().files).toEqual(before.tokens.toMemory().files);
 
         session.discard();
         expect(session.tokens).toBe(demo);

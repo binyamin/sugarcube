@@ -161,13 +161,16 @@ const designTokensShared = {
         return keptBy(this).texts[file];
     },
     reread(this: DesignTokens, changed: Readonly<Record<string, string | null>>) {
-        const { texts, readAgain } = keptBy(this);
+        const { texts, readFiles } = keptBy(this);
         const files: Record<string, string> = { ...texts };
         for (const [file, text] of Object.entries(changed)) {
             if (text === null) delete files[file];
             else files[file] = text;
         }
-        return readAgain(files);
+        return readFiles(files);
+    },
+    toMemory(this: DesignTokens) {
+        return { entry: this.entry, files: { ...keptBy(this).texts } };
     },
     has(this: DesignTokens, path: string) {
         return this.permutations.some(
@@ -279,7 +282,7 @@ export function placesIn(): Places {
 
 interface Kept {
     texts: Readonly<Record<string, string>>;
-    readAgain(files: Record<string, string>): DesignTokens;
+    readFiles(files: Record<string, string>): DesignTokens;
 }
 
 const kept = new WeakMap<DesignTokens, Kept>();

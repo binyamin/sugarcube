@@ -12,13 +12,12 @@ export function findResolver(
 }
 
 export { read } from "./node/read.js";
-export { open } from "./node/open.js";
 export { fileOnDisk } from "./node/paths.js";
 export { type FileStats, onFileChanged } from "./node/file-changed.js";
 export {
     type FileWatcher,
-    type LiveProject,
-    type ProjectSource,
+    type LiveTokens,
     type ReadEvent,
-    liveProject,
-} from "./node/live-project.js";
+    type TokensOnDisk,
+    liveTokens,
+} from "./node/live-tokens.js";

@@ -2,8 +2,8 @@ import { resolve } from "node:path";
 import { filePath, folderOf } from "../read/paths.js";
 
 /**
- * Where a file the design tokens name is on disk, for design tokens opened from `entry`: the
- * file name joined to the entry's folder, as `open` reads it, made absolute, with `/` between
+ * Where a file the design tokens name is on disk, for design tokens read from `entry`: the
+ * file name joined to the entry's folder, as `read` reads it, made absolute, with `/` between
  * folders.
  *
  * @example

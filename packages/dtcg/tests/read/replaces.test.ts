@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defineGenerator, openFromMemory, readFromMemory, type Span } from "../../src/index.js";
+import { defineGenerator, readFromMemory, type Span } from "../../src/index.js";
 
 const color = (hex: string) => `{ "$type": "color", "$value": "${hex}" }`;
 
@@ -128,12 +128,12 @@ describe("a token's writtenAt, across sources", () => {
     });
 });
 
-describe("openFromMemory", () => {
+describe("readFromMemory", () => {
     it("takes an entry left undefined as no entry", () => {
         const loose = { "tokens.json": `{ "bg": ${color("#ffffff")} }` };
         const entry: string | undefined = undefined;
 
-        expect(openFromMemory({ files: loose, entry }).doc.files).toStrictEqual(["tokens.json"]);
+        expect(readFromMemory({ files: loose, entry }).files).toStrictEqual(["tokens.json"]);
     });
 });
 

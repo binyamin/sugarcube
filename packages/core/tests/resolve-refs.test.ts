@@ -216,7 +216,11 @@ describe("resolveSources", () => {
             color: { custom: { $type: "color", $value: "#ff0000" } },
         };
 
-        const result = await resolveSources([inlineSource], createTestContext(), "#/sets/test/sources");
+        const result = await resolveSources(
+            [inlineSource],
+            createTestContext(),
+            "#/sets/test/sources",
+        );
 
         expect(result.errors).toHaveLength(0);
         expect(result.resolved).toHaveLength(1);

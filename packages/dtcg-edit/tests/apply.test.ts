@@ -1,7 +1,7 @@
 import { type DesignTokens, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { type FileOp, type Json, apply, commit } from "../src/index.js";
-import { demo, at, changed, textsOf } from "./helpers.js";
+import { demo, at, changed } from "./helpers.js";
 function applied(tokens: DesignTokens, ops: FileOp[]): DesignTokens {
     const result = apply(tokens, ops);
     if ("conflicts" in result) throw new Error(JSON.stringify(result.conflicts));
@@ -61,7 +61,7 @@ describe("apply, set", () => {
         const op = setBrand500(demo);
         const theirs = changed(demo, [["color.json", brand500, red]]);
 
-        expect(textsOf(applied(theirs, [op]))).toEqual(textsOf(theirs));
+        expect(applied(theirs, [op]).toMemory().files).toEqual(theirs.toMemory().files);
     });
 
     it("is a conflict when the place has gone", () => {
@@ -114,7 +114,7 @@ describe("apply, add", () => {
         };
         const theirs = changed(demo, [["color.json", ["color", "brand", "950"], { $value: red }]]);
 
-        expect(textsOf(applied(theirs, [op]))).toEqual(textsOf(theirs));
+        expect(applied(theirs, [op]).toMemory().files).toEqual(theirs.toMemory().files);
     });
 
     it("is a conflict when the path runs through a value that isn't a group", () => {
@@ -169,7 +169,7 @@ describe("apply, remove", () => {
     it("does nothing when it is already gone", () => {
         const theirs = applied(demo, [removeSm()]);
 
-        expect(textsOf(applied(theirs, [removeSm()]))).toEqual(textsOf(theirs));
+        expect(applied(theirs, [removeSm()]).toMemory().files).toEqual(theirs.toMemory().files);
     });
 
     it("is a conflict when someone changed it since", () => {
@@ -212,7 +212,7 @@ describe("apply, renameKey", () => {
         const op = rename("small");
         const theirs = applied(demo, [op]);
 
-        expect(textsOf(applied(theirs, [op]))).toEqual(textsOf(theirs));
+        expect(applied(theirs, [op]).toMemory().files).toEqual(theirs.toMemory().files);
     });
 
     it("is a conflict when the key has gone and the new name holds a different token", () => {
@@ -357,7 +357,7 @@ describe("apply, files", () => {
 
     it("does nothing when the file already holds the same, and is a conflict when it holds other", () => {
         const same = applied(named, [created]);
-        expect(textsOf(applied(same, [created]))).toEqual(textsOf(same));
+        expect(applied(same, [created]).toMemory().files).toEqual(same.toMemory().files);
 
         const other = applied(named, [
             { ...created, value: { c: { $type: "number", $value: 3 } } },
@@ -392,7 +392,7 @@ describe("apply, files", () => {
         const after = applied(both, [deleted]);
         expect(after.text("more.json")).toBeUndefined();
         expect(after.permutation().token("b")).toBeUndefined();
-        expect(textsOf(applied(after, [deleted]))).toEqual(textsOf(after));
+        expect(applied(after, [deleted]).toMemory().files).toEqual(after.toMemory().files);
 
         const edited = { ...deleted, was: "{}" };
         expect(apply(both, [edited])).toEqual({

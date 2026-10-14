@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Project } from "@sugarcube-sh/dtcg";
+import type { DesignTokens } from "@sugarcube-sh/dtcg";
 import { type Logger, type ViteDevServer, createServer } from "vite";
 import { afterEach, describe, expect, it } from "vitest";
 import dtcg, { type DtcgPlugin } from "../src/index.js";
@@ -83,23 +83,23 @@ describe("dtcg's Vite plugin", () => {
         const entry = await project();
         const plugin = dtcg({ entry, options: { hexStringColors: true } });
         await serve(plugin);
-        const first = await plugin.api.project();
-        expect(first.doc.files).toEqual(["tokens.resolver.json", "base.json"]);
-        expect(first.files["base.json"]).toContain("#111111");
+        const first = await plugin.api.tokens();
+        expect(first.files).toEqual(["tokens.resolver.json", "base.json"]);
+        expect(first.text("base.json")).toContain("#111111");
 
-        const reads: Array<{ project: Project; file?: string }> = [];
-        plugin.api.onRead((read, { file }) => reads.push({ project: read, file }));
+        const reads: Array<{ tokens: DesignTokens; file?: string }> = [];
+        plugin.api.onRead((read, { file }) => reads.push({ tokens: read, file }));
         await until(
             () =>
-                reads.some(({ project: read }) =>
-                    JSON.stringify(read.doc.permutation().token("color.ink")).includes("#222"),
+                reads.some(({ tokens: read }) =>
+                    JSON.stringify(read.permutation().token("color.ink")).includes("#222"),
                 ),
             "the save",
             () => tokens({ color: { ink: color("#222222") } }),
         );
 
         expect(reads.at(-1)?.file).toBe("base.json");
-        expect(reads.at(-1)?.project.files["base.json"]).toContain("#222222");
+        expect(reads.at(-1)?.tokens.text("base.json")).toContain("#222222");
     });
 
     it("logs a failure from before Vite's logger exists, once there is one", async () => {
@@ -107,7 +107,7 @@ describe("dtcg's Vite plugin", () => {
         const plugin = dtcg(() => {
             throw new Error("no source");
         });
-        await plugin.api.project().catch(() => undefined);
+        await plugin.api.tokens().catch(() => undefined);
         const logged: string[] = [];
 
         await serve(plugin, logged);

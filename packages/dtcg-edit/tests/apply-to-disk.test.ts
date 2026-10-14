@@ -6,7 +6,7 @@ import { read as readFromDisk } from "@sugarcube-sh/dtcg/node";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setValue } from "../src/index.js";
 import { applyToDisk } from "../src/node.js";
-import { at, changed, demo, opsOf, textsOf } from "./helpers.js";
+import { at, changed, demo, opsOf } from "./helpers.js";
 import type { FileOp, Json } from "../src/index.js";
 
 let folder: string;
@@ -47,7 +47,9 @@ describe("applyToDisk", () => {
 
         if (!("tokens" in result)) throw new Error(JSON.stringify(result));
         expect(result.tokens.permutation().token("radius.md")?.authored?.value).toEqual(half);
-        expect(textsOf(result.tokens)).toEqual(textsOf(await readFromDisk(entry)));
+        expect(result.tokens.toMemory().files).toEqual(
+            (await readFromDisk(entry)).toMemory().files,
+        );
     });
 
     it("reads the files with the source's own options", async () => {

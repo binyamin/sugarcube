@@ -13,7 +13,7 @@ import {
     setValue,
 } from "../src/index.js";
 import { designTokens as sized } from "./benchmarks/design-tokens.js";
-import { at, demo, textsOf } from "./helpers.js";
+import { at, demo } from "./helpers.js";
 
 afterEach(() => {
     vi.restoreAllMocks();
@@ -31,7 +31,7 @@ describe("applying many edits to one file", () => {
         const together = apply(demo, ops);
 
         if ("conflicts" in together) throw new Error(JSON.stringify(together.conflicts));
-        expect(textsOf(together)).toEqual(textsOf(oneByOne));
+        expect(together.toMemory().files).toEqual(oneByOne.toMemory().files);
     });
 
     it("gives what applying them one at a time gives when they touch or sit inside each other", () => {
@@ -58,7 +58,7 @@ describe("applying many edits to one file", () => {
         const together = apply(demo, ops);
 
         if ("conflicts" in together) throw new Error(JSON.stringify(together.conflicts));
-        expect(textsOf(together)).toEqual(textsOf(tokens));
+        expect(together.toMemory().files).toEqual(tokens.toMemory().files);
     });
 
     it("refuses a second key renamed to the name the first just took", () => {

@@ -1341,6 +1341,11 @@ export interface DesignTokens {
      * reloading. Paths are as described at {@link ReadText}.
      */
     files: string[];
+    /**
+     * The file the read started from, a resolver or a token file, by the name
+     * {@link DesignTokens.files} gives it.
+     */
+    entry: string;
     /** What the resolver says about itself and how it is put together; absent with no resolver. */
     resolver?: Resolver;
     /**
@@ -1451,6 +1456,17 @@ export interface DesignTokens {
      * const without = tokens.reread({ "tokens.resolver.json": withoutDim, "dim.json": null });
      */
     reread(changed: Readonly<Record<string, string | null>>): DesignTokens;
+    /**
+     * What to send to read these design tokens somewhere else, such as a browser or a worker: the
+     * entry and the text of every file read, a {@link TokensInMemory} as {@link readFromMemory}
+     * takes it. Read it there with the same options for the same design tokens; options can hold
+     * functions, so they are not part of it.
+     *
+     * @example
+     * send(tokens.toMemory());
+     * const same = readFromMemory(received, options);
+     */
+    toMemory(): TokensInMemory & { entry: string };
     /**
      * What changed since `before`, an earlier read, and in which permutations: tokens and groups
      * added, removed, renamed, or with different properties. A token is compared by what it says,
@@ -1802,32 +1818,21 @@ export interface ReadOptions extends ParseOptions {
  */
 export type ReadText = (path: string, file: string) => Promise<string>;
 
-export { open, openFromMemory, read, readFromMemory } from "./read/read.js";
-export { filePath } from "./read/paths.js";
+export { read, readFromMemory } from "./read/read.js";
 
 /**
- * Design tokens and the text of their files: what {@link open} and {@link openFromMemory} give,
- * for a tool that changes the files. The design tokens hold no text; the text sits beside them.
- *
- * A project never changes. It remembers the options it was read with, functions included, so it
- * cannot be sent to another process as it is: send its `files` and `entry`, and open it there with
- * {@link openFromMemory} and the same options, which gives the same design tokens.
+ * Design tokens as text in memory: each file's text by its name, and the file to start from, as
+ * {@link readFromMemory} takes them and {@link DesignTokens.toMemory} gives them.
  */
-export interface Project {
-    readonly doc: DesignTokens;
+export interface TokensInMemory {
+    files: Record<string, string>;
     /**
-     * The file the read started from, a resolver or a token file, by the design tokens' name for
-     * it, so `files[entry]` is its text.
+     * The file to start from.
+     * @default the one resolver among the files, or else the only file
      */
-    readonly entry: string;
-    /**
-     * The text of every file the design tokens were read from, by the name they give it, as at
-     * {@link ReadText}.
-     */
-    readonly files: Readonly<Record<string, string>>;
-    /** The options it was read with, for reading it again. */
-    readonly options: ReadOptions;
+    entry?: string | undefined;
 }
+export { filePath } from "./read/paths.js";
 
 export { childPath, forbiddenInName, movedPath, parentOf, pathBelow, withoutRoot } from "./path.js";
 export { completeInput } from "./lookup/permutation.js";
