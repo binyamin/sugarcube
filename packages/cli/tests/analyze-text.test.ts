@@ -1,6 +1,6 @@
 import { readFromMemory } from "@sugarcube-sh/dtcg";
 import { beforeAll, describe, expect, it } from "vitest";
-import type { Dependent, Impact } from "../src/analyze/answers.js";
+import { type Dependent, type Impact, writtenOf } from "../src/analyze/answers.js";
 import {
     impactHeading,
     impactLines,
@@ -17,8 +17,12 @@ beforeAll(() => {
 
 const use = (file: string, path = "x"): Use => ({ token: path, var: "--x", line: 1, file });
 
-const answerFor = (dependents: Dependent[], uses: Use[] = [], path = "target"): Impact =>
-    ({ token: { path }, dependents, uses }) as unknown as Impact;
+const answerFor = (dependents: Dependent[], uses: Use[] = [], path = "target"): Impact => ({
+    path,
+    written: [],
+    dependents,
+    uses,
+});
 
 const body = (lines: string[]) => lines.slice(2).map(strip);
 
@@ -113,11 +117,12 @@ describe("impactHeading", () => {
             }),
         },
     });
-    const heading = (path: string) => {
-        const found = tokens.permutation().token(path);
-        if (!found) throw new Error(path);
-        return strip(impactHeading({ token: found, dependents: [], uses: [] }));
+    const headingIn = (from: typeof tokens, path: string) => {
+        const written = writtenOf(from, path);
+        if (!written || written === "group") throw new Error(path);
+        return strip(impactHeading({ path, written, dependents: [], uses: [] }));
     };
+    const heading = (path: string) => headingIn(tokens, path);
 
     it("shows the token and a value written as a string", () => {
         expect(heading("color.brand")).toBe("color.brand   {palette.blue}");
@@ -125,6 +130,60 @@ describe("impactHeading", () => {
 
     it("shows only the token for a value written as an object", () => {
         expect(heading("palette.blue")).toBe("palette.blue");
+    });
+
+    const themed = (values: Record<string, string>) => {
+        const contexts = Object.fromEntries(
+            Object.keys(values).map((name) => [name, [{ $ref: `${name}.json` }]]),
+        );
+        return readFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    resolutionOrder: [
+                        { type: "set", name: "base", sources: [{ $ref: "base.json" }] },
+                        {
+                            type: "modifier",
+                            name: "theme",
+                            default: "plain",
+                            contexts: { plain: [], ...contexts },
+                        },
+                    ],
+                }),
+                "base.json": JSON.stringify({ text: { $type: "color", $value: "{ink.0}" } }),
+                ...Object.fromEntries(
+                    Object.entries(values).map(([name, value]) => [
+                        `${name}.json`,
+                        JSON.stringify({ text: { $type: "color", $value: value } }),
+                    ]),
+                ),
+            },
+            entry: "tokens.resolver.json",
+        });
+    };
+
+    it("shows each value written, once, in the order written", () => {
+        const written = themed({ dark: "{ink.9}", dim: "{ink.0}" });
+        expect(headingIn(written, "text")).toBe("text   {ink.0}   {ink.9}");
+    });
+
+    it("wraps many values, lining each line up under the first value", () => {
+        const many = themed(
+            Object.fromEntries(
+                ["a", "b", "c", "d", "e", "f"].map((name, index) => [name, `{ink.${index + 1}00}`]),
+            ),
+        );
+        const before = process.stdout.columns;
+        process.stdout.columns = 44;
+        try {
+            expect(headingIn(many, "text").split("\n")).toStrictEqual([
+                "text   {ink.0}   {ink.100}   {ink.200}",
+                "       {ink.300}   {ink.400}   {ink.500}",
+                "       {ink.600}",
+            ]);
+        } finally {
+            process.stdout.columns = before;
+        }
     });
 });
 

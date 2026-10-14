@@ -90,6 +90,10 @@ describe("analyze command", () => {
         const result = JSON.parse(stdout);
 
         expect(result.token).toBe("palette.blue.500");
+        expect(result).not.toHaveProperty("type");
+        expect(result.written).toMatchObject([
+            { value: "#007bff", type: "color", permutations: [{}] },
+        ]);
         expect(result.dependents).toContainEqual({
             token: "color.brand",
             references: ["palette.blue.500"],

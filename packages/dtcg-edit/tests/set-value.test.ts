@@ -140,6 +140,27 @@ describe("setValue, for one context", () => {
         expect(edit.ops && edit.alsoAffects.inputs).toEqual([]);
     });
 
+    it("names a context that reads the same file only where that file's value wins", () => {
+        const files = {
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }], {
+                light: [],
+                dark: [{ $ref: "./night.json" }],
+                dim: [{ $ref: "./night.json" }, { $ref: "./dim.json" }],
+            }),
+            "base.json":
+                '{ "bg": { "$type": "color", "$value": "#ffffff" }, "text": { "$type": "color", "$value": "#000000" } }',
+            "night.json":
+                '{ "bg": { "$type": "color", "$value": "#000000" }, "text": { "$type": "color", "$value": "#ffffff" } }',
+            "dim.json": '{ "bg": { "$type": "color", "$value": "#222222" } }',
+        };
+        const tokens = opened(files);
+        const bg = setValue(tokens, "bg", "#111111", { input: { mode: "dark" } });
+        const text = setValue(tokens, "text", "#eeeeee", { input: { mode: "dark" } });
+        expect(opsOf(bg)[0]?.file).toBe("night.json");
+        expect(bg.ops && bg.alsoAffects.inputs).toEqual([]);
+        expect(text.ops && text.alsoAffects.inputs).toEqual([{ mode: "dim" }]);
+    });
+
     const dark = { input: { mode: "dark" } };
 
     it("changes dark's own override, in dark's file only", () => {

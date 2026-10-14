@@ -772,11 +772,31 @@ export interface Place {
 
 /**
  * A place, as {@link DesignTokens.writtenAt} gives it: written once at `span`, read through each of
- * `sources` (a file several contexts list is a source for each), in each of `permutations`.
+ * `sources` (a file several contexts list is a source for each).
  */
 export interface PlaceInPermutations {
     span: Span;
     sources: Source[];
+    /** The permutations that read it. */
+    readIn: Permutations;
+    /**
+     * The permutations whose token takes its value from here: those whose
+     * {@link TokenBase.valueFrom | valueFrom} it is, since "in case of a conflict, take the most
+     * recent occurrence" (Resolver 6.2). None for a token's place that a later source always
+     * replaces, and for a group's place, since a group is combined with the others, not replaced.
+     *
+     * @example
+     * const overridden = tokens.writtenAt("color.brand").filter((place) => place.winsIn.length === 0);
+     */
+    winsIn: Permutations;
+}
+
+/**
+ * One value a token resolves to, as {@link DesignTokens.resolvedValues} gives it: `token` is the
+ * token in the first of `permutations`, the permutations where it resolves to that value.
+ */
+export interface ResolvedInPermutations {
+    token: Token;
     permutations: Permutations;
 }
 
@@ -1397,12 +1417,27 @@ export interface DesignTokens {
     referencedBy(path: string, options?: ReferenceOptions): ReferenceInPermutations[];
     /**
      * Every place the token or group at `path` is written, in any permutation, each span once with
-     * the sources and permutations that read it, in the order first met.
+     * the sources and permutations that read it and the permutations whose value comes from it, in
+     * the order first met: where to edit it, and where a change to its value would show.
      *
      * @example
      * for (const { span } of tokens.writtenAt("color.brand")) rename(span);
+     * for (const { span, winsIn } of tokens.writtenAt("color.brand")) row(span.file, winsIn.label);
      */
     writtenAt(path: string): PlaceInPermutations[];
+    /**
+     * Each value the token at `path` resolves to, in the order first met, with the permutations
+     * where it does: what it looks like, where {@link DesignTokens.writtenAt} gives where it is
+     * written. A reference written once can resolve differently per permutation. Values are compared
+     * with {@link sameValue} after the type, and a token whose value can't be worked out by what it
+     * says. Permutations without the token are in none; a group's path gives none.
+     *
+     * @example
+     * for (const { token, permutations } of tokens.resolvedValues("color.button.background")) {
+     *   row(swatch(token.resolved), permutations.label);   // "#0b5fff  everywhere" when it never changes
+     * }
+     */
+    resolvedValues(path: string): ResolvedInPermutations[];
     /**
      * The permutation for an input: modifiers left out take their default (Resolver 4.1.5.3), and
      * names match whatever their case (Resolver 5.1). With no input, the default permutation.

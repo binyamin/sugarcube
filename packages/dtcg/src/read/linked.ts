@@ -21,6 +21,7 @@ import { diffIn } from "../lookup/diff.js";
 import { partsOf } from "../lookup/parts.js";
 import { modifierIn, permutationIn } from "../lookup/permutation.js";
 import { referencedByIn, referencedIn, referencesIn } from "../lookup/references.js";
+import { resolvedValuesIn } from "../lookup/resolved-values.js";
 import { writtenAtIn } from "../lookup/written-at.js";
 
 export const NO_REFERENCES: Reference[] = Object.freeze([]) as unknown as Reference[];
@@ -132,6 +133,9 @@ const designTokensShared = {
     },
     writtenAt(this: DesignTokens, path: string) {
         return writtenAtIn(this, path);
+    },
+    resolvedValues(this: DesignTokens, path: string) {
+        return resolvedValuesIn(this, path);
     },
     permutation(this: DesignTokens, input?: Input) {
         return permutationIn(this, input);

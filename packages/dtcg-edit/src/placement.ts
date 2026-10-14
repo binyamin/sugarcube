@@ -5,6 +5,7 @@ import {
     type Permutation,
     PermutationError,
     type Permutations,
+    type PlaceInPermutations,
     type ResolverContext,
     type Source,
     type Span,
@@ -81,14 +82,13 @@ export function newPlace(
 export function copiesOf(tokens: DesignTokens, path: string): Copies {
     const found = lookUp(tokens, path, (perm) => perm.token(path) ?? perm.group(path));
     if ("refused" in found) return found;
-    const places = tokens.writtenAt(path).flatMap(({ span, permutations }) => {
+    const places = tokens.writtenAt(path).flatMap(({ span, readIn }) => {
         const member = memberAt(tokens, span);
         if (!member) return [];
-        return [{ ...member, readers: permutations.length }];
+        return [{ ...member, readers: readIn.length }];
     });
     const alsoAffects = alsoIn(
-        tokens,
-        (perm) => (perm.token(path) ?? perm.group(path)) !== undefined,
+        tokens.permutations.where((perm) => (perm.token(path) ?? perm.group(path)) !== undefined),
     );
     return { of: found.of, places, alsoAffects };
 }
@@ -130,13 +130,13 @@ function lookUp(
 function sharedPlace(tokens: DesignTokens, path: string): Placement {
     const found = lookUp(tokens, path, (perm) => perm.token(path));
     if ("refused" in found) return found;
-    let shared: Span | undefined;
+    let shared: PlaceInPermutations | undefined;
     for (const place of tokens.writtenAt(path)) {
-        if (place.sources.some(everyoneReads)) shared = place.span;
+        if (place.sources.some(everyoneReads)) shared = place;
     }
-    const at = shared && memberAt(tokens, shared);
-    if (!at) return refused({ kind: "no-shared-value", path });
-    return { at, alsoAffects: seenWinningAt(tokens, path, at.span) };
+    const at = shared && memberAt(tokens, shared.span);
+    if (!shared || !at) return refused({ kind: "no-shared-value", path });
+    return { at, alsoAffects: alsoIn(shared.winsIn) };
 }
 
 function newSharedPlace(tokens: DesignTokens, path: string, place: string | undefined): NewPlace {
@@ -178,9 +178,10 @@ function contextPlace(
 
     const winner = written.valueFrom;
     if (winner.source.context === chosen.context) {
+        const there = tokens.writtenAt(path).find(({ span }) => span === winner.span);
         const at = memberAt(tokens, winner.span);
-        if (!at) return refused({ kind: "not-found", path });
-        return { at, alsoAffects: seenWinningAt(tokens, path, at.span, chosen) };
+        if (!there || !at) return refused({ kind: "not-found", path });
+        return { at, alsoAffects: alsoIn(there.winsIn, chosen) };
     }
 
     const own = writable(perm, chosen);
@@ -294,27 +295,13 @@ function refusalFor(found: Token | Group): { refused: Refusal } | undefined {
 
 function seenReading(tokens: DesignTokens, file: string, chosen?: Chosen): Permutations {
     return alsoIn(
-        tokens,
-        (perm) => outside(perm, chosen) && perm.sources.some((source) => source.file === file),
+        tokens.permutations.where((perm) => perm.sources.some((source) => source.file === file)),
+        chosen,
     );
 }
 
-function seenWinningAt(
-    tokens: DesignTokens,
-    path: string,
-    span: Span,
-    chosen?: Chosen,
-): Permutations {
-    return alsoIn(
-        tokens,
-        (perm) => outside(perm, chosen) && perm.token(path)?.valueFrom.span === span,
+function alsoIn(among: Permutations, chosen?: Chosen): Permutations {
+    return among.where(
+        (perm) => perm.contexts.length > 0 && (!chosen || !perm.contexts.includes(chosen.context)),
     );
-}
-
-function outside(perm: Permutation, chosen: Chosen | undefined): boolean {
-    return !chosen || !perm.contexts.includes(chosen.context);
-}
-
-function alsoIn(tokens: DesignTokens, affected: (perm: Permutation) => boolean): Permutations {
-    return tokens.permutations.where((perm) => perm.contexts.length > 0 && affected(perm));
 }

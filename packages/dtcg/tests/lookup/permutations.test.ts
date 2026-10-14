@@ -152,13 +152,13 @@ describe("the permutations an answer holds in", () => {
 
     it("are labelled by each modifier that narrows them, in the resolver's order", () => {
         const compact = tokens.writtenAt("gap").find(({ span }) => span.file === "compact.json");
-        expect(compact?.permutations.label).toBe("density: compact");
+        expect(compact?.readIn.label).toBe("density: compact");
     });
 
     it("are everywhere when they are every permutation", () => {
         const [base] = tokens.writtenAt("red");
-        expect(base?.permutations).toHaveLength(6);
-        expect(base?.permutations.label).toBe("everywhere");
+        expect(base?.readIn).toHaveLength(6);
+        expect(base?.readIn.label).toBe("everywhere");
     });
 
     it("are written in the plain form as their inputs", () => {
@@ -176,7 +176,7 @@ describe("a label", () => {
         expect(reference?.permutations).toHaveLength(2);
         expect(reference?.permutations.label).toBe("mode: dark, sepia");
         const compact = themed.writtenAt("gap").find(({ span }) => span.file === "compact.json");
-        expect(compact?.permutations.label).toBe("density: compact");
+        expect(compact?.readIn.label).toBe("density: compact");
     });
 
     it("names each modifier that narrows it, in the resolver's order", () => {
@@ -216,12 +216,9 @@ describe("a label", () => {
             entry: "tokens.resolver.json",
         });
         const shared = crossed.writtenAt("gap").find(({ span }) => span.file === "shared.json");
-        expect(shared?.permutations).toHaveLength(4);
-        expect(shared?.permutations.scope).toStrictEqual([
-            { density: ["compact"] },
-            { mode: ["dark"] },
-        ]);
-        expect(shared?.permutations.label).toBe("density: compact; mode: dark");
+        expect(shared?.readIn).toHaveLength(4);
+        expect(shared?.readIn.scope).toStrictEqual([{ density: ["compact"] }, { mode: ["dark"] }]);
+        expect(shared?.readIn.label).toBe("density: compact; mode: dark");
     });
 
     it("is everywhere for every permutation, though no one choice per modifier covers them", () => {

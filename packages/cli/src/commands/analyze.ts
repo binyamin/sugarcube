@@ -1,5 +1,5 @@
 import { Command, Option } from "commander";
-import { type Analysis, impact, tokenAt, unused } from "../analyze/answers.js";
+import { type Analysis, impact, unused, writtenOf } from "../analyze/answers.js";
 import { impactJSON, unusedJSON } from "../analyze/json.js";
 import {
     impactHeading,
@@ -88,11 +88,12 @@ const impactCommand = new Command()
 
             const built = await builtFor(plain);
             if (!built) return;
-            const token = tokenAt(built.tokens, path);
-            if (token === "group") throw new CLIError(ERROR_MESSAGES.ANALYZE_GROUP_NOT_TOKEN(path));
-            if (!token) throw new CLIError(ERROR_MESSAGES.ANALYZE_NO_TOKEN(path));
+            const written = writtenOf(built.tokens, path);
+            if (written === "group")
+                throw new CLIError(ERROR_MESSAGES.ANALYZE_GROUP_NOT_TOKEN(path));
+            if (!written) throw new CLIError(ERROR_MESSAGES.ANALYZE_NO_TOKEN(path));
             const uses = await usesFor(built, "impact", plain);
-            const answer = impact({ tokens: built.tokens, uses }, token);
+            const answer = impact({ tokens: built.tokens, uses }, path, written);
 
             if (plain) return printJSON(impactJSON(answer));
             log.message(impactHeading(answer));

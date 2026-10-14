@@ -2,7 +2,7 @@ import type { DesignTokens, Permutation, PlaceInPermutations, Source, Span } fro
 import { permutationsOf } from "../read/permutations-of.js";
 
 export function writtenAtIn(tokens: DesignTokens, path: string): PlaceInPermutations[] {
-    const found = new Map<Span, { sources: Source[]; permutations: Permutation[] }>();
+    const found = new Map<Span, { sources: Source[]; readIn: Permutation[] }>();
     for (const permutation of tokens.permutations) {
         const places = [
             ...(permutation.token(path)?.writtenAt ?? []),
@@ -11,16 +11,20 @@ export function writtenAtIn(tokens: DesignTokens, path: string): PlaceInPermutat
         for (const { source, span } of places) {
             const known = found.get(span);
             if (!known) {
-                found.set(span, { sources: [source], permutations: [permutation] });
+                found.set(span, { sources: [source], readIn: [permutation] });
                 continue;
             }
             if (!known.sources.includes(source)) known.sources.push(source);
-            if (!known.permutations.includes(permutation)) known.permutations.push(permutation);
+            if (!known.readIn.includes(permutation)) known.readIn.push(permutation);
         }
     }
-    return [...found].map(([span, { sources, permutations }]) => ({
+    return [...found].map(([span, { sources, readIn }]) => ({
         span,
         sources,
-        permutations: permutationsOf(permutations, tokens.permutations),
+        readIn: permutationsOf(readIn, tokens.permutations),
+        winsIn: permutationsOf(
+            readIn.filter((permutation) => permutation.token(path)?.valueFrom.span === span),
+            tokens.permutations,
+        ),
     }));
 }

@@ -152,21 +152,48 @@ describe("a group's writtenAt", () => {
 });
 
 describe("on the design tokens", () => {
-    it("writtenAt gives every place a path is written, in any permutation, each once with where", () => {
+    it("writtenAt gives every place a path is written, in any permutation, each once with where it is read", () => {
         const places = tokens.writtenAt("color.bg");
-        expect(
-            places.map(({ span, permutations }) => [span.file, permutations.inputs]),
-        ).toStrictEqual([
+        expect(places.map(({ span, readIn }) => [span.file, readIn.inputs])).toStrictEqual([
             ["base.json", [{ mode: "light" }, { mode: "dark" }]],
             ["dark.json", [{ mode: "dark" }]],
         ]);
     });
 
-    it("writtenAt gives a group's places too", () => {
-        expect(tokens.writtenAt("color").map(({ span }) => span.file)).toStrictEqual([
-            "base.json",
-            "dark.json",
+    it("writtenAt gives where each place's value wins: the permutations whose token's value comes from it", () => {
+        const places = tokens.writtenAt("color.bg");
+        expect(places.map(({ span, winsIn }) => [span.file, winsIn.inputs])).toStrictEqual([
+            ["base.json", [{ mode: "light" }]],
+            ["dark.json", [{ mode: "dark" }]],
         ]);
+        expect(places[0]?.winsIn).toStrictEqual([light]);
+    });
+
+    it("writtenAt gives a place whose value never wins, as a later source always replaces it, no permutations it wins in", () => {
+        const overridden = readFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    resolutionOrder: [
+                        { type: "set", name: "base", sources: [{ $ref: "base.json" }] },
+                        { type: "set", name: "brand", sources: [{ $ref: "brand.json" }] },
+                    ],
+                }),
+                "base.json": JSON.stringify({ gap: { $type: "number", $value: 1 } }),
+                "brand.json": JSON.stringify({ gap: { $type: "number", $value: 2 } }),
+            },
+            entry: "tokens.resolver.json",
+        });
+        const [base, brand] = overridden.writtenAt("gap");
+        expect(base?.readIn.label).toBe("everywhere");
+        expect(base?.winsIn.label).toBe("nowhere");
+        expect(brand?.winsIn.label).toBe("everywhere");
+    });
+
+    it("writtenAt gives a group's places too, read but winning nowhere, as groups merge", () => {
+        const places = tokens.writtenAt("color");
+        expect(places.map(({ span }) => span.file)).toStrictEqual(["base.json", "dark.json"]);
+        expect(places.map(({ winsIn }) => winsIn.length)).toStrictEqual([0, 0]);
     });
 });
 
@@ -201,7 +228,7 @@ describe("on the design tokens, a file several contexts list", () => {
         expect(rest).toStrictEqual([]);
         expect(night?.span.file).toBe("night.json");
         expect(night?.sources.map(({ context }) => context?.name)).toStrictEqual(["dark", "dim"]);
-        expect(night?.permutations.inputs).toStrictEqual([{ mode: "dark" }, { mode: "dim" }]);
+        expect(night?.readIn.inputs).toStrictEqual([{ mode: "dark" }, { mode: "dim" }]);
     });
 });
 
