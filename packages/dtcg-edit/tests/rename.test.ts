@@ -41,9 +41,7 @@ describe("rename, on the demo", () => {
             "gradient.json": 2,
             "border.json": 1,
         });
-        expect("ops" in result && result.moved).toEqual([
-            { from: "color.brand", to: "color.primary" },
-        ]);
+        expect(result.ops && result.moved).toEqual([{ from: "color.brand", to: "color.primary" }]);
     });
 
     it("changes only the renamed key and the references, every other line kept", () => {

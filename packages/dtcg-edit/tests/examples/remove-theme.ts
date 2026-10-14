@@ -10,7 +10,7 @@ const source = { entry: "tokens/tokens.resolver.json" };
 const tokens = await read(source.entry);
 const deleteFiles = await confirm("Also delete the files only the dim theme uses?");
 const result = removeContext(tokens, "theme", "dim", { deleteFiles });
-if ("ops" in result) {
+if (result.ops) {
     const saved = await applyToDisk(source, result.ops);
-    if ("conflicts" in saved) showConflicts(saved.conflicts);
+    if (saved.conflicts) showConflicts(saved.conflicts);
 }

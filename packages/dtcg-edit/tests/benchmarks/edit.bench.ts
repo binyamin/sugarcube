@@ -13,7 +13,7 @@ import {
 import { designTokens } from "./design-tokens.js";
 
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
-const dark = { context: { theme: "dark" } };
+const dark = { input: { theme: "dark" } };
 
 const operations: [string, (tokens: DesignTokens) => OpResult][] = [
     ["setValue, the shared value", (p) => setValue(p, "color.c0", red)],

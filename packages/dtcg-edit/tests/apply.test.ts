@@ -1,6 +1,6 @@
 import { type DesignTokens, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
-import { type FileOp, type Json, apply, commit } from "../src/index.js";
+import { type FileOp, type Json, type Question, apply, commit } from "../src/index.js";
 import { demo, at, changed } from "./helpers.js";
 function applied(tokens: DesignTokens, ops: FileOp[]): DesignTokens {
     const result = apply(tokens, ops);
@@ -407,14 +407,19 @@ describe("commit", () => {
         const done = commit(demo, { ops, alsoAffects: [], moved: [] });
 
         expect(done).toEqual({ tokens: expect.anything(), ops, moved: [] });
-        if (!("tokens" in done)) throw new Error("not committed");
+        if (!done.tokens) throw new Error("not committed");
         expect(at(done.tokens, "color.json", brand500)).toEqual(red);
     });
 
     it("passes a question or a refusal through untouched", () => {
-        const decision = { kind: "placement" as const, path: "a", candidates: ["x.json"] };
+        const question: Question = {
+            kind: "placement",
+            path: "a",
+            files: ["x.json"],
+            answer: () => ({ refused: { kind: "not-found", path: "a", reason: "no" } }),
+        };
 
-        expect(commit(demo, { decision })).toEqual({ decision });
+        expect(commit(demo, { question })).toEqual({ question });
         expect(commit(demo, { refused: { kind: "not-found", path: "a", reason: "no" } })).toEqual({
             refused: { kind: "not-found", path: "a", reason: "no" },
         });

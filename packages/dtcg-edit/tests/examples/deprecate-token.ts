@@ -6,7 +6,7 @@ import { deprecate, commit } from "@sugarcube-sh/dtcg-edit";
 declare let tokens: DesignTokens;
 
 const done = commit(tokens, deprecate(tokens, "color.old", "Use color.new instead"));
-if ("tokens" in done) tokens = done.tokens;
+if (done.tokens) tokens = done.tokens;
 
 for (const t of tokens.permutation().tokens) {
     if (!t.deprecated) continue;

@@ -5,8 +5,8 @@ import { remove, commit } from "@sugarcube-sh/dtcg-edit";
 declare let tokens: DesignTokens;
 
 const result = remove(tokens, "color.legacy");
-if ("ops" in result && result.broken?.length) {
+if (result.ops && result.broken?.length) {
     showMessage(`Removing color.legacy breaks: ${result.broken.join(", ")}`);
 }
 const done = commit(tokens, result);
-if ("tokens" in done) tokens = done.tokens;
+if (done.tokens) tokens = done.tokens;

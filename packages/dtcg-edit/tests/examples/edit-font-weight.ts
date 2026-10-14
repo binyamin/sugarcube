@@ -5,5 +5,5 @@ import { setValue, commit } from "@sugarcube-sh/dtcg-edit";
 declare let tokens: DesignTokens;
 
 const done = commit(tokens, setValue(tokens, "type.heading", 700, { part: ["fontWeight"] }));
-if ("tokens" in done) tokens = done.tokens;
-if ("refused" in done) showMessage(done.refused.reason);
+if (done.tokens) tokens = done.tokens;
+if (done.refused) showMessage(done.refused.reason);

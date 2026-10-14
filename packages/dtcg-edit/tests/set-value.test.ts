@@ -28,15 +28,12 @@ describe("setValue, the shared value", () => {
         const brand = setValue(demo, "color.text.brand", "{color.brand.800}");
         const radius = setValue(demo, "radius.md", { value: 0.3, unit: "rem" });
 
-        expect("ops" in brand && brand.alsoAffects).toEqual([{ mode: "light" }]);
-        expect("ops" in radius && radius.alsoAffects).toEqual([
-            { mode: "light" },
-            { mode: "dark" },
-        ]);
+        expect(brand.ops && brand.alsoAffects).toEqual([{ mode: "light" }]);
+        expect(radius.ops && radius.alsoAffects).toEqual([{ mode: "light" }, { mode: "dark" }]);
     });
 
     it("treats a context at its default as none", () => {
-        expect(setValue(demo, "radius.md", 1, { context: { mode: "light" } })).toEqual(
+        expect(setValue(demo, "radius.md", 1, { input: { mode: "light" } })).toEqual(
             setValue(demo, "radius.md", 1),
         );
     });
@@ -116,7 +113,7 @@ describe("setValue, the shared value", () => {
         };
         const result = setValue(opened(files), "bg", "#eeeeee");
 
-        expect("ops" in result && result.alsoAffects).toEqual([]);
+        expect(result.ops && result.alsoAffects).toEqual([]);
     });
 
     it("is refused for a token that doesn't exist", () => {
@@ -127,12 +124,12 @@ describe("setValue, the shared value", () => {
 });
 
 describe("setValue, for one context", () => {
-    const dark = { context: { mode: "dark" } };
+    const dark = { input: { mode: "dark" } };
 
     it("changes dark's own override, in dark's file only", () => {
         const result = setValue(demo, "color.text.brand", "{color.brand.200}", dark);
 
-        expect("ops" in result && result.alsoAffects).toEqual([]);
+        expect(result.ops && result.alsoAffects).toEqual([]);
         expect(opsOf(result)).toEqual([
             {
                 kind: "set",
@@ -259,16 +256,17 @@ describe("setValue, for one context", () => {
         };
         const tokens = opened(files);
 
-        expect(setValue(tokens, "bg", "#000000", dark)).toEqual({
-            decision: {
-                kind: "placement",
-                path: "bg",
-                candidates: ["dark.json", "dark-extra.json"],
-            },
+        const edit = setValue(tokens, "bg", "#000000", dark);
+        expect(edit.question).toMatchObject({
+            kind: "placement",
+            path: "bg",
+            files: ["dark.json", "dark-extra.json"],
         });
-        expect(
-            opsOf(setValue(tokens, "bg", "#000000", { ...dark, place: "dark-extra.json" })),
-        ).toEqual([
+        expect(edit.question?.answer("base.json").question?.files).toStrictEqual([
+            "dark.json",
+            "dark-extra.json",
+        ]);
+        expect(opsOf(edit.question?.answer("dark-extra.json") ?? edit)).toEqual([
             {
                 kind: "add",
                 file: "dark-extra.json",
@@ -328,7 +326,7 @@ describe("setValue, for one context", () => {
             refused: {
                 kind: "hidden-by-later-file",
                 path: "bg",
-                context: { mode: "dark" },
+                input: { mode: "dark" },
                 file: "a.json",
                 reason: expect.any(String),
             },
@@ -336,10 +334,10 @@ describe("setValue, for one context", () => {
     });
 
     it("is refused for a context the resolver doesn't have", () => {
-        expect(setValue(demo, "radius.md", 1, { context: { mode: "dim" } })).toEqual({
+        expect(setValue(demo, "radius.md", 1, { input: { mode: "dim" } })).toEqual({
             refused: {
                 kind: "no-permutation",
-                context: { mode: "dim" },
+                input: { mode: "dim" },
                 why: "unknown-context",
                 reason: expect.any(String),
             },
@@ -365,11 +363,11 @@ describe("setValue, for one context", () => {
         };
 
         expect(
-            setValue(opened(files), "bg", "#000000", { context: { mode: "dark", brand: "b" } }),
+            setValue(opened(files), "bg", "#000000", { input: { mode: "dark", brand: "b" } }),
         ).toEqual({
             refused: {
                 kind: "several-contexts",
-                context: { mode: "dark", brand: "b" },
+                input: { mode: "dark", brand: "b" },
                 reason: "an override for `mode: dark, brand: b` at once can't be written: no file is read by that combination alone",
             },
         });
@@ -385,7 +383,7 @@ describe("setValue, for one context", () => {
             refused: {
                 kind: "no-file-for-context",
                 path: "bg",
-                context: { mode: "dark" },
+                input: { mode: "dark" },
                 reason: expect.any(String),
             },
         });
@@ -420,11 +418,11 @@ describe("setValue, what it can't change", () => {
             "dark.json": '{ "tokens": {} }',
         };
 
-        expect(setValue(opened(files), "bg", "#000000", { context: { mode: "dark" } })).toEqual({
+        expect(setValue(opened(files), "bg", "#000000", { input: { mode: "dark" } })).toEqual({
             refused: {
                 kind: "no-file-for-context",
                 path: "bg",
-                context: { mode: "dark" },
+                input: { mode: "dark" },
                 reason: expect.any(String),
             },
         });

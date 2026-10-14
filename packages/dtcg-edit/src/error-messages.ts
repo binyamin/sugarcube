@@ -29,24 +29,24 @@ const refusalReasons: {
     },
     "not-a-group": ({ path }) => `\`${path}\` is a token, so nothing can be made inside it`,
     "taken": ({ path }) => `\`${path}\` already exists`,
-    "override-instead": ({ path, context }) =>
-        `\`${path}\` already exists for every context; to give ${named(context)} its own value, change it for that context`,
+    "override-instead": ({ path, input }) =>
+        `\`${path}\` already exists for every context; to give ${named(input)} its own value, change it for that context`,
     "invalid-name": ({ name, character }) =>
         character === undefined
             ? "a name can't be empty: no path reaches it"
             : `\`${name}\` can't be a name: ${character === "$" ? "a leading `$` marks a property" : `\`${character}\` is used by references`}`,
     "inherited": ({ path, from }) =>
         `\`${path}\` comes from \`${from}\` through \`$extends\`; change it there`,
-    "no-permutation": ({ context, why }) =>
-        `there is no permutation for ${named(context)}: ${permutationGaps[why]}`,
-    "several-contexts": ({ context }) =>
-        `an override for ${named(context)} at once can't be written: no file is read by that combination alone`,
-    "no-file-for-context": ({ path, context }) =>
-        `\`${path}\` can't be written for ${named(context)}: it reads no whole file of its own to hold it`,
+    "no-permutation": ({ input, why }) =>
+        `there is no permutation for ${named(input)}: ${permutationGaps[why]}`,
+    "several-contexts": ({ input }) =>
+        `an override for ${named(input)} at once can't be written: no file is read by that combination alone`,
+    "no-file-for-context": ({ path, input }) =>
+        `\`${path}\` can't be written for ${named(input)}: it reads no whole file of its own to hold it`,
     "no-shared-file": ({ path }) =>
         `\`${path}\` can't be written for every permutation: no whole file they all read can hold it`,
-    "hidden-by-later-file": ({ path, context, file }) =>
-        `\`${path}\` can't be overridden for ${named(context)}: \`${file}\` is read after its files, so it would still win`,
+    "hidden-by-later-file": ({ path, input, file }) =>
+        `\`${path}\` can't be overridden for ${named(input)}: \`${file}\` is read after its files, so it would still win`,
     "no-shared-value": ({ path }) =>
         `no file every permutation reads writes \`${path}\`, only contexts do; change it for one context`,
 };
@@ -88,6 +88,6 @@ function conflictReason(op: FileOp, kind: Conflict["kind"]): string {
     }
 }
 
-function named(context: Input): string {
-    return `\`${permutationLabel(context)}\``;
+function named(input: Input): string {
+    return `\`${permutationLabel(input)}\``;
 }

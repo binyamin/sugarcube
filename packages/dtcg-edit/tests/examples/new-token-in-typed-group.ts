@@ -6,5 +6,5 @@ declare let tokens: DesignTokens;
 
 const colors = tokens.permutation().group("color");
 const done = commit(tokens, create(tokens, "color.info", { $value: "#0ea5e9" }));
-if ("tokens" in done) tokens = done.tokens;
+if (done.tokens) tokens = done.tokens;
 if (!colors?.type) showMessage("This group has no type; choose one");

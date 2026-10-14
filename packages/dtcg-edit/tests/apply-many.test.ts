@@ -22,7 +22,7 @@ afterEach(() => {
 describe("applying many edits to one file", () => {
     it("gives what applying them one at a time gives", () => {
         const result = rename(demo, "color.brand", "primary");
-        const ops = "ops" in result ? result.ops : [];
+        const ops = result.ops ? result.ops : [];
         const oneByOne = ops.reduce((tokens, op) => {
             const next = apply(tokens, [op]);
             if ("conflicts" in next) throw new Error(JSON.stringify(next.conflicts));
@@ -51,10 +51,10 @@ describe("applying many edits to one file", () => {
             const result = operation(tokens);
             steps.push(result);
             const done = commit(tokens, result);
-            if (!("tokens" in done)) throw new Error(JSON.stringify(done));
+            if (!done.tokens) throw new Error(JSON.stringify(done));
             tokens = done.tokens;
         }
-        const ops = steps.flatMap((step) => ("ops" in step ? step.ops : []));
+        const ops = steps.flatMap((step) => (step.ops ? step.ops : []));
         const together = apply(demo, ops);
 
         if ("conflicts" in together) throw new Error(JSON.stringify(together.conflicts));
@@ -127,7 +127,7 @@ describe("applying many edits to one file", () => {
     it("parses a file a few times, not once an edit", () => {
         const opened = sized(60);
         const result = rename(opened, "color", "colour");
-        const ops = "ops" in result ? result.ops : [];
+        const ops = result.ops ? result.ops : [];
         const counted = vi.spyOn(jsonc, "parseTree");
         apply(opened, ops);
 

@@ -1,20 +1,14 @@
-// Setting a color for the dark theme only. If more than one file could hold it, the person is asked
+// Setting a color for mode: dark only. If more than one file could hold it, the person is asked
 // which.
 import { type DesignTokens } from "@sugarcube-sh/dtcg";
-import { setValue, commit } from "@sugarcube-sh/dtcg-edit";
+import { commit, setValue } from "@sugarcube-sh/dtcg-edit";
 
 declare let tokens: DesignTokens;
-const dark = { theme: "dark" };
 
-let done = commit(tokens, setValue(tokens, "color.danger", "#fca5a5", { context: dark }));
+let edit = setValue(tokens, "color.danger", "#fca5a5", { input: { mode: "dark" } });
+if (edit.question) edit = edit.question.answer(await askPerson(edit.question.files));
 
-if ("decision" in done && done.decision.kind === "placement") {
-    const file = await askPerson(done.decision.candidates);
-    done = commit(
-        tokens,
-        setValue(tokens, "color.danger", "#fca5a5", { context: dark, place: file }),
-    );
-}
-if ("tokens" in done) tokens = done.tokens;
-else if ("refused" in done) showMessage(done.refused.reason);
-else if ("conflicts" in done) showConflicts(done.conflicts);
+const done = commit(tokens, edit);
+if (done.tokens) tokens = done.tokens;
+else if (done.refused) showMessage(done.refused.reason);
+else if (done.conflicts) showConflicts(done.conflicts);

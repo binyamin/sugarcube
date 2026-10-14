@@ -38,7 +38,7 @@ export function createSession(tokens: DesignTokens): Session {
         canRedo: false,
         do(result: OpResult): Committed {
             const done = commit(current, result);
-            if (!("tokens" in done)) return done;
+            if (!done.tokens) return done;
             current = done.tokens;
             unsaved = {
                 ops: [...unsaved.ops, ...done.ops],

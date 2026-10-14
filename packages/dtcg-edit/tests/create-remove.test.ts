@@ -2,7 +2,7 @@ import { defineGenerator, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { create, remove } from "../src/index.js";
 import { demo, at, opsOf, committed, resolver, opened } from "./helpers.js";
-const dark = { context: { mode: "dark" } };
+const dark = { input: { mode: "dark" } };
 
 const refusal = (kind: string, facts: object) => ({
     refused: { kind, ...facts, reason: expect.any(String) },
@@ -20,10 +20,7 @@ describe("create, which file", () => {
                 value: { $value: "#0a1f44" },
             },
         ]);
-        expect("ops" in result && result.alsoAffects).toEqual([
-            { mode: "light" },
-            { mode: "dark" },
-        ]);
+        expect(result.ops && result.alsoAffects).toEqual([{ mode: "light" }, { mode: "dark" }]);
     });
 
     it("leaves out a file only one context reads, for a shared token", () => {
@@ -96,16 +93,13 @@ describe("create, which file", () => {
     it("asks which file when several write the group, and takes the answer", () => {
         const tokens = opened(split);
 
-        expect(create(tokens, "color.accent", { $value: "#f59e0b" })).toEqual({
-            decision: {
-                kind: "placement",
-                path: "color.accent",
-                candidates: ["palette.json", "roles.json"],
-            },
+        const edit = create(tokens, "color.accent", { $value: "#f59e0b" });
+        expect(edit.question).toMatchObject({
+            kind: "placement",
+            path: "color.accent",
+            files: ["palette.json", "roles.json"],
         });
-        expect(
-            opsOf(create(tokens, "color.accent", { $value: "#f59e0b" }, { place: "roles.json" })),
-        ).toEqual([
+        expect(opsOf(edit.question?.answer("roles.json") ?? edit)).toEqual([
             {
                 kind: "add",
                 file: "roles.json",
@@ -265,7 +259,7 @@ describe("create, what it refuses", () => {
 
     it("is refused for a context's own token when the token is shared, to be overridden instead", () => {
         expect(create(demo, "radius.md", { $value: { value: 1, unit: "rem" } }, dark)).toEqual(
-            refusal("override-instead", { path: "radius.md", context: { mode: "dark" } }),
+            refusal("override-instead", { path: "radius.md", input: { mode: "dark" } }),
         );
         expect(create(demo, "color.text.brand", { $value: "{color.brand.200}" }, dark)).toEqual(
             refusal("taken", { path: "color.text.brand" }),
@@ -346,7 +340,7 @@ describe("remove", () => {
                 was: at(demo, "color.json", ["color", "brand"]),
             },
         ]);
-        const broken = "ops" in result ? (result.broken ?? []) : [];
+        const broken = result.ops ? (result.broken ?? []) : [];
         expect(broken.length).toBeGreaterThan(0);
         expect(broken.filter((path) => inside.includes(path))).toEqual([]);
         expect(committed(demo, result).permutation().group("color.brand")?.tokens ?? []).toEqual(

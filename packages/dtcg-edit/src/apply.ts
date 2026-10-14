@@ -40,7 +40,7 @@ export function apply(
     ops: FileOp[],
 ): DesignTokens | { conflicts: Conflict[] } {
     const changes = changedFiles(tokens, ops);
-    return "conflicts" in changes ? changes : changes.tokens;
+    return changes.conflicts ? changes : changes.tokens;
 }
 
 /**
@@ -52,15 +52,20 @@ export function apply(
  *
  * @example
  * const changes = changedFiles(tokens, edits.ops);
- * if ("conflicts" in changes) showConflicts(changes.conflicts);
+ * if (changes.conflicts) showConflicts(changes.conflicts);
  * else await openPullRequest(changes);
  */
 export function changedFiles(
     tokens: DesignTokens,
     ops: FileOp[],
 ):
-    | { tokens: DesignTokens; written: Record<string, string>; deleted: string[] }
-    | { conflicts: Conflict[] } {
+    | {
+          tokens: DesignTokens;
+          written: Record<string, string>;
+          deleted: string[];
+          conflicts?: undefined;
+      }
+    | { conflicts: Conflict[]; tokens?: undefined } {
     const { changed, conflicts } = editedFiles(tokens, ops);
     if (conflicts.length > 0) return { conflicts };
     const next = tokens.reread(changed);
@@ -129,10 +134,10 @@ function unread(next: DesignTokens, ops: FileOp[]): FileOp[] {
  *
  * @example
  * const done = commit(tokens, rename(tokens, "color.brand", "primary"));
- * if ("tokens" in done) tokens = done.tokens;
+ * if (done.tokens) tokens = done.tokens;
  */
 export function commit(tokens: DesignTokens, result: OpResult): Committed {
-    if (!("ops" in result)) return result;
+    if (!result.ops) return result;
     const next = apply(tokens, result.ops);
     if ("conflicts" in next) return next;
     return { tokens: next, ops: result.ops, moved: result.moved };

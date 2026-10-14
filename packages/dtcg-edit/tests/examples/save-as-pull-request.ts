@@ -9,7 +9,7 @@ declare function readFromGitHub(path: string): Promise<string>;
 if (!isEdits(body.edits)) throw new Error("not edits");
 const tokens = await read("tokens.resolver.json", { readText: readFromGitHub });
 const changes = changedFiles(tokens, body.edits.ops);
-if ("conflicts" in changes) {
+if (changes.conflicts) {
     showConflicts(changes.conflicts);
 } else {
     await openPullRequest(changes, {

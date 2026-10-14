@@ -29,5 +29,5 @@ export function save(path: string, typed: string): void {
     const value = written(path, typed);
     if (value === undefined) return;
     const done = session.do(setValue(session.tokens, path, value));
-    if ("refused" in done) showMessage(done.refused.reason);
+    if (done.refused) showMessage(done.refused.reason);
 }

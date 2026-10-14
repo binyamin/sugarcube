@@ -26,7 +26,7 @@ describe("createSession", () => {
         const session = createSession(demo);
         const done = session.do(setValue(session.tokens, "color.brand.500", red));
 
-        expect("tokens" in done && done.tokens).toBe(session.tokens);
+        expect(done.tokens).toBe(session.tokens);
         expect(session.unsaved.ops).toEqual([
             expect.objectContaining({ kind: "set", file: "color.json" }),
         ]);
@@ -124,7 +124,7 @@ describe("createSession", () => {
                 "radius.md",
                 { value: 0.5, unit: "rem" },
                 {
-                    context: { mode: "dark" },
+                    input: { mode: "dark" },
                 },
             ),
         );

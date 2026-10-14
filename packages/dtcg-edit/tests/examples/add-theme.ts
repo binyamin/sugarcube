@@ -8,8 +8,8 @@ let done = commit(
     tokens,
     addContext(tokens, "theme", "dim", { file: "dim.json", basedOn: "dark" }),
 );
-if (!("tokens" in done)) throw new Error("could not add the dim theme");
+if (!done.tokens) throw new Error("could not add the dim theme");
 tokens = done.tokens;
 
-done = commit(tokens, setValue(tokens, "color.surface", "#2a2a2e", { context: { theme: "dim" } }));
-if ("tokens" in done) tokens = done.tokens;
+done = commit(tokens, setValue(tokens, "color.surface", "#2a2a2e", { input: { theme: "dim" } }));
+if (done.tokens) tokens = done.tokens;

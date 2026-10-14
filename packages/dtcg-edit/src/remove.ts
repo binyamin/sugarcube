@@ -13,7 +13,7 @@ import { groupCopies, tokenCopies } from "./placement.js";
  *
  * @example
  * const result = remove(tokens, "color.legacy");
- * if ("ops" in result && result.broken?.length) warn(result.broken);
+ * if (result.broken?.length) warn(result.broken);
  */
 export function remove(tokens: DesignTokens, path: string): OpResult {
     const copies =

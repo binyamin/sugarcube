@@ -1,16 +1,16 @@
 import type { DesignTokens, Token } from "@sugarcube-sh/dtcg";
 import type { FileOp, Json, OpResult, ValueOptions } from "./index.js";
-import { groupPlace, placement, tokenCopies } from "./placement.js";
+import { asked, groupPlace, placement, tokenCopies } from "./placement.js";
 import { type Member, writtenIn } from "./file-text.js";
 
 /**
  * Changes a token's value.
  *
- * Without a `context`, the shared value changes: one edit where a file every permutation reads
- * writes the token, seen by every context that doesn't override it. With a `context`, such as
- * `{ theme: "dark" }`, that context's own value changes: its override is edited, or one is added
+ * Without an `input`, the shared value changes: one edit where a file every permutation reads
+ * writes the token, seen by every context that doesn't override it. With an `input`, such as
+ * `{ mode: "dark" }`, that context's own value changes: its override is edited, or one is added
  * to a file that context reads and the others don't; when there are several such files and none
- * declares the token's group, the answer is a `"placement"` question. A context at its default
+ * declares the token's group, the answer is a placement {@link Question}. A context at its default
  * counts as none. A later file replaces a token whole (Resolver 3.3), so a new override also
  * writes what the token says itself: its own `$type`, `$description`, `$deprecated` and
  * `$extensions`, not those it takes from a group.
@@ -26,7 +26,7 @@ import { type Member, writtenIn } from "./file-text.js";
  *
  * @example
  * setValue(tokens, "color.danger", "{color.red.600}")
- * setValue(tokens, "color.danger", "{color.red.400}", { context: { theme: "dark" } })
+ * setValue(tokens, "color.danger", "{color.red.400}", { input: { mode: "dark" } })
  */
 export function setValue(
     tokens: DesignTokens,
@@ -34,10 +34,21 @@ export function setValue(
     value: Json,
     options: ValueOptions = {},
 ): OpResult {
-    if (options.part !== undefined || options.inherited !== undefined) {
-        throw new Error("not implemented yet");
+    return setValueIn(tokens, path, value, options);
+}
+
+function setValueIn(
+    tokens: DesignTokens,
+    path: string,
+    value: Json,
+    options: ValueOptions,
+    place?: string,
+): OpResult {
+    if (options.part !== undefined) throw new Error("not implemented yet");
+    const placed = placement(tokens, path, options, place);
+    if ("choose" in placed) {
+        return asked(placed.choose, (file) => setValueIn(tokens, path, value, options, file));
     }
-    const placed = placement(tokens, path, options);
     if (!("token" in placed)) return placed;
     const { token, alsoAffects } = placed;
     if ("at" in placed) {

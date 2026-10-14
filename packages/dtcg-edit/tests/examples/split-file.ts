@@ -9,10 +9,10 @@ let done = commit(
     tokens,
     addFile(tokens, "semantic.json", { to: { set: "base" }, after: "colors.json" }),
 );
-if ("tokens" in done) tokens = done.tokens;
+if (done.tokens) tokens = done.tokens;
 
 for (const path of ["color.danger", "color.success", "color.warning"]) {
     done = commit(tokens, move(tokens, path, { file: "semantic.json" }));
-    if ("tokens" in done) tokens = done.tokens;
-    else if ("refused" in done) showMessage(done.refused.reason);
+    if (done.tokens) tokens = done.tokens;
+    else if (done.refused) showMessage(done.refused.reason);
 }

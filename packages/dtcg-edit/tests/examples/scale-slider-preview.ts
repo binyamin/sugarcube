@@ -24,7 +24,7 @@ const resized = (factor: number) =>
 
 export function onSliderMove(factor: number): void {
     const preview = session.preview(resized(factor));
-    if ("tokens" in preview) showPreview(preview.tokens);
+    if (preview.tokens) showPreview(preview.tokens);
 }
 
 export function onSliderRelease(factor: number): void {

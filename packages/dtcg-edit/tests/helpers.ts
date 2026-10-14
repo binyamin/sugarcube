@@ -22,13 +22,13 @@ export const at = (tokens: DesignTokens, file: string, jsonPath: JsonPath): Json
     jsonPath.reduce((value, step) => value?.[step], JSON.parse(tokens.text(file) ?? "null"));
 
 export function opsOf(result: OpResult): FileOp[] {
-    if (!("ops" in result)) throw new Error(JSON.stringify(result));
+    if (!result.ops) throw new Error(JSON.stringify(result));
     return result.ops;
 }
 
 export function committed(tokens: DesignTokens, result: OpResult): DesignTokens {
     const done = commit(tokens, result);
-    if (!("tokens" in done)) throw new Error(JSON.stringify(done));
+    if (!done.tokens) throw new Error(JSON.stringify(done));
     return done.tokens;
 }
 

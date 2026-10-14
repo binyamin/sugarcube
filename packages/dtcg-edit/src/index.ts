@@ -63,22 +63,33 @@ export type FileOp =
     | { kind: "deleteFile"; file: string; was: string };
 
 /**
- * A question an operation cannot answer from the files alone. Answer it by calling the same
- * operation again with the answer.
+ * A question an operation can't answer from the files alone. Ask the person, then call `answer`
+ * with their choice: it gives the operation's result as if it had been told. A file not among
+ * `files` is asked about again.
  *
- * - `placement`: several files could hold the change. Answer with `{ place }`.
- * - `generated`: the token is made by a generator, from the setting on the group at `from`. Answer
- *   with {@link detach}.
- * - `inherited`: the token comes from another group. Answer with `{ inherited: "here" | "original" }`.
+ * - `placement`: several files could hold the change; `files` are the ones that could.
  *
  * `path` is the token the question is about, which matters when one operation changes several.
+ *
+ * @example
+ * let edit = setValue(tokens, "color.danger", "#fca5a5", { input: { mode: "dark" } });
+ * if (edit.question) edit = edit.question.answer(await askWhichFile(edit.question.files));
  */
-export type Decision =
-    | { kind: "placement"; path: string; candidates: string[] }
-    | { kind: "generated"; path: string; from?: string }
-    | { kind: "inherited"; path: string; from: string; alsoAffects: string[] };
+export interface Question {
+    kind: "placement";
+    path: string;
+    files: string[];
+    answer(file: string): OpResult;
+}
 
-/** What an operation returns: the edits, a question, or a refusal with its reason. */
+/**
+ * What an operation returns: the edits, a question, or a refusal with its reason. Test it by its
+ * field: `edit.question`, `edit.refused`, and otherwise `edit.ops` are the edits.
+ *
+ * @example
+ * const edit = rename(tokens, "color.brand", "primary");
+ * if (edit.refused) return showWhy(edit.refused.reason);
+ */
 export type OpResult =
     | {
           ops: FileOp[];
@@ -92,9 +103,11 @@ export type OpResult =
           broken?: string[];
           /** Tokens and groups whose path changed, such as after a {@link rename}. Empty when none did. */
           moved: Move[];
+          question?: undefined;
+          refused?: undefined;
       }
-    | { decision: Decision }
-    | { refused: Refusal };
+    | { question: Question; ops?: undefined; refused?: undefined }
+    | { refused: Refusal; ops?: undefined; question?: undefined };
 
 /**
  * Why an operation can't be done: a `kind`, the facts it is about, and a `reason` worded from
@@ -103,53 +116,52 @@ export type OpResult =
  * - `not-found`: no token or group at `path`.
  * - `not-a-group`: `path` is a token, so nothing can be made inside it.
  * - `taken`: a token or group is already at `path`.
- * - `override-instead`: the token at `path` is shared, so `context` gets its own value by
- *   changing it for that context ({@link setValue}), not by making it again.
+ * - `override-instead`: the token at `path` is shared, so `input` gets its own value by changing
+ *   it for that context ({@link setValue}), not by making it again.
  * - `invalid-name`: `name` can't be a name: `character` is the one the spec forbids (Format
  *   5.1.1). An empty name has none: the spec doesn't forbid it, but leaves it unclear.
  * - `generated`: a generator makes the token, from the extension at `extension` on the group at
  *   `from` (absent for the top level of a file).
  * - `inherited`: the token or group comes from the group at `from`, through `$extends`.
- * - `no-permutation`: there is no permutation for `context`; `why` says whether a modifier or
+ * - `no-permutation`: there is no permutation for `input`; `why` says whether a modifier or
  *   context isn't declared, a modifier with no default was left out, or the read didn't build it.
- * - `several-contexts`: `context` names more than one context away from its default; no file is
+ * - `several-contexts`: `input` names more than one context away from its default; no file is
  *   read by that combination alone.
- * - `no-file-for-context`: `context` reads no whole file of its own to hold the edit.
+ * - `no-file-for-context`: the context `input` names reads no whole file of its own to hold the
+ *   edit.
  * - `no-shared-file`: no whole file every permutation reads can hold the edit.
- * - `hidden-by-later-file`: an override for `context` would be hidden by `file`, read after it.
+ * - `hidden-by-later-file`: an override for `input` would be hidden by `file`, read after it.
  * - `no-shared-value`: no file every permutation reads writes the token; only contexts do.
  */
 export type Refusal = { reason: string } & (
     | { kind: "not-found"; path: string }
     | { kind: "not-a-group"; path: string }
     | { kind: "taken"; path: string }
-    | { kind: "override-instead"; path: string; context: Input }
+    | { kind: "override-instead"; path: string; input: Input }
     | { kind: "invalid-name"; name: string; character?: "$" | "." | "{" | "}" }
     | { kind: "generated"; path: string; from?: string; extension: [string, ...string[]] }
     | { kind: "inherited"; path: string; from: string }
     | {
           kind: "no-permutation";
-          context: Input;
+          input: Input;
           why: PermutationErrorDetail["reason"];
       }
-    | { kind: "several-contexts"; context: Input }
-    | { kind: "no-file-for-context"; path: string; context: Input }
+    | { kind: "several-contexts"; input: Input }
+    | { kind: "no-file-for-context"; path: string; input: Input }
     | { kind: "no-shared-file"; path: string }
-    | { kind: "hidden-by-later-file"; path: string; context: Input; file: string }
+    | { kind: "hidden-by-later-file"; path: string; input: Input; file: string }
     | { kind: "no-shared-value"; path: string }
 );
 
 /** Where an edit goes. */
 export interface Where {
     /**
-     * The context the edit is for, such as `{ theme: "dark" }`. Modifiers at their default are
-     * ignored, so a permutation's full input can be passed as it is. Naming two non-default
-     * contexts is refused: no file is read only by that combination.
+     * The context the edit is for, as an input such as `{ mode: "dark" }`. Modifiers at their
+     * default are ignored, so a permutation's full input can be passed as it is. Naming two
+     * non-default contexts is refused: no file is read only by that combination.
      * @default the base value, which every permutation shares
      */
-    context?: Input;
-    /** The answer to a `"placement"` question. */
-    place?: string;
+    input?: Input;
 }
 
 /** A new token, as it will be written into the file. */
@@ -173,8 +185,6 @@ export { setDescription, setValue } from "./set-value.js";
 export interface ValueOptions extends Where {
     /** A part of a composite value to change on its own, such as `["color"]` of a shadow. */
     part?: JsonPath;
-    /** The answer to an `"inherited"` question. */
-    inherited?: "here" | "original";
 }
 
 /**
@@ -185,7 +195,7 @@ export interface ValueOptions extends Where {
  * @example
  * setValues(tokens, [
  *   { path: "color.button.background", value: "{color.violet.500}" },
- *   { path: "color.button.background", value: "{color.violet.300}", context: { theme: "dark" } },
+ *   { path: "color.button.background", value: "{color.violet.300}", input: { mode: "dark" } },
  * ])
  */
 export function setValues(
@@ -376,7 +386,10 @@ export interface Conflict {
 
 export { apply, changedFiles, commit } from "./apply.js";
 
-/** The outcome of {@link commit}. */
+/**
+ * The outcome of {@link commit}. Test it by its field: `done.tokens`, `done.question`,
+ * `done.refused` or `done.conflicts`.
+ */
 export type Committed =
     | {
           /** The design tokens with the edits applied. */
@@ -385,10 +398,13 @@ export type Committed =
           ops: FileOp[];
           /** Tokens and groups whose path changed, for keeping a selection or a URL on them. */
           moved: Move[];
+          question?: undefined;
+          refused?: undefined;
+          conflicts?: undefined;
       }
-    | { decision: Decision }
-    | { refused: Refusal }
-    | { conflicts: Conflict[] };
+    | { question: Question; tokens?: undefined; refused?: undefined; conflicts?: undefined }
+    | { refused: Refusal; tokens?: undefined; question?: undefined; conflicts?: undefined }
+    | { conflicts: Conflict[]; tokens?: undefined; question?: undefined; refused?: undefined };
 
 /** Edits, with the moves they made, as they are kept for undo and saved for later. */
 export interface Edits {

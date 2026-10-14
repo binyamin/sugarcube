@@ -45,7 +45,7 @@ describe("applyToDisk", () => {
     it("hands back the design tokens as read from the files written", async () => {
         const result = await applyToDisk({ entry }, opsOf(setValue(demo, "radius.md", half)));
 
-        if (!("tokens" in result)) throw new Error(JSON.stringify(result));
+        if (!result.tokens) throw new Error(JSON.stringify(result));
         expect(result.tokens.permutation().token("radius.md")?.authored?.value).toEqual(half);
         expect(result.tokens.toMemory().files).toEqual(
             (await readFromDisk(entry)).toMemory().files,
@@ -59,7 +59,7 @@ describe("applyToDisk", () => {
             opsOf(setValue(demo, "radius.md", half)),
         );
 
-        if (!("tokens" in result)) throw new Error(JSON.stringify(result));
+        if (!result.tokens) throw new Error(JSON.stringify(result));
         expect(result.tokens.parseOptions.hexStringColors).toBe(true);
     });
 

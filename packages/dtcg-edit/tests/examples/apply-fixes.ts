@@ -10,6 +10,6 @@ for (const d of errors) {
     for (const offered of fixesFor(tokens, d)) {
         if (!offered.safe && !(await confirm(`${d.message}: ${offered.title}?`))) continue;
         const done = commit(tokens, fix(tokens, [offered]));
-        if ("tokens" in done) tokens = done.tokens;
+        if (done.tokens) tokens = done.tokens;
     }
 }

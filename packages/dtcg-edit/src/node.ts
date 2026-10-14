@@ -20,7 +20,7 @@ import type { FileOp } from "./index.js";
  * @example
  * const onDisk = { entry: "tokens/tokens.resolver.json", options };
  * const saved = await applyToDisk(onDisk, session.unsaved.ops);
- * if ("tokens" in saved) {
+ * if (saved.tokens) {
  *     session.markSaved();
  *     session.rebase(saved.tokens);
  * }
@@ -30,7 +30,7 @@ export async function applyToDisk(
     ops: FileOp[],
 ): Promise<ReturnType<typeof changedFiles>> {
     const changes = changedFiles(await read(entry, options), ops);
-    if ("conflicts" in changes) return changes;
+    if (changes.conflicts) return changes;
 
     const { written, deleted } = changes;
     await replaced(Object.entries(written).map(([file, text]) => [fileOnDisk(entry, file), text]));

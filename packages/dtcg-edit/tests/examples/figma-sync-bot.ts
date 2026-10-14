@@ -5,19 +5,19 @@ import { type DesignTokens } from "@sugarcube-sh/dtcg";
 
 declare const tokens: DesignTokens;
 
-const result = setValue(tokens, "color.primary.600", figmaValue, { context: { theme: "dark" } });
+const result = setValue(tokens, "color.primary.600", figmaValue, { input: { mode: "dark" } });
 
-if ("ops" in result) {
+if (result.ops) {
     const changes = changedFiles(tokens, result.ops);
-    if (!("conflicts" in changes)) {
+    if (!changes.conflicts) {
         const also = result.alsoAffects.map((input) => tokens.permutation(input).label);
         await openPullRequest(changes, {
-            title: "Figma: color.primary.600 in dark",
+            title: "Figma: color.primary.600 in mode: dark",
             body: `Also shows in: ${also.join(", ") || "nothing else"}`,
         });
     }
-} else if ("decision" in result) {
-    await commentOnFigma(`Needs a person: ${result.decision.kind}`);
+} else if (result.question) {
+    await commentOnFigma(`Needs a person to choose a file: ${result.question.files.join(", ")}`);
 } else {
     await commentOnFigma(result.refused.reason);
 }

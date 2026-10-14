@@ -17,7 +17,7 @@ const unnamed: FileOp = {
 describe("changedFiles", () => {
     it("gives the new text of each file the edits change, and no other", () => {
         const result = changedFiles(demo, opsOf(setValue(demo, "radius.md", half)));
-        if ("conflicts" in result) throw new Error("conflicts");
+        if (result.conflicts) throw new Error("conflicts");
 
         expect(Object.keys(result.written)).toStrictEqual(["radius.json"]);
         expect(JSON.parse(result.written["radius.json"] ?? "").radius.md.$value).toEqual(half);
@@ -29,7 +29,7 @@ describe("changedFiles", () => {
         const renamed = committed(demo, away);
         const back = opsOf(rename(renamed, "radius.medium", "md"));
         const result = changedFiles(demo, [...opsOf(away), ...back]);
-        if ("conflicts" in result) throw new Error("conflicts");
+        if (result.conflicts) throw new Error("conflicts");
 
         expect(result.written).toStrictEqual({});
         expect(result.deleted).toStrictEqual([]);
@@ -42,7 +42,7 @@ describe("changedFiles", () => {
             was: demo.text("gradient.json") ?? "",
         };
         const result = changedFiles(demo, [unnamed, deleting]);
-        if ("conflicts" in result) throw new Error("conflicts");
+        if (result.conflicts) throw new Error("conflicts");
 
         expect(result.deleted).toStrictEqual(["gradient.json"]);
         expect(Object.keys(result.written)).toStrictEqual(["tokens.resolver.json"]);
@@ -52,7 +52,7 @@ describe("changedFiles", () => {
         const result = changedFiles(demo, [
             { kind: "deleteFile", file: "package.json", was: "anything" },
         ]);
-        if ("conflicts" in result) throw new Error("conflicts");
+        if (result.conflicts) throw new Error("conflicts");
 
         expect(result.deleted).toStrictEqual([]);
         expect(result.written).toStrictEqual({});
@@ -60,7 +60,7 @@ describe("changedFiles", () => {
 
     it("keeps a file the resolver stops naming", () => {
         const result = changedFiles(demo, [unnamed]);
-        if ("conflicts" in result) throw new Error("conflicts");
+        if (result.conflicts) throw new Error("conflicts");
 
         expect(result.deleted).toStrictEqual([]);
         expect(Object.keys(result.written)).toStrictEqual(["tokens.resolver.json"]);
@@ -78,7 +78,7 @@ describe("changedFiles", () => {
                 was: listed,
             },
         ]);
-        if ("conflicts" in result) throw new Error("conflicts");
+        if (result.conflicts) throw new Error("conflicts");
 
         expect(Object.keys(result.written).sort()).toStrictEqual([
             "extra.json",

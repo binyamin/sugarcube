@@ -27,9 +27,9 @@ for (const t of tokens.permutation().group("color.button")?.tokens ?? []) {
     for (const permutation of tokens.permutations) {
         const there = permutation.token(t.path);
         const value = there?.valueFrom.source.context ? swapped(there) : undefined;
-        if (value) changes.push({ path: t.path, value, context: permutation.input });
+        if (value) changes.push({ path: t.path, value, input: permutation.input });
     }
 }
 
 const done = session.do(setValues(session.tokens, changes));
-if ("refused" in done) showMessage(done.refused.reason);
+if (done.refused) showMessage(done.refused.reason);

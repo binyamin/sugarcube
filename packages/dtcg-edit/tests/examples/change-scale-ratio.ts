@@ -9,4 +9,4 @@ const done = commit(
     tokens,
     setExtension(tokens, "space", ["sh.sugarcube", "scale", "ratio"], 1.333),
 );
-if ("tokens" in done) tokens = done.tokens;
+if (done.tokens) tokens = done.tokens;

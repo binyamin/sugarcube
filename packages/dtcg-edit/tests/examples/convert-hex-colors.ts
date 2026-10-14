@@ -10,5 +10,5 @@ const fixes = tokens.diagnostics
     .flatMap((d) => fixesFor(tokens, d).filter((f) => f.safe));
 
 const done = commit(tokens, fix(tokens, fixes));
-if ("tokens" in done) tokens = done.tokens;
-else if ("refused" in done) showMessage(done.refused.reason);
+if (done.tokens) tokens = done.tokens;
+else if (done.refused) showMessage(done.refused.reason);

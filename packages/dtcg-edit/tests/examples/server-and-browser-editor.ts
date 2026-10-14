@@ -31,7 +31,7 @@ export async function save(sent: unknown): Promise<string> {
     if (!serving) return "Nothing to save to yet";
     if (!isEdits(sent)) return "That isn't a set of edits";
     const result = await applyToDisk(onDisk, sent.ops);
-    if ("conflicts" in result) return result.conflicts.map((c) => c.reason).join("\n");
+    if (result.conflicts) return result.conflicts.map((c) => c.reason).join("\n");
     await serve();
     return `Saved ${Object.keys(result.written).length} files`;
 }
