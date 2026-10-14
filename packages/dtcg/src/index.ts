@@ -957,7 +957,7 @@ export interface Permutation {
      * without a resolver.
      *
      * @example
-     * const base = tokens.permutations.find((p) => p.isDefault) ?? tokens.permutations[0];
+     * const others = tokens.permutations.where((p) => !p.isDefault);
      */
     readonly isDefault: boolean;
     /** What is written at the top level of the files. */
@@ -1353,7 +1353,13 @@ export interface DesignTokens {
      * permutation's {@link Permutation.sources | sources} are among these, the same objects.
      */
     sources: Source[];
-    /** Every permutation the read built, in the order it built them; with no label. */
+    /**
+     * Every permutation the read built, in the resolver's order: modifiers as `resolutionOrder`
+     * lists them, the first changing slowest, and each one's contexts as written, so the default
+     * permutation comes where its contexts are written, not necessarily first. The spec sets no
+     * order (Resolver 4.1.5.4); to find the default, ask {@link DesignTokens.permutation} with no
+     * input. With no label.
+     */
     permutations: Permutations;
     /**
      * How the values were read. To read a value from the design tokens again, such as one inside

@@ -14,13 +14,17 @@ function built(tokens: DesignTokens, config: InternalConfig) {
     return { files, diagnostics: [...declared.diagnostics, ...diagnostics] };
 }
 
-function filesFor(files: Record<string, unknown>, variables: Variables = {}) {
+function builtFor(files: Record<string, unknown>, variables: Variables = {}) {
     const config = fillDefaults({ variables: { path: "variables.css", ...variables } });
     const texts = Object.fromEntries(
         Object.entries(files).map(([path, json]) => [path, JSON.stringify(json)]),
     );
     const tokens = readFromMemory({ files: texts }, readOptions(config));
-    return built(tokens, config).files;
+    return built(tokens, config);
+}
+
+function filesFor(files: Record<string, unknown>, variables: Variables = {}) {
+    return builtFor(files, variables).files;
 }
 
 function cssFor(files: Record<string, unknown>, variables: Variables = {}) {
@@ -351,6 +355,37 @@ describe("emitCSS", () => {
             );
         });
 
+        it("after the default permutation's, though the resolver lists another context first", () => {
+            const oceanFirst = {
+                ...files,
+                "tokens.resolver.json": {
+                    ...files["tokens.resolver.json"],
+                    resolutionOrder: [
+                        files["tokens.resolver.json"].resolutionOrder[0],
+                        {
+                            type: "modifier",
+                            name: "brand",
+                            contexts: { ocean: [{ $ref: "ocean.json" }], house: [] },
+                            default: "house",
+                        },
+                    ],
+                },
+            };
+            expect(cssFor(oceanFirst)).toBe(
+                [
+                    ":root {",
+                    "    --brand: #e11d48;",
+                    "    --text: #111111;",
+                    "}",
+                    "",
+                    '[data-brand="ocean"] {',
+                    "    --brand: #0ea5e9;",
+                    "}",
+                    "",
+                ].join("\n"),
+            );
+        });
+
         it("with only what changed when an earlier selector list holds :root", () => {
             expect(
                 cssFor(files, {
@@ -517,6 +552,56 @@ describe("emitCSS", () => {
                     "",
                 ].join("\n"),
             );
+        });
+    });
+
+    describe("warns when a file's default permutation block comes after another block", () => {
+        const files = {
+            "tokens.resolver.json": {
+                version: "2025.10",
+                resolutionOrder: [
+                    { type: "set", name: "base", sources: [{ $ref: "tokens.json" }] },
+                    {
+                        type: "modifier",
+                        name: "mode",
+                        contexts: { light: [], dark: [{ $ref: "dark.json" }] },
+                        default: "light",
+                    },
+                ],
+            },
+            "tokens.json": { text: color("#111111") },
+            "dark.json": { text: color("#eeeeee") },
+        };
+        const dark = { input: { mode: "dark" }, selector: '[data-mode="dark"]' };
+        const light = { input: {}, selector: ":root" };
+        const warned = (permutations: NonNullable<Variables>["permutations"]) =>
+            builtFor(files, { permutations }).diagnostics.filter(
+                ({ kind }) => kind === "default-not-first",
+            );
+
+        it("naming both blocks and the file, since the default's values would win", () => {
+            expect(warned([dark, light])).toStrictEqual([
+                expect.objectContaining({
+                    severity: "warning",
+                    detail: {
+                        file: "variables.css",
+                        selector: ":root",
+                        after: '[data-mode="dark"]',
+                    },
+                    message:
+                        '`:root` is written after `[data-mode="dark"]` in `variables.css`, so it overrides it wherever both apply: list the default permutation first in `variables.permutations`',
+                }),
+            ]);
+        });
+
+        it("not when the default is listed first, though it is listed again later", () => {
+            expect(
+                warned([light, dark, { input: { mode: "light" }, selector: ".light" }]),
+            ).toStrictEqual([]);
+        });
+
+        it("not when the earlier block is in another file", () => {
+            expect(warned([{ ...dark, path: "dark.css" }, light])).toStrictEqual([]);
         });
     });
 

@@ -22,8 +22,9 @@ export interface Entry {
 /**
  * Each permutation the config writes, in its order, with where it goes and what it declares (one
  * `declared` for every entry of one permutation); and every problem found reading and declaring:
- * the read's own, a deprecated `colorFallbackStrategy`, fluid text that fails text zoom, a color
- * with no `hex` to fall back to, and two paths making one variable.
+ * the read's own, a deprecated `colorFallbackStrategy`, a default permutation's block written after
+ * another in its file, fluid text that fails text zoom, a color with no `hex` to fall back to, and
+ * two paths making one variable.
  */
 export interface Declarations {
     entries: Entry[];
@@ -64,6 +65,7 @@ export function declare(tokens: DesignTokens, config: InternalConfig): Declarati
         diagnostics: [
             ...reported,
             ...deprecated,
+            ...defaultsNotFirst(toWrite),
             ...textZoomWarnings([...declaredIn.keys()], options.fluid, options.parseOptions),
             ...missingHex(once),
             ...sameNames(once),
@@ -78,7 +80,9 @@ function entries(
 ): Entry[] {
     const listed = config.variables.permutations ?? [];
     if (listed.length === 0) {
-        return tokens.permutations.map((permutation) => ({
+        const base = tokens.permutations.filter(({ isDefault }) => isDefault);
+        const overrides = tokens.permutations.filter(({ isDefault }) => !isDefault);
+        return [...base, ...overrides].map((permutation) => ({
             permutation,
             selector: derivedSelector(permutation),
             path: config.variables.path,
@@ -98,6 +102,22 @@ function entries(
             },
         ];
     });
+}
+
+function defaultsNotFirst(toWrite: Entry[]): Reported[] {
+    return [...new Set(toWrite.map(({ path }) => path))].flatMap((file) => {
+        const inFile = toWrite.filter(({ path }) => path === file);
+        const [first] = inFile;
+        const base = inFile.find(({ permutation }) => permutation.isDefault);
+        if (!first || !base || base === first) return [];
+        const selector = selectorText(base.selector);
+        const after = selectorText(first.selector);
+        return [diagnostic("default-not-first", { file, selector, after })];
+    });
+}
+
+function selectorText(selector: string | string[]): string {
+    return typeof selector === "string" ? selector : selector.join(", ");
 }
 
 function configured(tokens: DesignTokens, input: Input): Permutation | undefined {

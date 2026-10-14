@@ -1,5 +1,4 @@
 import type { DesignTokens, Token } from "@sugarcube-sh/dtcg";
-import { refused } from "./error-messages.js";
 import type { FileOp, Json, OpResult, ValueOptions } from "./index.js";
 import { asked, copiesOf, describedPlace, placement } from "./placement.js";
 import { type Member, writtenIn } from "./file-text.js";
@@ -92,14 +91,26 @@ export function setDescription(
     path: string,
     description: string | null,
 ): OpResult {
+    return setDescriptionIn(tokens, path, description);
+}
+
+function setDescriptionIn(
+    tokens: DesignTokens,
+    path: string,
+    description: string | null,
+    place?: string,
+): OpResult {
     const copies = copiesOf(tokens, path);
     if ("refused" in copies) return copies;
     if (copies.of === "token") {
         const ops = copies.places.flatMap((at) => written(tokens, at, "$description", description));
         return { ops, alsoAffects: copies.alsoAffects, moved: [] };
     }
-    const described = describedPlace(tokens, copies);
-    if (!described) return refused({ kind: "not-found", path });
+    const described = describedPlace(tokens, path, copies.places, place);
+    if ("choose" in described) {
+        return asked(described.choose, (file) => setDescriptionIn(tokens, path, description, file));
+    }
+    if ("refused" in described) return described;
     const ops = written(tokens, described.at, "$description", description);
     return { ops, alsoAffects: described.alsoAffects, moved: [] };
 }

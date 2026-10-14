@@ -561,6 +561,73 @@ describe("setValue, what it can't change", () => {
 });
 
 describe("setDescription", () => {
+    const onlyInContexts = (modifiers: object[], files: Record<string, string>) =>
+        readFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    resolutionOrder: [
+                        { type: "set", name: "base", sources: [{ $ref: "./base.json" }] },
+                        ...modifiers,
+                    ],
+                }),
+                "base.json": "{}",
+                ...files,
+            },
+            entry: "tokens.resolver.json",
+        });
+    const accent = JSON.stringify({ accent: { glow: { $type: "number", $value: 1 } } });
+
+    it("writes a group's new description in the file read by the most permutations, when no file every permutation reads writes it", () => {
+        const tokens = onlyInContexts(
+            [
+                {
+                    type: "modifier",
+                    name: "mode",
+                    default: "light",
+                    contexts: { light: [{ $ref: "./light.json" }], dark: [], dim: [] },
+                },
+                {
+                    type: "modifier",
+                    name: "density",
+                    default: "comfy",
+                    contexts: { comfy: [], compact: [{ $ref: "./compact.json" }] },
+                },
+            ],
+            { "light.json": accent, "compact.json": accent },
+        );
+        expect(opsOf(setDescription(tokens, "accent", "Glow."))).toMatchObject([
+            { kind: "add", file: "compact.json", jsonPath: ["accent", "$description"] },
+        ]);
+    });
+
+    it("asks which file when the files that write a group are read by as many permutations", () => {
+        const tokens = onlyInContexts(
+            [
+                {
+                    type: "modifier",
+                    name: "mode",
+                    default: "light",
+                    contexts: {
+                        light: [],
+                        dark: [{ $ref: "./dark.json" }],
+                        dim: [{ $ref: "./dim.json" }],
+                    },
+                },
+            ],
+            { "dark.json": accent, "dim.json": accent },
+        );
+        const edit = setDescription(tokens, "accent", "Glow.");
+        expect(edit.question).toMatchObject({
+            kind: "placement",
+            path: "accent",
+            files: ["dark.json", "dim.json"],
+        });
+        expect(opsOf(edit.question?.answer("dim.json") ?? edit)).toMatchObject([
+            { kind: "add", file: "dim.json", jsonPath: ["accent", "$description"] },
+        ]);
+    });
+
     it("writes a group's new description in a file every permutation reads, though a context's is read first", () => {
         const group = JSON.stringify({ accent: { glow: { $type: "number", $value: 1 } } });
         const tokens = readFromMemory({

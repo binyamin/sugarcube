@@ -40,13 +40,12 @@ type NewPlace =
     | { choose: Choice }
     | { refused: Refusal };
 
+interface Copy extends Member {
+    readers: number;
+}
+
 type Copies =
-    | {
-          of: "token" | "group";
-          places: Member[];
-          shared: Member[];
-          alsoAffects: Permutations;
-      }
+    | { of: "token" | "group"; places: Copy[]; alsoAffects: Permutations }
     | { refused: Refusal };
 
 interface Chosen {
@@ -82,29 +81,36 @@ export function newPlace(
 export function copiesOf(tokens: DesignTokens, path: string): Copies {
     const found = lookUp(tokens, path, (perm) => perm.token(path) ?? perm.group(path));
     if ("refused" in found) return found;
-    const places: Member[] = [];
-    const shared: Member[] = [];
-    for (const place of tokens.writtenAt(path)) {
-        const member = memberAt(tokens, place.span);
-        if (!member) continue;
-        places.push(member);
-        if (place.sources.some(everyoneReads)) shared.push(member);
-    }
+    const places = tokens.writtenAt(path).flatMap(({ span, permutations }) => {
+        const member = memberAt(tokens, span);
+        if (!member) return [];
+        return [{ ...member, readers: permutations.length }];
+    });
     const alsoAffects = alsoIn(
         tokens,
         (perm) => (perm.token(path) ?? perm.group(path)) !== undefined,
     );
-    return { of: found.of, places, shared, alsoAffects };
+    return { of: found.of, places, alsoAffects };
 }
 
 export function describedPlace(
     tokens: DesignTokens,
-    { places, shared }: { places: Member[]; shared: Member[] },
-): { at: Member; alsoAffects: Permutations } | undefined {
+    path: string,
+    places: Copy[],
+    place: string | undefined,
+): { at: Member; alsoAffects: Permutations } | { choose: Choice } | { refused: Refusal } {
     const describes = (member: Member) =>
         writtenIn(tokens, member.span.file, [...member.jsonPath, "$description"]) !== undefined;
-    const at = places.find(describes) ?? shared[0] ?? places[0];
-    return at && { at, alsoAffects: seenReading(tokens, at.span.file) };
+    const describing = places.find(describes);
+    if (describing)
+        return { at: describing, alsoAffects: seenReading(tokens, describing.span.file) };
+    const most = Math.max(...places.map(({ readers }) => readers));
+    const widest = places.filter(({ readers }) => readers === most);
+    const file = chosenFile(path, unique(widest.map(({ span }) => span)), [], place);
+    if (typeof file !== "string") return file;
+    const at = widest.find(({ span }) => span.file === file);
+    if (!at) return refused({ kind: "not-found", path });
+    return { at, alsoAffects: seenReading(tokens, file) };
 }
 
 function lookUp(

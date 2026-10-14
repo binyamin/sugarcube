@@ -114,25 +114,26 @@ function chooseInputs(
 ): Input[] {
     const { diagnostics } = reporting;
     if (modifiers.length === 0) return [{}];
-    const chosen = inputs
-        ? inputs.flatMap((raw, index) => {
-              const input = checkInput(modifiers, raw, index, diagnostics);
-              return input ? [input] : [];
-          })
-        : permutations === "each-context"
-          ? eachContext(modifiers, reporting)
-          : allCombinations(modifiers, limit, reporting);
+    if (inputs) {
+        const checked = inputs.flatMap((raw, index) => {
+            const input = checkInput(modifiers, raw, index, diagnostics);
+            return input ? [input] : [];
+        });
+        return distinct(modifiers, checked);
+    }
+    return permutations === "each-context"
+        ? eachContext(modifiers, reporting)
+        : allCombinations(modifiers, limit, reporting);
+}
+
+function distinct(modifiers: Modifier[], inputs: Input[]): Input[] {
     const seen = new Set<string>();
-    return chosen.filter((input) => {
-        const key = inputKey(modifiers, input);
+    return inputs.filter((input) => {
+        const key = JSON.stringify(modifiers.map(({ name }) => input[name]));
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
     });
-}
-
-function inputKey(modifiers: Modifier[], input: Input): string {
-    return JSON.stringify(modifiers.map(({ name }) => input[name]));
 }
 
 function checkInput(
@@ -207,15 +208,13 @@ export function findByName<T>(
 function allCombinations(modifiers: Modifier[], limit: number, reporting: Reporting): Input[] {
     const count = modifiers.reduce((product, { contexts }) => product * contexts.length, 1);
     if (count <= limit) {
-        const every = modifiers.reduce<Input[]>(
+        return modifiers.reduce<Input[]>(
             (inputs, { name, contexts }) =>
                 inputs.flatMap((input) =>
                     contexts.map((context) => ({ ...input, [name]: context })),
                 ),
             [{}],
         );
-        const defaults = hasDefaults(modifiers) ? [withDefaults(modifiers, {})] : [];
-        return [...defaults, ...every];
     }
     const built = eachContext(modifiers, reporting);
     reporting.diagnostics.push(
@@ -236,15 +235,17 @@ function eachContext(modifiers: Modifier[], { diagnostics, file }: Reporting): I
             ),
         );
     }
-    const defaults = withoutDefault.length === 0 ? [withDefaults(modifiers, {})] : [];
-    const singles = modifiers.flatMap((modifier) =>
+    const walked = modifiers.flatMap((modifier) =>
         hasDefaults(modifiers.filter((other) => other !== modifier))
-            ? modifier.contexts
-                  .filter((context) => context !== modifier.default)
-                  .map((context) => withDefaults(modifiers, { [modifier.name]: context }))
+            ? modifier.contexts.map((context) =>
+                  withDefaults(
+                      modifiers,
+                      context === modifier.default ? {} : { [modifier.name]: context },
+                  ),
+              )
             : [],
     );
-    return [...defaults, ...singles];
+    return distinct(modifiers, walked);
 }
 
 function hasDefaults(modifiers: Modifier[]): boolean {

@@ -25,6 +25,11 @@ const diagnostics: { [K in SugarcubeDiagnosticKind]: Entry<K> } = {
             return `the ${noun} ${listed(modifiers.map(quoted))} ${verb} no default, so there is nothing to write on \`:root\`: give ${pronoun} a \`default\` in the resolver, or list the permutations to write in \`variables.permutations\``;
         },
     },
+    "default-not-first": {
+        severity: "warning",
+        message: ({ file, selector, after }) =>
+            `\`${selector}\` is written after \`${after}\` in \`${file}\`, so it overrides it wherever both apply: list the default permutation first in \`variables.permutations\``,
+    },
     "fluid-text-zoom": {
         severity: "warning",
         message: ({ from, to }) =>

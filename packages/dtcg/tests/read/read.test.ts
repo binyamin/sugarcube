@@ -331,6 +331,23 @@ describe("the combination limit", () => {
     const readWith = (resolver: string, options: { permutationLimit?: number } = {}) =>
         readFromMemory({ files: { "tokens.resolver.json": resolver } }, options);
 
+    it("lists every combination in the resolver's order, the first modifier changing slowest", () => {
+        const resolver = JSON.stringify({
+            version: "2025.10",
+            modifiers: {
+                theme: { contexts: { dark: [], light: [] }, default: "light" },
+                density: { contexts: { compact: [], comfy: [] }, default: "comfy" },
+            },
+            resolutionOrder: [{ $ref: "#/modifiers/theme" }, { $ref: "#/modifiers/density" }],
+        });
+        expect(readWith(resolver).permutations.map(({ label }) => label)).toStrictEqual([
+            "theme: dark, density: compact",
+            "theme: dark, density: comfy",
+            "theme: light, density: compact",
+            "theme: light, density: comfy",
+        ]);
+    });
+
     it("builds every combination up to the limit, and no warning", () => {
         const tokens = readWith(withModifiers(5));
         expect(tokens.permutations).toHaveLength(32);
@@ -420,6 +437,22 @@ describe("each context on its own", () => {
             ],
             diagnostics: [],
         });
+    });
+
+    it("lists them in the resolver's order, the default where its contexts are written", () => {
+        expect(
+            labels(
+                resolver({
+                    theme: { contexts: { dark: [], light: [], dim: [] }, default: "light" },
+                    brand: { contexts: { ocean: [], house: [] }, default: "house" },
+                }),
+            ).labels,
+        ).toStrictEqual([
+            "theme: dark, brand: house",
+            "theme: light, brand: house",
+            "theme: dim, brand: house",
+            "theme: light, brand: ocean",
+        ]);
     });
 
     it("builds each context of the one modifier with no default, and says what it could not build", () => {
@@ -603,8 +636,8 @@ describe("labels", () => {
 
     it("write out the input, every modifier in the order the resolver declares them", () => {
         expect(tokens.permutations.map(({ input, label }) => [input, label])).toStrictEqual([
-            [{ theme: "light", size: "large" }, "theme: light, size: large"],
             [{ theme: "light", size: "default" }, "theme: light, size: default"],
+            [{ theme: "light", size: "large" }, "theme: light, size: large"],
             [{ theme: "dark", size: "default" }, "theme: dark, size: default"],
             [{ theme: "dark", size: "large" }, "theme: dark, size: large"],
         ]);
