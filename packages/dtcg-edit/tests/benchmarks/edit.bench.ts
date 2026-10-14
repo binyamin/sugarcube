@@ -47,10 +47,10 @@ function edits(name: string, opened: DesignTokens) {
         bench("restore two edits after a reload", () => {
             createSession(opened).restore(kept.unsaved);
         });
-        bench("restore two edits, then adopt the files changed on disk", () => {
+        bench("restore two edits, then rebase onto the files changed on disk", () => {
             const editing = createSession(opened);
             editing.restore(kept.unsaved);
-            editing.adopt(opened);
+            editing.rebase(opened);
         });
         const session = createSession(opened);
         let turn = 0;

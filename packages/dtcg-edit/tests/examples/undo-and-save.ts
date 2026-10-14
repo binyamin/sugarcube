@@ -11,4 +11,4 @@ session.do(setValue(session.tokens, "color.brand", "#f43f5e"));
 session.do(rename(session.tokens, "color.danger", "error"));
 session.undo();
 
-if (await sendSave(JSON.stringify(session.unsaved))) session.saved();
+if (await sendSave(JSON.stringify(session.unsaved))) session.markSaved();

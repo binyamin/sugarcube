@@ -4,7 +4,12 @@ import { memberAt, writtenIn } from "./file-text.js";
 import type { Clash, FileOp } from "./index.js";
 import { valueAt } from "./text-edits.js";
 
-export function clashesOf(skipped: FileOp[], theirs: DesignTokens, mine: DesignTokens): Clash[] {
+export function clashesOf(
+    skipped: FileOp[],
+    theirs: DesignTokens,
+    mine: DesignTokens,
+    madeOn: DesignTokens[] = [],
+): Clash[] {
     const byMember = new Map<string, { file: string; jsonPath: JsonPath; ops: FileOp[] }>();
     for (const op of skipped) {
         const jsonPath = editedMember(op);
@@ -15,10 +20,12 @@ export function clashesOf(skipped: FileOp[], theirs: DesignTokens, mine: DesignT
     }
     if (byMember.size === 0) return [];
     const files = new Set([...byMember.values()].map(({ file }) => file));
-    const named = pathsByMember([mine, theirs], files);
+    const named = pathsByMember([mine, theirs, ...madeOn], files);
     return [...byMember].map(([key, { file, jsonPath, ops }]) => {
         const forced = ops.reduce(force, mine.text(file) ?? "{}");
-        const clash: Clash = { path: named.get(key) ?? jsonPath.join("."), file };
+        const clash: Clash = { file, jsonPath };
+        const path = named.get(key);
+        if (path !== undefined) clash.path = path;
         const yours = forced === undefined ? undefined : valueAt(forced, jsonPath);
         const now = writtenIn(theirs, file, jsonPath);
         if (yours !== undefined) clash.yours = yours;

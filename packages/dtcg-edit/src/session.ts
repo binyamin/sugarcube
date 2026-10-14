@@ -10,7 +10,7 @@ import type { Committed, Edits, OpResult, Session } from "./index.js";
  * const session = createSession(tokens);
  * session.do(setValue(session.tokens, "color.brand", "#e11d48"));
  * await save(session.unsaved);
- * session.saved();
+ * session.markSaved();
  */
 export function createSession(tokens: DesignTokens): Session {
     let current = tokens;
@@ -60,7 +60,7 @@ export function createSession(tokens: DesignTokens): Session {
         changes() {
             return current.diff(opened, { moved: unsaved.moved });
         },
-        saved() {
+        markSaved() {
             opened = current;
             unsaved = { ops: [], moved: [] };
             openedIds = ids;
@@ -83,9 +83,9 @@ export function createSession(tokens: DesignTokens): Session {
             changed();
             return clashes;
         },
-        adopt(fresh) {
+        rebase(fresh) {
             const { tokens: next, applied, skipped } = applyWhatFits(fresh, unsaved.ops);
-            const clashes = clashesOf(skipped, fresh, next);
+            const clashes = clashesOf(skipped, fresh, next, [current, opened]);
             openedIds = followed(openedIds, [], fresh, counter);
             ids = followed(ids, [], next, counter, openedIds);
             opened = fresh;

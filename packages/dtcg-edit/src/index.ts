@@ -399,14 +399,17 @@ export interface Edits {
 export { isEdits } from "./is-edits.js";
 
 /**
- * An unsaved edit that no longer fits the files, one per token or group: someone else changed or
- * removed what it changes, or its file is gone.
+ * An unsaved edit that no longer fits the files, one per part of a file they change, such as a
+ * token, a group or the resolver's list of sources: someone else changed or removed what it
+ * changes, or its file is gone.
  */
 export interface Clash {
-    /** The token or group the edits are to, or `""` for a whole file. */
-    path: string;
     /** The file the edits change. */
     file: string;
+    /** Where in the file: its route through the file's JSON; `[]` for the whole file. */
+    jsonPath: JsonPath;
+    /** The token or group at `jsonPath`, when one is there. */
+    path?: string;
     /** What the edits write for it there, put on top of the file as it is now; absent when they remove it. */
     yours?: Json;
     /** What the file has for it now; absent when it isn't there, or the file is gone. */
@@ -417,7 +420,7 @@ export interface Clash {
  * An editing session: design tokens as a person edits them, with undo, the unsaved edits, and
  * what changed since they were opened. It changes as it is used, like a store; the design tokens in
  * it never do. Writing is left to the tool: send {@link Session.unsaved} wherever saves go, then
- * call {@link Session.saved}.
+ * call {@link Session.markSaved}.
  *
  * @example
  * const session = createSession(tokens);
@@ -427,7 +430,10 @@ export interface Clash {
 export interface Session {
     /** The current version. */
     readonly tokens: DesignTokens;
-    /** The version the unsaved edits are measured from: as opened, as last saved, or as last adopted. */
+    /**
+     * The version the unsaved edits are measured from: as opened, as last saved, or as last
+     * rebased onto.
+     */
     readonly opened: DesignTokens;
     /** The edits since {@link Session.opened}, with the moves they made: what a save sends, and what to keep for a reload. */
     readonly unsaved: Edits;
@@ -449,24 +455,24 @@ export interface Session {
      * {@link Session.opened}. Undo still works; undoing past a save makes unsaved edits that
      * revert it.
      */
-    saved(): void;
+    markSaved(): void;
     /** Goes back to {@link Session.opened} and drops the unsaved edits. The undo history starts again. */
     discard(): void;
     /**
      * Puts back unsaved edits kept from before a reload, such as in session storage, on top
      * of the current version, where they are unsaved again; {@link Session.discard} still goes
      * back to {@link Session.opened}. Each edit that still fits is put back; the rest come back as
-     * one {@link Clash} per token.
+     * one {@link Clash} per part of a file.
      */
     restore(unsaved: Edits): Clash[];
     /**
      * Takes in files that changed underneath the session, such as after a `git pull`: `fresh`
      * becomes {@link Session.opened}, and each unsaved edit that still fits is put back on top of
-     * it; the rest come back as one {@link Clash} per token, and the files show theirs. A token
-     * still there keeps its id, one gone loses it, and a new one gets a new id. The undo history
-     * starts again.
+     * it; the rest come back as one {@link Clash} per part of a file, and the files show theirs. A
+     * token still there keeps its id, one gone loses it, and a new one gets a new id. The undo
+     * history starts again.
      */
-    adopt(fresh: DesignTokens): Clash[];
+    rebase(fresh: DesignTokens): Clash[];
     /** Calls `listener` whenever the session changes. Returns a function that stops listening. */
     subscribe(listener: () => void): () => void;
     /**

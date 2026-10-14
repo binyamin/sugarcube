@@ -21,8 +21,8 @@ import type { FileOp } from "./index.js";
  * const onDisk = { entry: "tokens/tokens.resolver.json", options };
  * const saved = await applyToDisk(onDisk, session.unsaved.ops);
  * if ("tokens" in saved) {
- *     session.saved();
- *     session.adopt(saved.tokens);
+ *     session.markSaved();
+ *     session.rebase(saved.tokens);
  * }
  */
 export async function applyToDisk(

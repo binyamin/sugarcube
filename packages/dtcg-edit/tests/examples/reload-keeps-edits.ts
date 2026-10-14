@@ -19,5 +19,5 @@ export function restore(): void {
     const held: unknown = JSON.parse(sessionStorage.getItem(key) ?? "null");
     if (!isEdits(held)) return;
     const clashes = session.restore(held);
-    for (const { path, yours, theirs } of clashes) showClash(path, yours, theirs);
+    for (const { path, file, yours, theirs } of clashes) showClash(path ?? file, yours, theirs);
 }

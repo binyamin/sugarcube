@@ -89,7 +89,7 @@ describe("createSession", () => {
         const session = createSession(demo);
         session.do(setValue(session.tokens, "color.brand.500", red));
         const saved = session.tokens;
-        session.saved();
+        session.markSaved();
 
         expect(session.opened).toBe(saved);
         expect(session.unsaved).toEqual({ ops: [], moved: [] });
@@ -105,7 +105,7 @@ describe("createSession", () => {
         const heard = vi.fn();
         const stop = session.subscribe(heard);
         session.do(setValue(session.tokens, "color.brand.500", red));
-        session.saved();
+        session.markSaved();
         session.do(setValue(session.tokens, "color.brand.500", { ...red, alpha: 0.5 }));
         session.discard();
 
@@ -198,7 +198,7 @@ describe("ids", () => {
     it("puts ids back on discard, and keeps them through a save", () => {
         const session = createSession(demo);
         session.do(rename(session.tokens, "color.brand.500", "550"));
-        session.saved();
+        session.markSaved();
         expect(session.pathOf("color.brand.500")).toBe("color.brand.550");
 
         session.do(rename(session.tokens, "color.brand.550", "555"));

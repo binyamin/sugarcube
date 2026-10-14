@@ -9,6 +9,6 @@ declare const session: Session;
 declare function readText(path: string): Promise<string>;
 
 export async function onFilesChanged(): Promise<void> {
-    const clashes = session.adopt(await read("tokens.resolver.json", { readText }));
-    for (const { path, yours, theirs } of clashes) showClash(path, yours, theirs);
+    const clashes = session.rebase(await read("tokens.resolver.json", { readText }));
+    for (const { path, file, yours, theirs } of clashes) showClash(path ?? file, yours, theirs);
 }
