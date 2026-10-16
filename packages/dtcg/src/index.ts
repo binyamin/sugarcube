@@ -564,10 +564,11 @@ export interface TokenBase<T extends TokenType> {
      */
     writtenAt: Place[];
     /**
-     * What the file wrote for the token: its value exactly as written, and its `$type` and
-     * `$deprecated` when it writes them itself, rather than taking them from a group or, for the
-     * type, from the token it refers to. Absent when no file writes the token: one a
-     * {@link Generator} added.
+     * What the file wrote for the properties a token can also take from elsewhere: its value
+     * exactly as written, and its `$type` and `$deprecated` when it writes them itself, rather than
+     * taking them from a group or, for the type, from the token it refers to. Its `$description`
+     * and `$extensions` are always its own, so they are on the token and not repeated here. Absent
+     * when no file writes the token: one a {@link Generator} added.
      */
     authored?: { value: unknown } & Pick<Written, "type" | "deprecated">;
     /**
@@ -723,7 +724,11 @@ export interface Group {
      * `from`.
      */
     inherited?: { from: string };
-    /** What the files write on the group itself; absent when they write none of it. */
+    /**
+     * What the files write on the group itself, for every property it could also take from
+     * elsewhere: all four, since its `$type` and `$deprecated` can come from the group it is
+     * inside, and all four from the group it extends. Absent when they write none of it.
+     */
     authored?: Written;
     /**
      * Its child tokens and nested groups (Format 6.1), together, in the order the files write
@@ -1824,7 +1829,10 @@ export interface Generator {
         group: {
             /** Absent for the top level of a file. */
             path?: string;
-            /** The type declared on the group, if any. */
+            /**
+             * The type its tokens take, as {@link Group.type} gives it: its own, else the group it
+             * extends, else the group it is inside (Format 6.7.3). Absent when none declares one.
+             */
             type?: TokenType;
         },
         extension: unknown,

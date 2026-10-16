@@ -1,4 +1,5 @@
-import { type Settings, settingsOf } from "./settings.js";
+import { applying } from "./inherit.js";
+import type { Settings } from "./settings.js";
 import { childPath } from "../path.js";
 import type { Node } from "jsonc-parser";
 import type {
@@ -91,7 +92,7 @@ export function fillGenerated(
     const reportedIgnored = new Map<Generator, Set<Node>>();
 
     for (const [groupPath, group] of everyGroup(merged)) {
-        const settings = settingsOf(merged, group);
+        const settings = applying(merged, group);
         for (const generator of generators) {
             const extension = extensionOf(settings, generator.extension);
             if (!extension) continue;

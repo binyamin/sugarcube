@@ -768,6 +768,60 @@ describe("tokens.text", () => {
     });
 });
 
+describe("the group a generator is given", () => {
+    const given: { path?: string; type?: string }[] = [];
+    const recorder = defineGenerator({
+        extension: ["com.example", "steps"],
+        messages: {},
+        generate: (group) => {
+            given.push(group);
+            return { ok: true, value: [] };
+        },
+    });
+    const steps = { $extensions: { "com.example": { steps: 1 } } };
+    const groupOf = (json: Record<string, unknown>) => {
+        given.length = 0;
+        const tokens = readFromMemory(
+            { files: { "tokens.json": JSON.stringify(json) } },
+            { generators: [recorder] },
+        );
+        return { given: given[0], tokens };
+    };
+
+    it("has the type it takes from a group it is inside (Format 6.7.3), as group.type does", () => {
+        const { given: group, tokens } = groupOf({
+            space: { $type: "dimension", fluid: { ...steps } },
+        });
+        expect(group).toStrictEqual({ path: "space.fluid", type: "dimension" });
+        expect(tokens.permutation().group("space.fluid")?.type).toBe("dimension");
+    });
+
+    it("has its own type over the one around it", () => {
+        const { given: group } = groupOf({
+            space: { $type: "dimension", ratio: { $type: "number", ...steps } },
+        });
+        expect(group).toStrictEqual({ path: "space.ratio", type: "number" });
+    });
+
+    it("has the type of the group it extends, over the one around it (Format 6.4)", () => {
+        const { given: group } = groupOf({
+            base: { $type: "number" },
+            space: { $type: "dimension", ratio: { $extends: "{base}", ...steps } },
+        });
+        expect(group).toStrictEqual({ path: "space.ratio", type: "number" });
+    });
+
+    it("has no type when nothing around it declares one", () => {
+        const { given: group } = groupOf({ space: { fluid: { ...steps } } });
+        expect(group).toStrictEqual({ path: "space.fluid" });
+    });
+
+    it("has the type the top level of the file declares, and no path", () => {
+        const { given: group } = groupOf({ $type: "number", ...steps });
+        expect(group).toStrictEqual({ type: "number" });
+    });
+});
+
 describe("tokens.reread", () => {
     const steps = defineGenerator({
         extension: ["com.example", "steps"],
