@@ -361,7 +361,6 @@ const examples: { [K in DiagnosticKind]: DiagnosticDetailByKind[K][] } = {
         { written: "type", property: "$type", owner: "group" },
     ],
     "permutation-limit": [{ count: 16384, limit: 64, built: 15 }],
-    "no-default": [{ modifiers: ["size"] }, { modifiers: ["size", "theme"] }],
     "not-in-resolution-order": [
         { item: "set", name: "palette" },
         { item: "modifier", name: "density" },
@@ -433,6 +432,16 @@ describe("diagnostic messages that say what would mend the problem", () => {
             },
             message:
                 "a color must be an object with `colorSpace` and `components`, not the string `color.ink`; did you mean `{color.ink}`?",
+        },
+        {
+            found: { kind: "permutation-limit", detail: { count: 64, limit: 32, built: 7 } },
+            message:
+                "the modifiers make 64 combinations, more than the limit of 32, so each context was built on its own instead: 7 permutations",
+        },
+        {
+            found: { kind: "permutation-limit", detail: { count: 64, limit: 32, built: 1 } },
+            message:
+                "the modifiers make 64 combinations, more than the limit of 32, so each context was built on its own instead: 1 permutation",
         },
         {
             found: { kind: "token-and-group", detail: { reason: "child", child: "light" } },

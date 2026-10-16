@@ -1214,11 +1214,6 @@ export interface DiagnosticDetailByKind {
         built: number;
     };
     /**
-     * `"each-context"` sets every other modifier at its default, so with these modifiers having
-     * none, some contexts could not be built on their own.
-     */
-    "no-default": { modifiers: string[] };
-    /**
      * A set or modifier the resolver declares that `resolutionOrder` never reaches, so it takes no
      * part (Resolver 4.1.6). A hint at where it is written, tagged `unnecessary` so an editor can
      * fade it.
@@ -1376,8 +1371,9 @@ export interface DesignTokens {
     sources: Source[];
     /**
      * Every permutation the read built, in the resolver's order: modifiers as `resolutionOrder`
-     * lists them, the first changing slowest, and each one's contexts as written, so the default
-     * permutation comes where its contexts are written, not necessarily first. The spec sets no
+     * lists them, the first changing slowest (for `"each-context"`, each modifier's contexts in
+     * turn), and each one's contexts as written, so the default permutation comes where its
+     * contexts are written, not necessarily first. The spec sets no
      * order (Resolver 4.1.5.4); to find the default, ask {@link DesignTokens.permutation} with no
      * input. Its label is `"everywhere"`.
      */
@@ -1842,9 +1838,11 @@ export interface ReadOptions extends ParseOptions {
     inputs?: Input[];
     /**
      * Which permutations to build when `inputs` is left out: `"all"`, every combination of
-     * contexts, or `"each-context"`, the default and each context on its own, with every other
-     * modifier at its default. When modifiers change different tokens (Resolver 2.1), every
-     * combination can be put together from `"each-context"`.
+     * contexts, or `"each-context"`, each context on its own, with every other modifier at its
+     * default. An input must choose a context for each modifier with no default (Resolver 6.1),
+     * so each context is built once for every combination of those modifiers' contexts. When
+     * modifiers change different tokens (Resolver 2.1), every combination can be put together
+     * from `"each-context"`.
      * @default "all"
      */
     permutations?: "all" | "each-context";

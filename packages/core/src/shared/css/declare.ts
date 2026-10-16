@@ -1,11 +1,10 @@
 import {
     type DesignTokens,
-    type Diagnostic,
     type Input,
     type Permutation,
     PermutationError,
 } from "@sugarcube-sh/dtcg";
-import type { InternalConfig } from "../../types/config.js";
+import type { Permutation as ConfigPermutation, InternalConfig } from "../../types/config.js";
 import type { Reported } from "../../types/diagnostics.js";
 import { diagnostic } from "../diagnostics.js";
 import { type Declared, declarationOptions, declarations } from "./declarations.js";
@@ -42,13 +41,14 @@ export interface Declarations {
  * const { rules, safelist } = utilityRules(utilityTokens(declared), config.utilities.classes);
  */
 export function declare(tokens: DesignTokens, config: InternalConfig): Declarations {
-    const reported = tokens.diagnostics.map(asReported);
     const deprecated =
         config.variables.transforms.colorFallbackStrategy === "polyfill"
             ? [diagnostic("option-deprecated", { option: 'colorFallbackStrategy: "polyfill"' })]
             : [];
-    if (reported.some(({ kind }) => kind === "default-required"))
-        return { entries: [], diagnostics: [...reported, ...deprecated] };
+    const listed = config.variables.permutations ?? [];
+    const required = listed.length === 0 ? defaultRequired(tokens) : undefined;
+    if (required)
+        return { entries: [], diagnostics: [...tokens.diagnostics, required, ...deprecated] };
 
     const options = declarationOptions(tokens, config);
     const declaredIn = new Map<Permutation, Declared>();
@@ -57,13 +57,13 @@ export function declare(tokens: DesignTokens, config: InternalConfig): Declarati
         declaredIn.set(permutation, found);
         return found;
     };
-    const toWrite = entries(tokens, config, declaredFor);
+    const toWrite = entries(tokens, config, listed, declaredFor);
     const once = [...declaredIn.values()];
 
     return {
         entries: toWrite,
         diagnostics: [
-            ...reported,
+            ...tokens.diagnostics,
             ...deprecated,
             ...defaultsNotFirst(toWrite),
             ...textZoomWarnings([...declaredIn.keys()], options.fluid, options.parseOptions),
@@ -76,9 +76,9 @@ export function declare(tokens: DesignTokens, config: InternalConfig): Declarati
 function entries(
     tokens: DesignTokens,
     config: InternalConfig,
+    listed: ConfigPermutation[],
     declaredFor: (permutation: Permutation) => Declared,
 ): Entry[] {
-    const listed = config.variables.permutations ?? [];
     if (listed.length === 0) {
         const base = tokens.permutations.filter(({ isDefault }) => isDefault);
         const overrides = tokens.permutations.filter(({ isDefault }) => !isDefault);
@@ -134,12 +134,15 @@ function derivedSelector(permutation: Permutation): string {
     return changed ? `[data-${changed.modifier.name}="${changed.name}"]` : ":root";
 }
 
-function asReported(found: Diagnostic): Reported {
-    if (found.kind !== "no-default") return found;
-    const { span } = found;
+function defaultRequired(tokens: DesignTokens): Reported | undefined {
+    const withoutDefault = (tokens.resolver?.modifiers ?? []).filter(
+        (modifier) => modifier.default === undefined,
+    );
+    const [first] = withoutDefault;
+    if (!first) return undefined;
     return {
-        ...diagnostic("default-required", { modifiers: found.detail.modifiers }),
-        ...(span && { span }),
+        ...diagnostic("default-required", { modifiers: withoutDefault.map(({ name }) => name) }),
+        span: first.span,
     };
 }
 

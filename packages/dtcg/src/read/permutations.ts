@@ -1,4 +1,3 @@
-import type { Node } from "jsonc-parser";
 import type {
     Diagnostic,
     DiagnosticDetailByKind,
@@ -10,8 +9,7 @@ import type {
 } from "../index.js";
 import { ownLabel } from "../lookup/permutation-label.js";
 import { diagnostic } from "./diagnostics.js";
-import { type JsonFile, plainObject, spanOf } from "./json.js";
-import type { CheckedResolver } from "./resolver.js";
+import { type JsonFile, plainObject } from "./json.js";
 import type { Loaded } from "./load.js";
 import type { ExpandedItem, LoadedSource, SourceEntry } from "./sources.js";
 
@@ -39,7 +37,6 @@ interface Modifier {
     name: string;
     contexts: string[];
     default?: string;
-    declared: Node;
 }
 
 export function fromTokenFiles(files: { path: string; json?: JsonFile }[]): Built {
@@ -59,7 +56,6 @@ export function fromTokenFiles(files: { path: string; json?: JsonFile }[]): Buil
 }
 
 export function fromResolver(
-    resolver: CheckedResolver,
     part: Resolver,
     items: ExpandedItem[],
     sources: Map<SourceEntry, LoadedSource>,
@@ -67,7 +63,7 @@ export function fromResolver(
     diagnostics: Diagnostic[],
 ): Built {
     const modifiers = modifiersOf(items);
-    const inputs = chooseInputs(modifiers, options, { diagnostics, file: resolver.file });
+    const inputs = chooseInputs(modifiers, options, diagnostics);
     const contextOf = (modifier: string, name: string | undefined) =>
         part.modifiers
             .find((each) => each.name === modifier)
@@ -95,7 +91,6 @@ function modifiersOf(items: ExpandedItem[]): Modifier[] {
                   {
                       name: item.modifier.name,
                       contexts: [...item.contexts.keys()],
-                      declared: item.modifier.declared,
                       ...(item.modifier.default !== undefined && {
                           default: item.modifier.default,
                       }),
@@ -105,17 +100,11 @@ function modifiersOf(items: ExpandedItem[]): Modifier[] {
     );
 }
 
-interface Reporting {
-    diagnostics: Diagnostic[];
-    file: JsonFile;
-}
-
 function chooseInputs(
     modifiers: Modifier[],
     { inputs, permutations, limit }: PermutationOptions,
-    reporting: Reporting,
+    diagnostics: Diagnostic[],
 ): Input[] {
-    const { diagnostics } = reporting;
     if (modifiers.length === 0) return [{}];
     if (inputs) {
         const checked = inputs.flatMap((raw, index) => {
@@ -125,8 +114,8 @@ function chooseInputs(
         return distinct(modifiers, checked);
     }
     return permutations === "each-context"
-        ? eachContext(modifiers, reporting)
-        : allCombinations(modifiers, limit, reporting);
+        ? eachContext(modifiers)
+        : allWithinLimit(modifiers, limit, diagnostics);
 }
 
 function distinct(modifiers: Modifier[], inputs: Input[]): Input[] {
@@ -208,51 +197,34 @@ export function findByName<T>(
     return folded.length === 1 ? folded[0] : undefined;
 }
 
-function allCombinations(modifiers: Modifier[], limit: number, reporting: Reporting): Input[] {
+function allWithinLimit(modifiers: Modifier[], limit: number, diagnostics: Diagnostic[]): Input[] {
     const count = modifiers.reduce((product, { contexts }) => product * contexts.length, 1);
-    if (count <= limit) {
-        return modifiers.reduce<Input[]>(
-            (inputs, { name, contexts }) =>
-                inputs.flatMap((input) =>
-                    contexts.map((context) => ({ ...input, [name]: context })),
-                ),
-            [{}],
-        );
-    }
-    const built = eachContext(modifiers, reporting);
-    reporting.diagnostics.push(
-        diagnostic("permutation-limit", { count, limit, built: built.length }),
-    );
+    if (count <= limit) return combinations(modifiers);
+    const built = eachContext(modifiers);
+    diagnostics.push(diagnostic("permutation-limit", { count, limit, built: built.length }));
     return built;
 }
 
-function eachContext(modifiers: Modifier[], { diagnostics, file }: Reporting): Input[] {
-    const withoutDefault = modifiers.filter(({ default: fallback }) => fallback === undefined);
-    const [first] = withoutDefault;
-    if (first) {
-        diagnostics.push(
-            diagnostic(
-                "no-default",
-                { modifiers: withoutDefault.map(({ name }) => name) },
-                { span: spanOf(file, first.declared) },
-            ),
-        );
-    }
-    const walked = modifiers.flatMap((modifier) =>
-        hasDefaults(modifiers.filter((other) => other !== modifier))
-            ? modifier.contexts.map((context) =>
-                  withDefaults(
-                      modifiers,
-                      context === modifier.default ? {} : { [modifier.name]: context },
-                  ),
-              )
-            : [],
+function combinations(modifiers: Modifier[]): Input[] {
+    return modifiers.reduce<Input[]>(
+        (inputs, { name, contexts }) =>
+            inputs.flatMap((input) => contexts.map((context) => ({ ...input, [name]: context }))),
+        [{}],
     );
-    return distinct(modifiers, walked);
 }
 
-function hasDefaults(modifiers: Modifier[]): boolean {
-    return modifiers.every((modifier) => modifier.default !== undefined);
+function eachContext(modifiers: Modifier[]): Input[] {
+    const chosen = combinations(
+        modifiers.filter(({ default: fallback }) => fallback === undefined),
+    );
+    const walked = modifiers.flatMap((modifier) =>
+        chosen.flatMap((choice) =>
+            modifier.contexts.map((context) =>
+                withDefaults(modifiers, { ...choice, [modifier.name]: context }),
+            ),
+        ),
+    );
+    return distinct(modifiers, walked);
 }
 
 function withDefaults(modifiers: Modifier[], chosen: Input): Input {

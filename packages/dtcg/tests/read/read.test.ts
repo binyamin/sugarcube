@@ -354,7 +354,7 @@ describe("the combination limit", () => {
         expect(tokens.diagnostics).toStrictEqual([]);
     });
 
-    it("builds the default and each context on its own above it, and says so", () => {
+    it("builds each context on its own above it, and says so", () => {
         const tokens = readWith(withModifiers(6));
         expect(tokens.permutations.map(({ input }) => Object.values(input).join(""))).toStrictEqual(
             [
@@ -378,15 +378,11 @@ describe("the combination limit", () => {
         expect(tokens.diagnostics).toStrictEqual([]);
     });
 
-    it("builds only what can be built above it when modifiers have no default", () => {
+    it("builds every combination above it when no modifier has a default, and says so", () => {
         const tokens = readWith(withModifiers(6, false));
-        expect(tokens.permutations).toStrictEqual([]);
+        expect(tokens.permutations).toHaveLength(64);
         expect(tokens.diagnostics.map(({ kind, detail }) => ({ kind, detail }))).toStrictEqual([
-            {
-                kind: "no-default",
-                detail: { modifiers: ["m0", "m1", "m2", "m3", "m4", "m5"] },
-            },
-            { kind: "permutation-limit", detail: { count: 64, limit: 32, built: 0 } },
+            { kind: "permutation-limit", detail: { count: 64, limit: 32, built: 64 } },
         ]);
     });
 
@@ -455,7 +451,7 @@ describe("each context on its own", () => {
         ]);
     });
 
-    it("builds each context of the one modifier with no default, and says what it could not build", () => {
+    it("builds the other modifiers' contexts with each context of a modifier with no default", () => {
         expect(
             built(
                 resolver({
@@ -467,23 +463,47 @@ describe("each context on its own", () => {
             inputs: [
                 { size: "small", brand: "house" },
                 { size: "large", brand: "house" },
+                { size: "small", brand: "ocean" },
+                { size: "large", brand: "ocean" },
             ],
-            diagnostics: [{ kind: "no-default", detail: { modifiers: ["size"] } }],
+            diagnostics: [],
         });
     });
 
-    it("points at the modifier with no default", () => {
-        const text = resolver({
-            size: { contexts: { small: [], large: [] } },
-            brand: { contexts: { house: [], ocean: [] }, default: "house" },
+    it("builds each context of the only modifier, which has no default", () => {
+        expect(built(resolver({ theme: { contexts: { light: [], dark: [] } } }))).toStrictEqual({
+            inputs: [{ theme: "light" }, { theme: "dark" }],
+            diagnostics: [],
         });
-        const [found] = readFromMemory(
-            { files: { "tokens.resolver.json": text } },
-            { permutations: "each-context" },
-        ).diagnostics;
+    });
+
+    it("builds the others' contexts with every combination of the modifiers with no default", () => {
         expect(
-            found?.span && text.slice(found.span.offset, found.span.offset + found.span.length),
-        ).toBe('{"contexts":{"small":[],"large":[]}}');
+            built(
+                resolver({
+                    size: { contexts: { small: [], large: [] } },
+                    theme: { contexts: { light: [], dark: [] } },
+                    brand: { contexts: { house: [], ocean: [] }, default: "house" },
+                    density: { contexts: { regular: [], compact: [] }, default: "regular" },
+                }),
+            ),
+        ).toStrictEqual({
+            inputs: [
+                { size: "small", theme: "light", brand: "house", density: "regular" },
+                { size: "large", theme: "light", brand: "house", density: "regular" },
+                { size: "small", theme: "dark", brand: "house", density: "regular" },
+                { size: "large", theme: "dark", brand: "house", density: "regular" },
+                { size: "small", theme: "light", brand: "ocean", density: "regular" },
+                { size: "small", theme: "dark", brand: "ocean", density: "regular" },
+                { size: "large", theme: "light", brand: "ocean", density: "regular" },
+                { size: "large", theme: "dark", brand: "ocean", density: "regular" },
+                { size: "small", theme: "light", brand: "house", density: "compact" },
+                { size: "small", theme: "dark", brand: "house", density: "compact" },
+                { size: "large", theme: "light", brand: "house", density: "compact" },
+                { size: "large", theme: "dark", brand: "house", density: "compact" },
+            ],
+            diagnostics: [],
+        });
     });
 });
 

@@ -266,7 +266,7 @@ describe("emitCSS", () => {
             expect(found?.span?.file).toBe("tokens.resolver.json");
         });
 
-        it("says which modifier needs a default, in place of the read's warning", () => {
+        it("says which modifier needs a default", () => {
             expect(diagnostics.map(({ kind }) => kind)).toStrictEqual(["default-required"]);
             expect(diagnostics[0]).toMatchObject({
                 severity: "error",
@@ -315,6 +315,55 @@ describe("emitCSS", () => {
         expect(built(tokens, config).diagnostics.map(({ message }) => message)).toStrictEqual([
             "the modifiers `brand` and `size` have no default, so there is nothing to write on `:root`: give them a `default` in the resolver, or list the permutations to write in `variables.permutations`",
         ]);
+    });
+
+    it("needs a default when the only modifier has none", () => {
+        const config = fillDefaults({ variables: { path: "variables.css" } });
+        const files = {
+            "tokens.resolver.json": JSON.stringify({
+                version: "2025.10",
+                resolutionOrder: [
+                    { type: "set", name: "base", sources: [{ $ref: "tokens.json" }] },
+                    { type: "modifier", name: "theme", contexts: { light: [], dark: [] } },
+                ],
+            }),
+            "tokens.json": JSON.stringify({ brand: color("#e11d48") }),
+        };
+        const declared = declare(
+            readFromMemory({ files, entry: "tokens.resolver.json" }, readOptions(config)),
+            config,
+        );
+        expect(declared.entries).toStrictEqual([]);
+        expect(declared.diagnostics.map(({ kind }) => kind)).toStrictEqual(["default-required"]);
+        expect(declared.diagnostics[0]?.span?.file).toBe("tokens.resolver.json");
+    });
+
+    it("needs no default when the config lists the permutations to write", () => {
+        const config = fillDefaults({
+            variables: {
+                path: "variables.css",
+                permutations: [
+                    { input: { theme: "light" }, selector: ":root" },
+                    { input: { theme: "dark" }, selector: '[data-theme="dark"]' },
+                ],
+            },
+        });
+        const files = {
+            "tokens.resolver.json": JSON.stringify({
+                version: "2025.10",
+                resolutionOrder: [
+                    { type: "set", name: "base", sources: [{ $ref: "tokens.json" }] },
+                    { type: "modifier", name: "theme", contexts: { light: [], dark: [] } },
+                ],
+            }),
+            "tokens.json": JSON.stringify({ brand: color("#e11d48") }),
+        };
+        const declared = declare(
+            readFromMemory({ files, entry: "tokens.resolver.json" }, readOptions(config)),
+            config,
+        );
+        expect(declared.diagnostics).toStrictEqual([]);
+        expect(declared.entries).not.toStrictEqual([]);
     });
 
     describe("writes a later permutation's block", () => {

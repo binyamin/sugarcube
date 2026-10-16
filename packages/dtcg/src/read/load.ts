@@ -60,7 +60,7 @@ export function* load(
     const part = resolverPart(resolver, setsUsed, diagnostics);
     return loaded({
         resolver: part,
-        ...fromResolver(resolver, part, items, sources, options, diagnostics),
+        ...fromResolver(part, items, sources, options, diagnostics),
     });
 }
 
