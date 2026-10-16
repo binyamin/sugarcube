@@ -216,8 +216,9 @@ export type Reference = ReferenceBase &
 export interface ReferenceBase {
     /**
      * The path it names: a token's, or a group's for a group's `$extends`; for a JSON Pointer to a
-     * property within a value, the token holding it. Absent for a pointer that names no path in
-     * the files read, such as one to another file.
+     * property within a value, the token holding it. Given even when nothing is at that path, so a
+     * reference to a missing token can be found and moved. Absent for a pointer that names no path,
+     * such as `#/` or one into another file.
      */
     path?: string;
     /** The token or group that writes it. */
@@ -1127,7 +1128,11 @@ export interface DiagnosticDetailByKind {
          * {@link ReferenceBase.from | from}.
          */
         from: string[];
-        /** A token with a similar path, when exactly one is close. */
+        /**
+         * `ref` written to a token with a similar path instead, when exactly one is close: a path,
+         * or for a pointer, the pointer to that token with the same steps into its value. Not given
+         * when the token a pointer names exists, as then a step inside its value is what is wrong.
+         */
         similar?: string;
     };
     /** `$extends`, or a `$ref` standing for a group, points at a token (Format 6.4.6). */
@@ -1907,7 +1912,15 @@ export interface TokensInMemory {
 }
 export { filePath } from "./read/paths.js";
 
-export { childPath, forbiddenInName, movedPath, parentOf, pathBelow, withoutRoot } from "./path.js";
+export {
+    atOrWithin,
+    childPath,
+    forbiddenInName,
+    movedPath,
+    parentOf,
+    pathBelow,
+    withoutRoot,
+} from "./path.js";
 export { completeInput } from "./lookup/permutation.js";
 export { permutationLabel } from "./lookup/permutation-label.js";
 

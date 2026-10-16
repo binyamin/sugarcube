@@ -127,6 +127,27 @@ describe("a token's references", () => {
     });
 });
 
+describe("a reference to nothing", () => {
+    it("still names the path it points at, so it can be found and moved", () => {
+        const tokens = readFromMemory({
+            files: {
+                "tokens.json": JSON.stringify({
+                    text: { $type: "color", $value: { $ref: "#/color/inc/$value" } },
+                    border: { $type: "color", $value: "{color.inc}" },
+                }),
+            },
+        });
+        expect(
+            tokens
+                .referencedBy("color.inc")
+                .map(({ from, path, syntax }) => ({ from, path, syntax })),
+        ).toStrictEqual([
+            { from: "text", path: "color.inc", syntax: "json-pointer" },
+            { from: "border", path: "color.inc", syntax: "curly-brace" },
+        ]);
+    });
+});
+
 describe("referenceAt", () => {
     it("finds the reference written at a place in the value", () => {
         expect(referenceAt("border", ["width"])).toBe("thin");

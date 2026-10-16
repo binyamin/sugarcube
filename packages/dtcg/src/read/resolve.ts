@@ -26,9 +26,9 @@ import type { Properties } from "./walk.js";
 import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
 import type { LocatedReference, ValueReader } from "./parse-value.js";
 import { malformation } from "./malformed-pointer.js";
-import { pointerParts, reach, stepInto } from "./ref-meaning.js";
+import { reach, stepInto } from "./ref-meaning.js";
 import { similarName } from "./similar.js";
-import { referenceText } from "../values/references.js";
+import { movedReference, namedPath, referenceText } from "../values/references.js";
 import { type Occurrence, wholeReference } from "./occurrence.js";
 import { type Resolving, UNRESOLVED, resolveValue } from "./resolve-value.js";
 import {
@@ -59,6 +59,7 @@ type Whole =
     | { kind: "unreachable" };
 
 interface Missing {
+    reference: WrittenReference;
     first: { from: string; span: Span };
     from: string[];
     uses: Span[];
@@ -101,8 +102,9 @@ function resolvePermutation(
             diagnostic(kind, detail, { span, path, permutation: permutation.input, ...extra }),
         );
 
-    const recordMissing = (ref: string, from: string, span: Span) => {
-        const entry = missing.get(ref) ?? { first: { from, span }, from: [], uses: [] };
+    const recordMissing = (reference: WrittenReference, from: string, span: Span) => {
+        const ref = referenceText(reference);
+        const entry = missing.get(ref) ?? { reference, first: { from, span }, from: [], uses: [] };
         if (!entry.from.includes(from)) entry.from.push(from);
         entry.uses.push(span);
         missing.set(ref, entry);
@@ -116,13 +118,12 @@ function resolvePermutation(
             report("malformed-pointer", malformed, from, use.span);
             return;
         }
-        const ref = referenceText(reference);
         const isGroup =
             reference.syntax === "curly-brace"
                 ? merged.groups.has(reference.path)
                 : reach(use.steps, merged).kind === "group";
-        if (isGroup) report("not-a-token", { ref }, from, use.span);
-        else recordMissing(ref, from, use.span);
+        if (isGroup) report("not-a-token", { ref: referenceText(reference) }, from, use.span);
+        else recordMissing(reference, from, use.span);
     };
 
     const outcomeOf = (path: string, from: string, span: Span): Outcome | undefined => {
@@ -322,12 +323,8 @@ function resolvePermutation(
         if (each.extendsGroup) group.extends = groups.get(each.extendsGroup);
     }
 
-    const knownPaths = [...tokens.keys()];
-    for (const [ref, { first, from, uses }] of missing) {
-        const similar = similarName(
-            ref,
-            knownPaths.filter((path) => !from.includes(path)),
-        );
+    for (const [ref, { reference, first, from, uses }] of missing) {
+        const similar = similarReference(reference, tokens, from);
         const related = uses
             .filter((span) => span !== first.span)
             .map((span) => ({ message: relatedMessages.alsoUsedHere, span }));
@@ -343,6 +340,21 @@ function resolvePermutation(
     return linked;
 }
 
+function similarReference(
+    reference: WrittenReference,
+    tokens: Map<string, unknown>,
+    from: string[],
+): string | undefined {
+    const named = namedPath(reference);
+    if (named === undefined || tokens.has(named)) return undefined;
+    const close = similarName(
+        named,
+        [...tokens.keys()].filter((path) => !from.includes(path)),
+    );
+    if (close === undefined) return undefined;
+    return referenceText(movedReference(reference, [{ from: named, to: close }]));
+}
+
 function targetOf(
     reference: WrittenReference,
     steps: string[] | undefined,
@@ -353,7 +365,7 @@ function targetOf(
         return { path: reference.path, token: built.get(reference.path) };
     }
     const reached = reach(steps, merged);
-    if (reached.kind === "nothing") return { path: steps && pointerParts(steps).path };
+    if (reached.kind === "nothing") return { path: namedPath(reference) };
     if (reached.kind === "group") return { path: reached.path };
     const { path } = reached;
     if (reached.kind === "token") return { path, token: built.get(path) };

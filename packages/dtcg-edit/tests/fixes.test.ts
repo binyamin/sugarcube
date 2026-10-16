@@ -106,6 +106,58 @@ describe("fixes that depend on other tokens", () => {
         expect(fix && leftAfter(opened, fix)).toStrictEqual([]);
     });
 
+    it("offers a similar name for a pointer to a missing token, written as a pointer", async () => {
+        const opened = await readFiles({
+            "tokens.json": JSON.stringify({
+                color: {
+                    $type: "color",
+                    ink: { $value: { colorSpace: "srgb", components: [0, 0, 0] } },
+                    text: { $value: { $ref: "#/color/inc/$value" } },
+                    border: { $value: "{color.inc}" },
+                },
+            }),
+        });
+        const offeredHere = offered(opened).map(({ fixes }) =>
+            fixes.map(({ title, edits }) => ({ title, texts: edits.map(({ text }) => text) })),
+        );
+        expect(offeredHere).toStrictEqual([
+            [
+                {
+                    title: "use `#/color/ink/$value`, which has a similar name",
+                    texts: ['"#/color/ink/$value"'],
+                },
+            ],
+            [{ title: "use `color.ink`, which has a similar name", texts: ['"{color.ink}"'] }],
+        ]);
+        for (const [fix] of offered(opened).map(({ fixes }) => fixes)) {
+            expect(fix && leftAfter(opened, fix)).toStrictEqual([]);
+        }
+    });
+
+    it("renames only the places that write the missing reference", async () => {
+        const opened = await readFiles({
+            "tokens.json": JSON.stringify({
+                color: {
+                    $type: "color",
+                    ink: { $value: { colorSpace: "srgb", components: [0, 0, 0] } },
+                    mix: {
+                        $value: {
+                            colorSpace: "srgb",
+                            components: [{ $ref: "#/color/inc/$value/components/0" }, 0, 0],
+                        },
+                    },
+                },
+                hue: { $type: "number", $value: { $ref: "#/color/mix/$value/components/0" } },
+            }),
+        });
+        const [missing] = opened.diagnostics.filter(({ kind }) => kind === "missing-reference");
+        const [fix] = missing ? fixesFor(opened, missing) : [];
+        expect(missing?.related?.length).toBe(1);
+        expect(fix?.edits.map(({ text }) => text)).toStrictEqual([
+            '"#/color/ink/$value/components/0"',
+        ]);
+    });
+
     it("deletes an empty $type only when the token then takes its group's type", async () => {
         const untyped = await readFiles({
             "tokens.json": JSON.stringify({

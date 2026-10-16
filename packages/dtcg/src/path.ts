@@ -84,6 +84,15 @@ export function childPath(parent: string | undefined, name: string): string {
     return parent === undefined ? name : `${parent}.${name}`;
 }
 
-export function within(path: string, group: string): boolean {
+/**
+ * Whether `path` is the group's own path or anything within it (Format 6.3): what removing or moving
+ * the group takes with it. A sibling whose name merely starts the same way is not within.
+ *
+ * @example
+ * atOrWithin("color.brand.500", "color.brand") // true
+ * atOrWithin("color.brand", "color.brand")     // true
+ * atOrWithin("color.brandy", "color.brand")    // false
+ */
+export function atOrWithin(path: string, group: string): boolean {
     return path === group || pathBelow(path, group) !== undefined;
 }

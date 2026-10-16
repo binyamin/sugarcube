@@ -58,8 +58,40 @@ export function isReference(value: unknown): value is WrittenReference {
     return value.syntax === "json-pointer" && typeof value.pointer === "string";
 }
 
+/**
+ * A reference's text, as a problem's `ref` gives it: a curly brace reference's path, without the
+ * braces, or a JSON Pointer as written.
+ *
+ * @example
+ * referenceText(readReference("{color.ink}"))                // "color.ink"
+ * referenceText(readReference({ $ref: "#/color/ink/$value" })) // "#/color/ink/$value"
+ */
 export function referenceText(reference: WrittenReference): string {
     return reference.syntax === "curly-brace" ? reference.path : reference.pointer;
+}
+
+/**
+ * The token path a reference names: a curly brace's path, or for a pointer its steps before
+ * `$value`, or all of them when it has none (Format Example 21). `undefined` for a pointer naming
+ * none, such as `#/` or one into another file.
+ */
+export function namedPath(ref: WrittenReference): string | undefined {
+    if (ref.syntax === "curly-brace") return ref.path;
+    const steps = refSteps(ref.pointer);
+    return steps && pointerParts(steps).path;
+}
+
+/**
+ * A reference written as a JSON Pointer (Format 7.1.2), as it goes in a file: `"{color.ink}"` is
+ * `{ "$ref": "#/color/ink/$value" }`, which the spec calls equivalent. A pointer is given as it
+ * is written.
+ *
+ * @example
+ * asJsonPointer(readReference("{color.ink}")) // { $ref: "#/color/ink/$value" }
+ */
+export function asJsonPointer(reference: WrittenReference): { $ref: string } {
+    if (reference.syntax === "json-pointer") return { $ref: reference.pointer };
+    return { $ref: encodePointer([...reference.path.split("."), "$value"]) };
 }
 
 export function movedReference<R extends WrittenReference>(ref: R, moved: readonly Move[]): R;

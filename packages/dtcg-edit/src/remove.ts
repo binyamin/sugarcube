@@ -1,4 +1,4 @@
-import { type DesignTokens, pathBelow } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, atOrWithin } from "@sugarcube-sh/dtcg";
 import type { FileOp, OpResult } from "./index.js";
 import { copiesOf } from "./placement.js";
 
@@ -24,9 +24,8 @@ export function remove(tokens: DesignTokens, path: string): OpResult {
         jsonPath,
         was: written,
     }));
-    const broken = new Set<string>();
-    for (const { from } of tokens.referencedBy(path)) {
-        if (from !== path && pathBelow(from, path) === undefined) broken.add(from);
-    }
-    return { ops, alsoAffects: copies.alsoAffects, broken: [...broken], moved: [] };
+    const broken = tokens
+        .referencedBy(path)
+        .flatMap(({ from }) => (atOrWithin(from, path) ? [] : [from]));
+    return { ops, alsoAffects: copies.alsoAffects, broken: [...new Set(broken)], moved: [] };
 }

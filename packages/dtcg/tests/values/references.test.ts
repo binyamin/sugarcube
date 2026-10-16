@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isReference, parseDimension, parseNumber, readReference } from "../../src/values.js";
+import {
+    asJsonPointer,
+    isReference,
+    parseDimension,
+    parseNumber,
+    readReference,
+    referenceText,
+} from "../../src/values.js";
 
 describe("isReference", () => {
     it("recognises the references a parser reads, in either syntax", () => {
@@ -55,4 +62,35 @@ describe("readReference", () => {
             expect(readReference(raw)).toBeUndefined();
         },
     );
+});
+
+describe("asJsonPointer", () => {
+    it.for([
+        { written: "{color.ink}", pointer: "#/color/ink/$value" },
+        { written: "{a~b.c/d}", pointer: "#/a~0b/c~1d/$value" },
+        { written: "{color.accent.$root}", pointer: "#/color/accent/$root/$value" },
+        {
+            written: { $ref: "#/color/ink/$value/components/0" },
+            pointer: "#/color/ink/$value/components/0",
+        },
+        { written: { $ref: "#/base" }, pointer: "#/base" },
+    ])("writes $written as $pointer", ({ written, pointer }) => {
+        const reference = readReference(written);
+        if (!reference) expect.unreachable("a reference");
+        expect(asJsonPointer(reference)).toStrictEqual({ $ref: pointer });
+    });
+});
+
+describe("referenceText", () => {
+    it.for([
+        { written: "{color.ink}", text: "color.ink" },
+        {
+            written: { $ref: "#/color/ink/$value/components/0" },
+            text: "#/color/ink/$value/components/0",
+        },
+    ])("gives $text", ({ written, text }) => {
+        const reference = readReference(written);
+        if (!reference) expect.unreachable("a reference");
+        expect(referenceText(reference)).toBe(text);
+    });
 });

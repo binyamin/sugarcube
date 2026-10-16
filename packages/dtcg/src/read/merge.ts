@@ -1,5 +1,5 @@
 import { relatedMessages } from "../error-messages.js";
-import { within } from "../path.js";
+import { atOrWithin } from "../path.js";
 import type { Diagnostic, Input, Span } from "../index.js";
 import { diagnostic } from "./diagnostics.js";
 import type {
@@ -148,6 +148,6 @@ function mergeProperties(target: Properties, { extensions, ...rest }: Properties
 }
 
 export function removeGroup(merged: Merged, path: string): void {
-    for (const each of merged.groups.keys()) if (within(each, path)) merged.groups.delete(each);
-    for (const each of merged.tokens.keys()) if (within(each, path)) merged.tokens.delete(each);
+    for (const each of merged.groups.keys()) if (atOrWithin(each, path)) merged.groups.delete(each);
+    for (const each of merged.tokens.keys()) if (atOrWithin(each, path)) merged.tokens.delete(each);
 }

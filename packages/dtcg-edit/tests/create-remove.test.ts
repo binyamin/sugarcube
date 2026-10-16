@@ -434,6 +434,31 @@ describe("remove", () => {
         expect(remove(tokens, "brand")).toMatchObject({ broken: ["button"] });
     });
 
+    it("names a token once in broken when it refers to two things inside the group", () => {
+        const tokens = opened({
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),
+            "base.json": JSON.stringify({
+                space: {
+                    $type: "dimension",
+                    x: { $value: { value: 1, unit: "px" } },
+                    y: { $value: { value: 2, unit: "px" } },
+                },
+                lifted: {
+                    $type: "shadow",
+                    $value: {
+                        color: { colorSpace: "srgb", components: [0, 0, 0] },
+                        offsetX: "{space.x}",
+                        offsetY: "{space.y}",
+                        blur: { value: 0, unit: "px" },
+                        spread: { value: 0, unit: "px" },
+                    },
+                },
+            }),
+        });
+
+        expect(remove(tokens, "space")).toMatchObject({ broken: ["lifted"] });
+    });
+
     it("names no context in design tokens without modifiers", () => {
         const tokens = opened({
             "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),

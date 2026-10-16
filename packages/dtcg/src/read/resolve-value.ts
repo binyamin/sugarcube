@@ -5,8 +5,10 @@ import type {
     JsonPath,
     Span,
     TokenType,
+    WrittenReference,
 } from "../index.js";
 import { isJsonObject } from "../values/json.js";
+import { referenceText } from "../values/references.js";
 import type { ReadAgain } from "../values/read-syntax.js";
 import type { Siblings } from "../values/syntax.js";
 import type { MergedToken, Merged } from "./merge.js";
@@ -30,7 +32,7 @@ export interface Resolving {
         path: string,
         span: Span,
     ): void;
-    recordMissing(ref: string, from: string, span: Span): void;
+    recordMissing(reference: WrittenReference, from: string, span: Span): void;
     reportUnreachable(use: Occurrence, from: string): void;
 }
 
@@ -104,7 +106,7 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
             : part;
 
     if (ref.syntax === "curly-brace") {
-        const target = { path: ref.path, shown: ref.path };
+        const target = { path: ref.path, reference: ref };
         return adjusted(substitute(resolving, token, target, expected, use, element));
     }
 
@@ -118,14 +120,14 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
         if (!within) reportUnreachable(located.occurrence, token.path);
         else if (reached.kind === "group") {
             report("not-a-token", { ref: written }, token.path, use.span);
-        } else recordMissing(written, token.path, use.span);
+        } else recordMissing(ref, token.path, use.span);
         return UNRESOLVED;
     };
     if (reached.kind === "group" || reached.kind === "nothing") return unreachable();
 
     const whole = reached.kind === "token";
     if (whole && (syntax.kind === "ofType" || element)) {
-        const target = { path: reached.path, shown: written };
+        const target = { path: reached.path, reference: ref };
         return adjusted(substitute(resolving, token, target, expected, use, element));
     }
     const { authored } = reached.token;
@@ -144,16 +146,17 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
 function substitute(
     { outcomeOf, merged, report, recordMissing }: Resolving,
     token: MergedToken,
-    { path, shown }: { path: string; shown: string },
+    { path, reference }: { path: string; reference: WrittenReference },
     expected: TokenType,
     use: Occurrence,
     element: boolean,
 ): unknown {
     const { span } = use;
+    const shown = referenceText(reference);
     const target = outcomeOf(path, token.path, span);
     if (target === undefined) {
         if (merged.groups.has(path)) report("not-a-token", { ref: shown }, token.path, span);
-        else recordMissing(shown, token.path, span);
+        else recordMissing(reference, token.path, span);
         return UNRESOLVED;
     }
     if (target === "untyped" || !("resolved" in target)) return UNRESOLVED;

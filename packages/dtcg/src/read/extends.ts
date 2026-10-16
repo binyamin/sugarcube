@@ -1,11 +1,11 @@
 import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind, Input } from "../index.js";
-import { referenceText } from "../values/references.js";
+import { namedPath, referenceText } from "../values/references.js";
 import { relatedMessages } from "../error-messages.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { malformation } from "./malformed-pointer.js";
 import { type Merged, type MergedGroup, removeGroup } from "./merge.js";
-import { pathBelow, within } from "../path.js";
-import { pointerParts, reach, refObjectMeaning } from "./ref-meaning.js";
+import { pathBelow, atOrWithin } from "../path.js";
+import { reach, refObjectMeaning } from "./ref-meaning.js";
 
 type Extending = MergedGroup & { extends: NonNullable<MergedGroup["extends"]> };
 
@@ -49,13 +49,13 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
     const extend = (group: Extending, chain: Extending[]): void => {
         const { keyword, reference, steps } = group.extends;
         const written = referenceText(reference);
-        const direct = steps && pointerParts(steps).path;
+        const direct = namedPath(reference);
         if (steps && direct === undefined) {
             report("circular-reference", { chain: [group.path], toTopLevel: true }, group);
             state.set(group.path, "in-a-loop");
             return;
         }
-        if (direct !== undefined && within(group.path, direct)) {
+        if (direct !== undefined && atOrWithin(group.path, direct)) {
             report("circular-reference", { chain: [group.path, direct] }, group);
             state.set(group.path, "in-a-loop");
             return;
@@ -81,7 +81,7 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
 
     const extendInside = (path: string, chain: Extending[]): void => {
         for (const each of Array.from(merged.groups.values())) {
-            if (within(each.path, path) && isExtending(each)) visit(each, chain);
+            if (atOrWithin(each.path, path) && isExtending(each)) visit(each, chain);
         }
     };
 

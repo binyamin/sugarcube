@@ -1,6 +1,6 @@
 import type { DesignTokens, Diagnostic, Span } from "@sugarcube-sh/dtcg";
-import { readReference } from "@sugarcube-sh/dtcg/values";
-import type { Node } from "jsonc-parser";
+import { asJsonPointer, readReference, referenceText } from "@sugarcube-sh/dtcg/values";
+import { type Node, getNodeValue } from "jsonc-parser";
 import { fixTitles } from "./error-messages.js";
 import type { Fix, TextEdit } from "./index.js";
 import { inline, refString, removal, spliced } from "./json-text.js";
@@ -86,9 +86,7 @@ function fixFor(tokens: DesignTokens, diagnostic: Diagnostic): Fix | undefined {
             const { ref, similar } = diagnostic.detail;
             if (similar === undefined) return undefined;
             const uses = [span, ...(diagnostic.related ?? []).map((related) => related.span)];
-            const edits = uses
-                .filter((use) => writesCurlyBrace(nodeAt(tokens, use)?.value, ref))
-                .map((use) => replacing(use, `{${similar}}`));
+            const edits = uses.flatMap((use) => renamedReference(tokens, use, ref, similar));
             return edits.length > 0 ? guess(fixTitles.useSimilar(similar), edits) : undefined;
         }
         default:
@@ -126,10 +124,10 @@ function valueFix(
             if (written !== detail.reference || reference?.syntax !== "curly-brace") {
                 return undefined;
             }
-            const pointer = pointerTo(reference.path);
-            const change = { ...range(span), text: inline({ $ref: pointer }) };
+            const pointer = asJsonPointer(reference);
+            const change = { ...range(span), text: inline(pointer) };
             if (!readsClean(tokens, [change])) return undefined;
-            return safe(fixTitles.referenceAsPointer(pointer), change);
+            return safe(fixTitles.referenceAsPointer(pointer.$ref), change);
         }
         default:
             return undefined;
@@ -157,14 +155,20 @@ function readsClean(tokens: DesignTokens, edits: TextEdit[]): boolean {
     return after.diagnosticsAt({ file, offset: start, length: end - start }).length === 0;
 }
 
-function writesCurlyBrace(written: unknown, ref: string): boolean {
-    const reference = readReference(written);
-    return reference?.syntax === "curly-brace" && reference.path === ref;
-}
-
-function pointerTo(path: string): string {
-    const steps = path.split(".").map((step) => step.replaceAll("~", "~0").replaceAll("/", "~1"));
-    return `#/${steps.join("/")}/$value`;
+function renamedReference(
+    tokens: DesignTokens,
+    use: Span,
+    ref: string,
+    similar: string,
+): TextEdit[] {
+    const node = nodeAt(tokens, use);
+    const reference = node && readReference(getNodeValue(node));
+    const text = node && refString(node);
+    if (!reference || !text || referenceText(reference) !== ref) return [];
+    const renamed = reference.syntax === "curly-brace" ? `{${similar}}` : similar;
+    return [
+        { file: use.file, offset: text.offset, length: text.length, text: JSON.stringify(renamed) },
+    ];
 }
 
 function deletion(

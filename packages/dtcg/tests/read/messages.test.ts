@@ -407,6 +407,17 @@ describe("diagnostic messages that say what would mend the problem", () => {
         },
         {
             found: {
+                kind: "missing-reference",
+                detail: {
+                    ref: "#/color/inc/$value",
+                    from: ["color.muted"],
+                    similar: "#/color/ink/$value",
+                },
+            },
+            message: "`#/color/inc/$value` does not exist; did you mean `#/color/ink/$value`?",
+        },
+        {
+            found: {
                 kind: "misspelt-property",
                 detail: { written: "value", property: "$value", owner: "token" },
             },
