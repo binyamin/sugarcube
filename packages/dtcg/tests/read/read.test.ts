@@ -520,6 +520,45 @@ describe("inputs without modifiers", () => {
     });
 });
 
+describe("what counts as a resolver: its name, or a top-level resolutionOrder", () => {
+    const versioned = '{ "version": "1.0", "a": { "$type": "number", "$value": 1 } }';
+
+    it("reads a file with only a version as token files, as a package.json would be", () => {
+        const tokens = readFromMemory({ files: { "tokens.json": versioned } });
+        expect(tokens.resolver).toBeUndefined();
+        expect(tokens.diagnostics.map(({ kind }) => kind)).not.toContain("resolver-invalid");
+    });
+
+    it("finds no resolver among files where one only has a version", () => {
+        const reading = () => readFromMemory({ files: { "a.json": versioned, "b.json": valid } });
+        expect(reading).toThrow(/token files with no resolver among them/);
+    });
+
+    it("takes a file named .resolver.json as the resolver, so it can say what it lacks", () => {
+        const tokens = readFromMemory({ files: { "x.resolver.json": "{}", "b.json": valid } });
+        expect(tokens.entry).toBe("x.resolver.json");
+        expect(tokens.diagnostics.map(({ kind }) => kind)).toContain("resolver-invalid");
+    });
+
+    it("refuses a source named .resolver.json as a resolver", () => {
+        const tokens = readFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    resolutionOrder: [
+                        { type: "set", name: "base", sources: [{ $ref: "other.resolver.json" }] },
+                    ],
+                }),
+                "other.resolver.json": "{}",
+            },
+            entry: "tokens.resolver.json",
+        });
+        expect(tokens.diagnostics.map(({ detail }) => detail)).toContainEqual(
+            expect.objectContaining({ rule: "resolver-as-source" }),
+        );
+    });
+});
+
 describe("readFromMemory", () => {
     it("refuses several token files with no resolver among them, naming them", () => {
         const reading = () =>

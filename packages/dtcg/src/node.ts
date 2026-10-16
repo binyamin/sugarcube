@@ -1,16 +1,8 @@
-/**
- * Looks for a resolver document (`*.resolver.json`) in a folder and below.
- *
- * @example
- * const found = await findResolver(process.cwd());
- * if (found.kind === "one") await read(found.path);
- */
-export function findResolver(
-    folder: string,
-): Promise<{ kind: "one"; path: string } | { kind: "many"; paths: string[] } | { kind: "none" }> {
-    throw new Error("not implemented yet");
-}
-
+export {
+    type FindResolverOptions,
+    type FoundResolver,
+    findResolver,
+} from "./node/find-resolver.js";
 export { read } from "./node/read.js";
 export { fileOnDisk } from "./node/paths.js";
 export { type FileStats, onFileChanged } from "./node/file-changed.js";

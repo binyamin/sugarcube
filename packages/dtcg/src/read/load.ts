@@ -47,7 +47,7 @@ export function* load(
         diagnostics: onceEach(diagnostics),
         ...built,
     });
-    if (root === undefined || !isResolver(root)) {
+    if (!isResolver(entry, root)) {
         return loaded(fromTokenFiles([{ path: entry, json: openFile(files, entry, "tokens") }]));
     }
 

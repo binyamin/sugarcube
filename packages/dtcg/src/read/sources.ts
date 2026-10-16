@@ -135,7 +135,7 @@ function openSource(files: Files, resolver: CheckedResolver, entry: SourceEntry)
         files.diagnostics.push(resolverProblem(resolver.file, problem, entry.ref));
 
     const root = parseFile(files, path)?.root;
-    if (root && isResolver(root)) {
+    if (isResolver(path, root)) {
         openFile(files, path, "resolver");
         report({ rule: "resolver-as-source", name: path, jsonPath });
         return { file: path, ...pointer };

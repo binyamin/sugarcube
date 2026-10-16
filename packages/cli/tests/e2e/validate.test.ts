@@ -192,6 +192,25 @@ describe("validate command", () => {
         expect(result.stdout).toContain("sugarcube validate tokens/a.resolver.json");
     });
 
+    it(
+        "finds the resolver among the paths it is given by what is inside it, whatever its name",
+        { timeout: TEST_TIMEOUT },
+        async () => {
+            await write({
+                "tokens/resolver.json": oneSet("base.json", "brand.json"),
+                "tokens/base.json": { ink: color(black) },
+                "tokens/brand.json": { text: color("{ink}") },
+            });
+
+            for (const paths of ["tokens", "tokens/resolver.json tokens/base.json"]) {
+                const result = await validate(paths);
+
+                expect(result.exitCode).toBe(0);
+                expect(result.stdout).toContain("All tokens valid ✨");
+            }
+        },
+    );
+
     it("validates a single token file without a resolver", { timeout: TEST_TIMEOUT }, async () => {
         await write({ "tokens/a.json": { ink: color(black), text: color("{ink}") } });
 

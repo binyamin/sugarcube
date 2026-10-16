@@ -85,11 +85,15 @@ export interface Reader {
     ): void;
 }
 
-export function isResolver(root: Node): boolean {
-    return members(root).some(
-        ({ key, value }) =>
-            key === "resolutionOrder" || (key === "version" && value.type === "string"),
+export function isResolver(file: string, root: Node | undefined): boolean {
+    return (
+        isResolverName(file) ||
+        (root !== undefined && member(root, "resolutionOrder") !== undefined)
     );
+}
+
+export function isResolverName(file: string): boolean {
+    return file.endsWith(".resolver.json");
 }
 
 export function checkResolver(file: JsonFile, diagnostics: Diagnostic[]): CheckedResolver {

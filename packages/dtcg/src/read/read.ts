@@ -28,7 +28,9 @@ const { performance } = globalThis as unknown as { performance: { now(): number 
  * (`readText` throws) or cannot be read is reported in {@link DesignTokens.diagnostics}, and the
  * rest is still read.
  *
- * @param entry A resolver document or a token file.
+ * @param entry A resolver document or a token file. It is read as a resolver when its name ends
+ * `.resolver.json` (Resolver 3.2) or its top level has `resolutionOrder` (Resolver 4.1), and as a
+ * token file otherwise.
  *
  * @example
  * const tokens = await read("tokens.resolver.json", {
@@ -67,7 +69,7 @@ async function fetchAll(files: Request, folder: string, readText: ReadText): Pro
  * Reads design tokens from text already in memory.
  *
  * The read starts from one entry, a resolver or a token file: the one given, or else the one
- * resolver among the files, or else the only file. Several token files with no resolver among
+ * resolver among the files, told apart as {@link read} tells its entry, or else the only file. Several token files with no resolver among
  * them are not read together, since only a resolver says which files to read and in what order
  * (Resolver 4.1, 6); several resolvers need an entry to say which. Either is refused
  * with a `TypeError` naming the files.
@@ -101,10 +103,9 @@ function entryAmong(texts: Map<string, string>): string {
     const names = [...texts.keys()];
     const [only] = names;
     if (names.length === 1 && only !== undefined) return only;
-    const resolvers = names.filter((name) => {
-        const root = parseJson(texts.get(name) ?? "").root;
-        return root !== undefined && isResolver(root);
-    });
+    const resolvers = names.filter((name) =>
+        isResolver(name, parseJson(texts.get(name) ?? "").root),
+    );
     const [resolver] = resolvers;
     if (resolvers.length === 1 && resolver !== undefined) return resolver;
     if (resolvers.length > 1) throw new TypeError(thrownMessages.severalResolvers(resolvers));
