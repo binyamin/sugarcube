@@ -1,14 +1,7 @@
-import type {
-    Diagnostic,
-    DiagnosticDetailByKind,
-    Input,
-    Resolver,
-    ResolverContext,
-    SetOnRoute,
-    Source,
-} from "../index.js";
+import type { Diagnostic, Input, Resolver, ResolverContext, SetOnRoute, Source } from "../index.js";
 import { ownLabel } from "../lookup/permutation-label.js";
 import { diagnostic } from "./diagnostics.js";
+import { type Modifier, checkedInput, withDefaults } from "./input.js";
 import { type JsonFile, plainObject } from "./json.js";
 import type { Loaded } from "./load.js";
 import type { ExpandedItem, LoadedSource, SourceEntry } from "./sources.js";
@@ -25,7 +18,7 @@ export interface LoadedPermutation {
     sources: ListedSource[];
 }
 
-type Built = Pick<Loaded, "permutations">;
+type Built = Pick<Loaded, "modifiers" | "permutations">;
 
 export interface PermutationOptions {
     inputs?: Record<string, unknown>[];
@@ -33,14 +26,9 @@ export interface PermutationOptions {
     limit: number;
 }
 
-interface Modifier {
-    name: string;
-    contexts: string[];
-    default?: string;
-}
-
 export function fromTokenFiles(files: { path: string; json?: JsonFile }[]): Built {
     return {
+        modifiers: [],
         permutations: [
             {
                 input: {},
@@ -70,6 +58,7 @@ export function fromResolver(
             ?.contexts.find((each) => each.name === name);
     const listed = listedSources(items, sources, contextOf);
     return {
+        modifiers,
         permutations: inputs.map((input) => {
             const contexts = modifiers.flatMap(({ name }) => contextOf(name, input[name]) ?? []);
             return {
@@ -91,9 +80,7 @@ function modifiersOf(items: ExpandedItem[]): Modifier[] {
                   {
                       name: item.modifier.name,
                       contexts: [...item.contexts.keys()],
-                      ...(item.modifier.default !== undefined && {
-                          default: item.modifier.default,
-                      }),
+                      default: item.modifier.default,
                   },
               ]
             : [],
@@ -108,8 +95,12 @@ function chooseInputs(
     if (modifiers.length === 0) return [{}];
     if (inputs) {
         const checked = inputs.flatMap((raw, index) => {
-            const input = checkInput(modifiers, raw, index, diagnostics);
-            return input ? [input] : [];
+            const found = checkedInput(modifiers, raw);
+            if (found.ok) return [found.input];
+            for (const problem of found.problems) {
+                diagnostics.push(diagnostic("input-invalid", { input: index, ...problem }));
+            }
+            return [];
         });
         return distinct(modifiers, checked);
     }
@@ -126,75 +117,6 @@ function distinct(modifiers: Modifier[], inputs: Input[]): Input[] {
         seen.add(key);
         return true;
     });
-}
-
-function checkInput(
-    modifiers: Modifier[],
-    raw: Record<string, unknown>,
-    index: number,
-    diagnostics: Diagnostic[],
-): Input | undefined {
-    const problems: Diagnostic[] = [];
-    const chosen: Input = {};
-    const mentioned = new Set<Modifier>();
-    const invalid = (detail: DiagnosticDetailByKind["input-invalid"]) =>
-        problems.push(diagnostic("input-invalid", detail));
-
-    for (const [key, value] of Object.entries(raw)) {
-        const modifier = findByName(modifiers, key, ({ name }) => name);
-        if (!modifier) {
-            invalid({
-                reason: "unknown-modifier",
-                input: index,
-                modifier: key,
-                valid: modifiers.map(({ name }) => name),
-            });
-            continue;
-        }
-        mentioned.add(modifier);
-        if (typeof value !== "string") {
-            invalid({ reason: "not-a-string", input: index, modifier: modifier.name });
-            continue;
-        }
-        const context = findByName(modifier.contexts, value, (each) => each);
-        if (context === undefined) {
-            invalid({
-                reason: "unknown-context",
-                input: index,
-                modifier: modifier.name,
-                context: value,
-                valid: modifier.contexts,
-            });
-            continue;
-        }
-        chosen[modifier.name] = context;
-    }
-
-    for (const modifier of modifiers) {
-        if (mentioned.has(modifier) || modifier.default !== undefined) continue;
-        invalid({
-            reason: "missing-modifier",
-            input: index,
-            modifier: modifier.name,
-            valid: modifier.contexts,
-        });
-    }
-
-    diagnostics.push(...problems);
-    return problems.length === 0 ? withDefaults(modifiers, chosen) : undefined;
-}
-
-export function findByName<T>(
-    candidates: T[],
-    wanted: string,
-    nameOf: (candidate: T) => string,
-): T | undefined {
-    const exact = candidates.find((candidate) => nameOf(candidate) === wanted);
-    if (exact !== undefined) return exact;
-    const folded = candidates.filter(
-        (candidate) => nameOf(candidate).toLowerCase() === wanted.toLowerCase(),
-    );
-    return folded.length === 1 ? folded[0] : undefined;
 }
 
 function allWithinLimit(modifiers: Modifier[], limit: number, diagnostics: Diagnostic[]): Input[] {
@@ -225,15 +147,6 @@ function eachContext(modifiers: Modifier[]): Input[] {
         ),
     );
     return distinct(modifiers, walked);
-}
-
-function withDefaults(modifiers: Modifier[], chosen: Input): Input {
-    const input: Input = {};
-    for (const { name, default: fallback } of modifiers) {
-        const context = chosen[name] ?? fallback;
-        if (context !== undefined) input[name] = context;
-    }
-    return input;
 }
 
 type Listed = (entry: SourceEntry, context?: ResolverContext) => ListedSource | undefined;

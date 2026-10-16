@@ -125,7 +125,8 @@ export type OpResult =
  *   `from` (absent for the top level of a file).
  * - `inherited`: the token or group comes from the group at `from`, through `$extends`.
  * - `no-permutation`: there is no permutation for `input`; `why` says whether a modifier or
- *   context isn't declared, a modifier with no default was left out, or the read didn't build it.
+ *   context isn't declared, a context isn't a string, a modifier with no default was left out, or
+ *   the read didn't build it.
  * - `several-contexts`: `input` names more than one context away from its default; no file is
  *   read by that combination alone.
  * - `no-file-for-context`: the context `input` names reads no whole file of its own to hold the

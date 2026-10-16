@@ -113,7 +113,17 @@ describe("tokens.permutation", () => {
     it("throws for a modifier the resolver does not declare, saying which", () => {
         const error = thrown(() => tokens.permutation({ size: "large" }));
         expect(error.message).toBe("there is no modifier named `size`");
-        expect(error.detail).toStrictEqual({ reason: "unknown-modifier", modifier: "size" });
+        expect(error.detail).toStrictEqual({
+            reason: "unknown-modifier",
+            modifier: "size",
+            valid: ["theme", "density"],
+        });
+    });
+
+    it("throws for a context that is not a string (Resolver 5.2)", () => {
+        const error = thrown(() => tokens.permutation({ theme: 1 } as unknown as Input));
+        expect(error.message).toBe("the input for the modifier `theme` must be a string");
+        expect(error.detail).toStrictEqual({ reason: "not-a-string", modifier: "theme" });
     });
 
     it("throws for a context the modifier does not declare, saying which", () => {
@@ -123,6 +133,7 @@ describe("tokens.permutation", () => {
             reason: "unknown-context",
             modifier: "theme",
             context: "sepia",
+            valid: ["light", "dark"],
         });
     });
 
@@ -132,7 +143,7 @@ describe("tokens.permutation", () => {
             "the input doesn't choose a context for the modifier `theme`, which has no default: choose `light` or `dark`",
         );
         expect(error.detail).toStrictEqual({
-            reason: "no-default",
+            reason: "missing-modifier",
             modifier: "theme",
             valid: ["light", "dark"],
         });
@@ -162,22 +173,71 @@ describe("completeInput", () => {
             ok: false,
             reason: "unknown-modifier",
             modifier: "mood",
+            valid: ["theme", "density"],
         });
         expect(completeInput(tokens, { theme: "sepia" })).toStrictEqual({
             ok: false,
             reason: "unknown-context",
             modifier: "theme",
             context: "sepia",
+            valid: ["light", "dark"],
         });
     });
 
     it("says which modifier with no default was left out, and its contexts", () => {
         expect(completeInput(noDefault, {})).toStrictEqual({
             ok: false,
-            reason: "no-default",
+            reason: "missing-modifier",
             modifier: "theme",
             valid: ["light", "dark"],
         });
+    });
+
+    it("says which context is not a string (Resolver 5.2)", () => {
+        expect(completeInput(tokens, { theme: true } as unknown as Input)).toStrictEqual({
+            ok: false,
+            reason: "not-a-string",
+            modifier: "theme",
+        });
+    });
+
+    it("gives the first problem: a modifier it names before one it leaves out", () => {
+        expect(completeInput(noDefault, { mood: "calm" })).toMatchObject({
+            reason: "unknown-modifier",
+        });
+    });
+
+    it("takes modifiers in the resolution order, as the read does, not the order written", () => {
+        const swapped = readFromMemory(
+            {
+                files: {
+                    "tokens.resolver.json": JSON.stringify({
+                        version: "2025.10",
+                        modifiers: {
+                            size: { contexts: { small: [], large: [] } },
+                            theme: { contexts: { light: [], dark: [] } },
+                        },
+                        resolutionOrder: [
+                            { $ref: "#/modifiers/theme" },
+                            { $ref: "#/modifiers/size" },
+                        ],
+                    }),
+                },
+            },
+            { inputs: [{}, { size: "large", theme: "dark" }] },
+        );
+        expect(swapped.diagnostics[0]).toMatchObject({ detail: { modifier: "theme" } });
+        expect(completeInput(swapped, {})).toMatchObject({ modifier: "theme" });
+        const complete = completeInput(swapped, { size: "large", theme: "dark" });
+        expect(complete.ok && Object.keys(complete.input)).toStrictEqual(
+            Object.keys(swapped.permutation({ size: "large", theme: "dark" }).input),
+        );
+    });
+
+    it("checks nothing when the resolver declares no modifiers (Resolver 6.1)", () => {
+        const single = readFromMemory({ files: { "tokens.json": files["base.json"] } });
+        expect(completeInput(single, { theme: "dark" })).toStrictEqual({ ok: true, input: {} });
+        expect(single.permutation({ theme: "dark" })).toBe(single.permutations[0]);
     });
 });
 

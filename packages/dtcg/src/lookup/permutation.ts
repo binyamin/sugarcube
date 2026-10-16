@@ -7,7 +7,8 @@ import type {
     PermutationErrorDetail,
     ResolverModifier,
 } from "../index.js";
-import { findByName } from "../read/permutations.js";
+import { checkedInput, findByName } from "../read/input.js";
+import { keptBy } from "../read/kept.js";
 
 /**
  * Thrown by {@link DesignTokens.permutation} when there is no permutation for the input. The
@@ -46,12 +47,12 @@ export function findPermutation(
         const { ok: _, ...detail } = complete;
         return detail;
     }
-    const found = tokens.permutations.find((each) => sameInput(tokens, each.input, complete.input));
+    const found = tokens.permutations.find((each) => sameInput(each.input, complete.input));
     return found ?? { reason: "not-read", input: complete.input };
 }
 
-export function sameInput(tokens: DesignTokens, a: Input, b: Input): boolean {
-    return modifiersOf(tokens).every(({ name }) => a[name] === b[name]);
+function sameInput(built: Input, complete: Input): boolean {
+    return Object.keys(complete).every((name) => built[name] === complete[name]);
 }
 
 /**
@@ -60,34 +61,13 @@ export function sameInput(tokens: DesignTokens, a: Input, b: Input): boolean {
  *
  * @example
  * completeInput(tokens, { Theme: "DARK" })   // { ok: true, input: { theme: "dark", density: "comfy" } }
- * completeInput(tokens, { theme: "sepia" })  // { ok: false, reason: "unknown-context", modifier: "theme", context: "sepia" }
+ * completeInput(tokens, { theme: "sepia" })  // { ok: false, reason: "unknown-context", modifier: "theme", context: "sepia", valid: ["light", "dark"] }
  */
 export function completeInput(tokens: DesignTokens, input: Input): CompleteInput {
-    const full: Input = {};
-    for (const [key, value] of Object.entries(input)) {
-        const found = modifierIn(tokens, key);
-        if (!found) return { ok: false, reason: "unknown-modifier", modifier: key };
-        const context = findByName(found.contexts, value, ({ name }) => name);
-        if (context === undefined) {
-            return { ok: false, reason: "unknown-context", modifier: found.name, context: value };
-        }
-        full[found.name] = context.name;
-    }
-    for (const { name, default: fallback, contexts } of modifiersOf(tokens)) {
-        const context = full[name] ?? fallback;
-        if (context === undefined) {
-            const valid = contexts.map((each) => each.name);
-            return { ok: false, reason: "no-default", modifier: name, valid };
-        }
-        full[name] = context;
-    }
-    return { ok: true, input: full };
+    const checked = checkedInput(keptBy(tokens).modifiers, input);
+    return checked.ok ? checked : { ok: false, ...checked.problems[0] };
 }
 
 export function modifierIn(tokens: DesignTokens, name: string): ResolverModifier | undefined {
-    return findByName(modifiersOf(tokens), name, (each) => each.name);
-}
-
-function modifiersOf(tokens: DesignTokens): ResolverModifier[] {
-    return tokens.resolver?.modifiers ?? [];
+    return findByName(tokens.resolver?.modifiers ?? [], name, (each) => each.name);
 }

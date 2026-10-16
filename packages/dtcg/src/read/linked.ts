@@ -23,6 +23,7 @@ import { modifierIn, permutationIn } from "../lookup/permutation.js";
 import { referencedByIn, referencedIn, referencesIn } from "../lookup/references.js";
 import { resolvedValuesIn } from "../lookup/resolved-values.js";
 import { writtenAtIn } from "../lookup/written-at.js";
+import { type Kept, keep, keptBy } from "./kept.js";
 
 export const NO_REFERENCES: Reference[] = Object.freeze([]) as unknown as Reference[];
 export const NO_PLACES: Place[] = Object.freeze([]) as unknown as Place[];
@@ -284,23 +285,12 @@ export function placesIn(): Places {
     return { at, only: (source, span) => PlaceObject.alone(at(source, span)) };
 }
 
-interface Kept {
-    texts: Readonly<Record<string, string>>;
-    readFiles(files: Record<string, string>): DesignTokens;
-}
-
-const kept = new WeakMap<DesignTokens, Kept>();
-
-function keptBy(tokens: DesignTokens): Kept {
-    return kept.get(tokens) as Kept;
-}
-
 export function linkedDesignTokens(
     fields: Omit<DesignTokens, keyof typeof designTokensShared>,
     beside: Kept,
 ): DesignTokens {
     const tokens: DesignTokens = Object.assign(Object.create(designTokensShared), fields);
-    kept.set(tokens, beside);
+    keep(tokens, beside);
     for (const permutation of tokens.permutations) designTokensOf.set(permutation, tokens);
     return tokens;
 }

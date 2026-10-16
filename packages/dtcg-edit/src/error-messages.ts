@@ -1,4 +1,4 @@
-import { type Input, permutationLabel } from "@sugarcube-sh/dtcg";
+import { type Input, type PermutationErrorDetail, permutationLabel } from "@sugarcube-sh/dtcg";
 import type { Conflict, FileOp, Refusal } from "./index.js";
 
 export const fixTitles = {
@@ -51,10 +51,11 @@ const refusalReasons: {
         `no file every permutation reads writes \`${path}\`, only contexts do; change it for one context`,
 };
 
-const permutationGaps = {
+const permutationGaps: Record<PermutationErrorDetail["reason"], string> = {
     "unknown-modifier": "the resolver doesn't declare that modifier",
     "unknown-context": "the resolver doesn't declare that context",
-    "no-default": "a modifier with no default was left out",
+    "missing-modifier": "a modifier with no default was left out",
+    "not-a-string": "a context was given as something other than a string",
     "not-read": "the read didn't build it",
 };
 

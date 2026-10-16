@@ -150,7 +150,7 @@ describe("fixes that depend on other tokens", () => {
                 hue: { $type: "number", $value: { $ref: "#/color/mix/$value/components/0" } },
             }),
         });
-        const [missing] = opened.diagnostics.filter(({ kind }) => kind === "missing-reference");
+        const missing = opened.diagnostics.find(({ kind }) => kind === "missing-reference");
         const [fix] = missing ? fixesFor(opened, missing) : [];
         expect(missing?.related?.length).toBe(1);
         expect(fix?.edits.map(({ text }) => text)).toStrictEqual([

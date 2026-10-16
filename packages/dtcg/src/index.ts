@@ -1046,26 +1046,7 @@ export interface DiagnosticDetailByKind {
     "input-invalid": {
         /** Which input, as its index in {@link ReadOptions.inputs}. */
         input: number;
-        modifier: string;
-    } & (
-        | {
-              reason: "unknown-modifier";
-              /** The modifiers the resolver declares. */
-              valid: string[];
-          }
-        | {
-              reason: "unknown-context";
-              context: string;
-              /** The contexts the modifier allows. */
-              valid: string[];
-          }
-        | {
-              reason: "missing-modifier";
-              /** The contexts the modifier allows. */
-              valid: string[];
-          }
-        | { reason: "not-a-string" }
-    );
+    } & InputProblem;
     /** A token or group name uses a character the specification forbids. */
     "invalid-name": { name: string; character: "." | "{" | "}" | "$" };
     /**
@@ -1614,11 +1595,33 @@ export interface Permutations extends ReadonlyArray<Permutation> {
  * Why {@link DesignTokens.permutation} found no permutation, with the facts its message is worded
  * from.
  */
-export type PermutationErrorDetail =
-    | { reason: "unknown-modifier"; modifier: string }
-    | { reason: "unknown-context"; modifier: string; context: string }
-    | { reason: "no-default"; modifier: string; valid: string[] }
-    | { reason: "not-read"; input: Input };
+export type PermutationErrorDetail = InputProblem | { reason: "not-read"; input: Input };
+
+/**
+ * Why an input does not fit the resolver's modifiers (Resolver 5.2, 6.1): a modifier it doesn't
+ * declare, a context that isn't a string or that the modifier doesn't declare, or a modifier with
+ * no default left out. The read reports each as an `input-invalid` problem;
+ * {@link completeInput} gives the first.
+ */
+export type InputProblem = { modifier: string } & (
+    | {
+          reason: "unknown-modifier";
+          /** The modifiers the resolver declares. */
+          valid: string[];
+      }
+    | {
+          reason: "unknown-context";
+          context: string;
+          /** The contexts the modifier allows. */
+          valid: string[];
+      }
+    | {
+          reason: "missing-modifier";
+          /** The contexts the modifier allows. */
+          valid: string[];
+      }
+    | { reason: "not-a-string" }
+);
 
 export { PermutationError } from "./lookup/permutation.js";
 
@@ -1925,11 +1928,9 @@ export { completeInput } from "./lookup/permutation.js";
 export { permutationLabel } from "./lookup/permutation-label.js";
 
 /**
- * What {@link completeInput} gives: the full input, or the modifier or context it could not match.
+ * What {@link completeInput} gives: the full input, or the first problem with it.
  */
-export type CompleteInput =
-    | { ok: true; input: Input }
-    | ({ ok: false } & Exclude<PermutationErrorDetail, { reason: "not-read" }>);
+export type CompleteInput = { ok: true; input: Input } | ({ ok: false } & InputProblem);
 
 /** A token or group whose path changed, such as after a rename. */
 export interface Move {

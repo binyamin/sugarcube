@@ -79,7 +79,7 @@ const membersOf = new WeakMap<Node, Member[]>();
 
 function collectMembers(node: Node, duplicates: DuplicateKey[]): void {
     if (node.type === "array") {
-        for (const child of node.children ?? []) collectMembers(child, duplicates);
+        for (const item of node.children ?? []) collectMembers(item, duplicates);
         return;
     }
     if (node.type !== "object") return;

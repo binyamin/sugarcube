@@ -1,4 +1,4 @@
-import { defineGenerator, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type Input, defineGenerator, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { setDescription, setValue } from "../src/index.js";
 import { demo, at, opsOf, committed, resolver, opened, plainly } from "./helpers.js";
@@ -377,6 +377,19 @@ describe("setValue, for one context", () => {
                 input: { mode: "dim" },
                 why: "unknown-context",
                 reason: expect.any(String),
+            },
+        });
+    });
+
+    it("is refused for a context that isn't a string", () => {
+        expect(setValue(demo, "radius.md", 1, { input: { mode: 1 } as unknown as Input })).toEqual({
+            refused: {
+                kind: "no-permutation",
+                input: { mode: 1 },
+                why: "not-a-string",
+                reason: expect.stringContaining(
+                    ": a context was given as something other than a string",
+                ),
             },
         });
     });

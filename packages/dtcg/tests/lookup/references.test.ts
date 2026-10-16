@@ -129,7 +129,7 @@ describe("a token's references", () => {
 
 describe("a reference to nothing", () => {
     it("still names the path it points at, so it can be found and moved", () => {
-        const tokens = readFromMemory({
+        const misspelt = readFromMemory({
             files: {
                 "tokens.json": JSON.stringify({
                     text: { $type: "color", $value: { $ref: "#/color/inc/$value" } },
@@ -138,7 +138,7 @@ describe("a reference to nothing", () => {
             },
         });
         expect(
-            tokens
+            misspelt
                 .referencedBy("color.inc")
                 .map(({ from, path, syntax }) => ({ from, path, syntax })),
         ).toStrictEqual([

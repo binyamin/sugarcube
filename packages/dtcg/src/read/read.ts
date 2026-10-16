@@ -175,6 +175,7 @@ function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
         },
         {
             texts: loaded.texts,
+            modifiers: loaded.modifiers,
             readFiles: (files) => readFromMemory({ files, entry: loaded.entry }, options),
         },
     );
