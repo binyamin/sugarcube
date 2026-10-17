@@ -88,6 +88,15 @@ describe("findResolver, by name", () => {
             { kind: "one", path: at("tokens/tokens.resolver.json") },
         );
     });
+
+    it("counts a file once when it is given spelled another way", async () => {
+        await files({ "tokens/tokens.resolver.json": resolver });
+        const spelled = `${folder}/tokens/./tokens.resolver.json`;
+        expect(await findResolver([at("tokens"), spelled])).toStrictEqual({
+            kind: "one",
+            path: at("tokens/tokens.resolver.json"),
+        });
+    });
 });
 
 describe("findResolver, by content", () => {

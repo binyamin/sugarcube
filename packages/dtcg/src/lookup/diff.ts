@@ -3,6 +3,8 @@ import type {
     DesignTokens,
     Group,
     GroupProperty,
+    JsonPath,
+    JsonValue,
     Move,
     Permutation,
     Token,
@@ -15,6 +17,7 @@ import type {
 } from "../index.js";
 import { permutationsOf } from "../read/permutations-of.js";
 import { movedPath } from "../path.js";
+import { isJsonObject } from "../values/json.js";
 import { isReference, movedReference } from "../values/references.js";
 import { sameJson, saysTheSame } from "../values/same-value.js";
 import { findPermutation } from "./permutation.js";
@@ -203,8 +206,24 @@ class Changes {
 }
 
 function movedReferences(before: Token, moved: Move[]): Token {
-    if (before.value === undefined) return before;
-    return { ...before, value: forwarded(before.value, moved) } as Token;
+    if (before.value !== undefined) {
+        return { ...before, value: forwarded(before.value, moved) } as Token;
+    }
+    if (!before.authored) return before;
+    let written = before.authored.value;
+    for (const reference of before.references) {
+        written = replacedAt(written, reference.property ?? [], reference.moved(moved));
+    }
+    return { ...before, authored: { ...before.authored, value: written } } as Token;
+}
+
+function replacedAt(value: unknown, [step, ...rest]: JsonPath, by: JsonValue): unknown {
+    if (step === undefined) return by;
+    if (Array.isArray(value)) {
+        return value.map((each, index) => (index === step ? replacedAt(each, rest, by) : each));
+    }
+    if (!isJsonObject(value)) return value;
+    return { ...value, [step]: replacedAt(value[step], rest, by) };
 }
 
 function forwarded(value: unknown, moved: Move[]): unknown {

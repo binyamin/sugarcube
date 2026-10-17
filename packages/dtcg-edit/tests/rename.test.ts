@@ -132,6 +132,33 @@ describe("rename, refused", () => {
         });
     });
 
+    it("leaves what generated tokens refer to as their generator writes it, and lists them as broken", () => {
+        const steps = defineGenerator({
+            extension: ["com.example", "steps"],
+            generate: () => ({
+                ok: true,
+                value: [
+                    { name: "a", $value: "{base}" },
+                    { name: "b", $value: "{base}" },
+                ],
+            }),
+        });
+        const generated = readFromMemory(
+            {
+                files: {
+                    "tokens.json": JSON.stringify({
+                        base: { $type: "number", $value: 1 },
+                        g: { $type: "number", $extensions: { "com.example": { steps: 1 } } },
+                    }),
+                },
+            },
+            { generators: [steps] },
+        );
+        const result = rename(generated, "base", "core");
+        expect(opsOf(result).map(({ kind }) => kind)).toEqual(["renameKey"]);
+        expect(result.ops && result.broken).toEqual(["g.a", "g.b"]);
+    });
+
     it("changes nothing when the name is the one it has", () => {
         expect(opsOf(rename(demo, "color.brand", "brand"))).toEqual([]);
     });

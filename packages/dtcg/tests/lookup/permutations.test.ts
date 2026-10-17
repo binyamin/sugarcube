@@ -166,6 +166,13 @@ describe("the permutations an answer holds in", () => {
             reference?.permutations.inputs,
         );
     });
+
+    it("share one scope with every answer that holds in the same permutations", () => {
+        const [red] = tokens.writtenAt("red");
+        const [text] = tokens.writtenAt("text");
+        expect(red?.readIn).not.toBe(text?.readIn);
+        expect(red?.readIn.scope).toBe(text?.readIn.scope);
+    });
 });
 
 describe("a label", () => {
@@ -249,6 +256,49 @@ describe("a label", () => {
             { mode: ["dark"], density: ["compact"] },
         ]);
         expect(ends.label).toBe("default; mode: dark, density: compact");
+    });
+});
+
+describe("a scope", () => {
+    it("lists each modifier's contexts in the order the modifier writes them", () => {
+        const modifier = (name: string) => ({
+            contexts: { [`${name}0`]: [], [`${name}1`]: [], [`${name}2`]: [] },
+            default: `${name}0`,
+        });
+        const three = readFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    sets: { base: { sources: [{ $ref: "base.json" }] } },
+                    modifiers: { a: modifier("a"), b: modifier("b"), c: modifier("c") },
+                    resolutionOrder: [
+                        { $ref: "#/sets/base" },
+                        { $ref: "#/modifiers/a" },
+                        { $ref: "#/modifiers/b" },
+                        { $ref: "#/modifiers/c" },
+                    ],
+                }),
+                "base.json": "{}",
+            },
+            entry: "tokens.resolver.json",
+        });
+        const inputs: Record<string, string>[] = [
+            {},
+            { c: "c1" },
+            { a: "a2" },
+            { a: "a2", c: "c1" },
+            { a: "a2", c: "c2" },
+            { a: "a2", b: "b1" },
+            { a: "a2", b: "b1", c: "c2" },
+            { a: "a2", b: "b2" },
+            { a: "a2", b: "b2", c: "c2" },
+        ];
+        const picked = inputs.map((input) => three.permutation(input));
+        const some = three.permutations.where((each) => picked.includes(each));
+        expect(some.scope).toStrictEqual([
+            { a: ["a0", "a2"], b: ["b0"], c: ["c0", "c1"] },
+            { a: ["a2"], c: ["c0", "c2"] },
+        ]);
     });
 });
 

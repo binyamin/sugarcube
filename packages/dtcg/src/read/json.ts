@@ -135,17 +135,24 @@ function findLineStarts(text: string): number[] {
     return starts;
 }
 
+const spans = new WeakMap<object, Span>();
+
 export function spanOf(
     { path, lineStarts }: Pick<JsonFile, "path" | "lineStarts">,
-    { offset, length }: { offset: number; length: number },
+    node: { offset: number; length: number },
 ): Span {
-    return {
+    const known = spans.get(node);
+    if (known) return known;
+    const { offset, length } = node;
+    const span: Span = {
         file: path,
         offset,
         length,
         start: position(lineStarts, offset),
         end: position(lineStarts, offset + length),
     };
+    spans.set(node, span);
+    return span;
 }
 
 function position(lineStarts: number[], offset: number): { line: number; column: number } {

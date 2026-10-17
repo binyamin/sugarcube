@@ -239,6 +239,25 @@ describe("diff", () => {
         ]);
     });
 
+    it("gives no change for a reference a rename rewrote in a value that isn't valid", () => {
+        const broken = (name: string) => ({
+            $value: { value: { $ref: `#/space/${name}/$value/value` }, unit: "furlong" },
+        });
+        const moved = changed(["space", "small"], px(4), changed(["space", "sm"], undefined));
+        const renamed = changed(["space", "gap"], { $value: "{space.small}" }, moved);
+        const before = read({ base: changed(["space", "odd"], broken("sm")) });
+        const after = read({ base: changed(["space", "odd"], broken("small"), renamed) });
+        expect(brief(before, after, [{ from: "space.sm", to: "space.small" }])).toEqual([
+            {
+                kind: "renamed",
+                path: "space.small",
+                from: "space.sm",
+                properties: [],
+                permutations: [light, darkTheme],
+            },
+        ]);
+    });
+
     it("gives a group renamed, and one rename per token inside, and none for tokens pointing in", () => {
         const { typography, ...rest } = base;
         const text = { $type: "dimension", size: { $value: "{type.body}" } };

@@ -25,7 +25,8 @@ export function ownLabel(contexts: ResolverContext[]): string {
 type Part = Record<string, string[]>;
 
 export function scopeOf(set: readonly Permutation[], all: readonly Permutation[]): Scope {
-    if (set.length === 0) return [];
+    const [first] = set;
+    if (!first) return [];
     const inSet = (perm: Permutation) => set.includes(perm);
     const exact = (part: Part) => all.every((perm) => !matches(part, perm) || inSet(perm));
     const pinned = set.map((perm): Part => {
@@ -34,7 +35,19 @@ export function scopeOf(set: readonly Permutation[], all: readonly Permutation[]
         return part;
     });
     const widened = merged(merged(pinned).map((part) => widen(part, exact)));
-    return uncovered(widened, all);
+    return uncovered(widened, all).map((part) => inWrittenOrder(part, first.contexts));
+}
+
+function inWrittenOrder(part: Part, contexts: readonly ResolverContext[]): Part {
+    const ordered: Part = {};
+    for (const { modifier } of contexts) {
+        const names = part[modifier.name];
+        if (!names) continue;
+        ordered[modifier.name] = modifier.contexts
+            .map(({ name }) => name)
+            .filter((name) => names.includes(name));
+    }
+    return ordered;
 }
 
 export function scopeLabel(scope: Scope, all: readonly Permutation[]): string {

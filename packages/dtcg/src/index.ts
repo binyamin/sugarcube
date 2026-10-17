@@ -1025,7 +1025,7 @@ export interface Permutation {
     readonly input: Input;
     /**
      * Its shortest input written out for people: each modifier away from its default, and any with
-     * no default, in the order the resolver declares them, such as `"theme: dark, brand: ocean"`,
+     * no default, in the order `resolutionOrder` names them, such as `"theme: dark, brand: ocean"`,
      * since a modifier with a default may be left out of an input (Resolver 6.1). `"default"` for the
      * permutation an empty input names. Empty when there are no modifiers, as for token files read
      * without a resolver. For display only: functions take an {@link Input}, never a label.

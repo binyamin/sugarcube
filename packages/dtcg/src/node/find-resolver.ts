@@ -1,5 +1,5 @@
 import { readFile, readdir, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { parseJson } from "../read/json.js";
 import { isResolver, isResolverName } from "../read/resolver.js";
 
@@ -49,7 +49,12 @@ export async function findResolver(
     const keep = by === "name" ? isResolverName : isJson;
     const files = (await Promise.all([paths].flat().map((path) => filesAt(path, keep)))).flat();
     const resolvers = by === "name" ? files : await withContent(files);
-    const [first, ...rest] = [...new Set(resolvers)].sort();
+    const once = new Map<string, string>();
+    for (const file of resolvers) {
+        const where = resolve(file);
+        if (!once.has(where)) once.set(where, file);
+    }
+    const [first, ...rest] = [...once.values()].sort();
     if (first === undefined) return { kind: "none" };
     return rest.length === 0
         ? { kind: "one", path: first }

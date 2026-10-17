@@ -1,4 +1,10 @@
-import { type DesignTokens, childPath, forbiddenInName, parentOf } from "@sugarcube-sh/dtcg";
+import {
+    type DesignTokens,
+    type ReferenceInPermutations,
+    childPath,
+    forbiddenInName,
+    parentOf,
+} from "@sugarcube-sh/dtcg";
 import { refused } from "./error-messages.js";
 import type { FileOp, OpResult } from "./index.js";
 import { copiesOf } from "./placement.js";
@@ -39,14 +45,16 @@ export function rename(tokens: DesignTokens, path: string, newName: string): OpR
         name: newName,
         was: written,
     }));
-    const references = tokens.referencedBy(path).flatMap((reference): FileOp[] => {
+    const all = tokens.referencedBy(path);
+    const references = all.filter(isWritten).flatMap((reference): FileOp[] => {
         const member = memberAt(tokens, reference.span);
         if (!member) return [];
         const jsonPath = afterKeys(member, copies.places, newName);
         const value = reference.moved(moved);
         return [{ kind: "set", file: member.span.file, jsonPath, value, was: member.written }];
     });
-    return { ops: [...keys, ...references], alsoAffects: copies.alsoAffects, moved };
+    const broken = [...new Set(all.filter((each) => !isWritten(each)).map(({ from }) => from))];
+    return { ops: [...keys, ...references], alsoAffects: copies.alsoAffects, broken, moved };
 }
 
 function afterKeys(member: Member, keys: Member[], name: string): Member["jsonPath"] {
@@ -59,4 +67,8 @@ function afterKeys(member: Member, keys: Member[], name: string): Member["jsonPa
             ? jsonPath.map((step, index) => (index === key.jsonPath.length - 1 ? name : step))
             : jsonPath;
     }, member.jsonPath);
+}
+
+function isWritten(reference: ReferenceInPermutations): boolean {
+    return !reference.permutations.some((each) => each.token(reference.from)?.generated);
 }

@@ -100,8 +100,8 @@ export type OpResult =
            */
           alsoAffects: Permutations;
           /**
-           * The tokens and groups left referring to nothing, after a {@link remove}, or a
-           * {@link combine} holding one.
+           * The tokens and groups left referring to nothing, after a {@link remove}, a
+           * {@link rename} of a token generated tokens refer to, or a {@link combine} holding one.
            */
           broken?: readonly string[];
           /** Tokens and groups whose path changed, such as after a {@link rename}. Empty when none did. */

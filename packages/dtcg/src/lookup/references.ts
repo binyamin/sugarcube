@@ -12,6 +12,7 @@ import type {
 import { atOrWithin } from "../path.js";
 import { permutationsOf } from "../read/permutations-of.js";
 import { acrossPermutations } from "../read/reference.js";
+import { sameJson } from "../values/same-value.js";
 
 interface WrittenIn {
     position: Map<Reference, number>;
@@ -127,15 +128,23 @@ function across(
     tokens: DesignTokens,
     inPermutation: (permutation: Permutation) => Reference[],
 ): ReferenceInPermutations[] {
-    const merged = new Map<Span, { reference: Reference; permutations: Permutation[] }>();
+    const merged = new Map<Span, { reference: Reference; permutations: Permutation[] }[]>();
     for (const permutation of tokens.permutations) {
         for (const reference of inPermutation(permutation)) {
-            const found = merged.get(reference.span);
+            let atSpan = merged.get(reference.span);
+            if (!atSpan) merged.set(reference.span, (atSpan = []));
+            const found = atSpan.find((each) => sameReference(each.reference, reference));
             if (found) found.permutations.push(permutation);
-            else merged.set(reference.span, { reference, permutations: [permutation] });
+            else atSpan.push({ reference, permutations: [permutation] });
         }
     }
-    return [...merged.values()].map(({ reference, permutations }) =>
-        acrossPermutations(reference, permutationsOf(permutations, tokens.permutations)),
-    );
+    return [...merged.values()]
+        .flat()
+        .map(({ reference, permutations }) =>
+            acrossPermutations(reference, permutationsOf(permutations, tokens.permutations)),
+        );
+}
+
+function sameReference(a: Reference, b: Reference): boolean {
+    return a.from.path === b.from.path && sameJson(a.property ?? [], b.property ?? []);
 }
