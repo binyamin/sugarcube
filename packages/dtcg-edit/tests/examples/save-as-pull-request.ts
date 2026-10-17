@@ -14,6 +14,6 @@ if (changes.conflicts) {
 } else {
     await openPullRequest(changes, {
         title: body.title,
-        body: "Saved from Studio",
+        body: "Saved from the token editor",
     });
 }

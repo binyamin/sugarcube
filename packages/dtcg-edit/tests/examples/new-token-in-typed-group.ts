@@ -5,6 +5,9 @@ import { create, commit } from "@sugarcube-sh/dtcg-edit";
 declare let tokens: DesignTokens;
 
 const colors = tokens.permutation().group("color");
-const done = commit(tokens, create(tokens, "color.info", { $value: "#0ea5e9" }));
-if (done.tokens) tokens = done.tokens;
-if (!colors?.type) showMessage("This group has no type; choose one");
+if (!colors?.type) {
+    showMessage("This group has no type; choose one");
+} else {
+    const done = commit(tokens, create(tokens, "color.info", { $value: "#0ea5e9" }));
+    if (done.tokens) tokens = done.tokens;
+}

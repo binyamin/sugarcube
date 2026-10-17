@@ -7,6 +7,6 @@ declare let tokens: DesignTokens;
 
 const done = commit(
     tokens,
-    setExtension(tokens, "space", ["sh.sugarcube", "scale", "ratio"], 1.333),
+    setExtension(tokens, "space", ["com.example", "scale", "ratio"], 1.333),
 );
 if (done.tokens) tokens = done.tokens;

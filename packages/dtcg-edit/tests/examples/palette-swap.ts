@@ -8,7 +8,6 @@ declare const session: Session;
 
 const oldPalette = "color.blue";
 const newPalette = "color.violet";
-
 const swap = [{ from: oldPalette, to: newPalette }];
 
 function swapped(t: Token): JsonValue | undefined {
@@ -21,13 +20,10 @@ function swapped(t: Token): JsonValue | undefined {
 const tokens = session.tokens;
 const changes: ({ path: string; value: JsonValue } & ValueOptions)[] = [];
 for (const t of tokens.permutation().group("color.button")?.tokens ?? []) {
-    const base = swapped(t);
-    if (base) changes.push({ path: t.path, value: base });
-
-    for (const permutation of tokens.permutations) {
-        const there = permutation.token(t.path);
-        const value = there?.valueFrom.source.context ? swapped(there) : undefined;
-        if (value) changes.push({ path: t.path, value, input: permutation.input });
+    for (const { span, winsIn } of tokens.writtenAt(t.path)) {
+        const there = winsIn[0]?.token(t.path);
+        const value = there && swapped(there);
+        if (value) changes.push({ path: t.path, value, at: span });
     }
 }
 
