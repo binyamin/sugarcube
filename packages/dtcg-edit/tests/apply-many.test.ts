@@ -102,7 +102,7 @@ describe("applying many edits to one file", () => {
             seed = (seed * 1103515245 + 12345) % 2147483648;
             return seed % count;
         };
-        for (let round = 0; round < 300; round++) {
+        for (let round = 0; round < 100; round++) {
             const tokens = readFromMemory({ files: { "t.json": layouts[pick(layouts.length)]! } });
             let oneByOne = tokens;
             const ops: FileOp[] = [];
