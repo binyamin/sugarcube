@@ -13,7 +13,7 @@ import {
     parentOf,
 } from "@sugarcube-sh/dtcg";
 import { refused } from "./error-messages.js";
-import type { OpResult, Question, Refusal, Where } from "./index.js";
+import type { OpResult, Question, Refusal, ValueOptions, Where } from "./index.js";
 import { type Member, memberAt, writtenIn } from "./file-text.js";
 
 interface Choice {
@@ -57,9 +57,10 @@ interface Chosen {
 export function placement(
     tokens: DesignTokens,
     path: string,
-    where: Where = {},
+    where: ValueOptions,
     place?: string,
 ): Placement {
+    if (where.at) return writtenPlace(tokens, path, where.at);
     const chosen = chosenContext(tokens, where.input ?? {});
     if (chosen === undefined) return sharedPlace(tokens, path);
     if ("refused" in chosen) return chosen;
@@ -137,6 +138,23 @@ function sharedPlace(tokens: DesignTokens, path: string): Placement {
     const at = shared && memberAt(tokens, shared.span);
     if (!shared || !at) return refused({ kind: "no-shared-value", path });
     return { at, alsoAffects: alsoIn(shared.winsIn) };
+}
+
+function writtenPlace(
+    tokens: DesignTokens,
+    path: string,
+    at: Pick<Span, "file" | "offset" | "length">,
+): Placement {
+    const found = lookUp(tokens, path, (perm) => perm.token(path));
+    if ("refused" in found) return found;
+    const there = tokens.writtenAt(path).find(({ span }) => sameSpan(span, at));
+    const member = there && memberAt(tokens, there.span);
+    if (!there || !member) return refused({ kind: "not-written-there", path, at });
+    return { at: member, alsoAffects: alsoIn(there.winsIn) };
+}
+
+function sameSpan(span: Span, { file, offset, length }: Pick<Span, "file" | "offset" | "length">) {
+    return span.file === file && span.offset === offset && span.length === length;
 }
 
 function newSharedPlace(tokens: DesignTokens, path: string, place: string | undefined): NewPlace {

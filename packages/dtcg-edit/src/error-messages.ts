@@ -49,6 +49,8 @@ const refusalReasons: {
         `\`${path}\` can't be overridden for ${named(input)}: \`${file}\` is read after its files, so it would still win`,
     "no-shared-value": ({ path }) =>
         `no file every permutation reads writes \`${path}\`, only contexts do; change it for one context`,
+    "not-written-there": ({ path, at }) =>
+        `\`${path}\` isn't written at that place in \`${at.file}\`; take the place from \`writtenAt\``,
 };
 
 const permutationGaps: Record<PermutationErrorDetail["reason"], string> = {

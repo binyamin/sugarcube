@@ -1,4 +1,4 @@
-import { type Input, defineGenerator, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, type Input, defineGenerator, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { setDescription, setValue } from "../src/index.js";
 import { demo, at, opsOf, committed, resolver, opened, plainly } from "./helpers.js";
@@ -591,6 +591,194 @@ describe("setValue, what it can't change", () => {
                 reason: expect.any(String),
             },
         });
+    });
+});
+
+describe("setValue, at a place it is written", () => {
+    const twoModifiers = () =>
+        readFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    resolutionOrder: [
+                        { type: "set", name: "base", sources: [{ $ref: "./base.json" }] },
+                        {
+                            type: "modifier",
+                            name: "mode",
+                            default: "light",
+                            contexts: { light: [], dark: [{ $ref: "./dark.json" }] },
+                        },
+                        {
+                            type: "modifier",
+                            name: "size",
+                            default: "small",
+                            contexts: { small: [], large: [{ $ref: "./large.json" }] },
+                        },
+                    ],
+                }),
+                "base.json": '{ "bg": { "$type": "color", "$value": "#ffffff" } }',
+                "dark.json": '{ "bg": { "$type": "color", "$value": "#000000" } }',
+                "large.json": '{ "bg": { "$type": "color", "$value": "#808080" } }',
+            },
+        });
+    const placeIn = (tokens: DesignTokens, path: string, file: string) => {
+        const place = tokens.writtenAt(path).find(({ span }) => span.file === file);
+        if (!place) throw new Error(`${path} is not written in ${file}`);
+        return place;
+    };
+
+    it("changes the value written there, and names the permutations whose value comes from it", () => {
+        const place = placeIn(demo, "color.text.brand", "dark.json");
+        const result = setValue(demo, "color.text.brand", "{color.brand.200}", { at: place.span });
+
+        expect(plainly(result)).toEqual({
+            ops: [
+                {
+                    kind: "set",
+                    file: "dark.json",
+                    jsonPath: ["color", "text", "brand", "$value"],
+                    value: "{color.brand.200}",
+                    was: "{color.brand.300}",
+                },
+            ],
+            alsoAffects: place.winsIn.inputs,
+            moved: [],
+        });
+        expect(place.winsIn.inputs).toEqual([{ mode: "dark" }]);
+    });
+
+    it("changes a file two modifiers' permutations read, which an input can't name, naming those whose value comes from it", () => {
+        const tokens = twoModifiers();
+        const place = placeIn(tokens, "bg", "dark.json");
+        const result = setValue(tokens, "bg", "#111111", { at: place.span });
+
+        expect(opsOf(result)).toEqual([
+            {
+                kind: "set",
+                file: "dark.json",
+                jsonPath: ["bg", "$value"],
+                value: "#111111",
+                was: "#000000",
+            },
+        ]);
+        expect(result.ops && result.alsoAffects.inputs).toEqual([{ mode: "dark", size: "small" }]);
+        expect(
+            setValue(tokens, "bg", "#111111", { input: { mode: "dark", size: "large" } }).refused
+                ?.kind,
+        ).toBe("several-contexts");
+    });
+
+    it("takes a place by its file, offset and length, such as one a tool saved", () => {
+        const place = placeIn(demo, "color.text.brand", "dark.json");
+        const { file, offset, length } = place.span;
+        const saved = { file, offset, length };
+
+        expect(setValue(demo, "color.text.brand", "{color.brand.200}", { at: saved })).toEqual(
+            setValue(demo, "color.text.brand", "{color.brand.200}", { at: place.span }),
+        );
+    });
+
+    it("changes a place no permutation's value comes from, and says none sees it", () => {
+        const files = {
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }, { $ref: "./brand.json" }]),
+            "base.json": '{ "bg": { "$type": "color", "$value": "#ffffff" } }',
+            "brand.json": '{ "bg": { "$type": "color", "$value": "#fafafa" } }',
+        };
+        const tokens = opened(files);
+        const result = setValue(tokens, "bg", "#eeeeee", {
+            at: placeIn(tokens, "bg", "base.json").span,
+        });
+
+        expect(plainly(result)).toEqual({
+            ops: [
+                {
+                    kind: "set",
+                    file: "base.json",
+                    jsonPath: ["bg", "$value"],
+                    value: "#eeeeee",
+                    was: "#ffffff",
+                },
+            ],
+            alsoAffects: [],
+            moved: [],
+        });
+    });
+
+    it("is refused for a place where another token is written", () => {
+        const other = placeIn(demo, "color.text.brand", "dark.json").span;
+
+        expect(setValue(demo, "radius.md", 1, { at: other })).toEqual({
+            refused: {
+                kind: "not-written-there",
+                path: "radius.md",
+                at: other,
+                reason: "`radius.md` isn't written at that place in `dark.json`; take the place from `writtenAt`",
+            },
+        });
+    });
+
+    it("is refused for a place from an older read that no longer matches", () => {
+        const before = placeIn(demo, "color.text.brand", "dark.json").span;
+        const text = demo.text("dark.json") ?? "";
+        const moved = readFromMemory({
+            files: { ...demo.toMemory().files, "dark.json": `\n${text}` },
+            entry: "tokens.resolver.json",
+        });
+
+        expect(
+            setValue(moved, "color.text.brand", "{color.brand.200}", { at: before }).refused,
+        ).toMatchObject({
+            kind: "not-written-there",
+            path: "color.text.brand",
+        });
+    });
+
+    it("is refused for a token that doesn't exist", () => {
+        const other = placeIn(demo, "radius.md", "radius.json").span;
+
+        expect(setValue(demo, "radius.nope", 1, { at: other }).refused?.kind).toBe("not-found");
+    });
+
+    it("is refused for a token a generator makes, though its extension is a place", () => {
+        const steps = defineGenerator({
+            extension: ["com.example", "steps"],
+            generate: () => ({
+                ok: true,
+                value: [{ name: "1", $value: { value: 1, unit: "rem" } }],
+            }),
+        });
+        const tokens = opened(
+            {
+                "tokens.resolver.json": resolver([{ $ref: "./space.json" }]),
+                "space.json": JSON.stringify({
+                    space: { $type: "dimension", $extensions: { "com.example": { steps: 1 } } },
+                }),
+            },
+            { generators: [steps] },
+        );
+        const [place] = tokens.writtenAt("space.1");
+
+        expect(place).toBeDefined();
+        expect(setValue(tokens, "space.1", 4, { at: place!.span }).refused?.kind).toBe("generated");
+    });
+
+    it("is refused for a token a group inherits, though the token it inherits is a place", () => {
+        const tokens = opened({
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),
+            "base.json": JSON.stringify({
+                button: { $type: "color", bg: { $value: "#ffffff" } },
+                danger: { $extends: "{button}" },
+            }),
+        });
+        const [place] = tokens.writtenAt("danger.bg");
+
+        expect(place?.span).toEqual(tokens.writtenAt("button.bg")[0]?.span);
+        expect(setValue(tokens, "danger.bg", "#ff0000", { at: place!.span }).refused).toMatchObject(
+            {
+                kind: "inherited",
+                from: "button",
+            },
+        );
     });
 });
 

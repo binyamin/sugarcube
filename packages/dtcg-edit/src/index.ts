@@ -6,6 +6,7 @@ import type {
     Move,
     PermutationErrorDetail,
     Permutations,
+    Span,
     TokenType,
 } from "@sugarcube-sh/dtcg";
 
@@ -153,6 +154,7 @@ export type Refusal = { reason: string } & (
     | { kind: "no-shared-file"; path: string }
     | { kind: "hidden-by-later-file"; path: string; input: Input; file: string }
     | { kind: "no-shared-value"; path: string }
+    | { kind: "not-written-there"; path: string; at: Pick<Span, "file" | "offset" | "length"> }
 );
 
 /** Where an edit goes. */
@@ -183,10 +185,23 @@ export { rename } from "./rename.js";
 
 export { setDescription, setValue } from "./set-value.js";
 
-/** How a value change is made: where it goes, and which part of the value it changes. */
-export interface ValueOptions extends Where {
+/**
+ * How a value change is made: for a context or at a place the token is written, and which part of
+ * the value it changes.
+ */
+export type ValueOptions = ((Where & { at?: undefined }) | ValueAt) & {
     /** A part of a composite value to change on its own, such as `["color"]` of a shadow. */
     part?: JsonPath;
+};
+
+/** A value change at one place the token is written, rather than for a context. */
+export interface ValueAt {
+    /**
+     * A place the token is written, as `tokens.writtenAt(path)` gives it: the value written there
+     * changes, in every permutation that reads it. No file is chosen and nothing is asked.
+     */
+    at: Pick<Span, "file" | "offset" | "length">;
+    input?: undefined;
 }
 
 /**

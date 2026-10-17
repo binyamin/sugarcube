@@ -15,18 +15,23 @@ import { type Member, writtenIn } from "./file-text.js";
  * writes what the token says itself: its own `$type`, `$description`, `$deprecated` and
  * `$extensions`, not those it takes from a group.
  *
+ * With `at`, a place from `tokens.writtenAt(path)`, the value written at that place changes
+ * instead, whichever contexts read it.
+ *
  * The value is written exactly as given, keeping the file's own spelling; use `toDTCGValue`
  * from `@sugarcube-sh/dtcg` to write a value taken from the model. A value the read finds wrong,
  * such as a reference to a token not made yet, is still written, and the read reports it.
  *
  * Refused, with the reason: a token that doesn't exist, one a generator makes, one a group
  * inherits through `$extends`, an override for two contexts at once, a context with no whole
- * file of its own, an override a file read later would hide, or a shared value when every
- * context writes its own.
+ * file of its own, an override a file read later would hide, a shared value when every
+ * context writes its own, or a place `at` where the token isn't written.
  *
  * @example
  * setValue(tokens, "color.danger", "{color.red.600}")
  * setValue(tokens, "color.danger", "{color.red.400}", { input: { mode: "dark" } })
+ * const dark = tokens.writtenAt("color.danger").find(({ span }) => span.file === "dark.json");
+ * if (dark) setValue(tokens, "color.danger", "{color.red.400}", { at: dark.span });
  */
 export function setValue(
     tokens: DesignTokens,
