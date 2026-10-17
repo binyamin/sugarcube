@@ -64,8 +64,8 @@ export type FileOp =
 
 /**
  * A question an operation can't answer from the files alone. Ask the person, then call `answer`
- * with their choice: it gives the operation's result as if it had been told. A file not among
- * `files` is asked about again.
+ * with their choice: it gives the operation's result as if it had been told. A file that can't
+ * hold the change is asked about again.
  *
  * - `placement`: several files could hold the change; `files` are the ones that could.
  *
@@ -136,6 +136,8 @@ export type OpResult =
  * - `no-shared-file`: no whole file every permutation reads can hold the edit.
  * - `hidden-by-later-file`: an override for `input` would be hidden by `file`, read after it.
  * - `no-shared-value`: no file every permutation reads writes the token; only contexts do.
+ * - `not-written-there`: `at` is not a place the token at `path` is written in these design
+ *   tokens, such as a place from an older read.
  */
 export type Refusal = { reason: string } & (
     | { kind: "not-found"; path: string }

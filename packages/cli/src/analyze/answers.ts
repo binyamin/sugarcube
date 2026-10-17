@@ -102,9 +102,10 @@ function dependent(tokens: DesignTokens, path: string, references: Named[]): Dep
     const base = new Set(
         places.filter(({ sources }) => sources.some(readByEveryone)).map(({ named }) => named),
     );
+    const varies = new Set(places.map(({ named }) => named)).size > 1;
     const setBy = new Set(
         places
-            .filter(({ named }) => !base.has(named))
+            .filter(({ named }) => varies && !base.has(named))
             .flatMap(({ sources }) => sources.flatMap(readersOf))
             .map(({ modifier }) => modifier.name),
     );

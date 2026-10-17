@@ -331,6 +331,24 @@ describe("impact, across themes", () => {
         expect(reaching.get("surface")?.label).toBe("per theme");
     });
 
+    it("names no modifier when every file that writes the token names the same references", async () => {
+        const pair = {
+            $type: "gradient",
+            $value: [
+                { color: "{soft}", position: 0 },
+                { color: "{strong}", position: 1 },
+            ],
+        };
+        const built = await buildFiles(
+            texts({
+                "dark.json": { ...files["dark.json"], pair },
+                "alt.json": { ...files["alt.json"], pair },
+            }),
+            "/project",
+        );
+        expect((await dependentsOf("blue", built)).get("pair")?.label).toBe("2 references");
+    });
+
     it("says 'per context' when more than one modifier sets it", async () => {
         expect((await dependentsOf("blue")).get("mixed")?.label).toBe("per context");
     });

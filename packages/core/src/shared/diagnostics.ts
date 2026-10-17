@@ -12,13 +12,12 @@ export function diagnostic<K extends SugarcubeDiagnosticKind>(
     token?: Token,
 ): SugarcubeDiagnostic {
     const { severity, message } = ErrorMessages.DIAGNOSTICS[kind];
-    const winner = token?.writtenAt.at(-1);
     return {
         kind,
         severity,
         message: message(detail),
         ...(token && { path: token.path }),
-        ...(winner && { span: winner.span }),
+        ...(token && { span: token.valueFrom.span }),
         docs: diagnosticDocs(kind),
         detail,
     } as SugarcubeDiagnostic;

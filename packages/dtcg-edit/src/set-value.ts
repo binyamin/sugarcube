@@ -10,11 +10,11 @@ import { type Member, writtenIn } from "./file-text.js";
  * Without an `input`, the shared value changes: one edit where a file every permutation reads
  * writes the token, seen by every context that doesn't override it. With an `input`, such as
  * `{ mode: "dark" }`, that context's own value changes: its override is edited, or one is added
- * to a file that context reads and the others don't; when there are several such files and none
- * declares the token's group, the answer is a placement {@link Question}. A context at its default
- * counts as none. A later file replaces a token whole (Resolver 3.3), so a new override also
- * writes what the token says itself: its own `$type`, `$description`, `$deprecated` and
- * `$extensions`, not those it takes from a group.
+ * to a file that context reads and the others don't; when there are several such files, and not
+ * exactly one of them declares the token's group, the answer is a placement {@link Question}. A
+ * context at its default counts as none. A later file replaces a token whole (Resolver 3.3), so a
+ * new override also writes what the token says itself: its own `$type`, `$description`,
+ * `$deprecated` and `$extensions`, not those it takes from a group.
  *
  * With `at`, a place from `tokens.writtenAt(path)`, the value written at that place changes
  * instead, whichever contexts read it.

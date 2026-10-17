@@ -182,12 +182,13 @@ function memberEdit(draft: Draft, op: MemberOp): Outcome {
     draft.root ??= parseTree(text);
     const { root } = draft;
     const node = root && findNodeAtLocation(root, [...op.jsonPath]);
-    if (pending.length > 0 && (!node || reads(node, op).some((range) => touches(range, pending)))) {
+    const splices = root && splicesFor(text, root, op);
+    const reached = node ? [...reads(node, op), ...(splices ?? [])] : [];
+    if (pending.length > 0 && (!node || reached.some((range) => touches(range, pending)))) {
         return "stale";
     }
     const current = node && (getNodeValue(node) as JsonValue);
     const written = (unwritable: Conflict["kind"]): Outcome => {
-        const splices = root && splicesFor(text, root, op);
         if (splices === undefined) return { conflict: unwritable };
         pending.push(...splices);
         return undefined;

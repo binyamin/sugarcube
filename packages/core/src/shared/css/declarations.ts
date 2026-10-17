@@ -54,10 +54,7 @@ export function declarations(
     const privateFrom = new Map(
         permutation.sources.map((source) => [source, privateSource(source)]),
     );
-    const isPrivate = (each: Token) => {
-        const winner = each.writtenAt.at(-1);
-        return winner !== undefined && (privateFrom.get(winner.source) ?? false);
-    };
+    const isPrivate = (each: Token) => privateFrom.get(each.valueFrom.source) ?? false;
     const writer = (colors: "native" | "hex") => {
         const renderedFor = new Map<Token, Written | undefined>();
         const rendered = (each: Token): Written | undefined => {

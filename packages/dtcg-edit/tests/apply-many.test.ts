@@ -5,6 +5,7 @@ import {
     type FileOp,
     type OpResult,
     apply,
+    combine,
     commit,
     create,
     remove,
@@ -13,7 +14,7 @@ import {
     setValue,
 } from "../src/index.js";
 import { designTokens as sized } from "./benchmarks/design-tokens.js";
-import { at, demo } from "./helpers.js";
+import { at, committed, demo } from "./helpers.js";
 
 afterEach(() => {
     vi.restoreAllMocks();
@@ -57,6 +58,88 @@ describe("applying many edits to one file", () => {
         const together = apply(demo, ops);
         if (together.conflicts) throw new Error(JSON.stringify(together.conflicts));
         expect(together.tokens.toMemory().files).toEqual(tokens.toMemory().files);
+    });
+
+    it("removes neighbouring tokens together as one at a time does, leaving valid JSON", () => {
+        const layouts = [
+            '{\n  "n": {\n    "$type": "number",\n    "a": { "$value": 0 },\n    "b": { "$value": 1 },\n    "c": { "$value": 2 }\n  }\n}\n',
+            '{"n": {"$type":"number","a":{"$value":0},"b":{"$value":1},"c":{"$value":2}}}',
+        ];
+        for (const text of layouts) {
+            for (const paths of [
+                ["n.b", "n.c"],
+                ["n.a", "n.b"],
+                ["n.a", "n.b", "n.c"],
+                ["n.c", "n.b"],
+            ]) {
+                const tokens = readFromMemory({ files: { "tokens.json": text } });
+                let oneByOne = tokens;
+                const ops: FileOp[] = [];
+                for (const path of paths) {
+                    const result = remove(oneByOne, path);
+                    if (!result.ops) throw new Error(JSON.stringify(result));
+                    ops.push(...result.ops);
+                    const next = apply(oneByOne, result.ops);
+                    if (next.conflicts) throw new Error(JSON.stringify(next.conflicts));
+                    oneByOne = next.tokens;
+                }
+                const together = apply(tokens, ops);
+                if (together.conflicts) throw new Error(JSON.stringify(together.conflicts));
+                expect(together.tokens.text("tokens.json")).toBe(oneByOne.text("tokens.json"));
+                expect(together.tokens.diagnostics.map(({ kind }) => kind)).toStrictEqual([]);
+            }
+        }
+    });
+
+    it("gives what applying them one at a time gives, for random mixes of removals, values and renames", () => {
+        const layouts = [
+            '{\n  "n": {\n    "$type": "number",\n    "a": { "$value": 0 },\n    "b": { "$value": 1 },\n    "c": { "$value": 2 },\n    "d": { "$value": 3 }\n  }\n}\n',
+            '{"n": {"$type":"number","a":{"$value":0},"b":{"$value":1},"c":{"$value":2},"d":{"$value":3}}}',
+            '{\n  "n": {\n    "$type": "number",\n    "a": {\n      "$value": 0\n    },\n    "b": {\n      "$value": 1\n    },\n    "c": { "$value": 2 }, "d": { "$value": 3 }\n  }\n}\n',
+        ];
+        let seed = 7;
+        const pick = (count: number) => {
+            seed = (seed * 1103515245 + 12345) % 2147483648;
+            return seed % count;
+        };
+        for (let round = 0; round < 300; round++) {
+            const tokens = readFromMemory({ files: { "t.json": layouts[pick(layouts.length)]! } });
+            let oneByOne = tokens;
+            const ops: FileOp[] = [];
+            for (let step = 0; step < 2 + pick(3); step++) {
+                const paths = oneByOne.tokenPaths();
+                const path = paths[pick(paths.length)];
+                if (path === undefined) break;
+                const choice = pick(3);
+                const result =
+                    choice === 0
+                        ? remove(oneByOne, path)
+                        : choice === 1
+                          ? setValue(oneByOne, path, pick(100))
+                          : rename(oneByOne, path, `r${step}`);
+                if (!result.ops) continue;
+                ops.push(...result.ops);
+                oneByOne = committed(oneByOne, result);
+            }
+            const together = apply(tokens, ops);
+            if (together.conflicts) throw new Error(JSON.stringify(together.conflicts));
+            expect(together.tokens.text("t.json")).toBe(oneByOne.text("t.json"));
+        }
+    });
+
+    it("removes every unused token of the demo in one step without breaking a file", () => {
+        const unused = demo.tokenPaths().filter((path) => demo.usedBy(path).length === 0);
+        const done = commit(
+            demo,
+            combine(
+                demo,
+                unused.map((path) => (current) => remove(current, path)),
+            ),
+        );
+
+        expect(
+            done.tokens?.diagnostics.filter(({ kind }) => kind === "invalid-json"),
+        ).toStrictEqual([]);
     });
 
     it("refuses a second key renamed to the name the first just took", () => {
