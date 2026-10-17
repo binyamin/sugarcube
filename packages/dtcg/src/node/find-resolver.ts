@@ -9,6 +9,7 @@ export type FoundResolver =
     | { kind: "several"; paths: string[] }
     | { kind: "none" };
 
+/** How {@link findResolver} knows a resolver. */
 export interface FindResolverOptions {
     /**
      * How a file is known to be a resolver. `"name"`: its name ends `.resolver.json`, as

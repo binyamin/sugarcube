@@ -490,7 +490,9 @@ export interface Session {
     readonly opened: DesignTokens;
     /** The edits since {@link Session.opened}, with the moves they made: what a save sends, and what to keep for a reload. */
     readonly unsaved: Edits;
+    /** Whether there is an edit to undo. */
     readonly canUndo: boolean;
+    /** Whether there is an undone edit to do again. */
     readonly canRedo: boolean;
     /**
      * Commits an operation's result. On success the design tokens move on and the change goes on
@@ -499,7 +501,9 @@ export interface Session {
     do(result: OpResult): Committed;
     /** Commits an operation's result without keeping it, for previewing, such as while a slider moves. */
     preview(result: OpResult): Committed;
+    /** Undoes the last edit done, as one step. */
     undo(): void;
+    /** Does again the last edit undone. */
     redo(): void;
     /** What changed since {@link Session.opened}, renames included. */
     changes(): Change[];

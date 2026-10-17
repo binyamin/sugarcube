@@ -450,6 +450,7 @@ export type StrokeStylePart =
           readonly dashArray: readonly SimplePart<"dimension">[];
       });
 
+/** A border, as its color, width and style. */
 export interface BorderPart extends PartBase<BorderValue> {
     readonly type: "border";
     readonly color: SimplePart<"color">;
@@ -457,6 +458,7 @@ export interface BorderPart extends PartBase<BorderValue> {
     readonly style: StrokeStylePart;
 }
 
+/** A transition, as its duration, delay and timing function. */
 export interface TransitionPart extends PartBase<TransitionValue> {
     readonly type: "transition";
     readonly duration: SimplePart<"duration">;
@@ -491,6 +493,7 @@ export interface GradientStopPart extends PartBase<GradientStop> {
     readonly position: SimplePart<"number">;
 }
 
+/** A typographic style, as its five parts. */
 export interface TypographyPart extends PartBase<TypographyValue> {
     readonly type: "typography";
     readonly fontFamily: SimplePart<"fontFamily">;
@@ -543,6 +546,10 @@ export interface TokenBase<T extends TokenType> {
     readonly group?: Group;
     /** The permutation that holds it: the same path in another permutation is another token. */
     readonly permutation: Permutation;
+    /**
+     * Its type: its own `$type`, else its group's (Format 6.7.3), else the type of the token its
+     * whole value references.
+     */
     readonly type: T;
     /**
      * The value, in one shape per type, with each reference kept as written
@@ -559,6 +566,7 @@ export interface TokenBase<T extends TokenType> {
      * under this token's path.
      */
     readonly invalid?: true;
+    /** Its `$description`, as the file writes it. */
     readonly description?: string;
     /** `true`, or a message explaining what to use instead. */
     readonly deprecated?: boolean | string;
@@ -712,6 +720,7 @@ export interface Written {
 export interface Group {
     /** Tells a group from a token: an object without `$value` is a group (Format 6.1). */
     readonly kind: "group";
+    /** Where the group sits in the tree, such as `"color.brand"`. */
     readonly path: string;
     /**
      * The group it is in, its parent group (Format 6.7.3), as a token's
@@ -809,7 +818,12 @@ export interface TopLevel {
  * same object in every permutation that reads its source.
  */
 export interface Place {
+    /**
+     * The source that writes it: the file, or part of one, and the set or context it is read
+     * through.
+     */
     readonly source: Source;
+    /** Where in the file it is written. */
     readonly span: Span;
     /**
      * The JSON the file writes at {@link Place.span | span}, exactly as written: for a token, its
@@ -825,7 +839,9 @@ export interface Place {
  */
 export interface PlaceInPermutations {
     readonly span: Span;
-    /** The JSON the file writes at `span`, exactly as written, as {@link Place.written} gives it. */
+    /**
+     * The JSON the file writes at `span`, exactly as written, as {@link Place.written} gives it.
+     */
     readonly written: JsonValue;
     readonly sources: readonly Source[];
     /** The permutations that read it. */
@@ -1002,6 +1018,10 @@ export type SourceRef =
 
 /** The tokens that result from one input. */
 export interface Permutation {
+    /**
+     * The input that names it: the context it picks for every modifier, defaults included, as
+     * `permutation(input)` takes it.
+     */
     readonly input: Input;
     /**
      * Its shortest input written out for people: each modifier away from its default, and any with
@@ -1926,6 +1946,10 @@ export interface Generator {
 export { defineGenerator } from "./read/generate.js";
 export { defineExtensionValidator } from "./read/validate-extensions.js";
 
+/**
+ * How the design tokens are read: which permutations, the tools that make or check tokens, and how
+ * values are read.
+ */
 export interface ReadOptions extends ParseOptions {
     /**
      * The permutations to build. Modifiers left out take their default; an input that does not
@@ -2185,6 +2209,7 @@ export function toDTCGValue<T extends TokenType>(
     throw new Error("not implemented yet");
 }
 
+/** How design tokens are written out as DTCG files. */
 export interface ExportOptions {
     /**
      * Whether to write references as references, or as the values they point to.

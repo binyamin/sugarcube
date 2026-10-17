@@ -22,6 +22,7 @@ export interface TypographyCSS {
 /** What to write in place of a reference: a CSS variable, given by its name, or CSS of your own. */
 export type Replacement = { variable: string } | { css: string };
 
+/** How a value is written as CSS: what stands for a reference, and how colors are written. */
 export interface CSSValueOptions {
     /**
      * What to write for a reference, such as a variable for the token it refers to. Without an
