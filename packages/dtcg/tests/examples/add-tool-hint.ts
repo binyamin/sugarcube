@@ -7,7 +7,7 @@ declare const tokens: DesignTokens;
 for (const d of tokens.diagnostics) {
     if (d.kind === "input-invalid" && d.detail.reason === "missing-modifier") {
         showMessage(
-            `${d.message}\n  Add "${d.detail.modifier}" to \`permutations[${d.detail.input}]\` in sugarcube.config.ts.`,
+            `${d.message}\n  Add "${d.detail.modifier}" to \`permutations[${d.detail.input}]\` in my-tool.config.ts.`,
         );
     }
 }
