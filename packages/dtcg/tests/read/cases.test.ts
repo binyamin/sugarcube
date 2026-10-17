@@ -46,7 +46,8 @@ function observed(found: DesignTokens, expected: Expected) {
                 ...(span && { span }),
                 ...(related && { related }),
                 ...(path !== undefined && { path }),
-                ...(permutations !== undefined && { permutations }),
+                ...(permutations.length > 0 &&
+                    permutations.length < tokens.permutations.length && { permutations }),
             }),
         ),
     };
@@ -113,10 +114,10 @@ describe.each(cases)("%s", (name) => {
         const misplaced = tokens.diagnostics.flatMap((problem) => {
             const file = problem.span?.file;
             if (file === undefined) return [];
-            const readers = tokens.permutations.filter((each) => reads(each, file));
-            const fits = problem.permutations
-                ? problem.permutations.every((each) => reads(each, file))
-                : readers.length === 0 || readers.length === tokens.permutations.length;
+            const fits =
+                file === tokens.entry
+                    ? problem.permutations.length === tokens.permutations.length
+                    : problem.permutations.every((each) => reads(each, file));
             return fits ? [] : [`${problem.kind} in ${file}`];
         });
         expect(misplaced).toStrictEqual([]);

@@ -52,18 +52,27 @@ export function onceEach(diagnostics: Diagnostic[]): Diagnostic[] {
 export function inReadingPermutations(
     diagnostics: Building<Diagnostic>[],
     permutations: Permutations,
+    entry: string,
 ): Diagnostic[] {
     for (const found of diagnostics) {
-        const file = found.span?.file;
-        if (file === undefined || foundIn.has(found)) continue;
-        const reading = permutations.filter(({ sources }) =>
-            sources.some((each) => each.file === file),
-        );
-        if (reading.length > 0 && reading.length < permutations.length) {
-            found.permutations = permutationsOf(reading, permutations);
-        }
+        found.permutations ??= permutationsWith(found, permutations, entry);
     }
     return diagnostics;
+}
+
+function permutationsWith(
+    found: Diagnostic,
+    permutations: Permutations,
+    entry: string,
+): Permutations {
+    const file = found.span?.file;
+    if (file === undefined || file === entry || foundIn.has(found)) return permutations;
+    const reading = permutations.filter(({ sources }) =>
+        sources.some((each) => each.file === file),
+    );
+    return reading.length === permutations.length
+        ? permutations
+        : permutationsOf(reading, permutations);
 }
 
 export function alsoFoundIn(found: Diagnostic, permutation: Input): void {

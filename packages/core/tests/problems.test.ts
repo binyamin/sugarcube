@@ -13,6 +13,10 @@ function spanAt(file: string, line: number, column: number) {
     return { file, offset: 0, length: 1, start: { line, column }, end: { line, column } };
 }
 
+function themes(label: string): Permutations {
+    return Object.assign([], { label, inputs: [] }) as unknown as Permutations;
+}
+
 function value(message: string, place: ReturnType<typeof spanAt>): Reported {
     return {
         kind: "invalid-value",
@@ -20,6 +24,7 @@ function value(message: string, place: ReturnType<typeof spanAt>): Reported {
         message,
         span: place,
         docs: "",
+        permutations: themes("everywhere"),
         detail: { jsonPath: ["$value"], type: "color", reason: "wrong-shape", value: "" },
     };
 }
@@ -31,6 +36,7 @@ function missingReference(ref: string, place: ReturnType<typeof spanAt>): Report
         message: `\`${ref}\` does not exist`,
         span: place,
         docs: "",
+        permutations: themes("everywhere"),
         detail: { ref, from: [] },
     };
 }
@@ -42,16 +48,13 @@ function ignored(place: ReturnType<typeof spanAt>): Reported {
         message: "`paragraphSpacing` is ignored",
         span: place,
         docs: "",
+        permutations: themes("everywhere"),
         detail: { property: "paragraphSpacing", owner: "typography", jsonPath: [] },
     };
 }
 
 const hex = value("`#000` is not a six-digit hex color", spanAt("base.json", 6, 81));
 const missing = missingReference("color.inc", spanAt("base.json", 7, 25));
-function themes(label: string): Permutations {
-    return Object.assign([], { label, inputs: [] }) as unknown as Permutations;
-}
-
 const darkOnly = {
     ...missingReference("color.brnd", spanAt("dark.json", 1, 54)),
     permutations: themes("theme: dark, dim"),
@@ -85,6 +88,14 @@ describe("problemLines", () => {
     it("names the permutations by their label when only some have the problem", () => {
         expect(problemLines([darkOnly], where, { colors: false })).toStrictEqual([
             "tokens/dark.json:1:54  error  `color.brnd` does not exist  in theme: dark, dim  missing-reference",
+        ]);
+    });
+
+    it("names no permutations when every one has the problem, or none does", () => {
+        const nowhere = { ...missing, permutations: themes("nowhere") };
+        expect(problemLines([missing, nowhere], where, { colors: false })).toStrictEqual([
+            "tokens/base.json:7:25  error  `color.inc` does not exist  missing-reference",
+            "tokens/base.json:7:25  error  `color.inc` does not exist  missing-reference",
         ]);
     });
 
@@ -123,6 +134,7 @@ describe("problemLines", () => {
             span: spanAt("dark.json", 3, 12),
             related: [{ message: "declared as a group here", span: spanAt("colors.json", 9, 17) }],
             docs: "",
+            permutations: themes("everywhere"),
             detail: { reason: "declared", here: "token" },
         };
         expect(problemLines([conflict], where, { colors: false })).toStrictEqual([

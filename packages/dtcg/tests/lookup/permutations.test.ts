@@ -267,7 +267,7 @@ describe("a problem's permutations", () => {
         expect(problem?.permutations?.label).toBe("mode: dark, sepia");
     });
 
-    it("are absent when the problem is in every permutation", () => {
+    it("are every permutation, labelled everywhere, when the problem is in every permutation", () => {
         const everywhere = readFromMemory({
             files: {
                 ...files,
@@ -281,7 +281,8 @@ describe("a problem's permutations", () => {
         });
         const found = everywhere.diagnostics.filter(({ kind }) => kind === "missing-reference");
         expect(found).toHaveLength(1);
-        expect(found[0]?.permutations).toBeUndefined();
+        expect(found[0]?.permutations.label).toBe("everywhere");
+        expect(found[0]?.permutations).toHaveLength(everywhere.permutations.length);
     });
 
     it("are written in the plain form as their inputs", () => {

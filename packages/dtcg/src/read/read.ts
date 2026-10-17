@@ -179,6 +179,7 @@ function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
             diagnostics: inReadingPermutations(
                 [...loaded.diagnostics, ...collapse(found, permutations)],
                 permutations,
+                loaded.entry,
             ),
         },
         {

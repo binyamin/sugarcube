@@ -87,7 +87,7 @@ describe("token.diagnostics", () => {
     });
 
     it("gives a problem in a value every permutation reads to each of them", () => {
-        expect(tokens.diagnosticsFor("color.bad")[0]?.permutations).toBeUndefined();
+        expect(tokens.diagnosticsFor("color.bad")[0]?.permutations.label).toBe("everywhere");
         expect(darkMode.token("color.bad")?.diagnostics.map(({ kind }) => kind)).toStrictEqual([
             "invalid-value",
         ]);
@@ -132,13 +132,33 @@ describe("a problem in a file only some permutations read", () => {
         expect(walked.permutation().token("gap")?.diagnostics).toStrictEqual([]);
     });
 
-    it("names none when every permutation reads the file, or none does", () => {
+    it("names every permutation for a problem in the resolver, which every permutation is built from", () => {
         const resolverProblem = readFromMemory({
             files: { ...files, "tokens.resolver.json": JSON.stringify({ ...resolver, extra: 1 }) },
             entry: "tokens.resolver.json",
         }).diagnostics.find(({ span }) => span?.file === "tokens.resolver.json");
         expect(resolverProblem).toBeDefined();
-        expect(resolverProblem?.permutations).toBeUndefined();
+        expect(resolverProblem?.permutations.label).toBe("everywhere");
+    });
+
+    it("names none for a problem in a file no permutation the read built reads", () => {
+        const lightOnly = readFromMemory(
+            { files: { ...files, "dark.json": '{ "color": ' }, entry: "tokens.resolver.json" },
+            { inputs: [{}] },
+        );
+        const broken = lightOnly.diagnostics.find(({ span }) => span?.file === "dark.json");
+        expect(broken).toBeDefined();
+        expect(broken?.permutations.label).toBe("nowhere");
+        expect([...(broken?.permutations ?? [])]).toStrictEqual([]);
+    });
+
+    it("names every permutation for a problem in no file", () => {
+        const unknown = readFromMemory(
+            { files, entry: "tokens.resolver.json" },
+            { inputs: [{}, { shade: "deep" }] },
+        ).diagnostics.find(({ span }) => span === undefined);
+        expect(unknown).toBeDefined();
+        expect(unknown?.permutations.label).toBe("everywhere");
     });
 });
 

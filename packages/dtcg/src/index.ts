@@ -1358,7 +1358,9 @@ export type DiagnosticKind = keyof DiagnosticDetailByKind;
  * @example
  * if (d.kind === "missing-reference") d.detail.similar // "color.ink"
  */
-export type Diagnostic = DiagnosticOf<DiagnosticDetailByKind>;
+export type Diagnostic = DiagnosticOf<DiagnosticDetailByKind> & {
+    readonly permutations: Permutations;
+};
 
 /**
  * A diagnostic with kinds of your own, in the same shape as {@link Diagnostic}, so a tool's own
@@ -1380,12 +1382,15 @@ export type DiagnosticOf<DetailByKind> = {
         /** The token or group it concerns. */
         readonly path?: string;
         /**
-         * The permutations that have it, when only some do. Absent when every permutation has it,
-         * or it concerns none, such as a file that is not valid JSON.
+         * The permutations that have it. Always given on the package's own {@link Diagnostic}s, as
+         * every answer gives them: each one that reads its file, every one for a problem in the
+         * resolver or in no file (labelled `"everywhere"`), and none for a file no permutation the
+         * read built reads (`"nowhere"`). A tool's own kinds may leave it out, for a problem that
+         * concerns no permutation, such as one in the tool's own configuration.
          *
          * @example
-         * const where = diagnostic.permutations?.label;
-         * show(where ? `${diagnostic.message} in ${where}` : diagnostic.message);
+         * const { label } = diagnostic.permutations;
+         * show(label === "everywhere" ? diagnostic.message : `${diagnostic.message} in ${label}`);
          */
         readonly permutations?: Permutations;
         /** Other places involved, such as every token that uses a missing one. */
