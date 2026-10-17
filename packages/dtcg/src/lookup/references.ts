@@ -1,6 +1,7 @@
 import type {
     DesignTokens,
     Group,
+    PathInPermutations,
     Permutation,
     Reference,
     ReferenceInPermutations,
@@ -101,6 +102,25 @@ function writtenIn(permutation: Permutation): WrittenIn {
     const built = { position, byPath };
     written.set(permutation, built);
     return built;
+}
+
+export function usedByIn(
+    tokens: DesignTokens,
+    path: string,
+    options?: ReferenceOptions,
+): PathInPermutations[] {
+    const users = new Map<string, Permutation[]>();
+    for (const permutation of tokens.permutations) {
+        for (const { from } of referencedIn(permutation, path, options)) {
+            const found = users.get(from.path);
+            if (!found) users.set(from.path, [permutation]);
+            else if (found.at(-1) !== permutation) found.push(permutation);
+        }
+    }
+    return [...users].map(([user, permutations]) => ({
+        path: user,
+        permutations: permutationsOf(permutations, tokens.permutations),
+    }));
 }
 
 function across(

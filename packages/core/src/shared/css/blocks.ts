@@ -63,7 +63,7 @@ function dependents(declared: Declaration[], changed: Declaration[]): Declaratio
     const written = new Set(changed.map(({ name }) => name));
     const referring = new Set<Token | Group>();
     for (const source of new Set(changed.map(({ token }) => token))) {
-        for (const { from } of source.referencedBy({ chained: true })) referring.add(from);
+        for (const user of source.usedBy({ chained: true })) referring.add(user);
     }
     return declared.filter(({ name, token }) => referring.has(token) && !written.has(name));
 }

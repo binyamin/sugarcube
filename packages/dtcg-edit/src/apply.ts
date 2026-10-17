@@ -1,7 +1,7 @@
 import type { DesignTokens } from "@sugarcube-sh/dtcg";
 import { type Node, findNodeAtLocation, getNodeValue, parseTree } from "jsonc-parser";
 import { conflict } from "./error-messages.js";
-import type { Committed, Conflict, FileOp, Json, OpResult } from "./index.js";
+import type { Applied, Committed, Conflict, FileOp, Json, OpResult } from "./index.js";
 import { type Splice, indentUnit, lineBreak, removal, spliced } from "./json-text.js";
 import { renameSplices, setSplices, valueAt } from "./text-edits.js";
 
@@ -32,15 +32,12 @@ interface Texts {
  *
  * @example
  * const next = apply(tokens, saved.ops);
- * if ("conflicts" in next) showConflicts(next.conflicts);
- * else tokens = next;
+ * if (next.conflicts) showConflicts(next.conflicts);
+ * else tokens = next.tokens;
  */
-export function apply(
-    tokens: DesignTokens,
-    ops: FileOp[],
-): DesignTokens | { conflicts: Conflict[] } {
+export function apply(tokens: DesignTokens, ops: FileOp[]): Applied {
     const changes = changedFiles(tokens, ops);
-    return changes.conflicts ? changes : changes.tokens;
+    return changes.conflicts ? { conflicts: changes.conflicts } : { tokens: changes.tokens };
 }
 
 /**
@@ -139,8 +136,8 @@ function unread(next: DesignTokens, ops: FileOp[]): FileOp[] {
 export function commit(tokens: DesignTokens, result: OpResult): Committed {
     if (!result.ops) return result;
     const next = apply(tokens, result.ops);
-    if ("conflicts" in next) return next;
-    return { tokens: next, ops: result.ops, moved: result.moved };
+    if (next.conflicts) return next;
+    return { tokens: next.tokens, ops: result.ops, moved: result.moved };
 }
 
 function applyOne(

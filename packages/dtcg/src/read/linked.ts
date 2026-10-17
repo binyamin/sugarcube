@@ -20,7 +20,7 @@ import { diagnosticsAtIn, diagnosticsForIn, diagnosticsOf } from "../lookup/diag
 import { diffIn } from "../lookup/diff.js";
 import { partsOf } from "../lookup/parts.js";
 import { modifierIn, permutationIn } from "../lookup/permutation.js";
-import { referencedByIn, referencedIn, referencesIn } from "../lookup/references.js";
+import { referencedByIn, referencedIn, referencesIn, usedByIn } from "../lookup/references.js";
 import { resolvedValuesIn } from "../lookup/resolved-values.js";
 import { writtenAtIn } from "../lookup/written-at.js";
 import { type Kept, keep, keptBy } from "./kept.js";
@@ -37,6 +37,9 @@ const tokenShared = {
     },
     referencedBy(this: Token, options?: ReferenceOptions): Reference[] {
         return referencedIn(this.permutation, this.path, options);
+    },
+    usedBy(this: Token, options?: ReferenceOptions): (Token | Group)[] {
+        return [...new Set(this.referencedBy(options).map(({ from }) => from))];
     },
     get aliasChain(): Token[] {
         const chain: Token[] = [];
@@ -131,6 +134,9 @@ const designTokensShared = {
     },
     referencedBy(this: DesignTokens, path: string, options?: ReferenceOptions) {
         return referencedByIn(this, path, options);
+    },
+    usedBy(this: DesignTokens, path: string, options?: ReferenceOptions) {
+        return usedByIn(this, path, options);
     },
     writtenAt(this: DesignTokens, path: string) {
         return writtenAtIn(this, path);

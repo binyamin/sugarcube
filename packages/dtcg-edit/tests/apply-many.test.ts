@@ -25,13 +25,12 @@ describe("applying many edits to one file", () => {
         const ops = result.ops ? result.ops : [];
         const oneByOne = ops.reduce((tokens, op) => {
             const next = apply(tokens, [op]);
-            if ("conflicts" in next) throw new Error(JSON.stringify(next.conflicts));
-            return next;
+            if (next.conflicts) throw new Error(JSON.stringify(next.conflicts));
+            return next.tokens;
         }, demo);
         const together = apply(demo, ops);
-
-        if ("conflicts" in together) throw new Error(JSON.stringify(together.conflicts));
-        expect(together.toMemory().files).toEqual(oneByOne.toMemory().files);
+        if (together.conflicts) throw new Error(JSON.stringify(together.conflicts));
+        expect(together.tokens.toMemory().files).toEqual(oneByOne.toMemory().files);
     });
 
     it("gives what applying them one at a time gives when they touch or sit inside each other", () => {
@@ -56,9 +55,8 @@ describe("applying many edits to one file", () => {
         }
         const ops = steps.flatMap((step) => (step.ops ? step.ops : []));
         const together = apply(demo, ops);
-
-        if ("conflicts" in together) throw new Error(JSON.stringify(together.conflicts));
-        expect(together.toMemory().files).toEqual(tokens.toMemory().files);
+        if (together.conflicts) throw new Error(JSON.stringify(together.conflicts));
+        expect(together.tokens.toMemory().files).toEqual(tokens.toMemory().files);
     });
 
     it("refuses a second key renamed to the name the first just took", () => {
@@ -119,9 +117,8 @@ describe("applying many edits to one file", () => {
             { kind: "deleteFile", file: "base.json", was: edited },
         ];
         const after = apply(tokens, ops);
-
-        if ("conflicts" in after) throw new Error(JSON.stringify(after.conflicts));
-        expect(after.text("base.json")).toBeUndefined();
+        if (after.conflicts) throw new Error(JSON.stringify(after.conflicts));
+        expect(after.tokens.text("base.json")).toBeUndefined();
     });
 
     it("parses a file a few times, not once an edit", () => {

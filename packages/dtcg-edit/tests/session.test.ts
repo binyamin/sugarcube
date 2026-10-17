@@ -133,10 +133,9 @@ describe("createSession", () => {
         session.do(remove(session.tokens, "color.brand.50"));
         session.do(rename(session.tokens, "color.brand", "primary"));
         const replayed = apply(demo, session.unsaved.ops);
-
-        if ("conflicts" in replayed) throw new Error(JSON.stringify(replayed.conflicts));
-        expect(replayed.toMemory().files).toEqual(session.tokens.toMemory().files);
-        expect(replayed).toEqual(session.tokens);
+        if (replayed.conflicts) throw new Error(JSON.stringify(replayed.conflicts));
+        expect(replayed.tokens.toMemory().files).toEqual(session.tokens.toMemory().files);
+        expect(replayed.tokens).toEqual(session.tokens);
     });
 });
 

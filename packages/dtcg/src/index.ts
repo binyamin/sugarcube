@@ -272,6 +272,16 @@ export type ReferenceInPermutations = Omit<ReferenceBase, "from" | "token" | "mo
         moved(moves: readonly Move[]): JsonValue;
     };
 
+/**
+ * A token or group by its path, with the permutations where it refers to the path asked about, as
+ * {@link DesignTokens.usedBy} gives it. A path, not a token, because each permutation has its own
+ * token at that path.
+ */
+export interface PathInPermutations {
+    path: string;
+    permutations: Permutations;
+}
+
 /** How far {@link TokenBase.referencedBy} and the design tokens' reference questions look. */
 export interface ReferenceOptions {
     /**
@@ -615,6 +625,16 @@ export interface TokenBase<T extends TokenType> {
      * red.referencedBy({ chained: true })              // everything a change would reach
      */
     referencedBy(options?: ReferenceOptions): Reference[];
+    /**
+     * Each token or group that refers to the token in this permutation, once, however many
+     * references it writes to it; with `chained`, also each one that refers to those, however
+     * indirectly. Wider than the spec's aliases (Format 3.8), tokens whose whole value is this one:
+     * a composite with one part referring to it, or a group's `$extends`, uses it too.
+     *
+     * @example
+     * red.usedBy().map(({ path }) => path) // ["color.brand", "border.danger"]
+     */
+    usedBy(options?: ReferenceOptions): (Token | Group)[];
     /**
      * The token, then each token its whole value references in turn, ending at the one that holds a
      * value: a curly brace reference, or a JSON Pointer to a complete value. A property-level
@@ -1402,6 +1422,16 @@ export interface DesignTokens {
      * for (const { from, span } of tokens.referencedBy("color.brand")) show(from, span);
      */
     referencedBy(path: string, options?: ReferenceOptions): ReferenceInPermutations[];
+    /**
+     * Each token or group that refers to `path`, in any permutation, once, however many references
+     * it writes, with the permutations where it does; with `chained`, also each that refers to those.
+     * A group's path covers what refers to it and to everything inside it, as
+     * {@link DesignTokens.referencedBy} does.
+     *
+     * @example
+     * for (const { path, permutations } of tokens.usedBy("color.red")) row(path, permutations.label);
+     */
+    usedBy(path: string, options?: ReferenceOptions): PathInPermutations[];
     /**
      * Every place the token or group at `path` is written, in any permutation, each span once with
      * the sources and permutations that read it and the permutations whose value comes from it, in

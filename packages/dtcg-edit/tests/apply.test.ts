@@ -4,8 +4,8 @@ import { type FileOp, type Json, type Question, apply, commit } from "../src/ind
 import { demo, at, changed } from "./helpers.js";
 function applied(tokens: DesignTokens, ops: FileOp[]): DesignTokens {
     const result = apply(tokens, ops);
-    if ("conflicts" in result) throw new Error(JSON.stringify(result.conflicts));
-    return result;
+    if (result.conflicts) throw new Error(JSON.stringify(result.conflicts));
+    return result.tokens;
 }
 
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
@@ -16,6 +16,14 @@ const setBrand500 = (tokens: DesignTokens): FileOp => ({
     jsonPath: brand500,
     value: red,
     was: at(tokens, "color.json", brand500) as Json,
+});
+
+describe("apply's result", () => {
+    it("holds the new design tokens as tokens, tested by its field as commit's is", () => {
+        const result = apply(demo, [setBrand500(demo)]);
+        expect(result.conflicts).toBeUndefined();
+        expect(result.tokens && at(result.tokens, "color.json", brand500)).toEqual(red);
+    });
 });
 
 describe("apply, set", () => {

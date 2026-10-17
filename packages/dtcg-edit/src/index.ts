@@ -389,6 +389,17 @@ export interface Conflict {
 export { apply, changedFiles, commit } from "./apply.js";
 
 /**
+ * The outcome of {@link apply}. Test it by its field: `next.tokens`, or `next.conflicts`.
+ */
+export type Applied =
+    | {
+          /** The design tokens with the edits applied. */
+          tokens: DesignTokens;
+          conflicts?: undefined;
+      }
+    | { conflicts: Conflict[]; tokens?: undefined };
+
+/**
  * The outcome of {@link commit}. Test it by its field: `done.tokens`, `done.question`,
  * `done.refused` or `done.conflicts`.
  */

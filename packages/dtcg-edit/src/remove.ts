@@ -25,7 +25,8 @@ export function remove(tokens: DesignTokens, path: string): OpResult {
         was: written,
     }));
     const broken = tokens
-        .referencedBy(path)
-        .flatMap(({ from }) => (atOrWithin(from, path) ? [] : [from]));
-    return { ops, alsoAffects: copies.alsoAffects, broken: [...new Set(broken)], moved: [] };
+        .usedBy(path)
+        .map((user) => user.path)
+        .filter((user) => !atOrWithin(user, path));
+    return { ops, alsoAffects: copies.alsoAffects, broken, moved: [] };
 }

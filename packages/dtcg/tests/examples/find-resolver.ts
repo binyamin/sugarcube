@@ -4,6 +4,6 @@ import { findResolver } from "@sugarcube-sh/dtcg/node";
 
 const found = await findResolver(process.cwd());
 if (found.kind === "one") showMessage(`Using ${found.path}`);
-else if (found.kind === "many")
+else if (found.kind === "several")
     showMessage(`Several resolvers: ${found.paths.join(", ")}. Pick one in your config.`);
 else showMessage("No resolver found. Run `sugarcube init`.");
