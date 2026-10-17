@@ -1,16 +1,16 @@
 // Deprecates a token with a message pointing at its replacement, then lists deprecated tokens still
 // in use.
-import { defaultPermutation, referrers, type Project } from "@sugarcube-sh/dtcg";
+import { type DesignTokens } from "@sugarcube-sh/dtcg";
 import { deprecate, commit } from "@sugarcube-sh/dtcg-edit";
 
-declare let project: Project;
+declare let tokens: DesignTokens;
 
-const done = commit(project, deprecate(project, "color.old", "Use color.new instead"));
-if ("project" in done) project = done.project;
+const done = commit(tokens, deprecate(tokens, "color.old", "Use color.new instead"));
+if (done.tokens) tokens = done.tokens;
 
-for (const t of defaultPermutation(project.doc)?.tokens ?? []) {
+for (const t of tokens.permutation().tokens) {
     if (!t.deprecated) continue;
-    const users = referrers(project.doc, t.path).map((r) => r.path);
+    const users = tokens.usedBy(t.path).map(({ path }) => path);
     if (users.length) {
         comment(`${t.path} is deprecated (${t.deprecated}) but used by ${users.join(", ")}`);
     }

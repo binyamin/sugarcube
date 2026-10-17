@@ -43,7 +43,7 @@
         "expected": "number",
         "found": "color"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#/card/$value/color\" }",
         "occurrence": 2

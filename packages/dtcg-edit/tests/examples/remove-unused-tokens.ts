@@ -1,11 +1,17 @@
-// A cleanup script that removes every token nothing references, in any theme.
-import { referrers, tokenPaths, type Project } from "@sugarcube-sh/dtcg";
-import { remove, commit } from "@sugarcube-sh/dtcg-edit";
+// A cleanup script that removes every token nothing references, in any theme, as one step: if one
+// can't be removed, nothing is.
+import { type DesignTokens } from "@sugarcube-sh/dtcg";
+import { combine, commit, remove } from "@sugarcube-sh/dtcg-edit";
 
-declare let project: Project;
+declare let tokens: DesignTokens;
 
-const unused = tokenPaths(project.doc).filter((path) => referrers(project.doc, path).length === 0);
-for (const path of unused) {
-    const done = commit(project, remove(project, path));
-    if ("project" in done) project = done.project;
-}
+const unused = tokens.tokenPaths().filter((path) => tokens.usedBy(path).length === 0);
+const done = commit(
+    tokens,
+    combine(
+        tokens,
+        unused.map((path) => (current) => remove(current, path)),
+    ),
+);
+if (done.tokens) tokens = done.tokens;
+else if (done.refused) showMessage(done.refused.reason);

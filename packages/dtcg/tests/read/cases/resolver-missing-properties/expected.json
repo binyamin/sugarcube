@@ -7,9 +7,9 @@
       "detail": {
         "rule": "missing-property",
         "name": "sources",
-        "at": ["sets", "base"]
+        "jsonPath": ["sets", "base"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 46,
         "length": 31,
@@ -28,9 +28,9 @@
       "detail": {
         "rule": "missing-property",
         "name": "resolutionOrder",
-        "at": []
+        "jsonPath": []
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 0,
         "length": 81,
@@ -50,7 +50,7 @@
         "item": "set",
         "name": "base"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 46,
         "length": 31,

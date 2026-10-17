@@ -29,14 +29,18 @@ export interface ExtensionReader<M extends ExtensionMessages> {
      * never resolves inside an extension, gives `undefined` and keeps the parser's error. A
      * property the type does not define is set aside and kept for the result.
      */
-    read<T extends TokenType>(type: T, raw: unknown, at: JsonPath): ValueByType[T] | undefined;
+    read<T extends TokenType>(
+        type: T,
+        raw: unknown,
+        jsonPath: JsonPath,
+    ): ValueByType[T] | undefined;
     /**
      * Records one reason the extension is not valid, with the facts its message takes, if any.
-     * `at` starts at the extension. Gives `undefined`, so a function reading one part can return
-     * it as that part's missing value.
+     * `jsonPath` starts at the extension. Gives `undefined`, so a function reading one part can
+     * return it as that part's missing value.
      */
     report<R extends keyof M & string>(
-        at: JsonPath,
+        jsonPath: JsonPath,
         reason: R,
         ...data: Parameters<M[R]>
     ): undefined;
@@ -71,15 +75,15 @@ export function extensionReader<M extends ExtensionMessages>(
     const errors: (ExtensionError<M> | ValueError)[] = [];
     const ignored: IgnoredProperty[] = [];
     return {
-        read: (type, raw, at) => {
-            const read = parseValue(type, raw, at, { ...options, references: false });
+        read: (type, raw, jsonPath) => {
+            const read = parseValue(type, raw, jsonPath, { ...options, references: false });
             ignored.push(...read.ignored);
             if (read.ok) return read.value;
             errors.push(...read.errors);
             return undefined;
         },
-        report: (at, reason, ...data) => {
-            const error = { path: at, reason, ...(data.length > 0 && { data: data[0] }) };
+        report: (jsonPath, reason, ...data) => {
+            const error = { jsonPath, reason, ...(data.length > 0 && { data: data[0] }) };
             errors.push(error as ExtensionError<M>);
             return undefined;
         },

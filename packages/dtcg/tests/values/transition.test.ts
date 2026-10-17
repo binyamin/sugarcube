@@ -13,12 +13,12 @@ function read(raw: unknown, options?: ParseOptions) {
 function details(raw: unknown, options?: ParseOptions) {
     const result = parseTransition(raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
-    return result.errors.map(({ path, detail }) => ({ path, detail }));
+    return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
     const result = parseTransition(raw, ["$value"], options);
-    return result.ignored.map(({ path, detail }) => ({ path, detail }));
+    return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 const emphasis = {
@@ -35,12 +35,15 @@ describe("parseTransition", () => {
 
         it.for(["duration", "delay", "timingFunction"])("a reference in place of %s", (part) => {
             expect(read({ ...emphasis, [part]: `{motion.${part}}` })).toMatchObject({
-                [part]: { alias: `motion.${part}` },
+                [part]: { syntax: "curly-brace", path: `motion.${part}` },
             });
         });
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{transition.emphasis}")).toStrictEqual({ alias: "transition.emphasis" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{transition.emphasis}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "transition.emphasis",
+            });
         });
     });
 
@@ -48,7 +51,7 @@ describe("parseTransition", () => {
         it.for(["200ms ease-in", null, [emphasis]])("%j, which is not a transition", (raw) => {
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: { type: "transition", reason: "wrong-shape", value: raw },
                 },
             ]);
@@ -61,7 +64,7 @@ describe("parseTransition", () => {
                 delete raw[part];
                 expect(details(raw)).toStrictEqual([
                     {
-                        path: ["$value", part],
+                        jsonPath: ["$value", part],
                         detail: { type: "transition", reason: "missing-property", property: part },
                     },
                 ]);
@@ -77,7 +80,7 @@ describe("parseTransition", () => {
                 }),
             ).toStrictEqual([
                 {
-                    path: ["$value", "duration"],
+                    jsonPath: ["$value", "duration"],
                     detail: {
                         type: "duration",
                         reason: "string-with-unit",
@@ -86,7 +89,7 @@ describe("parseTransition", () => {
                     },
                 },
                 {
-                    path: ["$value", "timingFunction", 0],
+                    jsonPath: ["$value", "timingFunction", 0],
                     detail: {
                         type: "cubicBezier",
                         reason: "x-out-of-range",
@@ -103,7 +106,7 @@ describe("parseTransition", () => {
             const raw = { ...emphasis, property: "opacity" };
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value", "property"],
+                    jsonPath: ["$value", "property"],
                     detail: {
                         type: "transition",
                         reason: "unknown-property",
@@ -120,7 +123,7 @@ describe("parseTransition", () => {
                 expect(read(raw, lenient)).toStrictEqual(read(emphasis, lenient));
                 expect(ignored(raw, lenient)).toStrictEqual([
                     {
-                        path: ["$value", "property"],
+                        jsonPath: ["$value", "property"],
                         detail: { type: "transition", property: "property" },
                     },
                 ]);

@@ -1,44 +1,29 @@
 // Works out what a size is for, such as a font size or a border width, so an editor can show the
 // right preview next to it. A setting on the token or on any group above it can say so, and so
 // can being used as the font size of a typography token or the width of a border.
-import {
-    defaultPermutation,
-    group,
-    isAlias,
-    isPointer,
-    token,
-    type Document,
-} from "@sugarcube-sh/dtcg";
+import { type DesignTokens, type Group, type Token } from "@sugarcube-sh/dtcg";
 
-declare const doc: Document;
+declare const tokens: DesignTokens;
 
 function declared(path: string): string | undefined {
-    const parts = path.split(".");
-    for (let depth = parts.length; depth > 0; depth--) {
-        const at = parts.slice(0, depth).join(".");
-        const extensions =
-            depth === parts.length ? token(doc, at)?.extensions : group(doc, at)?.extensions;
-        const setting = extensions?.["com.example"] as { measures?: string } | undefined;
+    for (let at: Token | Group | undefined = tokens.permutation().token(path); at; at = at.group) {
+        const setting = at.extensions?.["com.example"] as { measures?: string } | undefined;
         if (setting?.measures) return setting.measures;
     }
     return undefined;
 }
 
+const measures: Record<string, string> = {
+    "typography fontSize": "font-size",
+    "typography letterSpacing": "letter-spacing",
+    "border width": "border-width",
+};
+
 const usedAs = new Map<string, string>();
-for (const t of defaultPermutation(doc)?.tokens ?? []) {
-    if (t.type === "typography" && t.value && !isAlias(t.value) && !isPointer(t.value)) {
-        if (isAlias(t.value.fontSize)) usedAs.set(t.value.fontSize.alias, "font-size");
-        if (isAlias(t.value.letterSpacing))
-            usedAs.set(t.value.letterSpacing.alias, "letter-spacing");
-    }
-    if (
-        t.type === "border" &&
-        t.value &&
-        !isAlias(t.value) &&
-        !isPointer(t.value) &&
-        isAlias(t.value.width)
-    ) {
-        usedAs.set(t.value.width.alias, "border-width");
+for (const t of tokens.permutation().tokens) {
+    for (const { property = [], token: target } of t.references) {
+        const measure = measures[`${t.type} ${property.join(".")}`];
+        if (measure && target) usedAs.set(target.path, measure);
     }
 }
 

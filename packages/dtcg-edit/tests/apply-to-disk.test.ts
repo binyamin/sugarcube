@@ -1,13 +1,14 @@
+import type { JsonValue } from "@sugarcube-sh/dtcg";
 import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { token } from "@sugarcube-sh/dtcg";
-import { open } from "@sugarcube-sh/dtcg/node";
+
+import { read as readFromDisk } from "@sugarcube-sh/dtcg/node";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setValue } from "../src/index.js";
 import { applyToDisk } from "../src/node.js";
 import { at, changed, demo, opsOf } from "./helpers.js";
-import type { FileOp, Json } from "../src/index.js";
+import type { FileOp } from "../src/index.js";
 
 let folder: string;
 let entry: string;
@@ -42,12 +43,14 @@ describe("applyToDisk", () => {
         }
     });
 
-    it("hands back the project as read from the files written", async () => {
+    it("hands back the design tokens as read from the files written", async () => {
         const result = await applyToDisk({ entry }, opsOf(setValue(demo, "radius.md", half)));
 
-        if (!("project" in result)) throw new Error(JSON.stringify(result));
-        expect(token(result.project.doc, "radius.md")?.authored?.value).toEqual(half);
-        expect(result.project.files).toEqual((await open(entry)).files);
+        if (!result.tokens) throw new Error(JSON.stringify(result));
+        expect(result.tokens.permutation().token("radius.md")?.authored?.value).toEqual(half);
+        expect(result.tokens.toMemory().files).toEqual(
+            (await readFromDisk(entry)).toMemory().files,
+        );
     });
 
     it("reads the files with the source's own options", async () => {
@@ -57,7 +60,8 @@ describe("applyToDisk", () => {
             opsOf(setValue(demo, "radius.md", half)),
         );
 
-        expect(result).toMatchObject({ project: { options } });
+        if (!result.tokens) throw new Error(JSON.stringify(result));
+        expect(result.tokens.parseOptions.hexStringColors).toBe(true);
     });
 
     it("keeps a change made on disk since the edits were made", async () => {
@@ -65,7 +69,7 @@ describe("applyToDisk", () => {
         const theirs = changed(demo, [
             ["radius.json", ["radius", "lg", "$value"], { value: 9, unit: "px" }],
         ]);
-        write("radius.json", theirs.files["radius.json"] ?? "");
+        write("radius.json", theirs.text("radius.json") ?? "");
 
         await applyToDisk({ entry }, ops);
         const radius = JSON.parse(read("radius.json")).radius;
@@ -78,7 +82,7 @@ describe("applyToDisk", () => {
         const clashes: FileOp = {
             kind: "renameKey",
             file: "color.json",
-            path: ["color", "brand", "500"],
+            jsonPath: ["color", "brand", "500"],
             name: "600",
             was: at(demo, "color.json", ["color", "brand", "500"]) ?? null,
         };
@@ -90,35 +94,43 @@ describe("applyToDisk", () => {
         expect(read("color.json")).toBe(before.color);
     });
 
-    it("won't write a file the design system doesn't read", async () => {
+    it("won't write a file the design tokens aren't read from", async () => {
         const op: FileOp = {
             kind: "set",
             file: "package.json",
-            path: ["name"],
+            jsonPath: ["name"],
             value: "x",
             was: "demo",
         };
         const result = await applyToDisk({ entry }, [op]);
 
         expect(result).toEqual({
-            conflicts: [expect.objectContaining({ kind: "not-in-project" })],
+            conflicts: [expect.objectContaining({ kind: "not-read" })],
         });
+        expect(read("package.json")).toBe('{ "name": "demo" }\n');
+    });
+
+    it("won't delete a file the design tokens aren't read from", async () => {
+        const op: FileOp = { kind: "deleteFile", file: "package.json", was: "anything" };
+        const result = await applyToDisk({ entry }, [op]);
+
+        expect(result).toMatchObject({ deleted: [] });
         expect(read("package.json")).toBe('{ "name": "demo" }\n');
     });
 
     it("won't make a file nothing reads, and makes one the same edits add to the resolver", async () => {
         const make: FileOp = { kind: "createFile", file: "extra.json", value: { extra: {} } };
         expect(await applyToDisk({ entry }, [make])).toEqual({
-            conflicts: [expect.objectContaining({ kind: "unread" })],
+            conflicts: [expect.objectContaining({ kind: "not-read" })],
         });
         expect(readdirSync(folder)).not.toContain("extra.json");
 
         const sources = ["resolutionOrder", 0, "sources"];
-        const was = at(demo, "tokens.resolver.json", sources) as Json[];
+        const was = at(demo, "tokens.resolver.json", sources) as JsonValue[];
         const reference: FileOp = {
             kind: "set",
             file: "tokens.resolver.json",
-            path: sources,
+            jsonPath: sources,
             value: [...was, { $ref: "./extra.json" }],
             was,
         };
@@ -163,13 +175,13 @@ describe("applyToDisk", () => {
 
 function madeAndRead(...files: string[]): FileOp[] {
     const sources = ["resolutionOrder", 0, "sources"];
-    const was = at(demo, "tokens.resolver.json", sources) as Json[];
+    const was = at(demo, "tokens.resolver.json", sources) as JsonValue[];
     return [
         ...files.map((file): FileOp => ({ kind: "createFile", file, value: { extra: {} } })),
         {
             kind: "set",
             file: "tokens.resolver.json",
-            path: sources,
+            jsonPath: sources,
             value: [...was, ...files.map((file) => ({ $ref: `./${file}` }))],
             was,
         },

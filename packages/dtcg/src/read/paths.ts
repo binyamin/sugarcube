@@ -30,12 +30,12 @@ export function join(folder: string, path: string): string {
 }
 
 /**
- * Where a file the Document names was read from: the file's name joined onto the folder of the
+ * Where a file the design tokens name was read from: the file's name joined onto the folder of the
  * entry, as given to `read`. A name written from the root, or as a URL, is that place already,
  * and comes back as it is.
  *
  * @param folder The entry's folder, such as `"tokens"` for `read("tokens/tokens.resolver.json")`.
- * @param file A file as the Document names it, in `Document.files` or a `Span`.
+ * @param file A file as the design tokens name it, in `DesignTokens.files` or a `Span`.
  *
  * @example
  * filePath("tokens", "themes/dark.json") // "tokens/themes/dark.json"

@@ -13,11 +13,16 @@ export function unusedJSON({ unused, total }: Unused, { scanned }: Uses) {
     };
 }
 
-export function impactJSON({ token, dependents, uses }: Impact) {
+export function impactJSON({ path, written, dependents, uses }: Impact) {
     return {
-        token: token.path,
-        type: token.type,
-        dependents: dependents.map(({ path, references }) => ({ token: path, references })),
+        token: path,
+        written: written.map(({ token, file, permutations }) => ({
+            value: token.authored?.value,
+            type: token.type,
+            file,
+            permutations: permutations.inputs,
+        })),
+        dependents: dependents.map((each) => ({ token: each.path, references: each.references })),
         consumers: uses.map((use) => ({
             file: relative(process.cwd(), use.file),
             ...(use.line !== undefined && { line: use.line }),

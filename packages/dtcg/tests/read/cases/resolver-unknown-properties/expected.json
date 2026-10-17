@@ -8,7 +8,7 @@
         "property": "colour",
         "owner": "resolver"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"colour\""
       }
@@ -20,7 +20,7 @@
         "owner": "set",
         "similar": "description"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"descripton\""
       }
@@ -32,7 +32,7 @@
         "owner": "modifier",
         "similar": "default"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"defualt\""
       }
@@ -43,7 +43,7 @@
         "property": "owner",
         "owner": "set"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"owner\""
       }
@@ -54,7 +54,7 @@
         "property": "mode",
         "owner": "modifier"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"mode\""
       }
@@ -66,7 +66,7 @@
         "owner": "set",
         "similar": "sources"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"sourcse\""
       }

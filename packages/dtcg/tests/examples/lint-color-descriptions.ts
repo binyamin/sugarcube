@@ -1,8 +1,11 @@
 // A lint rule that flags every color token without a description.
-import { defaultPermutation, type Document } from "@sugarcube-sh/dtcg";
+import { type DesignTokens } from "@sugarcube-sh/dtcg";
 
-declare const doc: Document;
+declare const tokens: DesignTokens;
 
-for (const t of defaultPermutation(doc)?.tokens ?? []) {
-    if (t.type === "color" && !t.description) report(t.source.at, `${t.path} has no description`);
+for (const t of tokens.permutation().tokens) {
+    const place = t.valueFrom;
+    if (t.type === "color" && !t.description && place) {
+        report(place.span, `${t.path} has no description`);
+    }
 }

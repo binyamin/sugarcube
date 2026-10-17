@@ -5,20 +5,20 @@
   "diagnostics": [
     {
       "kind": "extension-invalid",
-      "detail": { "key": "com.example", "at": ["$extensions", "com.example", "fluid"] },
-      "at": { "file": "tokens.json", "text": "\"yes\"" },
+      "detail": { "key": "com.example", "jsonPath": ["$extensions", "com.example", "fluid"] },
+      "span": { "file": "tokens.json", "text": "\"yes\"" },
       "path": "space"
     },
     {
       "kind": "extension-invalid",
-      "detail": { "key": "com.example", "at": ["$extensions", "com.example", "fluid"] },
-      "at": { "file": "tokens.json", "valueAfter": "\"fluid\":", "occurrence": 2 },
+      "detail": { "key": "com.example", "jsonPath": ["$extensions", "com.example", "fluid"] },
+      "span": { "file": "tokens.json", "valueAfter": "\"fluid\":", "occurrence": 2 },
       "path": "space.sm"
     },
     {
       "kind": "extension-invalid",
-      "detail": { "key": "com.example", "at": ["$extensions", "com.example", "fluid"] },
-      "at": {
+      "detail": { "key": "com.example", "jsonPath": ["$extensions", "com.example", "fluid"] },
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"gap\": { \"$value\": \"{space.md}\", \"$extensions\": { \"com.example\":"
       },

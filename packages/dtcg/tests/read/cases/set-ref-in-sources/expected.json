@@ -18,7 +18,7 @@
             "file": "palette.json"
           }
         ],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "valueAfter": "\"palette\":"
         }
@@ -33,7 +33,7 @@
             "file": "semantic.json"
           }
         ],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "valueAfter": "\"base\":"
         }
@@ -50,39 +50,36 @@
     {
       "input": {},
       "label": "",
-      "sources": [
-        {
-          "file": "palette.json",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              },
-              {
-                "name": "palette",
-                "extensions": {
-                  "sh.sugarcube": {
-                    "emit": false
-                  }
-                }
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "semantic.json",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        }
-      ]
+      "sources": [0, 1]
     }
   ],
-  "diagnostics": []
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "palette.json",
+      "sets": [
+        {
+          "name": "base"
+        },
+        {
+          "name": "palette",
+          "extensions": {
+            "sh.sugarcube": {
+              "emit": false
+            }
+          }
+        }
+      ],
+      "readBy": "everyone"
+    },
+    {
+      "file": "semantic.json",
+      "sets": [
+        {
+          "name": "base"
+        }
+      ],
+      "readBy": "everyone"
+    }
+  ]
 }

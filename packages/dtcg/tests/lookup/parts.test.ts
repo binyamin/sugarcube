@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { type Part, parts, readFromMemory, token } from "../../src/index.js";
+import { type Part, readFromMemory } from "../../src/index.js";
 
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 const redRead = { colorSpace: "srgb", components: [1, 0, 0], alpha: 1 };
 const px = (value: number) => ({ value, unit: "px" });
 
-const tokens = {
+const json = {
     red: { $type: "color", $value: red },
     thin: { $type: "dimension", $value: px(1) },
     half: { $type: "number", $value: 0.5 },
@@ -68,63 +68,70 @@ const tokens = {
     broken: { $type: "dimension", $value: "4px" },
 };
 
-const doc = readFromMemory({ files: { "tokens.json": JSON.stringify(tokens) } });
-const partsOf = (path: string) => {
-    const found = token(doc, path);
+const tokens = readFromMemory({ files: { "tokens.json": JSON.stringify(json) } });
+const partsOfPath = (path: string) => {
+    const found = tokens.permutation().token(path);
     if (!found) throw new Error(`no token ${path}`);
-    return parts(found);
+    return found.parts;
 };
 
-describe("parts", () => {
+describe("token.parts", () => {
     it("gives a simple value as one part, with what it resolved to", () => {
-        expect(partsOf("thin")).toStrictEqual({ type: "dimension", at: [], resolved: px(1) });
+        expect(partsOfPath("thin")).toStrictEqual({ type: "dimension", resolved: px(1) });
     });
 
     it("gives a whole value written as a reference that reference", () => {
-        expect(partsOf("accent")).toStrictEqual({
+        expect(partsOfPath("accent")).toStrictEqual({
             type: "color",
-            at: [],
             resolved: redRead,
-            ref: { alias: "red" },
+            ref: expect.objectContaining({ syntax: "curly-brace", path: "red" }),
         });
     });
 
     it("gives each part of a composite, typed, with the reference written there", () => {
-        expect(partsOf("edge")).toStrictEqual({
+        expect(partsOfPath("edge")).toStrictEqual({
             type: "border",
-            at: [],
             resolved: {
                 color: redRead,
                 width: px(2),
                 style: { kind: "keyword", keyword: "solid" },
             },
-            color: { type: "color", at: ["color"], resolved: redRead, ref: { alias: "red" } },
-            width: { type: "dimension", at: ["width"], resolved: px(2) },
+            color: {
+                type: "color",
+                property: ["color"],
+                resolved: redRead,
+                ref: expect.objectContaining({ syntax: "curly-brace", path: "red" }),
+            },
+            width: { type: "dimension", property: ["width"], resolved: px(2) },
             style: {
                 type: "strokeStyle",
-                at: ["style"],
+                property: ["style"],
                 resolved: { kind: "keyword", keyword: "solid" },
             },
         });
     });
 
     it("gives a JSON Pointer written at a part as its reference", () => {
-        const border = partsOf("pointed");
-        expect(border?.type === "border" && border.color.ref).toStrictEqual({
+        const border = partsOfPath("pointed");
+        expect(border?.type === "border" && border.color.ref).toMatchObject({
+            syntax: "json-pointer",
             pointer: "#/red/$value",
         });
-        expect(border?.type === "border" && border.width.ref).toStrictEqual({ alias: "thin" });
+        expect(border?.type === "border" && border.width.ref).toMatchObject({
+            syntax: "curly-brace",
+            path: "thin",
+        });
     });
 
     it("leaves a pointer inside a part, such as at one color component, in what it resolved to", () => {
-        expect(partsOf("mixed")).toStrictEqual({ type: "color", at: [], resolved: redRead });
+        expect(partsOfPath("mixed")).toStrictEqual({ type: "color", resolved: redRead });
     });
 
     it("gives a shadow its layers, a single shadow as a list of one", () => {
-        const shadow = partsOf("lone");
+        const shadow = partsOfPath("lone");
         expect(shadow?.type === "shadow" && shadow.layers).toStrictEqual([
             {
-                at: [0],
+                property: [0],
                 resolved: {
                     color: redRead,
                     offsetX: px(0),
@@ -135,60 +142,69 @@ describe("parts", () => {
                 },
                 color: {
                     type: "color",
-                    at: [0, "color"],
+                    property: [0, "color"],
                     resolved: redRead,
-                    ref: { alias: "red" },
+                    ref: expect.objectContaining({ syntax: "curly-brace", path: "red" }),
                 },
-                offsetX: { type: "dimension", at: [0, "offsetX"], resolved: px(0) },
-                offsetY: { type: "dimension", at: [0, "offsetY"], resolved: px(1) },
-                blur: { type: "dimension", at: [0, "blur"], resolved: px(2) },
-                spread: { type: "dimension", at: [0, "spread"], resolved: px(0) },
+                offsetX: { type: "dimension", property: [0, "offsetX"], resolved: px(0) },
+                offsetY: { type: "dimension", property: [0, "offsetY"], resolved: px(1) },
+                blur: { type: "dimension", property: [0, "blur"], resolved: px(2) },
+                spread: { type: "dimension", property: [0, "spread"], resolved: px(0) },
             },
         ]);
     });
 
     it("gives a layer written as a reference to a shadow token that reference, and its parts", () => {
-        const shadow = partsOf("layered");
+        const shadow = partsOfPath("layered");
         if (shadow?.type !== "shadow") throw new Error("not a shadow");
         const [first, second] = shadow.layers;
-        expect(first?.ref).toStrictEqual({ alias: "lone" });
-        expect(first?.color).toStrictEqual({ type: "color", at: [0, "color"], resolved: redRead });
+        expect(first?.ref).toMatchObject({ syntax: "curly-brace", path: "lone" });
+        expect(first?.color).toStrictEqual({
+            type: "color",
+            property: [0, "color"],
+            resolved: redRead,
+        });
         expect(second?.ref).toBeUndefined();
         expect(second?.resolved.inset).toBe(true);
-        expect(second?.offsetX.ref).toStrictEqual({ alias: "thin" });
+        expect(second?.offsetX.ref).toMatchObject({ syntax: "curly-brace", path: "thin" });
     });
 
     it("gives a gradient its stops, each with its color and position", () => {
-        const gradient = partsOf("fade");
+        const gradient = partsOfPath("fade");
         if (gradient?.type !== "gradient") throw new Error("not a gradient");
         expect(gradient.stops.map(({ color, position }) => [color.ref, position])).toStrictEqual([
-            [undefined, { type: "number", at: [0, "position"], resolved: 0 }],
+            [undefined, { type: "number", property: [0, "position"], resolved: 0 }],
             [
-                { alias: "red" },
-                { type: "number", at: [1, "position"], resolved: 0.5, ref: { alias: "half" } },
+                expect.objectContaining({ syntax: "curly-brace", path: "red" }),
+                {
+                    type: "number",
+                    property: [1, "position"],
+                    resolved: 0.5,
+                    ref: expect.objectContaining({ syntax: "curly-brace", path: "half" }),
+                },
             ],
         ]);
     });
 
     it("gives a dash pattern its lengths, and a keyword none", () => {
-        const dash = partsOf("dash");
+        const dash = partsOfPath("dash");
         expect(dash?.type === "strokeStyle" && "dashArray" in dash && dash.dashArray).toStrictEqual(
             [
                 {
                     type: "dimension",
-                    at: ["dashArray", 0],
+                    property: ["dashArray", 0],
                     resolved: px(1),
-                    ref: { alias: "thin" },
+                    ref: expect.objectContaining({ syntax: "curly-brace", path: "thin" }),
                 },
-                { type: "dimension", at: ["dashArray", 1], resolved: px(2) },
+                { type: "dimension", property: ["dashArray", 1], resolved: px(2) },
             ],
         );
-        const plain = partsOf("plain");
+        const plain = partsOfPath("plain");
         expect(plain?.type === "strokeStyle" && "dashArray" in plain).toBe(false);
     });
 
     it("gives typography its five parts, in the spec's order", () => {
-        const typography = partsOf("body");
+        const typography = partsOfPath("body");
         if (typography?.type !== "typography") throw new Error("not typography");
         expect(typePartsOf(typography)).toStrictEqual([
             ["fontFamily", "fontFamily"],
@@ -197,20 +213,20 @@ describe("parts", () => {
             ["letterSpacing", "dimension"],
             ["lineHeight", "number"],
         ]);
-        expect(typography.fontFamily.ref).toStrictEqual({ alias: "family" });
+        expect(typography.fontFamily.ref).toMatchObject({ syntax: "curly-brace", path: "family" });
         expect(typography.lineHeight).toStrictEqual({
             type: "number",
-            at: ["lineHeight"],
+            property: ["lineHeight"],
             resolved: 0.5,
-            ref: { alias: "half" },
+            ref: expect.objectContaining({ syntax: "curly-brace", path: "half" }),
         });
     });
 
     it("gives every composite its parts, with their types, in the spec's order", () => {
-        const motion = partsOf("motion");
-        const edge = partsOf("edge");
-        const shadow = partsOf("lone");
-        const gradient = partsOf("fade");
+        const motion = partsOfPath("motion");
+        const edge = partsOfPath("edge");
+        const shadow = partsOfPath("lone");
+        const gradient = partsOfPath("fade");
         if (
             motion?.type !== "transition" ||
             edge?.type !== "border" ||
@@ -242,7 +258,7 @@ describe("parts", () => {
     });
 
     it("is undefined for a token whose value could not be read", () => {
-        expect(partsOf("broken")).toBeUndefined();
+        expect(partsOfPath("broken")).toBeUndefined();
     });
 });
 

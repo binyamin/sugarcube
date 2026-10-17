@@ -7,7 +7,7 @@
       "detail": {
         "reason": "not-an-object"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "offset": 0,
         "length": 2,

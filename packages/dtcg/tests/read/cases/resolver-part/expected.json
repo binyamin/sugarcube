@@ -16,18 +16,18 @@
           { "file": "all.json", "pointer": "#/base" },
           { "file": "tokens.resolver.json", "pointer": "#/sets/base/sources/2" }
         ],
-        "at": { "file": "tokens.resolver.json", "valueAfter": "\"base\":" }
+        "span": { "file": "tokens.resolver.json", "valueAfter": "\"base\":" }
       },
       {
         "name": "palette",
         "description": "Named here as well as inside base",
         "sources": [{ "file": "palette.json" }],
-        "at": { "file": "tokens.resolver.json", "valueAfter": "\"palette\":" }
+        "span": { "file": "tokens.resolver.json", "valueAfter": "\"palette\":" }
       },
       {
         "name": "local",
         "sources": [],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "text": "{ \"type\": \"set\", \"name\": \"local\", \"sources\": [] }"
         }
@@ -42,16 +42,16 @@
           {
             "name": "light",
             "sources": [],
-            "at": { "file": "tokens.resolver.json", "valueAfter": "\"light\":" }
+            "span": { "file": "tokens.resolver.json", "valueAfter": "\"light\":" }
           },
           {
             "name": "dark",
             "sources": [{ "file": "all.json", "pointer": "#/dark" }],
-            "at": { "file": "tokens.resolver.json", "valueAfter": "\"dark\":" }
+            "span": { "file": "tokens.resolver.json", "valueAfter": "\"dark\":" }
           }
         ],
         "default": "light",
-        "at": { "file": "tokens.resolver.json", "valueAfter": "\"mode\":" }
+        "span": { "file": "tokens.resolver.json", "valueAfter": "\"mode\":" }
       },
       {
         "name": "2025",
@@ -59,16 +59,16 @@
           {
             "name": "a",
             "sources": [],
-            "at": { "file": "tokens.resolver.json", "valueAfter": "\"a\":" }
+            "span": { "file": "tokens.resolver.json", "valueAfter": "\"a\":" }
           },
           {
             "name": "b",
             "sources": [],
-            "at": { "file": "tokens.resolver.json", "valueAfter": "\"b\":" }
+            "span": { "file": "tokens.resolver.json", "valueAfter": "\"b\":" }
           }
         ],
         "default": "a",
-        "at": { "file": "tokens.resolver.json", "valueAfter": "\"2025\":" }
+        "span": { "file": "tokens.resolver.json", "valueAfter": "\"2025\":" }
       }
     ],
     "order": [
@@ -83,12 +83,12 @@
     {
       "kind": "not-in-resolution-order",
       "detail": { "item": "set", "name": "spareSet" },
-      "at": { "file": "tokens.resolver.json", "valueAfter": "\"spareSet\":" }
+      "span": { "file": "tokens.resolver.json", "valueAfter": "\"spareSet\":" }
     },
     {
       "kind": "not-in-resolution-order",
       "detail": { "item": "modifier", "name": "spareModifier" },
-      "at": { "file": "tokens.resolver.json", "valueAfter": "\"spareModifier\":" }
+      "span": { "file": "tokens.resolver.json", "valueAfter": "\"spareModifier\":" }
     }
   ]
 }

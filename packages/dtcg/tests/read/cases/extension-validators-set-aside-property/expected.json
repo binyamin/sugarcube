@@ -8,9 +8,9 @@
       "detail": {
         "property": "style",
         "owner": "dimension",
-        "at": ["$extensions", "com.example", "outline", "style"]
+        "jsonPath": ["$extensions", "com.example", "outline", "style"]
       },
-      "at": { "file": "tokens.json", "text": "\"style\"" },
+      "span": { "file": "tokens.json", "text": "\"style\"" },
       "path": "ink"
     }
   ]

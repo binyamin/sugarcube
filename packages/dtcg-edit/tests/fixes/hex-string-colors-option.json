@@ -2,7 +2,7 @@
   "diagnostics": [
     {
       "kind": "invalid-value",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#fff\""
       },
@@ -22,7 +22,7 @@
     },
     {
       "kind": "invalid-value",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#0008\""
       },

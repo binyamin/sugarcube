@@ -1,4 +1,9 @@
-import type { Alias, Move, Pointer } from "../index.js";
+import type {
+    CurlyBraceReference,
+    JsonPointerReference,
+    Move,
+    WrittenReference,
+} from "../index.js";
 import { movedPath } from "../path.js";
 import { encodePointer, refSteps } from "../read/pointer.js";
 import { pointerParts } from "../read/ref-meaning.js";
@@ -9,79 +14,97 @@ import { isJsonObject } from "./json.js";
  * Names cannot contain `{`, `}` or `.` (Format 5.1.1), so the path is anything but a brace, and is
  * split on `.` afterwards. Spaces and `$root` are allowed, as they are in names.
  */
-const ALIAS = /^\{([^{}]+)\}$/;
+const CURLY_BRACE = /^\{([^{}]+)\}$/;
 
-export function readAlias(raw: unknown): Alias | undefined {
+export function readCurlyBrace(raw: unknown): CurlyBraceReference | undefined {
     if (typeof raw !== "string") return undefined;
 
-    const path = ALIAS.exec(raw)?.[1];
+    const path = CURLY_BRACE.exec(raw)?.[1];
     if (path === undefined || path.split(".").some((segment) => segment === "")) return undefined;
-    return { alias: path };
+    return { syntax: "curly-brace", path };
 }
 
-export function readPointer(raw: unknown): Pointer | undefined {
+export function readJsonPointer(raw: unknown): JsonPointerReference | undefined {
     if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return undefined;
 
     const keys = Object.keys(raw);
     const ref = (raw as { $ref?: unknown }).$ref;
     if (keys.length !== 1 || typeof ref !== "string") return undefined;
-    return { pointer: ref };
+    return { syntax: "json-pointer", pointer: ref };
 }
 
 /**
- * Which reference a value is, as written in a file: `"{color.brand}"` is read as an
- * {@link Alias}, and `{ "$ref": "#/color/brand" }` as a {@link Pointer}. Anything else is not a
- * reference, and gives `undefined`.
+ * Which reference a value is, as written in a file: `"{color.brand}"` in curly brace syntax
+ * (Format 7.1.1), `{ "$ref": "#/color/brand" }` in JSON Pointer syntax (Format 7.1.2). Anything
+ * else is not a reference, and gives `undefined`.
  *
  * @example
- * readReference("{color.brand}") // { alias: "color.brand" }
+ * readReference("{color.brand}") // { syntax: "curly-brace", path: "color.brand" }
  */
-export function readReference(raw: unknown): Alias | Pointer | undefined {
-    return readAlias(raw) ?? readPointer(raw);
+export function readReference(raw: unknown): WrittenReference | undefined {
+    return readCurlyBrace(raw) ?? readJsonPointer(raw);
 }
 
 /**
- * Whether a value from the model is a reference to a whole token: an {@link Alias}, as a parser
- * reads `"{color.brand}"`. Not for JSON as written in a file.
+ * Whether a value from the model is a reference, in either syntax, as a parser reads it: a
+ * {@link WrittenReference}, or a token's {@link Reference}. Not for JSON as written in a file.
  *
  * @example
- * if (isAlias(token.value)) token.value.alias
+ * if (isReference(token.value)) token.value.syntax
  */
-export function isAlias(value: unknown): value is Alias {
-    return (
-        isJsonObject(value) && Object.keys(value).length === 1 && typeof value.alias === "string"
-    );
+export function isReference(value: unknown): value is WrittenReference {
+    if (!isJsonObject(value)) return false;
+    if (value.syntax === "curly-brace") return typeof value.path === "string";
+    return value.syntax === "json-pointer" && typeof value.pointer === "string";
 }
 
 /**
- * Whether a value from the model is a JSON Pointer reference: a {@link Pointer}, as a parser reads
- * `{ "$ref": "#/…" }`. Not for JSON as written in a file.
- */
-export function isPointer(value: unknown): value is Pointer {
-    return (
-        isJsonObject(value) && Object.keys(value).length === 1 && typeof value.pointer === "string"
-    );
-}
-
-/**
- * A reference after a list of {@link Move}s, made in order: an {@link Alias}'s path moved, or a
- * {@link Pointer}'s token path moved with its steps into the value kept. A reference no move
- * reaches, and a pointer into another document, comes back as it was.
+ * A reference's text, as a problem's `ref` gives it: a curly brace reference's path, without the
+ * braces, or a JSON Pointer as written.
  *
  * @example
- * movedReference({ alias: "color.brand.500" }, [{ from: "color.brand", to: "color.primary" }])
- * // { alias: "color.primary.500" }
+ * referenceText(readReference("{color.ink}"))                // "color.ink"
+ * referenceText(readReference({ $ref: "#/color/ink/$value" })) // "#/color/ink/$value"
  */
-export function movedReference<R extends Alias | Pointer>(ref: R, moved: readonly Move[]): R;
-export function movedReference(ref: Alias | Pointer, moved: readonly Move[]): Alias | Pointer {
-    if (isAlias(ref)) return { alias: movedPath(ref.alias, moved) };
+export function referenceText(reference: WrittenReference): string {
+    return reference.syntax === "curly-brace" ? reference.path : reference.pointer;
+}
+
+/**
+ * The token path a reference names: a curly brace's path, or for a pointer its steps before
+ * `$value`, or all of them when it has none (Format Example 21). `undefined` for a pointer naming
+ * none, such as `#/` or one into another file.
+ */
+export function namedPath(ref: WrittenReference): string | undefined {
+    if (ref.syntax === "curly-brace") return ref.path;
+    const steps = refSteps(ref.pointer);
+    return steps && pointerParts(steps).path;
+}
+
+/**
+ * A reference written as a JSON Pointer (Format 7.1.2), as it goes in a file: `"{color.ink}"` is
+ * `{ "$ref": "#/color/ink/$value" }`, which the spec calls equivalent. A pointer is given as it
+ * is written.
+ *
+ * @example
+ * asJsonPointer(readReference("{color.ink}")) // { $ref: "#/color/ink/$value" }
+ */
+export function asJsonPointer(reference: WrittenReference): { $ref: string } {
+    if (reference.syntax === "json-pointer") return { $ref: reference.pointer };
+    return { $ref: encodePointer([...reference.path.split("."), "$value"]) };
+}
+
+export function movedReference<R extends WrittenReference>(ref: R, moved: readonly Move[]): R;
+export function movedReference(ref: WrittenReference, moved: readonly Move[]): WrittenReference {
+    if (ref.syntax === "curly-brace") {
+        return { syntax: "curly-brace", path: movedPath(ref.path, moved) };
+    }
     const steps = refSteps(ref.pointer);
     if (!steps) return ref;
     const { path, inside } = pointerParts(steps);
     if (path === undefined) return ref;
     const now = movedPath(path, moved);
     if (now === path) return ref;
-    return {
-        pointer: encodePointer([...now.split("."), ...(inside ? ["$value", ...inside] : [])]),
-    };
+    const pointer = encodePointer([...now.split("."), ...(inside ? ["$value", ...inside] : [])]);
+    return { syntax: "json-pointer", pointer };
 }

@@ -1,16 +1,14 @@
 import type {
-    Alias,
     ColorComponent,
     ColorValue,
     GradientStopPart,
     Part,
     PartBase,
-    Pointer,
+    Reference,
     ShadowLayerPart,
     Token,
     TypographyPart,
 } from "../index.js";
-import { parts } from "../lookup/parts.js";
 
 /** A typography value written as CSS: one value for each CSS property it sets, in this order. */
 export interface TypographyCSS {
@@ -24,6 +22,7 @@ export interface TypographyCSS {
 /** What to write in place of a reference: a CSS variable, given by its name, or CSS of your own. */
 export type Replacement = { variable: string } | { css: string };
 
+/** How a value is written as CSS: what stands for a reference, and how colors are written. */
 export interface CSSValueOptions {
     /**
      * What to write for a reference, such as a variable for the token it refers to. Without an
@@ -32,9 +31,9 @@ export interface CSSValueOptions {
      * that is itself a reference takes a variable only, writing `var(--name-font-size)` and so on.
      *
      * @example
-     * { replacement: (ref) => (isAlias(ref) ? { variable: cssVariable(ref.alias) } : undefined) }
+     * { replacement: (ref) => (ref.token ? { variable: cssVariable(ref.token.path) } : undefined) }
      */
-    replacement?: (ref: Alias | Pointer) => Replacement | undefined;
+    replacement?: (ref: Reference) => Replacement | undefined;
     /**
      * `"hex"` writes every color that has a `hex` as that hex, with two more digits when it is
      * not opaque, for a browser that cannot show its color space. A color without a `hex` is
@@ -61,7 +60,7 @@ type TypographyToken = Extract<Token, { type: "typography" }>;
  *
  * @example
  * // a border part, for a swatch of its color
- * const border = parts(token);
+ * const border = token.parts;
  * if (border?.type === "border") swatch(cssValue(border.color));
  */
 export function cssValue(
@@ -80,7 +79,7 @@ export function cssValue(
     of: Token | Part,
     options: CSSValueOptions = {},
 ): string | TypographyCSS | undefined {
-    const whole = "path" in of ? parts(of) : of;
+    const whole = "path" in of ? of.parts : of;
     if (!whole) return undefined;
     return whole.type === "typography" ? typography(whole, options) : write(whole, options);
 }

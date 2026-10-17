@@ -6,10 +6,10 @@ describe("parseNumber", () => {
         expect(parseNumber(raw, [])).toStrictEqual({ ok: true, value: raw, ignored: [] });
     });
 
-    it("reads a reference to a whole token as an alias", () => {
+    it("reads a reference to a whole token in curly brace syntax", () => {
         expect(parseNumber("{line-height.large}", [])).toStrictEqual({
             ok: true,
-            value: { alias: "line-height.large" },
+            value: { syntax: "curly-brace", path: "line-height.large" },
             ignored: [],
         });
     });
@@ -17,7 +17,7 @@ describe("parseNumber", () => {
     it("reads a JSON Pointer as the whole value", () => {
         expect(parseNumber({ $ref: "#/base/blue/$value/components/0" }, [])).toStrictEqual({
             ok: true,
-            value: { pointer: "#/base/blue/$value/components/0" },
+            value: { syntax: "json-pointer", pointer: "#/base/blue/$value/components/0" },
             ignored: [],
         });
     });
@@ -27,10 +27,12 @@ describe("parseNumber", () => {
         (raw) => {
             const result = parseNumber(raw, ["$value"]);
             expect(
-                result.ok ? [] : result.errors.map(({ path, detail }) => ({ path, detail })),
+                result.ok
+                    ? []
+                    : result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail })),
             ).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: { type: "number", reason: "not-a-number", value: raw },
                 },
             ]);

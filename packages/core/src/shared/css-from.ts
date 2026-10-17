@@ -1,4 +1,4 @@
-import type { Document } from "@sugarcube-sh/dtcg";
+import type { DesignTokens } from "@sugarcube-sh/dtcg";
 import type { InternalConfig } from "../types/config.js";
 import type { Reported } from "../types/diagnostics.js";
 import type { CSSFileOutput } from "../types/generate.js";
@@ -27,11 +27,11 @@ export interface MadeCSS {
  * `variables: false` or `utilities: false`.
  */
 export function cssFrom(
-    doc: Document,
+    tokens: DesignTokens,
     config: InternalConfig,
     { variables = true, utilities = true }: { variables?: boolean; utilities?: boolean } = {},
 ): MadeCSS {
-    const declared = declare(doc, config);
+    const declared = declare(tokens, config);
     const emitted = variables ? emitCSS(declared, config) : { files: [], diagnostics: [] };
     const { classes = {} } = config.utilities;
     const ruled =

@@ -31,20 +31,22 @@
           "path": "alias",
           "type": "number",
           "description": "Same as base",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "tokens.json",
-              "valueAfter": "\"alias\":"
-            }
-          },
           "authored": {
             "value": {
               "$ref": "#/base"
             },
             "type": "number"
           },
-          "resolved": 4
+          "resolved": 4,
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "tokens.json",
+                "valueAfter": "\"alias\":"
+              }
+            }
+          ]
         },
         {
           "path": "blue"
@@ -52,25 +54,28 @@
         {
           "path": "blue-red",
           "type": "number",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "tokens.json",
-              "valueAfter": "\"blue-red\":"
-            }
-          },
           "authored": {
             "value": {
               "$ref": "#/blue/$value/components/0"
             },
             "type": "number"
           },
-          "resolved": 0.2
+          "resolved": 0.2,
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "tokens.json",
+                "valueAfter": "\"blue-red\":"
+              }
+            }
+          ]
         },
         {
           "path": "untyped",
           "type": "number",
           "value": {
+            "syntax": "json-pointer",
             "pointer": "#/base"
           },
           "resolved": 4
@@ -107,7 +112,7 @@
         "property": "$ref",
         "expected": "string"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"$ref\":",
         "occurrence": 7
@@ -117,9 +122,9 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "#/no/such/thing",
-        "referencedBy": ["nowhere"]
+        "from": ["nowhere"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#/no/such/thing\""
       },
@@ -129,9 +134,9 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "other.json#/base",
-        "referencedBy": ["elsewhere"]
+        "from": ["elsewhere"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"other.json#/base\""
       },
@@ -143,7 +148,7 @@
         "reason": "ref",
         "ref": "#/base"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#/base\"",
         "occurrence": 3

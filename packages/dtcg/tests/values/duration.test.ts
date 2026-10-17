@@ -13,12 +13,12 @@ function read(raw: unknown, options?: ParseOptions) {
 function details(raw: unknown, options?: ParseOptions) {
     const result = parseDuration(raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
-    return result.errors.map(({ path, detail }) => ({ path, detail }));
+    return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
     const result = parseDuration(raw, ["$value"], options);
-    return result.ignored.map(({ path, detail }) => ({ path, detail }));
+    return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 describe("parseDuration", () => {
@@ -31,15 +31,18 @@ describe("parseDuration", () => {
             expect(read(duration)).toStrictEqual(duration);
         });
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{duration.fast}")).toStrictEqual({ alias: "duration.fast" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{duration.fast}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "duration.fast",
+            });
         });
 
         it("reads a JSON Pointer in place of the value", () => {
             expect(
                 read({ value: { $ref: "#/duration/fast/$value/value" }, unit: "s" }),
             ).toStrictEqual({
-                value: { pointer: "#/duration/fast/$value/value" },
+                value: { syntax: "json-pointer", pointer: "#/duration/fast/$value/value" },
                 unit: "s",
             });
         });
@@ -52,7 +55,7 @@ describe("parseDuration", () => {
         ] as const)("the string %s, which earlier drafts allowed", ([raw, value, unit]) => {
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: {
                         type: "duration",
                         reason: "string-with-unit",
@@ -66,7 +69,7 @@ describe("parseDuration", () => {
         it.for([200, "fast", null])("%j, which is not a duration", (raw) => {
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: { type: "duration", reason: "wrong-shape", value: raw },
                 },
             ]);
@@ -75,7 +78,7 @@ describe("parseDuration", () => {
         it.for(["px", "min", "MS"])("the unit %j, which the spec does not allow", (unit) => {
             expect(details({ value: 1, unit })).toStrictEqual([
                 {
-                    path: ["$value", "unit"],
+                    jsonPath: ["$value", "unit"],
                     detail: {
                         type: "duration",
                         reason: "unit-not-allowed",
@@ -89,7 +92,7 @@ describe("parseDuration", () => {
         it("a value that is not a number", () => {
             expect(details({ value: "200", unit: "ms" })).toStrictEqual([
                 {
-                    path: ["$value", "value"],
+                    jsonPath: ["$value", "value"],
                     detail: { type: "duration", reason: "not-a-number", value: "200" },
                 },
             ]);
@@ -101,7 +104,7 @@ describe("parseDuration", () => {
             const raw = { value: 200, unit: "ms", easing: "ease" };
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value", "easing"],
+                    jsonPath: ["$value", "easing"],
                     detail: { type: "duration", reason: "unknown-property", property: "easing" },
                 },
             ]);
@@ -114,7 +117,7 @@ describe("parseDuration", () => {
                 expect(read(raw, lenient)).toStrictEqual({ value: 200, unit: "ms" });
                 expect(ignored(raw, lenient)).toStrictEqual([
                     {
-                        path: ["$value", "easing"],
+                        jsonPath: ["$value", "easing"],
                         detail: { type: "duration", property: "easing" },
                     },
                 ]);

@@ -6,31 +6,28 @@
     {
       "input": {},
       "label": "",
-      "sources": [
-        {
-          "file": "tokens.json",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "replacement.json",
-          "from": {
-            "sets": [
-              {
-                "name": "other"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        }
-      ]
+      "sources": [0, 1]
     }
   ],
-  "diagnostics": []
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "tokens.json",
+      "sets": [
+        {
+          "name": "base"
+        }
+      ],
+      "readBy": "everyone"
+    },
+    {
+      "file": "replacement.json",
+      "sets": [
+        {
+          "name": "other"
+        }
+      ],
+      "readBy": "everyone"
+    }
+  ]
 }

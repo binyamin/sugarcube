@@ -6,41 +6,38 @@
     {
       "input": {},
       "label": "",
-      "sources": [
-        {
-          "file": "palette.json",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              }
-            ]
-          },
-          "extensions": {
-            "com.example": {
-              "layer": "outer"
-            }
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "scale.json",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              }
-            ]
-          },
-          "extensions": {
-            "com.example": {
-              "layer": "inner"
-            }
-          },
-          "readBy": "everyone"
-        }
-      ]
+      "sources": [0, 1]
     }
   ],
-  "diagnostics": []
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "palette.json",
+      "sets": [
+        {
+          "name": "base"
+        }
+      ],
+      "readBy": "everyone",
+      "extensions": {
+        "com.example": {
+          "layer": "outer"
+        }
+      }
+    },
+    {
+      "file": "scale.json",
+      "sets": [
+        {
+          "name": "base"
+        }
+      ],
+      "readBy": "everyone",
+      "extensions": {
+        "com.example": {
+          "layer": "inner"
+        }
+      }
+    }
+  ]
 }

@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { liveProject } from "@sugarcube-sh/dtcg/node";
+import { liveTokens } from "@sugarcube-sh/dtcg/node";
 import { afterEach, describe, expect, it } from "vitest";
 import {
     type Change,
@@ -50,10 +50,10 @@ async function until(done: () => boolean, what: string) {
 }
 
 describe("startWatcher", () => {
-    it("puts each read of a token save into the queue, with the Document read", async () => {
+    it("puts each read of a token save into the queue, with the design tokens read", async () => {
         const { resolver, configFile, tokens } = project();
-        const live = liveProject({ entry: resolver }, { onError: () => {} });
-        await live.project();
+        const live = liveTokens({ entry: resolver }, { onError: () => {} });
+        await live.tokens();
         const changes: Change[] = [];
         const watched: Watched = { markup: false };
         handles.push(
@@ -76,13 +76,13 @@ describe("startWatcher", () => {
         expect(change?.kind).toBe("token");
         if (change?.kind !== "token") return;
         expect(change.read.file).toBe("base.json");
-        expect(change.doc.files).toContain("base.json");
+        expect(change.tokens.files).toContain("base.json");
     });
 
     it("watches markup where the config a change loaded says", async () => {
         const { folder, resolver, configFile } = project();
-        const live = liveProject({ entry: resolver }, { onError: () => {} });
-        await live.project();
+        const live = liveTokens({ entry: resolver }, { onError: () => {} });
+        await live.tokens();
         const changes: Change[] = [];
         const before: Watched = { content: [join(folder, "a/**/*.html")], markup: true };
         const after: Watched = { content: [join(folder, "b/**/*.html")], markup: true };
@@ -112,8 +112,8 @@ describe("startWatcher", () => {
         const { folder, resolver, configFile } = project();
         const page = join(folder, "a/page.html");
         writeFileSync(page, "<p>0</p>");
-        const live = liveProject({ entry: resolver }, { onError: () => {} });
-        await live.project();
+        const live = liveTokens({ entry: resolver }, { onError: () => {} });
+        await live.tokens();
         const saves: string[] = [];
         const watched: Watched = { content: [join(folder, "a/**/*.html")], markup: true };
         handles.push(
@@ -138,8 +138,8 @@ describe("startWatcher", () => {
 
     it("reports a config save whose last write landed while the watcher was dropping changes", async () => {
         const { resolver, configFile } = project();
-        const live = liveProject({ entry: resolver }, { onError: () => {} });
-        await live.project();
+        const live = liveTokens({ entry: resolver }, { onError: () => {} });
+        await live.tokens();
         const saves: string[] = [];
         const watched: Watched = { markup: false };
         handles.push(

@@ -203,7 +203,7 @@ describe("validate", () => {
                         $value: {
                             min: { value: 16, unit: "px" },
                             max: { value: 32, unit: "px" },
-                        },
+                        } as never,
                         $path: "spacing.fluid",
                         $source: { sourcePath: "tokens.json" },
                         $originalPath: "spacing.fluid",

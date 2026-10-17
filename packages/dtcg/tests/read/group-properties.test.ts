@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { type Document, group, readFromMemory, token } from "../../src/index.js";
+import { type DesignTokens, readFromMemory } from "../../src/index.js";
 
-function oneFile(tokens: unknown): Document {
-    return readFromMemory({ files: { "tokens.json": JSON.stringify(tokens) } });
+function oneFile(json: unknown): DesignTokens {
+    return readFromMemory({ files: { "tokens.json": JSON.stringify(json) } });
 }
 
 describe("what applies to a group, and what it writes itself", () => {
-    const doc = oneFile({
+    const tokens = oneFile({
         color: {
             $type: "color",
             $description: "All colours",
@@ -32,12 +32,12 @@ describe("what applies to a group, and what it writes itself", () => {
     });
 
     it("takes its type from the group it is inside when it writes none (Format 6.7.3)", () => {
-        expect(group(doc, "color.brand")?.type).toBe("color");
-        expect(group(doc, "color.brand")?.authored).toBeUndefined();
+        expect(tokens.permutation().group("color.brand")?.type).toBe("color");
+        expect(tokens.permutation().group("color.brand")?.authored).toBeUndefined();
     });
 
     it("says what it writes itself", () => {
-        expect(group(doc, "button")?.authored).toStrictEqual({
+        expect(tokens.permutation().group("button")?.authored).toStrictEqual({
             type: "dimension",
             description: "Base button",
             deprecated: "Use control",
@@ -46,7 +46,7 @@ describe("what applies to a group, and what it writes itself", () => {
     });
 
     it("takes what it extends, and says only its own as written (Format 6.4)", () => {
-        const primary = group(doc, "primary");
+        const primary = tokens.permutation().group("primary");
         expect(primary?.type).toBe("dimension");
         expect(primary?.deprecated).toBe("Use control");
         expect(primary?.description).toBe("Primary only");
@@ -54,21 +54,23 @@ describe("what applies to a group, and what it writes itself", () => {
     });
 
     it("takes its parent's deprecation, unless it writes false (Format 6.3.1)", () => {
-        expect(group(doc, "old")?.deprecated).toBe(true);
-        expect(group(doc, "old.kept")?.deprecated).toBe(false);
-        expect(group(doc, "old.kept")?.authored).toStrictEqual({ deprecated: false });
-        expect(token(doc, "old.kept.one")?.deprecated).toBe(false);
+        expect(tokens.permutation().group("old")?.deprecated).toBe(true);
+        expect(tokens.permutation().group("old.kept")?.deprecated).toBe(false);
+        expect(tokens.permutation().group("old.kept")?.authored).toStrictEqual({
+            deprecated: false,
+        });
+        expect(tokens.permutation().token("old.kept.one")?.deprecated).toBe(false);
     });
 });
 
 describe("what a token writes itself", () => {
-    const doc = oneFile({
+    const tokens = oneFile({
         space: { $type: "number", $deprecated: "Use gap", sm: { $value: 1 } },
         size: { lg: { $type: "number", $deprecated: true, $value: 2 } },
     });
 
     it("holds its own $type and $deprecated beside its value", () => {
-        expect(token(doc, "size.lg")?.authored).toStrictEqual({
+        expect(tokens.permutation().token("size.lg")?.authored).toStrictEqual({
             value: 2,
             type: "number",
             deprecated: true,
@@ -76,8 +78,8 @@ describe("what a token writes itself", () => {
     });
 
     it("leaves out what it takes from its group", () => {
-        expect(token(doc, "space.sm")?.type).toBe("number");
-        expect(token(doc, "space.sm")?.deprecated).toBe("Use gap");
-        expect(token(doc, "space.sm")?.authored).toStrictEqual({ value: 1 });
+        expect(tokens.permutation().token("space.sm")?.type).toBe("number");
+        expect(tokens.permutation().token("space.sm")?.deprecated).toBe("Use gap");
+        expect(tokens.permutation().token("space.sm")?.authored).toStrictEqual({ value: 1 });
     });
 });

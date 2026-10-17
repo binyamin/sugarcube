@@ -4,8 +4,8 @@ import { demo } from "./helpers.js";
 describe("isEdits", () => {
     it("is true for a session's unsaved edits, sent as JSON and read back", () => {
         const session = createSession(demo);
-        session.do(setValue(session.project, "color.text.brand", "{color.brand.800}"));
-        session.do(remove(session.project, "radius.full"));
+        session.do(setValue(session.tokens, "color.text.brand", "{color.brand.800}"));
+        session.do(remove(session.tokens, "radius.full"));
         const sent = { ...session.unsaved, moved: [{ from: "radius.md", to: "radius.medium" }] };
 
         expect(isEdits(JSON.parse(JSON.stringify(sent)))).toBe(true);
@@ -23,10 +23,16 @@ describe("isEdits", () => {
                 ops: [{ kind: "set", file: "color.json", path: "color", value: 1, was: 0 }],
                 moved: [],
             },
-            { ops: [{ kind: "set", file: "color.json", path: ["color"], value: 1 }], moved: [] },
-            { ops: [{ kind: "add", file: 7, path: ["color"], value: 1 }], moved: [] },
-            { ops: [{ kind: "add", file: "color.json", path: [{}], value: 1 }], moved: [] },
-            { ops: [{ kind: "renameKey", file: "color.json", path: ["a"], was: 1 }], moved: [] },
+            {
+                ops: [{ kind: "set", file: "color.json", jsonPath: ["color"], value: 1 }],
+                moved: [],
+            },
+            { ops: [{ kind: "add", file: 7, jsonPath: ["color"], value: 1 }], moved: [] },
+            { ops: [{ kind: "add", file: "color.json", jsonPath: [{}], value: 1 }], moved: [] },
+            {
+                ops: [{ kind: "renameKey", file: "color.json", jsonPath: ["a"], was: 1 }],
+                moved: [],
+            },
             { ops: [{ kind: "deleteFile", file: "color.json", was: 1 }], moved: [] },
             { ops: [], moved: [{ from: "a" }] },
         ];

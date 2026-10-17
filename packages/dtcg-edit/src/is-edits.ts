@@ -20,13 +20,13 @@ function isOp(value: unknown): boolean {
     if (!isObject(value) || typeof value.file !== "string") return false;
     switch (value.kind) {
         case "set":
-            return isPath(value.path) && "value" in value && "was" in value;
+            return isJsonPath(value.jsonPath) && "value" in value && "was" in value;
         case "add":
-            return isPath(value.path) && "value" in value;
+            return isJsonPath(value.jsonPath) && "value" in value;
         case "remove":
-            return isPath(value.path) && "was" in value;
+            return isJsonPath(value.jsonPath) && "was" in value;
         case "renameKey":
-            return isPath(value.path) && typeof value.name === "string" && "was" in value;
+            return isJsonPath(value.jsonPath) && typeof value.name === "string" && "was" in value;
         case "createFile":
             return "value" in value;
         case "deleteFile":
@@ -40,7 +40,7 @@ function isMove(value: unknown): boolean {
     return isObject(value) && typeof value.from === "string" && typeof value.to === "string";
 }
 
-function isPath(value: unknown): boolean {
+function isJsonPath(value: unknown): boolean {
     return (
         Array.isArray(value) &&
         value.every((step) => typeof step === "string" || typeof step === "number")

@@ -1,12 +1,12 @@
 // A code editor striking through references to deprecated tokens, with the reason.
-import type { Document } from "@sugarcube-sh/dtcg";
+import type { DesignTokens } from "@sugarcube-sh/dtcg";
 
-declare const doc: Document;
+declare const tokens: DesignTokens;
 
-for (const d of doc.diagnostics) {
-    if (d.kind === "deprecated-reference" && d.tags?.includes("deprecated") && d.at) {
+for (const d of tokens.diagnostics) {
+    if (d.kind === "deprecated-reference" && d.tags?.includes("deprecated") && d.span) {
         report(
-            d.at,
+            d.span,
             `${d.detail.ref} is deprecated${d.detail.reason ? `: ${d.detail.reason}` : ""}`,
         );
     }

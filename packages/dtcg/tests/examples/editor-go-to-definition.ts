@@ -1,17 +1,15 @@
 // A code editor feature. Click a reference like `{color.brand}` to jump to that token, and get
 // suggestions of tokens of the right type as you type one.
-import { atOffset, defaultPermutation, token, type Document } from "@sugarcube-sh/dtcg";
+import { atOffset, type DesignTokens } from "@sugarcube-sh/dtcg";
 
-declare const doc: Document;
+declare const tokens: DesignTokens;
 
-const hit = atOffset(doc, "tokens.json", 214);
+const hit = atOffset(tokens, "tokens.json", 214);
 if (hit.kind === "reference") {
-    const target = token(doc, hit.to, hit.permutation);
-    if (target) goTo(target.source.at);
+    const target = tokens.permutation(hit.permutation).token(hit.to);
+    if (target) goTo(target.valueFrom.span);
 }
 
-const here = atOffset(doc, "tokens.json", 380);
+const here = atOffset(tokens, "tokens.json", 380);
 const expects = here.kind === "reference" || here.kind === "token" ? here.expects : undefined;
-export const options = (defaultPermutation(doc)?.tokens ?? []).filter(
-    (t) => !expects || t.type === expects,
-);
+export const options = tokens.permutation().tokens.filter((t) => !expects || t.type === expects);

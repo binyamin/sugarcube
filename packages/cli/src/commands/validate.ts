@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { findResolver } from "@sugarcube-sh/dtcg/node";
 import { Command } from "commander";
 import { join, relative } from "pathe";
 import color from "picocolors";
@@ -37,14 +38,16 @@ async function builtFromPaths(paths: string[]): Promise<Built> {
     for (const path of paths) {
         if (!existsSync(path)) throw new CLIError(ERROR_MESSAGES.VALIDATE_PATH_NOT_FOUND(path));
     }
+    const shown = (path: string) => relative(process.cwd(), path);
+    const resolver = await findResolver(paths, { by: "content" });
+    if (resolver.kind === "several") {
+        throw new CLIError(ERROR_MESSAGES.VALIDATE_SEVERAL_RESOLVERS(resolver.paths.map(shown)));
+    }
+    if (resolver.kind === "one") {
+        return build(await loadConfig({ resolver: shown(resolver.path) }), { markup: false });
+    }
     const patterns = paths.map((path) => (path.endsWith(".json") ? path : join(path, "**/*.json")));
-    const found = await glob(patterns, { absolute: true });
-    const files = found.map((file) => relative(process.cwd(), file)).sort();
-    const resolvers = files.filter((file) => file.endsWith(".resolver.json"));
-    if (resolvers.length > 1)
-        throw new CLIError(ERROR_MESSAGES.VALIDATE_SEVERAL_RESOLVERS(resolvers));
-    const [resolver] = resolvers;
-    if (resolver) return build(await loadConfig({ resolver }), { markup: false });
+    const files = (await glob(patterns, { absolute: true })).map(shown).sort();
     const [file, ...others] = files;
     if (file === undefined) throw new CLIError(ERROR_MESSAGES.VALIDATE_NO_TOKEN_FILES());
     if (others.length > 0) throw new CLIError(ERROR_MESSAGES.VALIDATE_NO_RESOLVER(files));

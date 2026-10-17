@@ -7,9 +7,9 @@
       "detail": {
         "rule": "version",
         "name": "version",
-        "at": ["version"]
+        "jsonPath": ["version"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 15,
         "length": 9,

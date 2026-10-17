@@ -16,9 +16,6 @@ export { fillDefaults, validateConfig } from "./node/config/normalize.js";
 export { configFileExists, isNoConfigError, loadInternalConfig } from "./node/config/load.js";
 export type { ConfigOverrides, LoadedConfig } from "./node/config/load.js";
 
-export { findResolverDocument } from "./node/resolver/find.js";
-export type { ResolverDiscoveryResult } from "./node/resolver/find.js";
-
 export { loadTokens } from "./node/load-tokens.js";
 export type { LoadResult } from "./node/load-tokens.js";
 export { createChangeQueue } from "./shared/scheduling.js";

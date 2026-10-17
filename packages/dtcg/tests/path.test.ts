@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+    atOrWithin,
     childPath,
     forbiddenInName,
     movedPath,
@@ -30,6 +31,20 @@ describe("pathBelow", () => {
         { path: "color", group: "color.brand", expected: undefined },
     ])("$path below $group is $expected", ({ path, group, expected }) => {
         expect(pathBelow(path, group)).toBe(expected);
+    });
+});
+
+describe("atOrWithin", () => {
+    it.for([
+        { path: "color.brand", group: "color.brand", expected: true },
+        { path: "color.brand.500", group: "color.brand", expected: true },
+        { path: "color.brand.500", group: "color", expected: true },
+        { path: ".x", group: "", expected: true },
+        { path: "color.brandy", group: "color.brand", expected: false },
+        { path: "color", group: "color.brand", expected: false },
+        { path: "color.ink", group: "", expected: false },
+    ])("$path at or within $group is $expected", ({ path, group, expected }) => {
+        expect(atOrWithin(path, group)).toBe(expected);
     });
 });
 

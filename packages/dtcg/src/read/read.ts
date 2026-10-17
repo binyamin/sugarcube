@@ -1,6 +1,13 @@
-import type { Document, Input, Project, ReadOptions, ReadText } from "../index.js";
+import type {
+    DesignTokens,
+    Diagnostic,
+    Input,
+    ReadOptions,
+    ReadText,
+    TokensInMemory,
+} from "../index.js";
 import type { Answer, FileText, Request } from "./files.js";
-import { collapse } from "./diagnostics.js";
+import { collapse, inReadingPermutations } from "./diagnostics.js";
 import { type Loaded, load } from "./load.js";
 import { normalisePermutations } from "./normalise.js";
 import { fillGenerated } from "./generate.js";
@@ -13,49 +20,34 @@ import { fileName, filePath, folderOf, normalise } from "./paths.js";
 import { parseJson } from "./json.js";
 import { isResolver } from "./resolver.js";
 import { thrownMessages } from "../error-messages.js";
+import { linkedDesignTokens } from "./linked.js";
+import { permutationsOf } from "./permutations-of.js";
 
 const { performance } = globalThis as unknown as { performance: { now(): number } };
 
 /**
- * Reads a design system: the entry file, and every file it refers to.
+ * Reads design tokens: the entry file, and every file it refers to.
  *
  * Files are fetched through `readText`, so this runs anywhere: a browser, a worker, Deno, Bun or
  * Node. `@sugarcube-sh/dtcg/node` provides a version that reads from disk.
  *
  * Never rejects because of what is, or is not, in the files. A file that cannot be fetched
- * (`readText` throws) or cannot be read is reported in {@link Document.diagnostics}, and the rest
- * is still read.
+ * (`readText` throws) or cannot be read is reported in {@link DesignTokens.diagnostics}, and the
+ * rest is still read.
  *
- * @param entry A resolver document or a token file.
+ * @param entry A resolver document or a token file. It is read as a resolver when its name ends
+ * `.resolver.json` (Resolver 3.2) or its top level has `resolutionOrder` (Resolver 4.1), and as a
+ * token file otherwise.
  *
  * @example
- * const doc = await read("tokens.resolver.json", {
+ * const tokens = await read("tokens.resolver.json", {
  *   readText: (path) => fetch(path).then((r) => r.text()),
  * });
  */
 export async function read(
     entry: string,
-    options: ReadOptions & { readText: ReadText },
-): Promise<Document> {
-    return (await open(entry, options)).doc;
-}
-
-/**
- * Reads a design system as {@link read} does, and keeps the text of every file it read beside
- * the Document, for a tool that changes the files.
- *
- * @param entry A resolver document or a token file.
- *
- * @example
- * const project = await open("tokens.resolver.json", {
- *   readText: (path) => fetch(path).then((r) => r.text()),
- * });
- * project.files["dark.json"];
- */
-export async function open(
-    entry: string,
     { readText, ...options }: ReadOptions & { readText: ReadText },
-): Promise<Project> {
+): Promise<DesignTokens> {
     const started = performance.now();
     const run = load(fileName(entry), permutationOptions(options));
     let step = run.next();
@@ -63,7 +55,7 @@ export async function open(
         step = run.next(await fetchAll(step.value, folderOf(entry), readText));
     }
     options.onStage?.("load", performance.now() - started);
-    return projectOf(step.value, options);
+    return toDesignTokens(step.value, options);
 }
 
 async function fetchAll(files: Request, folder: string, readText: ReadText): Promise<Answer> {
@@ -81,52 +73,23 @@ async function fetchAll(files: Request, folder: string, readText: ReadText): Pro
 }
 
 /**
- * Reads a design system from text already in memory.
+ * Reads design tokens from text already in memory.
  *
  * The read starts from one entry, a resolver or a token file: the one given, or else the one
- * resolver among the files, or else the only file. Several token files with no resolver among
- * them are not read together, since only a resolver says which files make a design system and in
- * what order (Resolver 4.1, 6); several resolvers need an entry to say which. Either is refused
+ * resolver among the files, told apart as {@link read} tells its entry, or else the only file. Several token files with no resolver among
+ * them are not read together, since only a resolver says which files to read and in what order
+ * (Resolver 4.1, 6); several resolvers need an entry to say which. Either is refused
  * with a `TypeError` naming the files.
  *
  * @example
- * const doc = readFromMemory({ files: { "tokens.json": text } });
+ * const tokens = readFromMemory({ files: { "tokens.json": text } });
  */
-export function readFromMemory(
-    sources: {
-        files: Record<string, string>;
-        /**
-         * The file to start from.
-         * @default the one resolver among the files, or else the only file
-         */
-        entry?: string | undefined;
-    },
-    options: ReadOptions = {},
-): Document {
-    return openFromMemory(sources, options).doc;
-}
-
-/**
- * Reads a design system from text already in memory, as {@link readFromMemory} does, and keeps
- * the text of every file it read beside the Document. Files it did not read are left out.
- *
- * @example
- * const project = openFromMemory({ files, entry: "tokens.resolver.json" });
- * const again = openFromMemory(project, project.options); // the same Document
- */
-export function openFromMemory(
-    sources: {
-        files: Record<string, string>;
-        /** @default the one resolver among the files, or else the only file */
-        entry?: string | undefined;
-    },
-    options: ReadOptions = {},
-): Project {
+export function readFromMemory(memory: TokensInMemory, options: ReadOptions = {}): DesignTokens {
     const started = performance.now();
     const texts = new Map(
-        Object.entries(sources.files).map(([path, text]) => [normalise(path), text]),
+        Object.entries(memory.files).map(([path, text]) => [normalise(path), text]),
     );
-    const entry = normalise(sources.entry ?? entryAmong(texts));
+    const entry = normalise(memory.entry ?? entryAmong(texts));
     const folder = folderOf(entry);
     const run = load(fileName(entry), permutationOptions(options));
 
@@ -140,27 +103,24 @@ export function openFromMemory(
         step = run.next(answer);
     }
     options.onStage?.("load", performance.now() - started);
-    return projectOf(step.value, options);
+    return toDesignTokens(step.value, options);
 }
 
 function entryAmong(texts: Map<string, string>): string {
     const names = [...texts.keys()];
     const [only] = names;
     if (names.length === 1 && only !== undefined) return only;
-    const resolvers = names.filter((name) => {
-        const root = parseJson(texts.get(name) ?? "").root;
-        return root !== undefined && isResolver(root);
-    });
+    const resolvers = names.filter((name) =>
+        isResolver(name, parseJson(texts.get(name) ?? "").root),
+    );
     const [resolver] = resolvers;
     if (resolvers.length === 1 && resolver !== undefined) return resolver;
     if (resolvers.length > 1) throw new TypeError(thrownMessages.severalResolvers(resolvers));
     throw new TypeError(thrownMessages.noResolver(names));
 }
 
-function projectOf(loaded: Loaded, options: ReadOptions): Project {
-    const doc = toDocument(loaded, options);
-    const { entry, texts } = loaded;
-    return { doc, entry, files: texts, options };
+function readingAgain(entry: string, options: ReadOptions) {
+    return (files: Record<string, string>) => readFromMemory({ files, entry }, options);
 }
 
 function permutationOptions({
@@ -171,17 +131,15 @@ function permutationOptions({
     return { ...(inputs && { inputs }), permutations, limit: permutationLimit };
 }
 
-function toDocument(
-    loaded: Loaded,
-    {
+function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
+    const {
         onStage,
         generators = [],
         extensionValidators = [],
         hexStringColors,
         ignoreUnknownProperties,
-    }: ReadOptions,
-): Document {
-    const found: Document["diagnostics"] = [];
+    } = options;
+    const found: Diagnostic[] = [];
     const parseOptions = {
         hexStringColors: hexStringColors ?? false,
         ignoreUnknownProperties: ignoreUnknownProperties ?? false,
@@ -195,11 +153,17 @@ function toDocument(
         generating += performance.now() - started;
     };
     const normalising = performance.now();
-    const normalised = normalisePermutations(loaded.permutations, readValue, found, generate);
+    const { permutations: normalised, sources } = normalisePermutations(
+        loaded.permutations,
+        readValue,
+        found,
+        generate,
+    );
     const resolving = performance.now();
     onStage?.("generate", generating);
     onStage?.("normalise", resolving - normalising - generating);
-    const permutations = resolvePermutations(normalised, readValue, found);
+    const resolved = resolvePermutations(normalised, readValue, found, loaded.texts);
+    const permutations = permutationsOf(resolved, resolved);
     onStage?.("resolve", performance.now() - resolving);
     validateExtensions(
         normalised,
@@ -208,17 +172,23 @@ function toDocument(
         found,
     );
 
-    return {
-        files: loaded.files,
-        ...(loaded.resolver && { resolver: loaded.resolver }),
-        permutations,
-        parseOptions,
-        diagnostics: [
-            ...loaded.diagnostics,
-            ...collapse(
-                found,
-                permutations.map(({ input }) => input),
-            ),
-        ],
-    };
+    return linkedDesignTokens(
+        {
+            files: loaded.files,
+            entry: loaded.entry,
+            ...(loaded.resolver && { resolver: loaded.resolver }),
+            sources,
+            permutations,
+            parseOptions,
+            diagnostics: [
+                ...inReadingPermutations(loaded.diagnostics, permutations, loaded.entry),
+                ...collapse(found, permutations),
+            ],
+        },
+        {
+            texts: loaded.texts,
+            modifiers: loaded.modifiers,
+            readFiles: readingAgain(loaded.entry, options),
+        },
+    );
 }

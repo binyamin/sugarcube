@@ -1,18 +1,15 @@
 // A documentation page. It lists every token with its light and dark values, and which other tokens
 // use it: every token in any theme.
 import { read } from "@sugarcube-sh/dtcg/node";
-import { referrers, token, tokenPaths } from "@sugarcube-sh/dtcg";
 
-const doc = await read("tokens/tokens.resolver.json");
+const tokens = await read("tokens/tokens.resolver.json");
 
-for (const path of tokenPaths(doc)) {
-    const light = token(doc, path, { theme: "light" });
-    const dark = token(doc, path, { theme: "dark" });
-    row(
-        path,
-        (light ?? dark)?.type,
-        light?.resolved,
-        dark?.resolved,
-        referrers(doc, path).map((r) => r.path),
-    );
+const light = tokens.permutation({ theme: "light" });
+const dark = tokens.permutation({ theme: "dark" });
+
+for (const path of tokens.tokenPaths()) {
+    const inLight = light.token(path);
+    const inDark = dark.token(path);
+    const users = tokens.usedBy(path).map((user) => user.path);
+    row(path, (inLight ?? inDark)?.type, inLight?.resolved, inDark?.resolved, users);
 }

@@ -1,0 +1,13 @@
+{
+  "entry": "tokens.resolver.json",
+  "spec": "A problem found in a file only some permutations read, such as a property the specification does not define, lists the permutations that read that file",
+  "diagnostics": [
+    {
+      "kind": "unknown-property",
+      "detail": { "property": "$unknwn", "owner": "token" },
+      "span": { "file": "dark.json", "text": "\"$unknwn\"" },
+      "path": "gap",
+      "permutations": [{ "theme": "dark" }]
+    }
+  ]
+}

@@ -2,7 +2,7 @@
   "diagnostics": [
     {
       "kind": "unknown-type",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"\""
       },
@@ -22,7 +22,7 @@
     },
     {
       "kind": "invalid-property",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "null"
       },
@@ -42,7 +42,7 @@
     },
     {
       "kind": "invalid-property",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"base\"",
         "occurrence": 2

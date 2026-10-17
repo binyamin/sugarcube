@@ -1,13 +1,13 @@
 // A text box for a token's value that saves in the file's own spelling: a keyword weight like
 // "bold" stays a keyword, and a single font name stays a single string.
-import { token, toDTCGValue } from "@sugarcube-sh/dtcg";
+import { toDTCGValue, type JsonValue } from "@sugarcube-sh/dtcg";
 import { parseFontFamily, parseFontWeight } from "@sugarcube-sh/dtcg/values";
-import { setValue, type Json, type Session } from "@sugarcube-sh/dtcg-edit";
+import { setValue, type Session } from "@sugarcube-sh/dtcg-edit";
 
 declare const session: Session;
 
-function written(path: string, typed: string): Json | undefined {
-    const t = token(session.project.doc, path);
+function written(path: string, typed: string): JsonValue | undefined {
+    const t = session.tokens.permutation().token(path);
     const like = t?.authored?.value;
 
     switch (t?.type) {
@@ -28,6 +28,6 @@ function written(path: string, typed: string): Json | undefined {
 export function save(path: string, typed: string): void {
     const value = written(path, typed);
     if (value === undefined) return;
-    const done = session.do(setValue(session.project, path, value));
-    if ("refused" in done) showMessage(done.refused.reason);
+    const done = session.do(setValue(session.tokens, path, value));
+    if (done.refused) showMessage(done.refused.reason);
 }

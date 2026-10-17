@@ -103,7 +103,7 @@
         "property": "$value",
         "owner": "token"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"value\""
       },
@@ -116,7 +116,7 @@
         "property": "$value",
         "owner": "token"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"$vlaue\""
       },
@@ -129,7 +129,7 @@
         "property": "$value",
         "owner": "token"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"$Value\""
       },
@@ -142,7 +142,7 @@
         "property": "$description",
         "owner": "token"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"$descripton\""
       },
@@ -154,7 +154,7 @@
         "property": "$whatever",
         "owner": "token"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"$whatever\""
       },
@@ -166,7 +166,7 @@
         "reason": "child",
         "child": "value"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"value\"",
         "occurrence": 3
@@ -179,7 +179,7 @@
         "property": "$type",
         "owner": "group"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"type\""
       },

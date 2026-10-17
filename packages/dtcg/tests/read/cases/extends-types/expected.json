@@ -61,11 +61,11 @@
       "kind": "invalid-value",
       "detail": {
         "type": "dimension",
-        "at": ["$value"],
+        "jsonPath": ["$value"],
         "reason": "wrong-shape",
         "value": 1
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"primary\": { \"$value\":"
       },
@@ -75,11 +75,11 @@
       "kind": "invalid-value",
       "detail": {
         "type": "dimension",
-        "at": ["$value"],
+        "jsonPath": ["$value"],
         "reason": "wrong-shape",
         "value": 2
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"x\": { \"$value\":"
       },
@@ -88,7 +88,7 @@
     {
       "kind": "missing-type",
       "detail": {},
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"x\":"
       },

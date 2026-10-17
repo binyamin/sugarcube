@@ -1,18 +1,13 @@
-// Lists what changed between two versions of the tokens: added, removed and changed, and in which
-// themes.
-import { diff, type Document } from "@sugarcube-sh/dtcg";
+// Lists what changed between two versions of the tokens: added, removed and changed, what each
+// file wrote before and after, and in which permutations.
+import { type DesignTokens } from "@sugarcube-sh/dtcg";
 
-declare const before: Document;
-declare const after: Document;
+declare const before: DesignTokens;
+declare const after: DesignTokens;
 
-for (const change of diff(before, after)) {
-    if (change.kind === "changed")
-        row(
-            change.path,
-            change.in.map((i) => JSON.stringify(i)).join(", "),
-            change.before,
-            change.after,
-        );
-    if (change.kind === "added") row(`+ ${change.path}`);
-    if (change.kind === "removed") row(`- ${change.path}`);
+for (const change of after.diff(before)) {
+    const where = change.permutations.label;
+    if (change.kind === "changed") row(change.path, where, change.before.value, change.after.value);
+    if (change.kind === "added") row(`+ ${change.path}`, where);
+    if (change.kind === "removed") row(`- ${change.path}`, where);
 }

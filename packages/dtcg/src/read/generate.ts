@@ -1,5 +1,6 @@
-import { type Settings, settingsOf } from "./settings.js";
-import { childPath } from "../path.js";
+import { applying } from "./inherit.js";
+import type { Settings } from "./settings.js";
+import { childPath, forbiddenInName } from "../path.js";
 import type { Node } from "jsonc-parser";
 import type {
     Diagnostic,
@@ -22,6 +23,7 @@ import {
     checkSchema,
     extensionDiagnostic,
 } from "./extension-check.js";
+import { diagnostic } from "./diagnostics.js";
 import { type JsonFile, member, spanOf } from "./json.js";
 import { type Merged, type MergedToken, type Piece, everyGroup } from "./merge.js";
 
@@ -53,7 +55,7 @@ interface Extension {
  *             $value: { value: i + 1, unit: "rem" },
  *           })),
  *         }
- *       : { ok: false, errors: [{ path: [], reason: "not-a-count", data: { steps } }] },
+ *       : { ok: false, errors: [{ jsonPath: [], reason: "not-a-count", data: { steps } }] },
  * });
  */
 export function defineGenerator<
@@ -81,7 +83,7 @@ export function defineGenerator<
 
 export function fillGenerated(
     merged: Merged,
-    generators: Generator[],
+    generators: readonly Generator[],
     { permutation, parseOptions }: { permutation: Input; parseOptions: ParseOptions },
     diagnostics: Diagnostic[],
 ): void {
@@ -91,7 +93,7 @@ export function fillGenerated(
     const reportedIgnored = new Map<Generator, Set<Node>>();
 
     for (const [groupPath, group] of everyGroup(merged)) {
-        const settings = settingsOf(merged, group);
+        const settings = applying(merged, group);
         for (const generator of generators) {
             const extension = extensionOf(settings, generator.extension);
             if (!extension) continue;
@@ -133,6 +135,18 @@ export function fillGenerated(
                 extension: generator.extension,
             };
             for (const made of result.value) {
+                const character = forbiddenInName(made.name);
+                if (character) {
+                    const detail = { name: made.name, character };
+                    diagnostics.push(
+                        diagnostic("invalid-name", detail, {
+                            span: spanOf(extension.json, extension.node),
+                            ...(groupPath !== undefined && { path: groupPath }),
+                            permutation,
+                        }),
+                    );
+                    continue;
+                }
                 const path = childPath(groupPath, made.name);
                 const written = merged.tokens.get(path);
                 if (written) merged.tokens.set(path, { ...written, generated: from });
@@ -152,17 +166,17 @@ function extensionOf(
     group: Settings,
     [key, ...inside]: Generator["extension"],
 ): Extension | undefined {
-    const at = group.extensionsAt?.[key];
-    if (!at) return undefined;
+    const written = group.extensionsAt?.[key];
+    if (!written) return undefined;
     let value = group.extensions?.[key];
-    let node: Node | undefined = member(at.node, key);
+    let node: Node | undefined = member(written.node, key);
     for (const step of inside) {
         if (!isJsonObject(value) || !node) return undefined;
         value = value[step];
         node = member(node, step);
     }
     if (value === undefined || !node) return undefined;
-    return { value, json: at.json, node, piece: at.piece };
+    return { value, json: written.json, node, piece: written.piece };
 }
 
 function addedToken(
@@ -177,7 +191,7 @@ function addedToken(
         value: node,
         authored: $value,
         reference: readReference($value),
-        at: spanOf(json.path, json.lineStarts, node.offset, node.length),
+        span: spanOf(json, node),
         piece,
         generated,
         added: true,

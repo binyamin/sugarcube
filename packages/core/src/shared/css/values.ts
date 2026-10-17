@@ -1,10 +1,4 @@
-import {
-    type Alias,
-    type ParseOptions,
-    type Pointer,
-    type Token,
-    referenceAt,
-} from "@sugarcube-sh/dtcg";
+import type { ParseOptions, Reference, Token } from "@sugarcube-sh/dtcg";
 import { type Replacement, type TypographyCSS, cssValue } from "@sugarcube-sh/dtcg/css";
 import type { FluidConfig } from "../../types/config.js";
 import { SUGARCUBE_NAMESPACE } from "../extensions.js";
@@ -15,7 +9,7 @@ export type Written = string | TypographyCSS;
 
 export type WrittenReplacement = { variable: string } | { written: Written };
 
-export type ReplacementFor = (ref: Alias | Pointer) => WrittenReplacement | undefined;
+export type ReplacementFor = (ref: Reference) => WrittenReplacement | undefined;
 
 export function renderToken(
     token: Token,
@@ -29,11 +23,11 @@ export function renderToken(
         if (fluid.value) return clamp(fluid.value, options.fluid);
     }
 
-    const whole = referenceAt(token, []);
+    const whole = token.referenceAt();
     const replaced = whole && replacementFor(whole);
     if (replaced && "written" in replaced) return replaced.written;
 
-    const replacement = (ref: Alias | Pointer): Replacement | undefined => {
+    const replacement = (ref: Reference): Replacement | undefined => {
         const each = replacementFor(ref);
         if (!each || "variable" in each) return each;
         return typeof each.written === "string" ? { css: each.written } : undefined;

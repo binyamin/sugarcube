@@ -1,4 +1,4 @@
-import { type Span, filePath, permutationLabel } from "@sugarcube-sh/dtcg";
+import { type Span, filePath } from "@sugarcube-sh/dtcg";
 import { relative } from "pathe";
 import color from "picocolors";
 import type { Reported } from "../types/diagnostics.js";
@@ -15,7 +15,7 @@ export interface Where {
 interface Placed {
     problem: Reported;
     place: string;
-    at?: { file: string; line: number; column: number };
+    location?: { file: string; line: number; column: number };
 }
 
 interface Word {
@@ -58,7 +58,8 @@ export function problemLines(
         hint: colors.cyan,
     };
     return placed.flatMap(({ problem, place }) => {
-        const some = problem.permutations?.map(permutationLabel).join("; ") ?? "";
+        const label = problem.permutations?.label;
+        const some = label === "everywhere" || label === "nowhere" ? undefined : label;
         const words: Word[] = [
             ...problem.message.split(" ").map((text) => ({ text })),
             ...(some ? [{ text: `in ${some}`, apart: true, dim: true }] : []),
@@ -68,7 +69,7 @@ export function problemLines(
         const padding = " ".repeat(severityWidth - problem.severity.length);
         const head = `${place.padEnd(placeWidth)}  ${tint[problem.severity](problem.severity)}${padding}  `;
         const related = (problem.related ?? []).map(
-            ({ message, at }) => `${placeOf(at, where).place}  ${colors.dim(message)}`,
+            ({ message, span }) => `${placeOf(span, where).place}  ${colors.dim(message)}`,
         );
         return [...wrapped(words, colors, available), ...related].map(
             (line, index) => (index === 0 ? head : " ".repeat(indent)) + line,
@@ -87,19 +88,19 @@ export function problemCount(problems: Reported[]): string {
 }
 
 function placedIn(problem: Reported, where: Where): Placed {
-    const { at } = problem;
-    if (at) return { problem, ...placeOf(at, where) };
+    const { span } = problem;
+    if (span) return { problem, ...placeOf(span, where) };
     const { cwd, configFile } = where;
     return { problem, place: configFile ? relative(cwd, configFile) : "" };
 }
 
-function placeOf(span: Span, { cwd, folder }: Where): Pick<Placed, "place" | "at"> {
+function placeOf(span: Span, { cwd, folder }: Where): Pick<Placed, "place" | "location"> {
     const file = relative(cwd, filePath(folder, span.file));
     const { line, column } = span.start;
-    return { place: `${file}:${line}:${column}`, at: { file, line, column } };
+    return { place: `${file}:${line}:${column}`, location: { file, line, column } };
 }
 
-function byPlace({ at: a }: Placed, { at: b }: Placed): number {
+function byPlace({ location: a }: Placed, { location: b }: Placed): number {
     if (!a || !b) return Number(!a) - Number(!b);
     if (a.file !== b.file) return a.file < b.file ? -1 : 1;
     return a.line - b.line || a.column - b.column;

@@ -5,7 +5,7 @@ import { type JsonFile, deepestNode, propertyKey, spanOf } from "./json.js";
 
 export function valueDiagnostic(
     detail: ValueErrorDetail,
-    at: JsonPath,
+    jsonPath: JsonPath,
     node: Node,
     extra: DiagnosticExtra,
 ): Diagnostic {
@@ -13,18 +13,18 @@ export function valueDiagnostic(
         const { value, asObject } = detail;
         return diagnostic("hex-string-color", { value, asObject }, extra);
     }
-    return diagnostic("invalid-value", { at, ...detail }, extra);
+    return diagnostic("invalid-value", { jsonPath, ...detail }, extra);
 }
 
 export function ignoredDiagnostic(
     { detail }: IgnoredProperty,
-    at: JsonPath,
+    jsonPath: JsonPath,
     within: { node: Node; steps: JsonPath; json: JsonFile },
     extra: DiagnosticExtra,
 ): Diagnostic {
     const { node, steps, json } = within;
     const shown = propertyKey(node, steps) ?? deepestNode(node, steps);
-    const span = spanOf(json.path, json.lineStarts, shown.offset, shown.length);
-    const found = { property: detail.property, owner: detail.type, at };
-    return diagnostic("unknown-property", found, { ...extra, at: span });
+    const span = spanOf(json, shown);
+    const found = { property: detail.property, owner: detail.type, jsonPath };
+    return diagnostic("unknown-property", found, { ...extra, span });
 }

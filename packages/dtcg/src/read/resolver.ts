@@ -26,21 +26,21 @@ export const SET_KEYS = ["sources", "description", "$extensions"];
 const MODIFIER_KEYS = ["contexts", "description", "default", "$extensions"];
 const INLINE_KEYS = ["type", "name"];
 
-export interface SourceNode {
+export interface ResolverNode {
     node: Node;
-    path: JsonPath;
+    jsonPath: JsonPath;
 }
 
 export interface SetDefinition {
     name: string;
-    sources: SourceNode[];
+    sources: ResolverNode[];
     description?: string;
     extensions?: Node;
     declared: Node;
 }
 
 export interface ContextDefinition {
-    sources: SourceNode[];
+    sources: ResolverNode[];
     declared: Node;
 }
 
@@ -70,40 +70,42 @@ export interface CheckedResolver {
 type JsonType = "string" | "object" | "array";
 
 export interface Reader {
-    report(problem: ResolverProblem, node: Node, extra?: Omit<DiagnosticExtra, "at">): void;
+    report(problem: ResolverProblem, node: Node, extra?: Omit<DiagnosticExtra, "span">): void;
     diagnose<K extends DiagnosticKind>(
         kind: K,
         detail: DiagnosticDetailByKind[K],
         node: Node,
-        extra?: Omit<DiagnosticExtra, "at">,
+        extra?: Omit<DiagnosticExtra, "span">,
     ): void;
-    expect(node: Node | undefined, type: JsonType, name: string, at: JsonPath): node is Node;
+    expect(node: Node | undefined, type: JsonType, name: string, jsonPath: JsonPath): node is Node;
     checkKeys(
-        owner: Place,
-        kind: Exclude<DiagnosticDetailByKind["unknown-property"], { at: JsonPath }>["owner"],
+        owner: ResolverNode,
+        kind: Exclude<DiagnosticDetailByKind["unknown-property"], { jsonPath: JsonPath }>["owner"],
         known: readonly string[],
     ): void;
 }
 
-export interface Place {
-    node: Node;
-    path: JsonPath;
+export function isResolver(file: string, root: Node | undefined): boolean {
+    return (
+        isResolverName(file) ||
+        (root !== undefined && member(root, "resolutionOrder") !== undefined)
+    );
 }
 
-export function isResolver(root: Node): boolean {
-    return members(root).some(
-        ({ key, value }) =>
-            key === "resolutionOrder" || (key === "version" && value.type === "string"),
-    );
+export function isResolverName(file: string): boolean {
+    return file.endsWith(".resolver.json");
 }
 
 export function checkResolver(file: JsonFile, diagnostics: Diagnostic[]): CheckedResolver {
     const reader = createReader(file, diagnostics);
-    const root: Place = { node: file.root, path: [] };
+    const root: ResolverNode = { node: file.root, jsonPath: [] };
 
     const version = member(root.node, "version");
     if (version?.type !== "string" || version.value !== "2025.10") {
-        reader.report({ rule: "version", name: "version", at: ["version"] }, version ?? root.node);
+        reader.report(
+            { rule: "version", name: "version", jsonPath: ["version"] },
+            version ?? root.node,
+        );
     }
     const name = optional(reader, root, "name", "string");
     const description = optional(reader, root, "description", "string");
@@ -127,11 +129,11 @@ export function resolverProblem(
     file: JsonFile,
     problem: ResolverProblem,
     node: Node,
-    extra: Omit<DiagnosticExtra, "at"> = {},
+    extra: Omit<DiagnosticExtra, "span"> = {},
 ): Diagnostic {
     return diagnostic("resolver-invalid", problem, {
         ...extra,
-        at: spanOf(file.path, file.lineStarts, node.offset, node.length),
+        span: spanOf(file, node),
     });
 }
 
@@ -140,73 +142,89 @@ export function createReader(file: JsonFile, diagnostics: Diagnostic[]): Reader 
         report: (problem, node, extra) =>
             diagnostics.push(resolverProblem(file, problem, node, extra)),
         diagnose: (kind, detail, node, extra = {}) => {
-            const at = spanOf(file.path, file.lineStarts, node.offset, node.length);
-            diagnostics.push(diagnostic(kind, detail, { ...extra, at }));
+            const span = spanOf(file, node);
+            diagnostics.push(diagnostic(kind, detail, { ...extra, span }));
         },
-        expect: (node, type, name, at): node is Node => {
+        expect: (node, type, name, jsonPath): node is Node => {
             if (!node) return false;
             if (node.type === type) return true;
-            reader.report({ rule: "wrong-type", name, at, expected: type }, node);
+            reader.report({ rule: "wrong-type", name, jsonPath, expected: type }, node);
             return false;
         },
         checkKeys: (owner, kind, known) => {
             for (const { key, keyNode } of members(owner.node)) {
                 if (known.includes(key)) continue;
                 const similar = similarName(key, known);
-                const at = spanOf(file.path, file.lineStarts, keyNode.offset, keyNode.length);
+                const span = spanOf(file, keyNode);
                 const detail = {
                     property: key,
                     owner: kind,
                     ...(similar !== undefined && { similar }),
                 };
-                diagnostics.push(diagnostic("unknown-property", detail, { at }));
+                diagnostics.push(diagnostic("unknown-property", detail, { span }));
             }
         },
     };
     return reader;
 }
 
-function present(reader: Reader, owner: Place, key: string): Node | undefined {
+function present(reader: Reader, owner: ResolverNode, key: string): Node | undefined {
     const found = member(owner.node, key);
-    if (!found) reader.report({ rule: "missing-property", name: key, at: owner.path }, owner.node);
+    if (!found)
+        reader.report(
+            { rule: "missing-property", name: key, jsonPath: owner.jsonPath },
+            owner.node,
+        );
     return found;
 }
 
-function required(reader: Reader, owner: Place, key: string, type: JsonType): Node | undefined {
+function required(
+    reader: Reader,
+    owner: ResolverNode,
+    key: string,
+    type: JsonType,
+): Node | undefined {
     const found = present(reader, owner, key);
-    return reader.expect(found, type, key, [...owner.path, key]) ? found : undefined;
+    return reader.expect(found, type, key, [...owner.jsonPath, key]) ? found : undefined;
 }
 
-function optional(reader: Reader, owner: Place, key: string, type: JsonType): Node | undefined {
+function optional(
+    reader: Reader,
+    owner: ResolverNode,
+    key: string,
+    type: JsonType,
+): Node | undefined {
     const found = member(owner.node, key);
-    return reader.expect(found, type, key, [...owner.path, key]) ? found : undefined;
+    return reader.expect(found, type, key, [...owner.jsonPath, key]) ? found : undefined;
 }
 
 function readAll<T>(
     reader: Reader,
-    root: Place,
+    root: ResolverNode,
     collection: "sets" | "modifiers",
-    read: (reader: Reader, owner: Place, name: string) => T,
+    read: (reader: Reader, owner: ResolverNode, name: string) => T,
 ): Map<string, T> {
     const found = new Map<string, T>();
     const map = optional(reader, root, collection, "object");
     for (const { key, value } of map ? members(map) : []) {
-        const path = [collection, key];
-        if (reader.expect(value, "object", key, path)) {
-            found.set(key, read(reader, { node: value, path }, key));
+        const jsonPath = [collection, key];
+        if (reader.expect(value, "object", key, jsonPath)) {
+            found.set(key, read(reader, { node: value, jsonPath }, key));
         }
     }
     return found;
 }
 
-function readSources(reader: Reader, list: Place, label: string): SourceNode[] {
+function readSources(reader: Reader, list: ResolverNode, label: string): ResolverNode[] {
     return (list.node.children ?? []).flatMap((node, index) => {
-        const path = [...list.path, index];
-        return reader.expect(node, "object", `${label}[${index}]`, path) ? [{ node, path }] : [];
+        const jsonPath = [...list.jsonPath, index];
+        return reader.expect(node, "object", `${label}[${index}]`, jsonPath)
+            ? [{ node, jsonPath }]
+            : [];
     });
 }
 
-export function readSetParts(reader: Reader, owner: Place): Partial<SetDefinition> {
+export function readSetParts(reader: Reader, owner: ResolverNode): Partial<SetDefinition> {
     const description = optional(reader, owner, "description", "string");
     const extensions = optional(reader, owner, "$extensions", "object");
     const list = optional(reader, owner, "sources", "array");
@@ -215,7 +233,7 @@ export function readSetParts(reader: Reader, owner: Place): Partial<SetDefinitio
         ...(list && {
             sources: readSources(
                 reader,
-                { node: list, path: [...owner.path, "sources"] },
+                { node: list, jsonPath: [...owner.jsonPath, "sources"] },
                 "sources",
             ),
         }),
@@ -225,7 +243,7 @@ export function readSetParts(reader: Reader, owner: Place): Partial<SetDefinitio
 
 function readSet(
     reader: Reader,
-    owner: Place,
+    owner: ResolverNode,
     name: string,
     alsoKnown: readonly string[] = [],
 ): SetDefinition {
@@ -236,7 +254,7 @@ function readSet(
 
 function readModifierParts(
     reader: Reader,
-    owner: Place,
+    owner: ResolverNode,
     name: string,
 ): Partial<ModifierDefinition> {
     const description = optional(reader, owner, "description", "string");
@@ -246,15 +264,17 @@ function readModifierParts(
 
     let contexts: Map<string, ContextDefinition> | undefined;
     if (map) {
-        const at = [...owner.path, "contexts"];
+        const jsonPath = [...owner.jsonPath, "contexts"];
         const entries = members(map);
-        if (entries.length === 0) reader.report({ rule: "no-contexts", name, at }, map);
-        if (entries.length === 1) reader.report({ rule: "single-context", name, at }, map);
+        if (entries.length === 0) reader.report({ rule: "no-contexts", name, jsonPath }, map);
+        if (entries.length === 1) reader.report({ rule: "single-context", name, jsonPath }, map);
         contexts = new Map(
             entries.map(({ key, value }) => {
-                const path = [...at, key];
-                const list = reader.expect(value, "array", key, path);
-                const sources = list ? readSources(reader, { node: value, path }, key) : [];
+                const sourcesJsonPath = [...jsonPath, key];
+                const list = reader.expect(value, "array", key, sourcesJsonPath);
+                const sources = list
+                    ? readSources(reader, { node: value, jsonPath: sourcesJsonPath }, key)
+                    : [];
                 return [key, { sources, declared: value }];
             }),
         );
@@ -269,7 +289,7 @@ function readModifierParts(
 
 function readModifier(
     reader: Reader,
-    owner: Place,
+    owner: ResolverNode,
     name: string,
     alsoKnown: readonly string[] = [],
 ): ModifierDefinition {
@@ -285,7 +305,7 @@ function readModifier(
 
 function checkDefault(
     reader: Reader,
-    owner: Place,
+    owner: ResolverNode,
     modifier: ModifierDefinition,
 ): ModifierDefinition {
     if (modifier.default === undefined || modifier.contexts.has(modifier.default)) return modifier;
@@ -294,7 +314,7 @@ function checkDefault(
         {
             rule: "invalid-default",
             name: modifier.name,
-            at: written ? [...owner.path, "default"] : owner.path,
+            jsonPath: written ? [...owner.jsonPath, "default"] : owner.jsonPath,
         },
         written ?? owner.node,
     );
@@ -305,7 +325,7 @@ function checkDefault(
 
 function readOrder(
     reader: Reader,
-    root: Place,
+    root: ResolverNode,
     sets: Map<string, SetDefinition>,
     modifiers: Map<string, ModifierDefinition>,
 ): ResolverItem[] {
@@ -315,8 +335,8 @@ function readOrder(
     const modifierNames = new Set<string>();
 
     for (const [index, node] of (list?.children ?? []).entries()) {
-        const owner = { node, path: ["resolutionOrder", index] };
-        if (!reader.expect(node, "object", `resolutionOrder[${index}]`, owner.path)) continue;
+        const owner: ResolverNode = { node, jsonPath: ["resolutionOrder", index] };
+        if (!reader.expect(node, "object", `resolutionOrder[${index}]`, owner.jsonPath)) continue;
         const item = member(node, "$ref")
             ? readOrderRef(reader, owner, sets, modifiers)
             : readInline(reader, owner, inlineNames);
@@ -325,7 +345,7 @@ function readOrder(
         if (item.kind === "modifier") {
             const { name } = item.modifier;
             if (modifierNames.has(name)) {
-                reader.report({ rule: "duplicate-name", name, at: owner.path }, node);
+                reader.report({ rule: "duplicate-name", name, jsonPath: owner.jsonPath }, node);
                 continue;
             }
             modifierNames.add(name);
@@ -337,17 +357,17 @@ function readOrder(
 
 function readOrderRef(
     reader: Reader,
-    owner: Place,
+    owner: ResolverNode,
     sets: Map<string, SetDefinition>,
     modifiers: Map<string, ModifierDefinition>,
 ): ResolverItem | undefined {
-    const at = [...owner.path, "$ref"];
+    const jsonPath = [...owner.jsonPath, "$ref"];
     const ref = member(owner.node, "$ref");
-    if (!reader.expect(ref, "string", "$ref", at)) return undefined;
+    if (!reader.expect(ref, "string", "$ref", jsonPath)) return undefined;
 
     const pointer = ref.value as string;
     if (!pointer.startsWith("#")) {
-        reader.report({ rule: "file-in-resolution-order", name: pointer, at }, ref);
+        reader.report({ rule: "file-in-resolution-order", name: pointer, jsonPath }, ref);
         return undefined;
     }
     const read = readPointerText(pointer);
@@ -363,20 +383,20 @@ function readOrderRef(
     }
     const [collection, name, ...rest] = read.steps;
     if (name === undefined || rest.length > 0) {
-        reader.report({ rule: "invalid-pointer", name: pointer, at }, ref);
+        reader.report({ rule: "invalid-pointer", name: pointer, jsonPath }, ref);
         return undefined;
     }
 
     if (collection === "sets") {
         reader.checkKeys(owner, "set", ["$ref", ...SET_KEYS]);
         const set = sets.get(name);
-        if (!set) reader.report({ rule: "unknown-set", name, at }, ref);
+        if (!set) reader.report({ rule: "unknown-set", name, jsonPath }, ref);
         return set && { kind: "set", set: { ...set, ...readSetParts(reader, owner) } };
     }
     if (collection === "modifiers") {
         reader.checkKeys(owner, "modifier", ["$ref", ...MODIFIER_KEYS]);
         const modifier = modifiers.get(name);
-        if (!modifier) reader.report({ rule: "unknown-modifier", name, at }, ref);
+        if (!modifier) reader.report({ rule: "unknown-modifier", name, jsonPath }, ref);
         return (
             modifier && {
                 kind: "modifier",
@@ -387,22 +407,32 @@ function readOrderRef(
             }
         );
     }
-    reader.report({ rule: "invalid-pointer", name: pointer, at }, ref);
+    reader.report({ rule: "invalid-pointer", name: pointer, jsonPath }, ref);
     return undefined;
 }
 
-function readInline(reader: Reader, owner: Place, names: Set<string>): ResolverItem | undefined {
+function readInline(
+    reader: Reader,
+    owner: ResolverNode,
+    names: Set<string>,
+): ResolverItem | undefined {
     const type = required(reader, owner, "type", "string");
     const nameNode = required(reader, owner, "name", "string");
     const kind = type?.value as string | undefined;
     if (type && kind !== undefined && kind !== "set" && kind !== "modifier") {
-        reader.report({ rule: "unknown-item-type", name: kind, at: [...owner.path, "type"] }, type);
+        reader.report(
+            { rule: "unknown-item-type", name: kind, jsonPath: [...owner.jsonPath, "type"] },
+            type,
+        );
     }
     if (!nameNode) return undefined;
 
     const name = nameNode.value as string;
     if (names.has(name)) {
-        reader.report({ rule: "duplicate-name", name, at: [...owner.path, "name"] }, nameNode);
+        reader.report(
+            { rule: "duplicate-name", name, jsonPath: [...owner.jsonPath, "name"] },
+            nameNode,
+        );
         return undefined;
     }
     names.add(name);

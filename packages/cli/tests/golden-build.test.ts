@@ -31,7 +31,7 @@ async function built(goldenCase: GoldenCase) {
         const made = await build(loaded);
         return {
             config: loaded.config,
-            doc: made.doc,
+            tokens: made.tokens,
             diagnostics: made.diagnostics,
             files: filesOf(made).map((file) => ({
                 name: relative(outDir, file.path),
@@ -46,7 +46,7 @@ async function built(goldenCase: GoldenCase) {
 describe("golden CSS through the CLI's build on the new core", () => {
     it.for(CASES)("$name", async (goldenCase) => {
         const { name } = goldenCase;
-        const { config, doc, diagnostics, files } = await built(goldenCase);
+        const { config, tokens, diagnostics, files } = await built(goldenCase);
 
         const found = diagnostics.map(({ severity, kind, detail, path }) => {
             const reason = "reason" in detail ? ` ${String(detail.reason)}` : "";
@@ -61,7 +61,7 @@ describe("golden CSS through the CLI's build on the new core", () => {
             const expected = readFileSync(join(GOLDEN_DIR, name, file), "utf8");
             const explained =
                 file === "utilities.css"
-                    ? explainUtilities(name, css, expected, utilityTokens(declare(doc, config)))
+                    ? explainUtilities(name, css, expected, utilityTokens(declare(tokens, config)))
                     : explainVariables(`${name}/${file}`, css, expected);
             if (!explained) {
                 expect(css, file).toBe(expected);

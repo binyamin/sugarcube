@@ -1,8 +1,9 @@
+import { fillDefaults, readOptions } from "@sugarcube-sh/core";
+import { readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
-import { type Analysis, impact, tokenAt, unused } from "../src/analyze/answers.js";
-import { systemOf } from "../src/analyze/system.js";
+import { type Analysis, impact, unused, writtenOf } from "../src/analyze/answers.js";
 import type { Use } from "../src/analyze/uses.js";
-import { buildFiles } from "../src/build.js";
+import { buildFiles, buildFrom } from "../src/build.js";
 
 const color = (value: unknown) => ({ $type: "color", $value: value });
 const black = { colorSpace: "srgb", components: [0, 0, 0] };
@@ -60,9 +61,9 @@ async function analysisOf(...uses: Use[]): Promise<Analysis> {
     const texts = Object.fromEntries(
         Object.entries(themed).map(([name, json]) => [name, JSON.stringify(json)]),
     );
-    const system = systemOf(await buildFiles(texts, "/project"));
+    const { tokens } = await buildFiles(texts, "/project");
     return {
-        system,
+        tokens,
         uses: {
             uses,
             scanned: { forVarReferences: ["/project/app.css"], forUtilityClasses: [] },
@@ -72,9 +73,9 @@ async function analysisOf(...uses: Use[]): Promise<Analysis> {
 }
 
 function impactOf(analysis: Analysis, path: string) {
-    const found = tokenAt(analysis.system, path);
-    if (!found || found === "group") throw new Error(`no token ${path}`);
-    return impact(analysis, found);
+    const written = writtenOf(analysis.tokens, path);
+    if (!written || written === "group") throw new Error(`no token ${path}`);
+    return impact(analysis, path, written);
 }
 
 describe("unused", () => {
@@ -117,7 +118,7 @@ describe("impact", () => {
     it("gives the token, what reaches it and what each refers to on the way", async () => {
         const answer = impactOf(await analysisOf(), "color.target");
 
-        expect(answer.token.path).toBe("color.target");
+        expect(answer.path).toBe("color.target");
         expect(answer.dependents).toStrictEqual([
             { path: "color.on-surface", references: ["color.surface"], inDefault: "color.surface" },
             { path: "color.surface", references: ["color.target"], inDefault: "color.target" },
@@ -165,12 +166,252 @@ describe("impact", () => {
     });
 });
 
-describe("tokenAt", () => {
+describe("writtenOf", () => {
     it("says when a path is a group, not a token", async () => {
-        expect(tokenAt((await analysisOf()).system, "color")).toBe("group");
+        expect(writtenOf((await analysisOf()).tokens, "color")).toBe("group");
     });
 
     it("says when a path is nothing", async () => {
-        expect(tokenAt((await analysisOf()).system, "nowhere")).toBeUndefined();
+        expect(writtenOf((await analysisOf()).tokens, "nowhere")).toBeUndefined();
+    });
+
+    it("gives each value written where it wins, in the order written, whichever theme is read first", () => {
+        const config = fillDefaults({
+            variables: {
+                permutations: [
+                    { input: { theme: "dark" }, selector: ".dark" },
+                    { input: { theme: "light" }, selector: ":root" },
+                ],
+            },
+        });
+        const texts = Object.fromEntries(
+            Object.entries(themed).map(([name, json]) => [name, JSON.stringify(json)]),
+        );
+        const tokens = readFromMemory({ files: texts }, readOptions(config));
+        expect(tokens.permutations[0]?.input).toStrictEqual({ theme: "dark" });
+        const written = writtenOf(tokens, "color.surface");
+        if (!written || written === "group") throw new Error("no color.surface");
+        expect(
+            written.map(({ token, file, permutations }) => [
+                token.authored?.value,
+                file,
+                permutations.inputs,
+            ]),
+        ).toStrictEqual([
+            ["{color.target}", "base.json", [{ theme: "light" }]],
+            ["{color.night}", "dark.json", [{ theme: "dark" }]],
+        ]);
+    });
+});
+
+describe("impact, across themes", () => {
+    const dimension = (value: unknown) => ({ $type: "dimension", $value: value });
+    const blue = { colorSpace: "srgb", components: [0, 0, 1] };
+    const files = {
+        "tokens.resolver.json": {
+            version: "2025.10",
+            resolutionOrder: [
+                { type: "set", name: "base", sources: [{ $ref: "base.json" }] },
+                {
+                    type: "modifier",
+                    name: "theme",
+                    default: "light",
+                    contexts: {
+                        light: [],
+                        dark: [{ $ref: "dark.json" }],
+                        alt: [{ $ref: "alt.json" }],
+                    },
+                },
+                {
+                    type: "modifier",
+                    name: "brand",
+                    default: "a",
+                    contexts: { a: [], b: [{ $ref: "b.json" }] },
+                },
+                {
+                    type: "modifier",
+                    name: "debug",
+                    default: "off",
+                    contexts: { off: [], on: [] },
+                },
+            ],
+        },
+        "base.json": {
+            red: color({ colorSpace: "srgb", components: [1, 0, 0] }),
+            blue: color(blue),
+            brand: color("{red}"),
+            danger: color("{brand}"),
+            edge: { $type: "border", $value: { color: "{brand}", width: "{gap}", style: "solid" } },
+            gap: dimension({ value: 1, unit: "px" }),
+            soft: color("{blue}"),
+            strong: color("{blue}"),
+            muted: color("{blue}"),
+            button: color("{soft}"),
+            surface: color("{soft}"),
+            mixed: color("{soft}"),
+            only: color("{soft}"),
+            size: dimension({ value: 1, unit: "px" }),
+            small: dimension("{size}"),
+            large: dimension("{size}"),
+            lift: {
+                $type: "shadow",
+                $value: {
+                    color: "{blue}",
+                    offsetX: "{small}",
+                    offsetY: "{large}",
+                    blur: { value: 0, unit: "px" },
+                    spread: { value: 0, unit: "px" },
+                },
+            },
+        },
+        "dark.json": {
+            brand: color("{blue}"),
+            button: color("{soft}"),
+            surface: color("{strong}"),
+            mixed: color("{strong}"),
+        },
+        "alt.json": { surface: color("{soft}") },
+        "b.json": { button: color("{strong}"), mixed: color("{muted}") },
+    };
+    const texts = (changed: Record<string, unknown> = {}) =>
+        Object.fromEntries(
+            Object.entries({ ...files, ...changed }).map(([name, json]) => [
+                name,
+                JSON.stringify(json),
+            ]),
+        );
+    const noUses = {
+        uses: [],
+        scanned: { forVarReferences: [], forUtilityClasses: [] },
+        unread: [],
+    };
+    const dependentsOf = async (path: string, built?: Awaited<ReturnType<typeof buildFiles>>) => {
+        const { tokens } = built ?? (await buildFiles(texts(), "/project"));
+        const written = writtenOf(tokens, path);
+        if (!written || written === "group") throw new Error(`no token ${path}`);
+        return new Map(
+            impact({ tokens, uses: noUses }, path, written).dependents.map((each) => [
+                each.path,
+                each,
+            ]),
+        );
+    };
+
+    it("gives what reaches a token in any theme, through the references that reach it", async () => {
+        const reaching = await dependentsOf("red");
+        expect(reaching.get("brand")).toStrictEqual({
+            path: "brand",
+            references: ["red"],
+            inDefault: "red",
+        });
+        expect(reaching.get("danger")?.references).toStrictEqual(["brand"]);
+        expect(reaching.get("edge")?.references).toStrictEqual(["brand"]);
+    });
+
+    it("never lists the token as depending on itself, round a loop", async () => {
+        const { tokens } = await buildFiles(
+            {
+                "tokens.json": JSON.stringify({
+                    a: { $type: "number", $value: "{b}" },
+                    b: { $type: "number", $value: "{a}" },
+                }),
+            },
+            "/project",
+        );
+        const a = writtenOf(tokens, "a");
+        if (!a || a === "group") throw new Error("no a");
+        expect(impact({ tokens, uses: noUses }, "a", a).dependents).toStrictEqual([
+            { path: "b", references: ["a"], inDefault: "a" },
+        ]);
+    });
+
+    it("names the modifier whose files set the token to another reference", async () => {
+        const reaching = await dependentsOf("blue");
+        expect(reaching.get("button")?.label).toBe("per brand");
+        expect(reaching.get("surface")?.label).toBe("per theme");
+    });
+
+    it("names no modifier when every file that writes the token names the same references", async () => {
+        const pair = {
+            $type: "gradient",
+            $value: [
+                { color: "{soft}", position: 0 },
+                { color: "{strong}", position: 1 },
+            ],
+        };
+        const built = await buildFiles(
+            texts({
+                "dark.json": { ...files["dark.json"], pair },
+                "alt.json": { ...files["alt.json"], pair },
+            }),
+            "/project",
+        );
+        expect((await dependentsOf("blue", built)).get("pair")?.label).toBe("2 references");
+    });
+
+    it("says 'per context' when more than one modifier sets it", async () => {
+        expect((await dependentsOf("blue")).get("mixed")?.label).toBe("per context");
+    });
+
+    it("says nothing about a token with a single parent", async () => {
+        expect((await dependentsOf("blue")).get("only")).not.toHaveProperty("label");
+    });
+
+    it("names the modifier whose files set it, even when another lines up by chance", async () => {
+        const config = fillDefaults({
+            variables: {
+                permutations: [
+                    { input: { theme: "light", brand: "a" }, selector: ":root" },
+                    { input: { theme: "dark", brand: "b" }, selector: ".dark-b" },
+                ],
+            },
+        });
+        const tokens = readFromMemory({ files: texts({ "dark.json": {} }) }, readOptions(config));
+        const loaded = { config: { ...config, resolver: "tokens.resolver.json" } };
+        const built = await buildFrom(tokens, loaded);
+        expect((await dependentsOf("blue", built)).get("button")?.label).toBe("per brand");
+    });
+
+    it("ignores a context's file that a later source always overrides", () => {
+        const layer = (from: string) => ({
+            color: from,
+            offsetX: { value: 0, unit: "px" },
+            offsetY: { value: 0, unit: "px" },
+            blur: { value: 0, unit: "px" },
+            spread: { value: 0, unit: "px" },
+        });
+        const shadow = (...colors: string[]) => ({ $type: "shadow", $value: colors.map(layer) });
+        const tokens = readFromMemory({
+            files: Object.fromEntries(
+                Object.entries({
+                    "tokens.resolver.json": {
+                        version: "2025.10",
+                        resolutionOrder: [
+                            { type: "set", name: "base", sources: [{ $ref: "base.json" }] },
+                            {
+                                type: "modifier",
+                                name: "theme",
+                                default: "light",
+                                contexts: { light: [], dark: [{ $ref: "dark.json" }] },
+                            },
+                            { type: "set", name: "fixed", sources: [{ $ref: "fixed.json" }] },
+                        ],
+                    },
+                    "base.json": { blue: color(blue), strong: color("{blue}") },
+                    "dark.json": { lift: shadow("{strong}") },
+                    "fixed.json": { lift: shadow("{blue}", "{strong}") },
+                }).map(([name, json]) => [name, JSON.stringify(json)]),
+            ),
+        });
+        const written = writtenOf(tokens, "blue");
+        if (!written || written === "group") throw new Error("no blue");
+        const lift = impact({ tokens, uses: noUses }, "blue", written).dependents.find(
+            ({ path }) => path === "lift",
+        );
+        expect(lift?.label).toBe("2 references");
+    });
+
+    it("says how many references when the parents don't vary by theme", async () => {
+        expect((await dependentsOf("size")).get("lift")?.label).toBe("2 references");
     });
 });

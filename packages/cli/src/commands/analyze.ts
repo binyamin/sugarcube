@@ -1,7 +1,6 @@
 import { Command, Option } from "commander";
-import { type Analysis, impact, tokenAt, unused } from "../analyze/answers.js";
+import { type Analysis, impact, unused, writtenOf } from "../analyze/answers.js";
 import { impactJSON, unusedJSON } from "../analyze/json.js";
-import { type System, systemOf } from "../analyze/system.js";
 import {
     impactHeading,
     impactLines,
@@ -21,7 +20,7 @@ import { printWarning } from "../prompts/box-with-badge.js";
 import { intro, label, outro } from "../prompts/common.js";
 import { log, rawLog } from "../prompts/log.js";
 
-async function systemFor(plain: boolean): Promise<{ built: Built; system: System } | undefined> {
+async function builtFor(plain: boolean): Promise<Built | undefined> {
     const built = await build(await loadTokenConfigOrThrow("analyze"));
     const failed = printProblems(built.diagnostics, whereOf(built), {
         onlyErrors: true,
@@ -32,7 +31,7 @@ async function systemFor(plain: boolean): Promise<{ built: Built; system: System
         process.exitCode = 1;
         return undefined;
     }
-    return { built, system: systemOf(built) };
+    return built;
 }
 
 async function usesFor(built: Built, asking: "unused" | "impact", plain: boolean): Promise<Uses> {
@@ -55,10 +54,10 @@ const unusedCommand = new Command()
             const plain = options.json === true || options.all === true;
             if (!plain) intro(label("Analyze"));
 
-            const found = await systemFor(plain);
-            if (!found) return;
-            const uses = await usesFor(found.built, "unused", plain);
-            const analysis: Analysis = { system: found.system, uses };
+            const built = await builtFor(plain);
+            if (!built) return;
+            const uses = await usesFor(built, "unused", plain);
+            const analysis: Analysis = { tokens: built.tokens, uses };
             const answer = unused(analysis);
 
             if (options.json) return printJSON(unusedJSON(answer, uses));
@@ -67,7 +66,7 @@ const unusedCommand = new Command()
                 return;
             }
             if (answer.unused.length > 0) {
-                log.message(unusedLines(answer, found.system.tokens.keys()));
+                log.message(unusedLines(answer, built.tokens.tokenPaths()));
             }
             outro(unusedSummary(answer, uses));
         } catch (error) {
@@ -87,13 +86,14 @@ const impactCommand = new Command()
             const plain = options.json === true;
             if (!plain) intro(label("Analyze"));
 
-            const found = await systemFor(plain);
-            if (!found) return;
-            const token = tokenAt(found.system, path);
-            if (token === "group") throw new CLIError(ERROR_MESSAGES.ANALYZE_GROUP_NOT_TOKEN(path));
-            if (!token) throw new CLIError(ERROR_MESSAGES.ANALYZE_NO_TOKEN(path));
-            const uses = await usesFor(found.built, "impact", plain);
-            const answer = impact({ system: found.system, uses }, token);
+            const built = await builtFor(plain);
+            if (!built) return;
+            const written = writtenOf(built.tokens, path);
+            if (written === "group")
+                throw new CLIError(ERROR_MESSAGES.ANALYZE_GROUP_NOT_TOKEN(path));
+            if (!written) throw new CLIError(ERROR_MESSAGES.ANALYZE_NO_TOKEN(path));
+            const uses = await usesFor(built, "impact", plain);
+            const answer = impact({ tokens: built.tokens, uses }, path, written);
 
             if (plain) return printJSON(impactJSON(answer));
             log.message(impactHeading(answer));

@@ -7,178 +7,194 @@
         "size": "small"
       },
       "label": "size: small",
-      "sources": [
-        {
-          "file": "size/base.json",
-          "from": {
-            "modifier": "size",
-            "context": "small",
-            "sets": [
-              {
-                "name": "baseSize"
-              }
-            ]
-          },
-          "readBy": [
-            {
-              "size": "small"
-            },
-            {
-              "size": "medium"
-            },
-            {
-              "size": "large"
-            }
-          ]
-        },
-        {
-          "file": "device/mobile.json",
-          "from": {
-            "modifier": "size",
-            "context": "small",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "size": "small"
-            }
-          ]
-        },
-        {
-          "file": "typography/mobile.json",
-          "from": {
-            "modifier": "size",
-            "context": "small",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "size": "small"
-            }
-          ]
-        }
-      ]
+      "sources": [0, 1, 2]
     },
     {
       "input": {
         "size": "medium"
       },
       "label": "size: medium",
-      "sources": [
-        {
-          "file": "size/base.json",
-          "from": {
-            "modifier": "size",
-            "context": "medium",
-            "sets": [
-              {
-                "name": "baseSize"
-              }
-            ]
-          },
-          "readBy": [
-            {
-              "size": "small"
-            },
-            {
-              "size": "medium"
-            },
-            {
-              "size": "large"
-            }
-          ]
-        },
-        {
-          "file": "device/tablet.json",
-          "from": {
-            "modifier": "size",
-            "context": "medium",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "size": "medium"
-            }
-          ]
-        },
-        {
-          "file": "typography/base.json",
-          "from": {
-            "modifier": "size",
-            "context": "medium",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "size": "medium"
-            },
-            {
-              "size": "large"
-            }
-          ]
-        }
-      ]
+      "sources": [3, 4, 5]
     },
     {
       "input": {
         "size": "large"
       },
       "label": "size: large",
-      "sources": [
+      "sources": [6, 7, 8]
+    }
+  ],
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "size/base.json",
+      "context": {
+        "modifier": "size",
+        "name": "small"
+      },
+      "sets": [
         {
-          "file": "size/base.json",
-          "from": {
-            "modifier": "size",
-            "context": "large",
-            "sets": [
-              {
-                "name": "baseSize"
-              }
-            ]
-          },
-          "readBy": [
-            {
-              "size": "small"
-            },
-            {
-              "size": "medium"
-            },
-            {
-              "size": "large"
-            }
-          ]
+          "name": "baseSize"
+        }
+      ],
+      "readBy": [
+        {
+          "modifier": "size",
+          "name": "small"
         },
         {
-          "file": "device/desktop.json",
-          "from": {
-            "modifier": "size",
-            "context": "large",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "size": "large"
-            }
-          ]
+          "modifier": "size",
+          "name": "medium"
         },
         {
-          "file": "typography/base.json",
-          "from": {
-            "modifier": "size",
-            "context": "large",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "size": "medium"
-            },
-            {
-              "size": "large"
-            }
-          ]
+          "modifier": "size",
+          "name": "large"
+        }
+      ]
+    },
+    {
+      "file": "device/mobile.json",
+      "context": {
+        "modifier": "size",
+        "name": "small"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "size",
+          "name": "small"
+        }
+      ]
+    },
+    {
+      "file": "typography/mobile.json",
+      "context": {
+        "modifier": "size",
+        "name": "small"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "size",
+          "name": "small"
+        }
+      ]
+    },
+    {
+      "file": "size/base.json",
+      "context": {
+        "modifier": "size",
+        "name": "medium"
+      },
+      "sets": [
+        {
+          "name": "baseSize"
+        }
+      ],
+      "readBy": [
+        {
+          "modifier": "size",
+          "name": "small"
+        },
+        {
+          "modifier": "size",
+          "name": "medium"
+        },
+        {
+          "modifier": "size",
+          "name": "large"
+        }
+      ]
+    },
+    {
+      "file": "device/tablet.json",
+      "context": {
+        "modifier": "size",
+        "name": "medium"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "size",
+          "name": "medium"
+        }
+      ]
+    },
+    {
+      "file": "typography/base.json",
+      "context": {
+        "modifier": "size",
+        "name": "medium"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "size",
+          "name": "medium"
+        },
+        {
+          "modifier": "size",
+          "name": "large"
+        }
+      ]
+    },
+    {
+      "file": "size/base.json",
+      "context": {
+        "modifier": "size",
+        "name": "large"
+      },
+      "sets": [
+        {
+          "name": "baseSize"
+        }
+      ],
+      "readBy": [
+        {
+          "modifier": "size",
+          "name": "small"
+        },
+        {
+          "modifier": "size",
+          "name": "medium"
+        },
+        {
+          "modifier": "size",
+          "name": "large"
+        }
+      ]
+    },
+    {
+      "file": "device/desktop.json",
+      "context": {
+        "modifier": "size",
+        "name": "large"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "size",
+          "name": "large"
+        }
+      ]
+    },
+    {
+      "file": "typography/base.json",
+      "context": {
+        "modifier": "size",
+        "name": "large"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "size",
+          "name": "medium"
+        },
+        {
+          "modifier": "size",
+          "name": "large"
         }
       ]
     }
-  ],
-  "diagnostics": []
+  ]
 }

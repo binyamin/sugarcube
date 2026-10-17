@@ -9,17 +9,19 @@
       "tokens": [
         {
           "path": "space.1",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "base.json",
-              "valueAfter": "\"steps\":"
-            }
-          },
           "generated": {
             "from": "space",
             "extension": ["com.example", "steps"]
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "base.json",
+                "valueAfter": "\"steps\":"
+              }
+            }
+          ]
         }
       ]
     },
@@ -34,17 +36,19 @@
         },
         {
           "path": "space.1",
-          "source": {
-            "index": 1,
-            "at": {
-              "file": "roomy.json",
-              "valueAfter": "\"steps\":"
-            }
-          },
           "generated": {
             "from": "space",
             "extension": ["com.example", "steps"]
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 1,
+              "span": {
+                "file": "roomy.json",
+                "valueAfter": "\"steps\":"
+              }
+            }
+          ]
         }
       ]
     }

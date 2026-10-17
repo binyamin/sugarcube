@@ -30,8 +30,8 @@ function readWith(variables?: Parameters<typeof fillDefaults>[0]["variables"]) {
         resolver: "tokens.resolver.json",
         ...(variables && { variables }),
     });
-    const doc = readFromMemory({ files, entry: "tokens.resolver.json" }, readOptions(config));
-    return { doc, inputs: doc.permutations.map(({ input }) => input) };
+    const tokens = readFromMemory({ files, entry: "tokens.resolver.json" }, readOptions(config));
+    return { tokens, inputs: tokens.permutations.map(({ input }) => input) };
 }
 
 describe("readOptions", () => {
@@ -57,7 +57,7 @@ describe("readOptions", () => {
     });
 
     it("reads a hex-string color as sRGB, keeping the hex", () => {
-        const brand = readWith().doc.permutations[0]?.tokens[0];
+        const brand = readWith().tokens.permutations[0]?.tokens[0];
         expect(brand?.resolved).toMatchObject({ colorSpace: "srgb", hex: "#e11d48" });
     });
 
@@ -67,8 +67,8 @@ describe("readOptions", () => {
             "utf8",
         );
         const config = fillDefaults({ resolver: "size-demo.json" });
-        const doc = readFromMemory({ files: { "size-demo.json": recipe } }, readOptions(config));
-        const made = doc.permutations[0]?.tokens.filter(({ generated }) => generated);
+        const tokens = readFromMemory({ files: { "size-demo.json": recipe } }, readOptions(config));
+        const made = tokens.permutations[0]?.tokens.filter(({ generated }) => generated);
         expect(made?.length).toBe(13);
         expect(made?.every(({ generated }) => generated?.from === "size.step")).toBe(true);
     });

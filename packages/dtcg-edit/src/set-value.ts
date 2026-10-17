@@ -1,19 +1,23 @@
-import type { Project, Token } from "@sugarcube-sh/dtcg";
-import type { FileOp, Json, OpResult, ValueOptions } from "./index.js";
-import { groupPlace, placement, tokenCopies } from "./placement.js";
-import { type Place, writtenAt } from "./project-text.js";
+import type { DesignTokens, Token, JsonValue } from "@sugarcube-sh/dtcg";
+import { isJsonObject } from "@sugarcube-sh/dtcg/values";
+import type { FileOp, OpResult, ValueOptions } from "./index.js";
+import { asked, copiesOf, describedPlace, placement } from "./placement.js";
+import { type Member, writtenIn } from "./file-text.js";
 
 /**
  * Changes a token's value.
  *
- * Without a `context`, the shared value changes: one edit where a file every permutation reads
- * writes the token, seen by every context that doesn't override it. With a `context`, such as
- * `{ theme: "dark" }`, that context's own value changes: its override is edited, or one is added
- * to a file that context reads and the others don't; when there are several such files and none
- * declares the token's group, the answer is a `"placement"` question. A context at its default
- * counts as none. A later file replaces a token whole (Resolver 3.3), so a new override also
- * writes what the token says itself: its own `$type`, `$description`, `$deprecated` and
- * `$extensions`, not those it takes from a group.
+ * Without an `input`, the shared value changes: one edit where a file every permutation reads
+ * writes the token, seen by every context that doesn't override it. With an `input`, such as
+ * `{ mode: "dark" }`, that context's own value changes: its override is edited, or one is added
+ * to a file that context reads and the others don't; when there are several such files, and not
+ * exactly one of them declares the token's group, the answer is a placement {@link Question}. A
+ * context at its default counts as none. A later file replaces a token whole (Resolver 3.3), so a
+ * new override also writes what the token says itself: its own `$type`, `$description`,
+ * `$deprecated` and `$extensions`, not those it takes from a group.
+ *
+ * With `at`, a place from `tokens.writtenAt(path)`, the value written at that place changes
+ * instead, whichever contexts read it.
  *
  * The value is written exactly as given, keeping the file's own spelling; use `toDTCGValue`
  * from `@sugarcube-sh/dtcg` to write a value taken from the model. A value the read finds wrong,
@@ -21,41 +25,55 @@ import { type Place, writtenAt } from "./project-text.js";
  *
  * Refused, with the reason: a token that doesn't exist, one a generator makes, one a group
  * inherits through `$extends`, an override for two contexts at once, a context with no whole
- * file of its own, an override a file read later would hide, or a shared value when every
- * context writes its own.
+ * file of its own, an override a file read later would hide, a shared value when every
+ * context writes its own, or a place `at` where the token isn't written.
  *
  * @example
- * setValue(project, "color.danger", "{color.red.600}")
- * setValue(project, "color.danger", "{color.red.400}", { context: { theme: "dark" } })
+ * setValue(tokens, "color.danger", "{color.red.600}")
+ * setValue(tokens, "color.danger", "{color.red.400}", { input: { mode: "dark" } })
+ * const dark = tokens.writtenAt("color.danger").find(({ span }) => span.file === "dark.json");
+ * if (dark) setValue(tokens, "color.danger", "{color.red.400}", { at: dark.span });
  */
 export function setValue(
-    project: Project,
+    tokens: DesignTokens,
     path: string,
-    value: Json,
+    value: JsonValue,
     options: ValueOptions = {},
 ): OpResult {
-    if (options.part !== undefined || options.inherited !== undefined) {
-        throw new Error("not implemented yet");
+    return setValueIn(tokens, path, value, options);
+}
+
+function setValueIn(
+    tokens: DesignTokens,
+    path: string,
+    value: JsonValue,
+    options: ValueOptions,
+    place?: string,
+): OpResult {
+    if (options.part !== undefined) throw new Error("not implemented yet");
+    const placed = placement(tokens, path, options, place);
+    if ("choose" in placed) {
+        return asked(placed.choose, (file) => setValueIn(tokens, path, value, options, file));
     }
-    const placed = placement(project, path, options);
-    if (!("token" in placed)) return placed;
-    const { token, alsoAffects } = placed;
+    if ("refused" in placed) return placed;
     if ("at" in placed) {
-        return { ops: written(project, placed.at, "$value", value), alsoAffects, moved: [] };
+        const { at, alsoAffects } = placed;
+        return { ops: written(tokens, at, "$value", value), alsoAffects, moved: [] };
     }
+    const { token, into, alsoAffects } = placed;
     const override = { ...ownProperties(token), $value: value };
-    const op: FileOp = { kind: "add", file: placed.into, path: path.split("."), value: override };
+    const op: FileOp = {
+        kind: "add",
+        file: into,
+        jsonPath: path.split("."),
+        value: override,
+    };
     return { ops: [op], alsoAffects, moved: [] };
 }
 
-function ownProperties(token: Token): Record<string, Json> {
-    const { authored, description, extensions } = token;
-    return {
-        ...(authored?.type !== undefined && { $type: authored.type }),
-        ...(description !== undefined && { $description: description }),
-        ...(authored?.deprecated !== undefined && { $deprecated: authored.deprecated }),
-        ...(extensions && { $extensions: extensions as Json }),
-    };
+function ownProperties(token: Token): Record<string, JsonValue> {
+    const own = token.valueFrom.written;
+    return isJsonObject(own) ? (own as Record<string, JsonValue>) : {};
 }
 
 /**
@@ -67,33 +85,43 @@ function ownProperties(token: Token): Record<string, Json> {
  * makes, or a token or group inherited through `$extends`.
  *
  * @example
- * setDescription(project, "color.brand", "The house colour.")
+ * setDescription(tokens, "color.brand", "The house colour.")
  */
 export function setDescription(
-    project: Project,
+    tokens: DesignTokens,
     path: string,
     description: string | null,
 ): OpResult {
-    const copies = tokenCopies(project, path);
-    if (copies && "refused" in copies) return copies;
-    if (copies) {
-        const ops = copies.places.flatMap((at) =>
-            written(project, at, "$description", description),
-        );
-        return { ops, alsoAffects: copies.alsoAffects, moved: [] };
-    }
-    const placed = groupPlace(project, path);
-    if ("refused" in placed) return placed;
-    const ops = written(project, placed.at, "$description", description);
-    return { ops, alsoAffects: placed.alsoAffects, moved: [] };
+    return setDescriptionIn(tokens, path, description);
 }
 
-function written(project: Project, at: Place, key: string, value: Json | null): FileOp[] {
+function setDescriptionIn(
+    tokens: DesignTokens,
+    path: string,
+    description: string | null,
+    place?: string,
+): OpResult {
+    const copies = copiesOf(tokens, path);
+    if ("refused" in copies) return copies;
+    if (copies.of === "token") {
+        const ops = copies.places.flatMap((at) => written(tokens, at, "$description", description));
+        return { ops, alsoAffects: copies.alsoAffects, moved: [] };
+    }
+    const described = describedPlace(tokens, path, copies.places, place);
+    if ("choose" in described) {
+        return asked(described.choose, (file) => setDescriptionIn(tokens, path, description, file));
+    }
+    if ("refused" in described) return described;
+    const ops = written(tokens, described.at, "$description", description);
+    return { ops, alsoAffects: described.alsoAffects, moved: [] };
+}
+
+function written(tokens: DesignTokens, at: Member, key: string, value: JsonValue | null): FileOp[] {
     const { file } = at.span;
-    const path = [...at.path, key];
-    const was = writtenAt(project, file, path);
-    if (value === null) return was === undefined ? [] : [{ kind: "remove", file, path, was }];
+    const jsonPath = [...at.jsonPath, key];
+    const was = writtenIn(tokens, file, jsonPath);
+    if (value === null) return was === undefined ? [] : [{ kind: "remove", file, jsonPath, was }];
     return was === undefined
-        ? [{ kind: "add", file, path, value }]
-        : [{ kind: "set", file, path, value, was }];
+        ? [{ kind: "add", file, jsonPath, value }]
+        : [{ kind: "set", file, jsonPath, value, was }];
 }

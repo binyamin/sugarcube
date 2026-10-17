@@ -203,7 +203,7 @@ describe("resolveSources", () => {
     it("resolves array of file references", async () => {
         const sources = [{ $ref: "tokens/colors.json" }, { $ref: "tokens/spacing.json" }];
 
-        const result = await resolveSources(sources, createTestContext());
+        const result = await resolveSources(sources, createTestContext(), "#/sets/test/sources");
 
         expect(result.errors).toHaveLength(0);
         expect(result.resolved).toHaveLength(2);
@@ -216,7 +216,11 @@ describe("resolveSources", () => {
             color: { custom: { $type: "color", $value: "#ff0000" } },
         };
 
-        const result = await resolveSources([inlineSource], createTestContext());
+        const result = await resolveSources(
+            [inlineSource],
+            createTestContext(),
+            "#/sets/test/sources",
+        );
 
         expect(result.errors).toHaveLength(0);
         expect(result.resolved).toHaveLength(1);
@@ -226,7 +230,7 @@ describe("resolveSources", () => {
     it("applies extending properties via shallow merge", async () => {
         const sources = [{ $ref: "tokens/colors.json", extra: { custom: "value" } }];
 
-        const result = await resolveSources(sources, createTestContext());
+        const result = await resolveSources(sources, createTestContext(), "#/sets/test/sources");
 
         expect(result.errors).toHaveLength(0);
         expect(result.resolved).toHaveLength(1);

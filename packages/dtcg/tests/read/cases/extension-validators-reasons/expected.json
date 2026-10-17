@@ -7,22 +7,22 @@
       "kind": "extension-invalid",
       "detail": {
         "key": "com.example",
-        "at": ["$extensions", "com.example"],
+        "jsonPath": ["$extensions", "com.example"],
         "reason": "no-outline"
       },
-      "at": { "file": "tokens.json", "valueAfter": "\"com.example\":" },
+      "span": { "file": "tokens.json", "valueAfter": "\"com.example\":" },
       "path": "color.plain"
     },
     {
       "kind": "invalid-value",
       "detail": {
-        "at": ["$extensions", "com.example", "outline"],
+        "jsonPath": ["$extensions", "com.example", "outline"],
         "type": "dimension",
         "reason": "string-with-unit",
         "value": "2px",
         "asObject": { "value": 2, "unit": "px" }
       },
-      "at": { "file": "tokens.json", "text": "\"2px\"" },
+      "span": { "file": "tokens.json", "text": "\"2px\"" },
       "path": "color.outlined"
     }
   ]

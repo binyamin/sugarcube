@@ -1,24 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { type CSSValueOptions, cssValue, cssVariable } from "../../src/css.js";
-import { type Token, isAlias, parts, readFromMemory, token } from "../../src/index.js";
+import { type Token, readFromMemory } from "../../src/index.js";
 
 const px = (value: number) => ({ value, unit: "px" });
 const color = (value: unknown) => ({ $type: "color", $value: value });
 
-function read(tokens: Record<string, unknown>): (path: string) => Token {
-    const doc = readFromMemory(
-        { files: { "tokens.json": JSON.stringify(tokens) } },
+function read(json: Record<string, unknown>): (path: string) => Token {
+    const tokens = readFromMemory(
+        { files: { "tokens.json": JSON.stringify(json) } },
         { hexStringColors: true },
     );
     return (path) => {
-        const found = token(doc, path);
+        const found = tokens.permutation().token(path);
         if (!found) throw new Error(`no token at ${path}`);
         return found;
     };
 }
 
 const asVariables: CSSValueOptions = {
-    replacement: (ref) => (isAlias(ref) ? { variable: cssVariable(ref.alias) } : undefined),
+    replacement: (ref) => (ref.token ? { variable: cssVariable(ref.token.path) } : undefined),
 };
 
 describe("cssValue", () => {
@@ -129,13 +129,12 @@ describe("cssValue", () => {
         expect(cssValue(at("brand"), asVariables)).toBe("var(--ink)");
         expect(
             cssValue(at("edge"), {
-                replacement: (ref) =>
-                    isAlias(ref) && ref.alias === "hairline" ? { css: "thin" } : undefined,
+                replacement: (ref) => (ref.path === "hairline" ? { css: "thin" } : undefined),
             }),
         ).toBe("thin solid #111111");
     });
 
-    it("writes a part written as a JSON Pointer as the value it reaches", () => {
+    it("writes a JSON Pointer to a whole value as its replacement, and one inside a part as the value it reaches", () => {
         const at = read({
             deep: color({ colorSpace: "srgb", components: [0.2, 0, 0] }),
             edge: {
@@ -147,7 +146,8 @@ describe("cssValue", () => {
                 components: [{ $ref: "#/deep/$value/components/0" }, 1, 1],
             }),
         });
-        expect(cssValue(at("edge"), asVariables)).toBe("2px dashed rgb(51 0 0)");
+        expect(cssValue(at("edge"), asVariables)).toBe("2px dashed var(--deep)");
+        expect(cssValue(at("edge"))).toBe("2px dashed rgb(51 0 0)");
         expect(cssValue(at("tint"), asVariables)).toBe("rgb(51 255 255)");
     });
 
@@ -296,7 +296,7 @@ describe("cssValue", () => {
         const at = read({
             edge: { $type: "border", $value: { color: "#e11d48", width: px(1), style: "solid" } },
         });
-        const border = parts(at("edge"));
+        const border = at("edge").parts;
         if (border?.type !== "border") throw new Error("edge is a border");
         expect(cssValue(border.color)).toBe("#e11d48");
         expect(cssValue(border.width)).toBe("1px");

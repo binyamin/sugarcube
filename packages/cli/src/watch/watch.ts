@@ -8,7 +8,7 @@ import {
     readOptions,
     writeCSSFiles,
 } from "@sugarcube-sh/core";
-import { type ProjectSource, liveProject } from "@sugarcube-sh/dtcg/node";
+import { type TokensOnDisk, liveTokens } from "@sugarcube-sh/dtcg/node";
 import { type BuildOptions, type Built, buildFrom, filesOf, rescan } from "../build.js";
 import { type ConfigFlags, loadConfig } from "../config.js";
 import { ERROR_MESSAGES } from "../constants/error-messages.js";
@@ -34,7 +34,7 @@ export async function watch(flags: WatchFlags, first: LoadedConfig): Promise<voi
         const message = error instanceof Error ? error.message : String(error);
         console.error(`${errorPrefix} ${message}`);
     };
-    const live = liveProject(() => sourceOf(loaded), { onError });
+    const live = liveTokens(() => onDisk(loaded), { onError });
 
     const written = async (built: Built, files: CSSFileOutput): Promise<boolean> => {
         const failed = printProblems([...fromConfig, ...built.diagnostics], whereOf(built), {
@@ -47,7 +47,7 @@ export async function watch(flags: WatchFlags, first: LoadedConfig): Promise<voi
     };
 
     const started = performance.now();
-    let last = await buildFrom((await live.project()).doc, loaded, options);
+    let last = await buildFrom(await live.tokens(), loaded, options);
     if (await written(last, filesOf(last))) {
         console.log(`${prefix} Generated in ${since(started)}ms`);
     }
@@ -61,14 +61,14 @@ export async function watch(flags: WatchFlags, first: LoadedConfig): Promise<voi
             fromConfig = configProblems(error);
             return last;
         }
-        await live.reread();
+        await live.readAgain();
         return undefined;
     };
 
     const rebuilt = (change: Change): Promise<Built | undefined> => {
         if (change.kind === "config") return configChanged();
         if (change.kind === "markup") return rescan(last);
-        return buildFrom(change.doc, loaded, options, last);
+        return buildFrom(change.tokens, loaded, options, last);
     };
 
     const watcher = await startWatcher(live, loaded.configFile, watchedBy(last), {
@@ -89,7 +89,7 @@ export async function watch(flags: WatchFlags, first: LoadedConfig): Promise<voi
         },
     });
 
-    const tokenFiles = plural(last.doc.files.length, "token file");
+    const tokenFiles = plural(last.tokens.files.length, "token file");
     console.log(`${prefix} Watching ${tokenFiles} + markup files...`);
 
     process.on("SIGINT", async () => {
@@ -101,7 +101,7 @@ export async function watch(flags: WatchFlags, first: LoadedConfig): Promise<voi
     await new Promise(() => {});
 }
 
-function sourceOf({ config }: LoadedConfig): ProjectSource {
+function onDisk({ config }: LoadedConfig): TokensOnDisk {
     return { entry: config.resolver, options: readOptions(config) };
 }
 

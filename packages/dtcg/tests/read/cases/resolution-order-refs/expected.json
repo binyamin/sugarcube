@@ -7,9 +7,9 @@
       "detail": {
         "rule": "unknown-set",
         "name": "missing",
-        "at": ["resolutionOrder", 0, "$ref"]
+        "jsonPath": ["resolutionOrder", 0, "$ref"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 104,
         "length": 16,
@@ -28,9 +28,9 @@
       "detail": {
         "rule": "unknown-modifier",
         "name": "missing",
-        "at": ["resolutionOrder", 1, "$ref"]
+        "jsonPath": ["resolutionOrder", 1, "$ref"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 138,
         "length": 21,
@@ -49,9 +49,9 @@
       "detail": {
         "rule": "invalid-pointer",
         "name": "#/resolutionOrder/0",
-        "at": ["resolutionOrder", 2, "$ref"]
+        "jsonPath": ["resolutionOrder", 2, "$ref"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 177,
         "length": 21,
@@ -70,9 +70,9 @@
       "detail": {
         "rule": "invalid-pointer",
         "name": "#/sets/base/sources",
-        "at": ["resolutionOrder", 3, "$ref"]
+        "jsonPath": ["resolutionOrder", 3, "$ref"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 216,
         "length": 21,
@@ -91,9 +91,9 @@
       "detail": {
         "rule": "file-in-resolution-order",
         "name": "base.json",
-        "at": ["resolutionOrder", 4, "$ref"]
+        "jsonPath": ["resolutionOrder", 4, "$ref"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 255,
         "length": 11,
@@ -114,7 +114,7 @@
         "reason": "no-leading-slash",
         "corrected": "#/sets/base"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"#sets/base\""
       }

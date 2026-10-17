@@ -1,18 +1,15 @@
 // Adds a theme built on dark, then gives it one color of its own.
-import { type Project } from "@sugarcube-sh/dtcg";
+import { type DesignTokens } from "@sugarcube-sh/dtcg";
 import { addContext, setValue, commit } from "@sugarcube-sh/dtcg-edit";
 
-declare let project: Project;
+declare let tokens: DesignTokens;
 
 let done = commit(
-    project,
-    addContext(project, "theme", "dim", { file: "dim.json", basedOn: "dark" }),
+    tokens,
+    addContext(tokens, "theme", "dim", { file: "dim.json", basedOn: "dark" }),
 );
-if (!("project" in done)) throw new Error("could not add the dim theme");
-project = done.project;
+if (!done.tokens) throw new Error("could not add the dim theme");
+tokens = done.tokens;
 
-done = commit(
-    project,
-    setValue(project, "color.surface", "#2a2a2e", { context: { theme: "dim" } }),
-);
-if ("project" in done) project = done.project;
+done = commit(tokens, setValue(tokens, "color.surface", "#2a2a2e", { input: { theme: "dim" } }));
+if (done.tokens) tokens = done.tokens;

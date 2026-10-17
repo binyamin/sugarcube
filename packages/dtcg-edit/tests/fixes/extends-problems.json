@@ -2,7 +2,7 @@
   "diagnostics": [
     {
       "kind": "invalid-property",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"$extends\":",
         "occurrence": 9

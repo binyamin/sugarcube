@@ -10,7 +10,7 @@ function read(raw: unknown) {
 function details(raw: unknown) {
     const result = parseCubicBezier(raw, ["$value"]);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
-    return result.errors.map(({ path, detail }) => ({ path, detail }));
+    return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 describe("parseCubicBezier", () => {
@@ -23,15 +23,18 @@ describe("parseCubicBezier", () => {
             expect(read(curve)).toStrictEqual(curve);
         });
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{easing.out}")).toStrictEqual({ alias: "easing.out" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{easing.out}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "easing.out",
+            });
         });
 
         it("reads a JSON Pointer in place of one number", () => {
             expect(read([0.5, 0, { $ref: "#/easing/in/$value/2" }, 1])).toStrictEqual([
                 0.5,
                 0,
-                { pointer: "#/easing/in/$value/2" },
+                { syntax: "json-pointer", pointer: "#/easing/in/$value/2" },
                 1,
             ]);
         });
@@ -43,7 +46,7 @@ describe("parseCubicBezier", () => {
             (raw) => {
                 expect(details(raw)).toStrictEqual([
                     {
-                        path: ["$value"],
+                        jsonPath: ["$value"],
                         detail: { type: "cubicBezier", reason: "wrong-shape", value: raw },
                     },
                 ]);
@@ -57,7 +60,7 @@ describe("parseCubicBezier", () => {
         ])("$curve, which is not four numbers", ({ curve, count }) => {
             expect(details(curve)).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: { type: "cubicBezier", reason: "not-four-numbers", count },
                 },
             ]);
@@ -69,7 +72,7 @@ describe("parseCubicBezier", () => {
         ])("$name", ({ curve, index, coordinate }) => {
             expect(details(curve)).toStrictEqual([
                 {
-                    path: ["$value", index],
+                    jsonPath: ["$value", index],
                     detail: {
                         type: "cubicBezier",
                         reason: "x-out-of-range",
@@ -83,7 +86,7 @@ describe("parseCubicBezier", () => {
         it("a number written as a string", () => {
             expect(details([0.5, "0", 1, 1])).toStrictEqual([
                 {
-                    path: ["$value", 1],
+                    jsonPath: ["$value", 1],
                     detail: { type: "cubicBezier", reason: "not-a-number", value: "0" },
                 },
             ]);
@@ -92,10 +95,10 @@ describe("parseCubicBezier", () => {
         it("a curly-brace reference in place of one number", () => {
             expect(details(["{easing.x}", 0, 1, 1])).toStrictEqual([
                 {
-                    path: ["$value", 0],
+                    jsonPath: ["$value", 0],
                     detail: {
                         type: "cubicBezier",
-                        reason: "alias-not-allowed-here",
+                        reason: "curly-brace-not-allowed-here",
                         reference: "{easing.x}",
                     },
                 },

@@ -13,12 +13,12 @@ function read(raw: unknown, options?: ParseOptions) {
 function details(raw: unknown, options?: ParseOptions) {
     const result = parseGradient(raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
-    return result.errors.map(({ path, detail }) => ({ path, detail }));
+    return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
     const result = parseGradient(raw, ["$value"], options);
-    return result.ignored.map(({ path, detail }) => ({ path, detail }));
+    return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 const blue = { colorSpace: "srgb", components: [0, 0, 1] };
@@ -54,7 +54,10 @@ describe("parseGradient", () => {
 
         it("references for a stop's color and position, as spec example 57 does", () => {
             expect(read([{ color: "{brand-primary}", position: "{position-end}" }])).toStrictEqual([
-                { color: { alias: "brand-primary" }, position: { alias: "position-end" } },
+                {
+                    color: { syntax: "curly-brace", path: "brand-primary" },
+                    position: { syntax: "curly-brace", path: "position-end" },
+                },
             ]);
         });
 
@@ -66,9 +69,9 @@ describe("parseGradient", () => {
                     "{gradient.end-stop}",
                 ]),
             ).toStrictEqual([
-                { alias: "gradient.start-stop" },
+                { syntax: "curly-brace", path: "gradient.start-stop" },
                 { color: withAlpha(red), position: 0.333 },
-                { alias: "gradient.end-stop" },
+                { syntax: "curly-brace", path: "gradient.end-stop" },
             ]);
         });
 
@@ -85,15 +88,18 @@ describe("parseGradient", () => {
             },
         );
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{gradient.brand}")).toStrictEqual({ alias: "gradient.brand" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{gradient.brand}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "gradient.brand",
+            });
         });
     });
 
     describe("refuses", () => {
         it("an empty list", () => {
             expect(details([])).toStrictEqual([
-                { path: ["$value"], detail: { type: "gradient", reason: "no-gradient-stops" } },
+                { jsonPath: ["$value"], detail: { type: "gradient", reason: "no-gradient-stops" } },
             ]);
         });
 
@@ -102,7 +108,7 @@ describe("parseGradient", () => {
             (raw) => {
                 expect(details(raw)).toStrictEqual([
                     {
-                        path: ["$value"],
+                        jsonPath: ["$value"],
                         detail: { type: "gradient", reason: "wrong-shape", value: raw },
                     },
                 ]);
@@ -114,7 +120,7 @@ describe("parseGradient", () => {
             delete stop[part];
             expect(details([stop])).toStrictEqual([
                 {
-                    path: ["$value", 0, part],
+                    jsonPath: ["$value", 0, part],
                     detail: { type: "gradient", reason: "missing-property", property: part },
                 },
             ]);
@@ -123,7 +129,7 @@ describe("parseGradient", () => {
         it("a position that is not a number", () => {
             expect(details([{ color: red, position: "50%" }])).toStrictEqual([
                 {
-                    path: ["$value", 0, "position"],
+                    jsonPath: ["$value", 0, "position"],
                     detail: { type: "number", reason: "not-a-number", value: "50%" },
                 },
             ]);
@@ -135,7 +141,7 @@ describe("parseGradient", () => {
             const raw = [{ color: red, position: 0, midpoint: 0.5 }];
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value", 0, "midpoint"],
+                    jsonPath: ["$value", 0, "midpoint"],
                     detail: { type: "gradient", reason: "unknown-property", property: "midpoint" },
                 },
             ]);
@@ -150,7 +156,7 @@ describe("parseGradient", () => {
                 );
                 expect(ignored(raw, lenient)).toStrictEqual([
                     {
-                        path: ["$value", 0, "midpoint"],
+                        jsonPath: ["$value", 0, "midpoint"],
                         detail: { type: "gradient", property: "midpoint" },
                     },
                 ]);

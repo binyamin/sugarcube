@@ -1,10 +1,11 @@
 import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind, Input } from "../index.js";
+import { namedPath, referenceText } from "../values/references.js";
 import { relatedMessages } from "../error-messages.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { malformation } from "./malformed-pointer.js";
 import { type Merged, type MergedGroup, removeGroup } from "./merge.js";
-import { pathBelow, within } from "../path.js";
-import { pointerParts, reach, refObjectMeaning } from "./ref-meaning.js";
+import { pathBelow, atOrWithin } from "../path.js";
+import { reach, refObjectMeaning } from "./ref-meaning.js";
 
 type Extending = MergedGroup & { extends: NonNullable<MergedGroup["extends"]> };
 
@@ -14,11 +15,11 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
         kind: K,
         detail: DiagnosticDetailByKind[K],
         group: Extending,
-        extra: Omit<DiagnosticExtra, "at" | "path" | "permutation"> = {},
+        extra: Omit<DiagnosticExtra, "span" | "path" | "permutation"> = {},
     ) =>
         diagnostics.push(
             diagnostic(kind, detail, {
-                at: group.extends.at,
+                span: group.extends.span,
                 path: group.path,
                 permutation,
                 ...extra,
@@ -34,7 +35,7 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
             report("circular-reference", { chain: paths }, group, {
                 related: loop.slice(1).map((each) => ({
                     message: relatedMessages.partOfTheLoop,
-                    at: each.extends.at,
+                    span: each.extends.span,
                 })),
             });
             for (const each of loop) state.set(each.path, "in-a-loop");
@@ -46,14 +47,15 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
     };
 
     const extend = (group: Extending, chain: Extending[]): void => {
-        const { keyword, written, steps } = group.extends;
-        const direct = steps && pointerParts(steps).path;
+        const { keyword, reference, steps } = group.extends;
+        const written = referenceText(reference);
+        const direct = namedPath(reference);
         if (steps && direct === undefined) {
             report("circular-reference", { chain: [group.path], toTopLevel: true }, group);
             state.set(group.path, "in-a-loop");
             return;
         }
-        if (direct !== undefined && within(group.path, direct)) {
+        if (direct !== undefined && atOrWithin(group.path, direct)) {
             report("circular-reference", { chain: [group.path, direct] }, group);
             state.set(group.path, "in-a-loop");
             return;
@@ -66,9 +68,9 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
         if (malformed) {
             report("malformed-pointer", malformed, group);
         } else if (reached.kind === "nothing") {
-            report("missing-reference", { ref: written, referencedBy: [group.path] }, group);
+            report("missing-reference", { ref: written, from: [group.path] }, group);
         } else if (reached.kind === "group") {
-            group.extendsGroup = { path: reached.path, at: group.extends.at };
+            group.extendsGroup = reached.path;
             inherit(merged, group, reached.path);
         } else if (keyword === "$ref" && refObjectMeaning(reached) === "token") {
             becomeToken(merged, group, permutation, diagnostics);
@@ -79,7 +81,7 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
 
     const extendInside = (path: string, chain: Extending[]): void => {
         for (const each of Array.from(merged.groups.values())) {
-            if (within(each.path, path) && isExtending(each)) visit(each, chain);
+            if (atOrWithin(each.path, path) && isExtending(each)) visit(each, chain);
         }
     };
 
@@ -149,8 +151,8 @@ function becomeToken(
         diagnostics.push(
             diagnostic(
                 "token-and-group",
-                { reason: "ref", ref: extending.written },
-                { at: extending.at, path, permutation },
+                { reason: "ref", ref: referenceText(extending.reference) },
+                { span: extending.span, path, permutation },
             ),
         );
     }
@@ -159,9 +161,9 @@ function becomeToken(
         path,
         json: extending.json,
         value: extending.node,
-        authored: { $ref: extending.written },
-        reference: { pointer: extending.written },
-        at: extending.declaredAt,
+        authored: { $ref: referenceText(extending.reference) },
+        reference: extending.reference,
+        span: extending.groupSpan,
         piece: extending.piece,
         ...(type !== undefined && { type }),
         ...(description !== undefined && { description }),

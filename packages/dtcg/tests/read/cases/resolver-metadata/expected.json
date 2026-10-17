@@ -17,7 +17,7 @@
         "property": "futureKey",
         "owner": "resolver"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"futureKey\""
       }

@@ -11,7 +11,8 @@
           "path": "color.danger",
           "type": "color",
           "value": {
-            "alias": "color.brnad"
+            "syntax": "curly-brace",
+            "path": "color.brnad"
           },
           "resolved": null
         },
@@ -119,7 +120,7 @@
       "detail": {
         "ref": "color"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{color}\""
       },
@@ -132,7 +133,7 @@
         "expected": "color",
         "found": "dimension"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{space.sm}\"",
         "occurrence": 2
@@ -146,7 +147,7 @@
         "expected": "dimension",
         "found": "color"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{color.brand}\"",
         "occurrence": 2
@@ -159,7 +160,7 @@
         "ref": "shadow.two",
         "count": 2
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{shadow.two}\""
       },
@@ -169,10 +170,10 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "color.brnad",
-        "referencedBy": ["color.danger", "color.warning"],
+        "from": ["color.danger", "color.warning"],
         "similar": "color.brand"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{color.brnad}\""
       },
@@ -180,7 +181,7 @@
       "related": [
         {
           "message": "also used here",
-          "at": {
+          "span": {
             "file": "tokens.json",
             "text": "\"{color.brnad}\"",
             "occurrence": 2
@@ -192,9 +193,9 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "nowhere",
-        "referencedBy": ["loose"]
+        "from": ["loose"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{nowhere}\""
       },

@@ -1,6 +1,6 @@
-import { open } from "@sugarcube-sh/dtcg/node";
-// A dev server serving a token editor. The editor needs the files' text as well as the tokens, so
-// the server opens a project rather than only reading.
+// A dev server serving a token editor. The editor needs the files' text as well as the tokens, and
+// the design tokens keep both.
+import { read } from "@sugarcube-sh/dtcg/node";
 
-const project = await open("tokens/tokens.resolver.json");
-row(project.doc.files.length, Object.keys(project.files).length, project.doc.diagnostics.length);
+const tokens = await read("tokens/tokens.resolver.json");
+row(tokens.files.length, tokens.text(tokens.entry)?.length, tokens.diagnostics.length);

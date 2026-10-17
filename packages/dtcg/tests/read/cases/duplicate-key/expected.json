@@ -8,7 +8,7 @@
       "detail": {
         "key": "sm"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "offset": 65,
         "length": 4,
@@ -24,7 +24,7 @@
       "related": [
         {
           "message": "also written here",
-          "at": {
+          "span": {
             "file": "tokens.json",
             "offset": 19,
             "length": 4,

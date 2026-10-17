@@ -41,8 +41,8 @@ function ruledFrom(
     const texts = Object.fromEntries(
         Object.entries(files).map(([path, json]) => [path, JSON.stringify(json)]),
     );
-    const doc = readFromMemory({ files: texts }, readOptions(config));
-    return utilityRules(utilityTokens(declare(doc, config)), classes);
+    const tokens = readFromMemory({ files: texts }, readOptions(config));
+    return utilityRules(utilityTokens(declare(tokens, config)), classes);
 }
 
 function ruled(tokens: unknown, classes: UtilityClassesConfig, variables: Variables = {}) {
@@ -782,11 +782,11 @@ describe("utilityRules' warning for an entry that makes no classes", () => {
             },
         );
         expect(
-            diagnostics.map(({ kind, severity, path, at, detail }) => [
+            diagnostics.map(({ kind, severity, path, span, detail }) => [
                 kind,
                 severity,
                 path,
-                at,
+                span,
                 detail,
             ]),
         ).toStrictEqual([
@@ -901,11 +901,11 @@ describe("utilityRules' warning for a safelisted class no token makes", () => {
             ],
         });
         expect(
-            diagnostics.map(({ kind, severity, path, at, detail }) => [
+            diagnostics.map(({ kind, severity, path, span, detail }) => [
                 kind,
                 severity,
                 path,
-                at,
+                span,
                 detail,
             ]),
         ).toStrictEqual([

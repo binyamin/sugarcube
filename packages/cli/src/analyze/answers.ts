@@ -1,10 +1,14 @@
-import { type Token, dependencies, group } from "@sugarcube-sh/dtcg";
-import { describeElidedParents, hopsTo, parentsOf } from "./reach.js";
-import type { System } from "./system.js";
+import type {
+    DesignTokens,
+    Permutations,
+    ResolverContext,
+    Source,
+    Token,
+} from "@sugarcube-sh/dtcg";
 import type { Use, Uses } from "./uses.js";
 
 export interface Analysis {
-    system: System;
+    tokens: DesignTokens;
     uses: Uses;
 }
 
@@ -20,53 +24,102 @@ export interface Dependent {
     label?: string;
 }
 
-export interface Impact {
+export interface Written {
     token: Token;
+    file: string;
+    permutations: Permutations;
+}
+
+export interface Impact {
+    path: string;
+    written: Written[];
     dependents: Dependent[];
     uses: Use[];
 }
 
-export function unused({ system, uses }: Analysis): Unused {
-    const used = [...new Set(uses.uses.map(({ token }) => token))];
+export function unused({ tokens, uses }: Analysis): Unused {
+    const used = uses.uses.map(({ token }) => token);
     const reached = new Set(used);
-    for (const permutation of system.permutations) {
-        for (const each of dependencies(permutation, used, { transitive: true })) {
-            reached.add(each.path);
+    for (const path of used) {
+        for (const { path: named } of tokens.references(path, { chained: true })) {
+            if (named !== undefined) reached.add(named);
         }
     }
-    const left = [...system.tokens.keys()].filter((path) => !reached.has(path)).sort();
-    return { unused: left, total: system.tokens.size };
+    const paths = tokens.tokenPaths();
+    return { unused: paths.filter((path) => !reached.has(path)).sort(), total: paths.length };
 }
 
-export function tokenAt(system: System, path: string): Token | "group" | undefined {
-    const found = system.tokens.get(path);
-    if (found) return found;
-    return system.permutations.some((permutation) => group(permutation, path))
-        ? "group"
-        : undefined;
+export function writtenOf(tokens: DesignTokens, path: string): Written[] | "group" | undefined {
+    const written = tokens.writtenAt(path).flatMap(({ span, winsIn }) => {
+        const token = winsIn[0]?.token(path);
+        return token ? [{ token, file: span.file, permutations: winsIn }] : [];
+    });
+    if (written.length > 0) return written;
+    return tokens.has(path) ? "group" : undefined;
 }
 
-export function impact({ system, uses }: Analysis, token: Token): Impact {
-    const { path } = token;
-    const hops = hopsTo(system.permutations, path);
-    const labels = describeElidedParents(hops, system);
-    const inDefault = new Map<string, string>();
-    const { defaultPermutation } = system;
-    for (const hop of hops) {
-        if (defaultPermutation && hop.in.includes(defaultPermutation)) {
-            inDefault.set(hop.from, hop.to);
-        }
+interface Named {
+    path: string;
+    permutations: Permutations;
+}
+
+export function impact({ tokens, uses }: Analysis, path: string, written: Written[]): Impact {
+    const byDependent = new Map<string, Named[]>();
+    for (const reference of tokens.referencedBy(path, { chained: true })) {
+        const { from, permutations } = reference;
+        if (from === path || reference.path === undefined) continue;
+        const named = { path: reference.path, permutations };
+        byDependent.set(from, [...(byDependent.get(from) ?? []), named]);
     }
-    const dependents = [...parentsOf(hops)]
-        .map(([dependent, references]) => {
-            const each: Dependent = { path: dependent, references: [...references].sort() };
-            const preferred = inDefault.get(dependent);
-            const label = labels.get(dependent);
-            if (preferred) each.inDefault = preferred;
-            if (label) each.label = label;
-            return each;
-        })
+    const dependents = [...byDependent]
+        .map(([from, references]) => dependent(tokens, from, references))
         .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-    const affected = new Set([path, ...dependents.map((each) => each.path)]);
-    return { token, dependents, uses: uses.uses.filter((each) => affected.has(each.token)) };
+    const affected = new Set([path, ...byDependent.keys()]);
+    return {
+        path,
+        written,
+        dependents,
+        uses: uses.uses.filter((each) => affected.has(each.token)),
+    };
+}
+
+function dependent(tokens: DesignTokens, path: string, references: Named[]): Dependent {
+    const paths = (named: Named[]) => [...new Set(named.map((each) => each.path))].sort();
+    const found: Dependent = { path, references: paths(references) };
+    const defaultTheme = tokens.permutations.find((each) => each.isDefault);
+    const [inDefault] = defaultTheme
+        ? paths(references.filter(({ permutations }) => permutations.includes(defaultTheme)))
+        : [];
+    if (inDefault) found.inDefault = inDefault;
+    if (found.references.length < 2) return found;
+
+    const namedIn = (permutations: Permutations) =>
+        paths(references.filter((each) => permutations.some((p) => each.permutations.includes(p))));
+    const places = tokens
+        .writtenAt(path)
+        .filter(({ winsIn }) => winsIn.length > 0)
+        .map(({ sources, winsIn }) => ({ sources, named: namedIn(winsIn).join("\0") }));
+    const base = new Set(
+        places.filter(({ sources }) => sources.some(readByEveryone)).map(({ named }) => named),
+    );
+    const varies = new Set(places.map(({ named }) => named)).size > 1;
+    const setBy = new Set(
+        places
+            .filter(({ named }) => varies && !base.has(named))
+            .flatMap(({ sources }) => sources.flatMap(readersOf))
+            .map(({ modifier }) => modifier.name),
+    );
+    const [only] = setBy;
+    if (only === undefined) found.label = `${found.references.length} references`;
+    else if (setBy.size === 1) found.label = `per ${only}`;
+    else found.label = "per context";
+    return found;
+}
+
+function readByEveryone({ readBy }: Source): boolean {
+    return readBy === "everyone";
+}
+
+function readersOf({ readBy }: Source): readonly ResolverContext[] {
+    return readBy === "everyone" ? [] : readBy;
 }

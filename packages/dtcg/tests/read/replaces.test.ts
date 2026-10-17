@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-    defineGenerator,
-    group,
-    openFromMemory,
-    permutation,
-    readFromMemory,
-    token,
-    type Span,
-} from "../../src/index.js";
+import { defineGenerator, readFromMemory, type Span } from "../../src/index.js";
 
 const color = (hex: string) => `{ "$type": "color", "$value": "${hex}" }`;
 
@@ -30,20 +22,26 @@ const files = {
     "brand.json": `{ "bg": ${color("#fafafa")} }`,
     "dark.json": `{ "bg": ${color("#111111")} }`,
 };
-const doc = readFromMemory({ files, entry: "tokens.resolver.json" });
+const tokens = readFromMemory({ files, entry: "tokens.resolver.json" });
 
 const written = (span: Span) =>
     files[span.file as keyof typeof files].slice(span.offset, span.offset + span.length);
 
-describe("replaces on a token", () => {
-    it("lists the places earlier sources write it, in order, which its source replaces", () => {
-        const light = token(doc, "bg");
-        const dark = token(doc, "bg", { mode: "dark" });
+describe("a token's writtenAt, across sources", () => {
+    it("lists every place its sources write it, in order, the one that wins last", () => {
+        const light = tokens.permutation().token("bg");
+        const dark = tokens.permutation({ mode: "dark" }).token("bg");
 
-        expect(light?.source.at.file).toBe("brand.json");
-        expect(light?.replaces?.map(({ at }) => written(at))).toStrictEqual([color("#ffffff")]);
-        expect(dark?.source.at.file).toBe("dark.json");
-        expect(dark?.replaces?.map(({ at }) => at.file)).toStrictEqual(["base.json", "brand.json"]);
+        expect(light?.writtenAt.map(({ span }) => span.file)).toStrictEqual([
+            "base.json",
+            "brand.json",
+        ]);
+        expect(light?.writtenAt[0] && written(light.writtenAt[0].span)).toBe(color("#ffffff"));
+        expect(dark?.writtenAt.map(({ span }) => span.file)).toStrictEqual([
+            "base.json",
+            "brand.json",
+            "dark.json",
+        ]);
     });
 
     it("gives a group written in two files both places, each with the source that writes it", () => {
@@ -55,34 +53,27 @@ describe("replaces on a token", () => {
             },
             entry: "tokens.resolver.json",
         });
-        const sources = twice.permutations[0]?.sources ?? [];
-        const declared = group(twice, "brand")?.declaredIn ?? [];
+        const places = twice.permutation().group("brand")?.writtenAt ?? [];
 
-        expect(declared.map(({ index }) => sources[index]?.file)).toStrictEqual([
-            "base.json",
-            "brand.json",
-        ]);
-        expect(declared.map(({ at }) => at.file)).toStrictEqual(["base.json", "brand.json"]);
+        expect(places.map(({ source }) => source.file)).toStrictEqual(["base.json", "brand.json"]);
+        expect(places.map(({ span }) => span.file)).toStrictEqual(["base.json", "brand.json"]);
     });
 
     it("says which of the permutation's sources writes each place", () => {
-        const sources = permutation(doc, { mode: "dark" })?.sources ?? [];
-        const dark = token(doc, "bg", { mode: "dark" });
-        const replaced = dark?.replaces?.map(({ index }) => sources[index]);
+        const sources = tokens.permutation({ mode: "dark" }).sources ?? [];
+        const dark = tokens.permutation({ mode: "dark" }).token("bg");
+        const winner = dark?.writtenAt.at(-1);
 
-        expect(replaced?.map((source) => source?.file)).toStrictEqual(["base.json", "brand.json"]);
-        expect(sources[dark?.source.index ?? -1]?.from).toStrictEqual({
-            modifier: "mode",
-            context: "dark",
-            sets: [],
-        });
+        expect(dark?.writtenAt.every(({ source }) => sources.includes(source))).toBe(true);
+        expect(winner?.source.context?.name).toBe("dark");
+        expect(winner?.source.sets).toStrictEqual([]);
     });
 
-    it("is absent for a token written once", () => {
-        expect(token(doc, "fg")).not.toHaveProperty("replaces");
+    it("is one place for a token written once", () => {
+        expect(tokens.permutation().token("fg")?.writtenAt).toHaveLength(1);
     });
 
-    it("is absent for a token only inherited, even when the group it comes from replaced one", () => {
+    it("is where an inherited token's value is written, not every place the group it comes from is", () => {
         const extended = readFromMemory({
             files: {
                 "tokens.resolver.json": JSON.stringify({
@@ -104,11 +95,16 @@ describe("replaces on a token", () => {
             entry: "tokens.resolver.json",
         });
 
-        expect(token(extended, "button.bg")?.replaces).toHaveLength(1);
-        expect(token(extended, "danger.bg")).not.toHaveProperty("replaces");
+        expect(extended.permutation().token("button.bg")?.writtenAt).toHaveLength(2);
+        expect(
+            extended
+                .permutation()
+                .token("danger.bg")
+                ?.writtenAt.map(({ span }) => span.file),
+        ).toStrictEqual(["b.json"]);
     });
 
-    it("is absent for a token a generator adds, which no file writes", () => {
+    it("is the extension that makes a token a generator adds, which no file writes", () => {
         const steps = defineGenerator({
             extension: ["com.example", "steps"],
             generate: () => ({ ok: true, value: [{ name: "1", $value: 1 }] }),
@@ -124,20 +120,20 @@ describe("replaces on a token", () => {
             { generators: [steps] },
         );
 
-        expect(token(generated, "space.1")).not.toHaveProperty("replaces");
-        expect(token(generated, "space.1")?.generated).toStrictEqual({
+        expect(generated.permutation().token("space.1")?.writtenAt).toHaveLength(1);
+        expect(generated.permutation().token("space.1")?.generated).toStrictEqual({
             from: "space",
             extension: ["com.example", "steps"],
         });
     });
 });
 
-describe("openFromMemory", () => {
+describe("readFromMemory", () => {
     it("takes an entry left undefined as no entry", () => {
         const loose = { "tokens.json": `{ "bg": ${color("#ffffff")} }` };
         const entry: string | undefined = undefined;
 
-        expect(openFromMemory({ files: loose, entry }).doc.files).toStrictEqual(["tokens.json"]);
+        expect(readFromMemory({ files: loose, entry }).files).toStrictEqual(["tokens.json"]);
     });
 });
 
@@ -164,11 +160,11 @@ describe("a source written in the resolver", () => {
         });
 
         expect(inline.permutations[0]?.sources).toStrictEqual([
-            { file: "base.json", from: { sets: [{ name: "base" }] }, readBy: "everyone" },
+            { file: "base.json", sets: [{ name: "base" }], readBy: "everyone" },
             {
                 file: "tokens.resolver.json",
                 pointer: "#/resolutionOrder/0/sources/1",
-                from: { sets: [{ name: "base" }] },
+                sets: [{ name: "base" }],
                 readBy: "everyone",
             },
         ]);

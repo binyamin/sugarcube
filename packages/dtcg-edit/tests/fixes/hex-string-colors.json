@@ -2,7 +2,7 @@
   "diagnostics": [
     {
       "kind": "hex-string-color",
-      "at": {
+      "span": {
         "file": "base.json",
         "text": "\"#e11d48\""
       },
@@ -22,7 +22,7 @@
     },
     {
       "kind": "hex-string-color",
-      "at": {
+      "span": {
         "file": "base.json",
         "text": "\"#00000080\""
       },
@@ -42,7 +42,7 @@
     },
     {
       "kind": "hex-string-color",
-      "at": {
+      "span": {
         "file": "base.json",
         "text": "\"#fff\""
       },
@@ -62,7 +62,7 @@
     },
     {
       "kind": "hex-string-color",
-      "at": {
+      "span": {
         "file": "base.json",
         "text": "\"#E11D48\""
       },

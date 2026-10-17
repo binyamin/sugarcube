@@ -22,7 +22,7 @@
         "name": "a",
         "found": "number"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"a\":"
       }
@@ -33,7 +33,7 @@
         "name": "b",
         "found": "string"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"b\":"
       }
@@ -44,7 +44,7 @@
         "name": "c",
         "found": "array"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"c\":"
       }
@@ -55,7 +55,7 @@
         "name": "d",
         "found": "null"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"d\":"
       }
@@ -66,7 +66,7 @@
         "name": "e",
         "found": "boolean"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"e\":"
       }

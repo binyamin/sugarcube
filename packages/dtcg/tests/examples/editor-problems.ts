@@ -1,9 +1,9 @@
 // A code editor showing token problems as squiggles, with their severity and a link to docs.
-import type { Document, Span } from "@sugarcube-sh/dtcg";
+import type { DesignTokens, Span } from "@sugarcube-sh/dtcg";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-declare const doc: Document;
+declare const tokens: DesignTokens;
 declare const folder: string;
 declare function publish(uri: string, items: unknown[]): void;
 
@@ -17,10 +17,10 @@ const range = (span: Span) => ({
 });
 
 const byFile = new Map<string, unknown[]>();
-for (const d of doc.diagnostics) {
-    if (!d.at) continue;
+for (const d of tokens.diagnostics) {
+    if (!d.span) continue;
     const item = {
-        range: range(d.at),
+        range: range(d.span),
         severity: severity[d.severity],
         code: d.kind,
         codeDescription: { href: d.docs },
@@ -28,10 +28,10 @@ for (const d of doc.diagnostics) {
         message: d.message,
         tags: d.tags?.map((t) => tag[t]),
         relatedInformation: d.related?.map((r) => ({
-            location: { uri: uri(r.at.file), range: range(r.at) },
+            location: { uri: uri(r.span.file), range: range(r.span) },
             message: r.message,
         })),
     };
-    byFile.set(d.at.file, [...(byFile.get(d.at.file) ?? []), item]);
+    byFile.set(d.span.file, [...(byFile.get(d.span.file) ?? []), item]);
 }
 for (const [file, items] of byFile) publish(uri(file), items);

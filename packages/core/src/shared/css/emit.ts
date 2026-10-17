@@ -7,7 +7,7 @@ import type { Declarations } from "./declare.js";
 import { files } from "./text.js";
 
 /**
- * Writes the design system's CSS variables, named from the config's `prefix` or `variableName`,
+ * Writes the design tokens' CSS variables, named from the config's `prefix` or `variableName`,
  * with every reference to a token that has its own variable written as `var()`. Each permutation
  * is a block under its selector, inside its `atRule` if it has one, in its own `path` or the
  * config's. A block writes only what differs from the earlier blocks in its file that reach every
@@ -21,8 +21,8 @@ import { files } from "./text.js";
  * reading and declaring found is in `declared.diagnostics`.
  *
  * @example
- * const doc = await read(config.resolver, readOptions(config));
- * const { files, diagnostics } = emitCSS(declare(doc, config), config);
+ * const tokens = await read(config.resolver, readOptions(config));
+ * const { files, diagnostics } = emitCSS(declare(tokens, config), config);
  */
 export function emitCSS(
     declared: Declarations,

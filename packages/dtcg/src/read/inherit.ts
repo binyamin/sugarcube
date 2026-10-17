@@ -1,5 +1,5 @@
 import { parentOf } from "../path.js";
-import type { Merged, MergedGroup } from "./merge.js";
+import type { Merged, MergedGroup, MergedTopLevel } from "./merge.js";
 import { type Settings, settingsOf } from "./settings.js";
 import type { Properties } from "./walk.js";
 
@@ -15,8 +15,9 @@ export function inherited<K extends Inheritable>(
     return item[property] ?? closest(item.path, merged, property);
 }
 
-export function applying(merged: Merged, group: MergedGroup): Settings {
+export function applying(merged: Merged, group: MergedTopLevel | MergedGroup): Settings {
     const settings = settingsOf(merged, group);
+    if (!("path" in group)) return settings;
     return {
         ...settings,
         type: settings.type ?? closest(group.path, merged, "type"),

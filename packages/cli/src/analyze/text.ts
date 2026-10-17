@@ -119,10 +119,36 @@ export function shortfall(uses: Uses, asking: "unused" | "impact"): string | und
     return undefined;
 }
 
-export function impactHeading({ token }: Impact): string {
-    const authored = token.authored?.value;
-    const value = typeof authored === "string" ? `   ${color.dim(authored)}` : "";
-    return `${color.bold(token.path)}${value}`;
+export function impactHeading({ path, written }: Impact): string {
+    const values = [
+        ...new Set(
+            written.flatMap(({ token }) => {
+                const authored = token.authored?.value;
+                return typeof authored === "string" ? [authored] : [];
+            }),
+        ),
+    ];
+    const width = (process.stdout.columns ?? 100) - MARGIN;
+    const indent = path.length + GAP.length;
+    const lines: string[][] = [[]];
+    let length = indent;
+    for (const value of values) {
+        const line = lines.at(-1) ?? [];
+        const needed = (line.length > 0 ? GAP.length : 0) + value.length;
+        if (line.length > 0 && length + needed > width) {
+            lines.push([value]);
+            length = indent + value.length;
+        } else {
+            line.push(value);
+            length += needed;
+        }
+    }
+    return lines
+        .map((line, index) => {
+            const start = index === 0 ? color.bold(path) : " ".repeat(path.length);
+            return line.length > 0 ? `${start}${GAP}${color.dim(line.join(GAP))}` : start;
+        })
+        .join("\n");
 }
 
 interface Row {
@@ -131,7 +157,7 @@ interface Row {
     again: boolean;
 }
 
-export function impactLines({ token, dependents, uses }: Impact): string[] {
+export function impactLines({ path: analysed, dependents, uses }: Impact): string[] {
     if (dependents.length === 0 && uses.length === 0) return [];
     const usesBy = new Map<string, Use[]>();
     for (const each of uses) usesBy.set(each.token, [...(usesBy.get(each.token) ?? []), each]);
@@ -162,7 +188,7 @@ export function impactLines({ token, dependents, uses }: Impact): string[] {
             walk(kid.path, inner, kid.again, false, index === kids.length - 1),
         );
     };
-    walk(token.path, "", false, true, true);
+    walk(analysed, "", false, true, true);
 
     const labels = new Map(dependents.map(({ path, label }: Dependent) => [path, label]));
     const marker = ({ path, again }: Row, index: number) => {
@@ -186,13 +212,13 @@ export function impactLines({ token, dependents, uses }: Impact): string[] {
     );
 }
 
-export function impactSummary({ token, dependents, uses }: Impact): string {
+export function impactSummary({ path, dependents, uses }: Impact): string {
     if (uses.length > 0) {
         const files = new Set(uses.map(({ file }) => file)).size;
         return color.yellow(`${plural(uses.length, "use")} in ${plural(files, "file")}.`);
     }
     if (dependents.length > 0) return "No scanned file uses it or a token built on it.";
-    return `No token references ${token.path}, and no scanned file uses it.`;
+    return `No token references ${path}, and no scanned file uses it.`;
 }
 
 function where(uses: Use[]): string {

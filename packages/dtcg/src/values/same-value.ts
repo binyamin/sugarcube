@@ -12,7 +12,7 @@ const ROUNDING = 0.0005;
  *
  * @example
  * sameValue("dimension", { value: 0.1 + 0.2, unit: "rem" }, { value: 0.3, unit: "rem" }) // true
- * sameValue("dimension", { alias: "space.sm" }, { value: 4, unit: "px" })                 // false
+ * sameValue("dimension", { syntax: "curly-brace", path: "space.sm" }, { value: 4, unit: "px" }) // false
  */
 export function sameValue<T extends TokenType>(
     type: T,
@@ -38,6 +38,14 @@ export function saysTheSame(a: Token, b: Token): boolean {
     return alike(a.value, b.value, asValues);
 }
 
+/**
+ * Whether two JSON values are the same: the same string, number, boolean or `null`, lists of the
+ * same values in the same order, or objects with the same keys and values in any order. Unlike
+ * {@link sameValue}, numbers must match exactly.
+ *
+ * @example
+ * sameJson({ a: 1, b: [2] }, { b: [2], a: 1 }) // true
+ */
 export function sameJson(a: unknown, b: unknown): boolean {
     return alike(a, b, exactly);
 }

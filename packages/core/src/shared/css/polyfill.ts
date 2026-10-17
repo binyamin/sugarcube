@@ -1,35 +1,21 @@
-import {
-    type Alias,
-    type ColorSpace,
-    type Part,
-    type Permutation,
-    type Pointer,
-    type Token,
-    isAlias,
-    parts,
-    token,
-} from "@sugarcube-sh/dtcg";
+import type { ColorSpace, Part, Reference, Token } from "@sugarcube-sh/dtcg";
 
 export interface Fallbacks {
     spaces: ColorSpace[];
     missing: { token: Token; colorSpace: ColorSpace }[];
 }
 
-export function fallbacksIn(
-    permutation: Permutation,
-    from: Token,
-    isPrivate: (each: Token) => boolean,
-): Fallbacks {
+export function fallbacksIn(from: Token, isPrivate: (each: Token) => boolean): Fallbacks {
     const found: Fallbacks = { spaces: [], missing: [] };
     const seen = new Set<Token>();
     const walk = (each: Token) => {
         if (seen.has(each)) return;
         seen.add(each);
-        const whole = parts(each);
+        const whole = each.parts;
         if (whole) visit(each, whole);
     };
-    const followed = (ref: Alias | Pointer | undefined): boolean => {
-        const target = ref && isAlias(ref) ? token(permutation, ref.alias) : undefined;
+    const followed = (ref: Reference | undefined): boolean => {
+        const target = ref?.token;
         if (target && isPrivate(target)) walk(target);
         return target !== undefined;
     };

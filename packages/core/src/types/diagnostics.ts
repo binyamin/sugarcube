@@ -27,6 +27,7 @@ export type ConfigIssue =
 
 export interface SugarcubeDiagnosticDetailByKind {
     "default-required": { modifiers: string[] };
+    "default-not-first": { file: string; selector: string; after: string };
     "fluid-text-zoom": { from: number; to: number };
     "option-renamed": { from: string; to: string };
     "option-deprecated": { option: string } & Partial<UtilityEntry>;

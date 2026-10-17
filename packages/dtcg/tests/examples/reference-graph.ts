@@ -1,19 +1,10 @@
 // Builds a map of which tokens reference which, and in which themes, then counts the tokens nothing
 // references.
-import type { Document, Input } from "@sugarcube-sh/dtcg";
+import { type DesignTokens } from "@sugarcube-sh/dtcg";
 
-declare const doc: Document;
+declare const tokens: DesignTokens;
 
-const edges = new Map<string, { from: string; to: string; in: Input[] }>();
-for (const permutation of doc.permutations) {
-    for (const e of permutation.edges) {
-        const key = `${e.from}\u0000${e.to}`;
-        const existing = edges.get(key);
-        if (existing) existing.in.push(permutation.input);
-        else edges.set(key, { from: e.from, to: e.to, in: [permutation.input] });
-    }
-}
-const unusedPrimitives = (doc.permutations[0]?.tokens ?? []).filter(
-    (t) => ![...edges.values()].some((e) => e.to === t.path),
-);
-row(edges.size, unusedPrimitives.length);
+const paths = tokens.tokenPaths();
+const references = paths.flatMap((path) => tokens.references(path));
+const unused = paths.filter((path) => tokens.usedBy(path).length === 0);
+row(references.length, unused.length);

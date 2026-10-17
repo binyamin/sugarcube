@@ -8,7 +8,8 @@
           "path": "a",
           "type": "number",
           "value": {
-            "alias": "odd"
+            "syntax": "curly-brace",
+            "path": "odd"
           },
           "resolved": null
         },
@@ -16,7 +17,8 @@
           "path": "b",
           "type": "number",
           "value": {
-            "alias": "loose"
+            "syntax": "curly-brace",
+            "path": "loose"
           },
           "resolved": null
         },
@@ -24,6 +26,7 @@
           "path": "d",
           "type": "number",
           "value": {
+            "syntax": "json-pointer",
             "pointer": "#/odd/$value"
           },
           "resolved": null
@@ -38,7 +41,7 @@
         "type": "colour",
         "similar": "color"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"colour\""
       },
@@ -47,7 +50,7 @@
     {
       "kind": "missing-type",
       "detail": {},
-      "at": {
+      "span": {
         "file": "tokens.json",
         "valueAfter": "\"loose\":"
       },

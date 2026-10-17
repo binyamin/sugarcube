@@ -2,12 +2,12 @@
 // missing file is reported as a problem.
 import { read } from "@sugarcube-sh/dtcg";
 
-const doc = await read("tokens.resolver.json", {
+const tokens = await read("tokens.resolver.json", {
     readText: async (p) => {
         const r = await fetch(p);
         if (!r.ok) throw new Error(`${p}: ${r.status}`);
         return r.text();
     },
 });
-for (const missing of doc.diagnostics.filter((d) => d.kind === "file-not-found"))
+for (const missing of tokens.diagnostics.filter((d) => d.kind === "file-not-found"))
     showMessage(missing.message);

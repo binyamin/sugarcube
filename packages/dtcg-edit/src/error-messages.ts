@@ -1,5 +1,10 @@
-import { type Input, permutationLabel } from "@sugarcube-sh/dtcg";
+import { type Input, type PermutationErrorDetail, permutationLabel } from "@sugarcube-sh/dtcg";
 import type { Conflict, FileOp, Refusal } from "./index.js";
+
+export const thrown = {
+    operationDoesNotFit:
+        "an operation's edits don't fit the design tokens it was given; make them from the tokens the operation is passed",
+};
 
 export const fixTitles = {
     useSimilar: (name: string) => `use \`${name}\`, which has a similar name`,
@@ -29,32 +34,35 @@ const refusalReasons: {
     },
     "not-a-group": ({ path }) => `\`${path}\` is a token, so nothing can be made inside it`,
     "taken": ({ path }) => `\`${path}\` already exists`,
-    "override-instead": ({ path, context }) =>
-        `\`${path}\` already exists for every context; to give ${named(context)} its own value, change it for that context`,
+    "override-instead": ({ path, input }) =>
+        `\`${path}\` already exists for every context; to give ${named(input)} its own value, change it for that context`,
     "invalid-name": ({ name, character }) =>
         character === undefined
             ? "a name can't be empty: no path reaches it"
             : `\`${name}\` can't be a name: ${character === "$" ? "a leading `$` marks a property" : `\`${character}\` is used by references`}`,
     "inherited": ({ path, from }) =>
         `\`${path}\` comes from \`${from}\` through \`$extends\`; change it there`,
-    "no-permutation": ({ context, why }) =>
-        `there is no permutation for ${named(context)}: ${permutationGaps[why]}`,
-    "several-contexts": ({ context }) =>
-        `an override for ${named(context)} at once can't be written: no file is read by that combination alone`,
-    "no-file-for-context": ({ path, context }) =>
-        `\`${path}\` can't be written for ${named(context)}: it reads no whole file of its own to hold it`,
+    "no-permutation": ({ input, why }) =>
+        `there is no permutation for ${named(input)}: ${permutationGaps[why]}`,
+    "several-contexts": ({ input }) =>
+        `an override for ${named(input)} at once can't be written: no file is read by that combination alone`,
+    "no-file-for-context": ({ path, input }) =>
+        `\`${path}\` can't be written for ${named(input)}: it reads no whole file of its own to hold it`,
     "no-shared-file": ({ path }) =>
         `\`${path}\` can't be written for every permutation: no whole file they all read can hold it`,
-    "hidden-by-later-file": ({ path, context, file }) =>
-        `\`${path}\` can't be overridden for ${named(context)}: \`${file}\` is read after its files, so it would still win`,
+    "hidden-by-later-file": ({ path, input, file }) =>
+        `\`${path}\` can't be overridden for ${named(input)}: \`${file}\` is read after its files, so it would still win`,
     "no-shared-value": ({ path }) =>
         `no file every permutation reads writes \`${path}\`, only contexts do; change it for one context`,
+    "not-written-there": ({ path, at }) =>
+        `\`${path}\` isn't written at that place in \`${at.file}\`; take the place from \`writtenAt\``,
 };
 
-const permutationGaps = {
+const permutationGaps: Record<PermutationErrorDetail["reason"], string> = {
     "unknown-modifier": "the resolver doesn't declare that modifier",
     "unknown-context": "the resolver doesn't declare that context",
-    "no-default": "a modifier with no default was left out",
+    "missing-modifier": "a modifier with no default was left out",
+    "not-a-string": "a context was given as something other than a string",
     "not-read": "the read didn't build it",
 };
 
@@ -68,10 +76,13 @@ export function conflict(op: FileOp, kind: Conflict["kind"]): Conflict {
 }
 
 function conflictReason(op: FileOp, kind: Conflict["kind"]): string {
-    const place = "path" in op ? `\`${op.path.join(".")}\` in \`${op.file}\`` : `\`${op.file}\``;
+    const place =
+        "jsonPath" in op ? `\`${op.jsonPath.join(".")}\` in \`${op.file}\`` : `\`${op.file}\``;
     switch (kind) {
-        case "not-in-project":
-            return `\`${op.file}\` is not one of the project's files`;
+        case "not-read":
+            return op.kind === "createFile"
+                ? `nothing reads \`${op.file}\`, so it would be lost`
+                : `\`${op.file}\` is not one of the files read`;
         case "gone":
             return `${place} is no longer there`;
         case "changed":
@@ -82,11 +93,9 @@ function conflictReason(op: FileOp, kind: Conflict["kind"]): string {
                 : `${place} already holds something else`;
         case "not-a-group":
             return `${place} runs through something that is not a group, or past the end of a list`;
-        case "unread":
-            return `nothing in the project reads \`${op.file}\`, so it would be lost`;
     }
 }
 
-function named(context: Input): string {
-    return `\`${permutationLabel(context)}\``;
+function named(input: Input): string {
+    return `\`${permutationLabel(input)}\``;
 }

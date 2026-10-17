@@ -10,7 +10,7 @@ import { WarningMessages } from "../src/shared/constants/warning-messages.js";
 
 const fixturesPath = resolve(__dirname, "__fixtures__/resolver");
 
-const parseInline = (doc: object) => parseResolverDocumentFromString(JSON.stringify(doc));
+const parseInline = (tokens: object) => parseResolverDocumentFromString(JSON.stringify(tokens));
 
 const hasMessage = (items: Array<{ message: string }>, expected: string): boolean =>
     items.some((e) => e.message === expected);

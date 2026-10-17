@@ -1,3 +1,4 @@
+import type { Permutations } from "@sugarcube-sh/dtcg";
 import type { Reported } from "../src/types/diagnostics.js";
 import { describe, expect, it } from "vitest";
 import { type Where, problemCount, problemLines, problemsText } from "../src/shared/problems.js";
@@ -8,48 +9,55 @@ const where: Where = {
     configFile: "/project/sugarcube.config.ts",
 };
 
-function at(file: string, line: number, column: number) {
+function spanAt(file: string, line: number, column: number) {
     return { file, offset: 0, length: 1, start: { line, column }, end: { line, column } };
 }
 
-function value(message: string, place: ReturnType<typeof at>): Reported {
+function themes(label: string): Permutations {
+    return Object.assign([], { label, inputs: [] }) as unknown as Permutations;
+}
+
+function value(message: string, place: ReturnType<typeof spanAt>): Reported {
     return {
         kind: "invalid-value",
         severity: "error",
         message,
-        at: place,
+        span: place,
         docs: "",
-        detail: { at: ["$value"], type: "color", reason: "wrong-shape", value: "" },
+        permutations: themes("everywhere"),
+        detail: { jsonPath: ["$value"], type: "color", reason: "wrong-shape", value: "" },
     };
 }
 
-function missingReference(ref: string, place: ReturnType<typeof at>): Reported {
+function missingReference(ref: string, place: ReturnType<typeof spanAt>): Reported {
     return {
         kind: "missing-reference",
         severity: "error",
         message: `\`${ref}\` does not exist`,
-        at: place,
+        span: place,
         docs: "",
-        detail: { ref, referencedBy: [] },
+        permutations: themes("everywhere"),
+        detail: { ref, from: [] },
     };
 }
 
-function ignored(place: ReturnType<typeof at>): Reported {
+function ignored(place: ReturnType<typeof spanAt>): Reported {
     return {
         kind: "unknown-property",
         severity: "warning",
         message: "`paragraphSpacing` is ignored",
-        at: place,
+        span: place,
         docs: "",
-        detail: { property: "paragraphSpacing", owner: "typography", at: [] },
+        permutations: themes("everywhere"),
+        detail: { property: "paragraphSpacing", owner: "typography", jsonPath: [] },
     };
 }
 
-const hex = value("`#000` is not a six-digit hex color", at("base.json", 6, 81));
-const missing = missingReference("color.inc", at("base.json", 7, 25));
+const hex = value("`#000` is not a six-digit hex color", spanAt("base.json", 6, 81));
+const missing = missingReference("color.inc", spanAt("base.json", 7, 25));
 const darkOnly = {
-    ...missingReference("color.brnd", at("dark.json", 1, 54)),
-    permutations: [{ theme: "dark" }, { theme: "dim" }],
+    ...missingReference("color.brnd", spanAt("dark.json", 1, 54)),
+    permutations: themes("theme: dark, dim"),
 };
 const polyfill: Reported = {
     kind: "option-deprecated",
@@ -77,23 +85,18 @@ describe("problemLines", () => {
         ]);
     });
 
-    it("names the permutations when only some have the problem, each by its label", () => {
+    it("names the permutations by their label when only some have the problem", () => {
         expect(problemLines([darkOnly], where, { colors: false })).toStrictEqual([
-            "tokens/dark.json:1:54  error  `color.brnd` does not exist  in theme: dark; theme: dim  missing-reference",
+            "tokens/dark.json:1:54  error  `color.brnd` does not exist  in theme: dark, dim  missing-reference",
         ]);
     });
 
-    it("names a permutation by its whole label, every modifier included", () => {
-        const some = {
-            ...darkOnly,
-            permutations: [
-                { theme: "dark", size: "large" },
-                { theme: "light", size: "default" },
-            ],
-        };
-        expect(problemLines([some], where, { colors: false })[0]).toContain(
-            "in theme: dark, size: large; theme: light, size: default  ",
-        );
+    it("names no permutations when every one has the problem, or none does", () => {
+        const nowhere = { ...missing, permutations: themes("nowhere") };
+        expect(problemLines([missing, nowhere], where, { colors: false })).toStrictEqual([
+            "tokens/base.json:7:25  error  `color.inc` does not exist  missing-reference",
+            "tokens/base.json:7:25  error  `color.inc` does not exist  missing-reference",
+        ]);
     });
 
     it("leaves the place empty for a config problem when there is no config file", () => {
@@ -105,7 +108,7 @@ describe("problemLines", () => {
     });
 
     it("places a file the resolver names from the root where it is, not under the tokens' folder", () => {
-        const shared = missingReference("color.nope", at("/shared/brand.json", 3, 12));
+        const shared = missingReference("color.nope", spanAt("/shared/brand.json", 3, 12));
         expect(problemLines([shared], where, { colors: false })[0]).toMatch(
             /^\.\.\/shared\/brand\.json:3:12 /,
         );
@@ -114,7 +117,7 @@ describe("problemLines", () => {
     it("wraps a long message under its column, never the place", () => {
         const long = value(
             "`{space.sm}` is a reference, which stands for a whole value and cannot be part of one",
-            at("base.json", 12, 34),
+            spanAt("base.json", 12, 34),
         );
         expect(problemLines([long], where, { colors: false, width: 74 })).toStrictEqual([
             "tokens/base.json:12:34  error  `{space.sm}` is a reference, which stands",
@@ -128,9 +131,10 @@ describe("problemLines", () => {
             kind: "token-and-group",
             severity: "error",
             message: "this is a token here but a group in another file",
-            at: at("dark.json", 3, 12),
-            related: [{ message: "declared as a group here", at: at("colors.json", 9, 17) }],
+            span: spanAt("dark.json", 3, 12),
+            related: [{ message: "declared as a group here", span: spanAt("colors.json", 9, 17) }],
             docs: "",
+            permutations: themes("everywhere"),
             detail: { reason: "declared", here: "token" },
         };
         expect(problemLines([conflict], where, { colors: false })).toStrictEqual([
@@ -141,7 +145,7 @@ describe("problemLines", () => {
 
     it("prints every problem, however many share a message", () => {
         const many = Array.from({ length: 3 }, (_, index) =>
-            ignored(at("type.json", 17 + index, 9)),
+            ignored(spanAt("type.json", 17 + index, 9)),
         );
         expect(problemLines(many, where, { colors: false })).toHaveLength(3);
     });

@@ -12,7 +12,7 @@ const opacityRamp = defineGenerator({
         if (typeof steps !== "number" || steps < 1 || steps > 20) {
             return {
                 ok: false,
-                errors: [{ path: [], reason: "steps-out-of-range", data: { steps } }],
+                errors: [{ jsonPath: [], reason: "steps-out-of-range", data: { steps } }],
             };
         }
         const tokens = Array.from({ length: steps }, (_, i) => ({

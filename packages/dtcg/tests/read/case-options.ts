@@ -54,7 +54,7 @@ const generators = {
                           $value: { value: steps - i, unit: "rem" },
                       })),
                   }
-                : { ok: false, errors: [{ path: [], reason: "not-a-count", data: { steps } }] },
+                : { ok: false, errors: [{ jsonPath: [], reason: "not-a-count", data: { steps } }] },
     }),
     ramp: defineGenerator({
         extension: ["com.example", "ramp"],
@@ -86,7 +86,9 @@ const generators = {
                   }
                 : {
                       ok: false,
-                      errors: [{ path: ["count"], reason: "count-not-a-number", data: { count } }],
+                      errors: [
+                          { jsonPath: ["count"], reason: "count-not-a-number", data: { count } },
+                      ],
                   };
         },
     }),
@@ -123,7 +125,7 @@ const validators = {
         messages: { "no-outline": () => "`outline` is missing" },
         validate: (_token, extension, options) => {
             const { outline } = extension as { outline?: unknown };
-            if (outline === undefined) return [{ path: [], reason: "no-outline" }];
+            if (outline === undefined) return [{ jsonPath: [], reason: "no-outline" }];
             const parsed = parseValue("dimension", outline, ["outline"], {
                 ...options,
                 references: false,

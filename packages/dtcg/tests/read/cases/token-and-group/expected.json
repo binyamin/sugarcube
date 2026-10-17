@@ -23,7 +23,7 @@
         "reason": "child",
         "child": "light"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"light\""
       }

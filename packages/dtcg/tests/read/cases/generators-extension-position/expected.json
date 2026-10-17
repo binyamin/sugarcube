@@ -9,17 +9,19 @@
       "tokens": [
         {
           "path": "space.1",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "recipe.json",
-              "valueAfter": "\"steps\":"
-            }
-          },
           "generated": {
             "from": "space",
             "extension": ["com.example", "steps"]
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "recipe.json",
+                "valueAfter": "\"steps\":"
+              }
+            }
+          ]
         }
       ]
     }

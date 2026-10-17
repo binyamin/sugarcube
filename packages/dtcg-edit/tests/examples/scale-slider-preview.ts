@@ -1,30 +1,38 @@
-// A slider that resizes a whole spacing scale at once. While it moves, the page previews every
-// step without touching the files: each frame makes a new project and throws it away. Letting go
-// keeps the last one, as one undo step.
-import { isAlias, tokensIn, type Document } from "@sugarcube-sh/dtcg";
+// A slider that resizes a whole spacing scale at once, in every theme that writes a step. While it
+// moves, the page previews every step without touching the files: each frame makes new design
+// tokens and throws them away. Letting go keeps the last one, as one undo step.
+import { type DesignTokens } from "@sugarcube-sh/dtcg";
 import { setValues, type Session } from "@sugarcube-sh/dtcg-edit";
 
 declare const session: Session;
-declare function showPreview(doc: Document): void;
+declare function showPreview(tokens: DesignTokens): void;
 
-const steps = tokensIn(session.project.doc, "space").flatMap((t) =>
-    t.type === "dimension" && t.resolved && !isAlias(t.value) && !t.generated
-        ? [{ path: t.path, size: t.resolved }]
-        : [],
+const tokens = session.tokens;
+const steps = (tokens.permutation().group("space")?.childTokens ?? []).flatMap(({ path }) =>
+    tokens.writtenAt(path).flatMap(({ span, winsIn }) => {
+        const there = winsIn[0]?.token(path);
+        return there?.type === "dimension" &&
+            there.resolved &&
+            !there.referenceAt() &&
+            !there.generated
+            ? [{ path, at: span, size: there.resolved }]
+            : [];
+    }),
 );
 
 const resized = (factor: number) =>
     setValues(
-        session.project,
-        steps.map(({ path, size }) => ({
+        session.tokens,
+        steps.map(({ path, at, size }) => ({
             path,
+            at,
             value: { value: Math.round(size.value * factor * 100) / 100, unit: size.unit },
         })),
     );
 
 export function onSliderMove(factor: number): void {
     const preview = session.preview(resized(factor));
-    if ("project" in preview) showPreview(preview.project.doc);
+    if (preview.tokens) showPreview(preview.tokens);
 }
 
 export function onSliderRelease(factor: number): void {

@@ -13,7 +13,7 @@ import {
     problemsText,
     readOptions,
 } from "@sugarcube-sh/core";
-import type { Project } from "@sugarcube-sh/dtcg";
+import type { DesignTokens } from "@sugarcube-sh/dtcg";
 import { onFileChanged } from "@sugarcube-sh/dtcg/node";
 import dtcg, { type ReadEvent } from "@sugarcube-sh/dtcg-vite";
 import UnoCSS from "@unocss/vite";
@@ -60,13 +60,13 @@ interface SugarcubePluginOptions {
 export const SUGARCUBE_API_PLUGIN_NAME = "sugarcube:api";
 
 /**
- * What other plugins, such as Studio's, can read from sugarcube's: the config in use, the latest
- * read (the Document and the text of its files) and its problems, the config's first (even when
- * they keep the last good CSS in use), and a signal after every read.
+ * What other plugins, such as Studio's, can read from sugarcube's: the config in use, the design
+ * tokens as last read (their files' text with them) and their problems, the config's first (even
+ * when they keep the last good CSS in use), and a signal after every read.
  */
 export interface SugarcubePluginContext {
     config: InternalConfig;
-    project: Project;
+    tokens: DesignTokens;
     problems: Reported[];
     onReload: (fn: () => void) => () => void;
 }
@@ -86,11 +86,11 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
     const { unoOptions = {} } = options;
     const timed = debugging(process.env.DEBUG);
     let loaded = await loadInternalConfig();
-    const tokens = dtcg(() => ({
+    const reading = dtcg(() => ({
         entry: loaded.config.resolver,
         options: readOptions(loaded.config),
     }));
-    let project = await tokens.api.project();
+    let tokens = await reading.api.tokens();
     let fromConfig: Reported[] = [];
     let tokenProblems: Reported[] = [];
     const problems = () => [...fromConfig, ...tokenProblems];
@@ -115,9 +115,9 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
         else logger?.warn(text);
     };
 
-    const accept = (next: Project): boolean => {
-        project = next;
-        const made = cssFrom(next.doc, loaded.config);
+    const accept = (next: DesignTokens): boolean => {
+        tokens = next;
+        const made = cssFrom(next, loaded.config);
         tokenProblems = made.diagnostics;
         if (failed(problems())) return false;
         const utilities = made.utilities ?? NO_UTILITIES;
@@ -129,7 +129,7 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
         return !same;
     };
 
-    accept(project);
+    accept(tokens);
 
     const reloadConfig = createChangeQueue<{ kind: "config" }>(["config"], {
         onChange: async () => {
@@ -142,7 +142,7 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
                 report();
                 return;
             }
-            await tokens.api.reread();
+            await reading.api.readAgain();
         },
         onError: unexpected,
     });
@@ -151,8 +151,8 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
         get config() {
             return loaded.config;
         },
-        get project() {
-            return project;
+        get tokens() {
+            return tokens;
         },
         get problems() {
             return problems();
@@ -183,7 +183,7 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
         .find((p) => p.name === "unocss:api")
         ?.api?.getContext();
 
-    const applied = async (next: Project, read: ReadEvent) => {
+    const applied = async (next: DesignTokens, read: ReadEvent) => {
         const started = performance.now();
         const utilitiesChanged = accept(next);
         const css = performance.now() - started;
@@ -205,12 +205,12 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
         }
         for (const fn of listeners) fn();
     };
-    tokens.api.onRead((next, read) => {
+    reading.api.onRead((next, read) => {
         applied(next, read).catch(unexpected);
     });
 
     const plugins: Plugin[] = [
-        tokens,
+        reading,
         {
             name: "sugarcube:report",
             configResolved(config) {

@@ -6,262 +6,167 @@
       "input": {
         "theme": "light"
       },
-      "label": "theme: light",
-      "sources": [
-        {
-          "file": "foundation/size.json",
-          "from": {
-            "sets": [
-              {
-                "name": "size"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "foundation/typography.json",
-          "from": {
-            "sets": [
-              {
-                "name": "typography"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "foundation/animation.json",
-          "from": {
-            "sets": [
-              {
-                "name": "animation"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "theme/light.json",
-          "from": {
-            "modifier": "theme",
-            "context": "light",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "theme": "light"
-            },
-            {
-              "theme": "lightHighContrast"
-            }
-          ]
-        }
-      ]
+      "label": "default",
+      "sources": [0, 1, 2, 3]
     },
     {
       "input": {
         "theme": "lightHighContrast"
       },
       "label": "theme: lightHighContrast",
-      "sources": [
-        {
-          "file": "foundation/size.json",
-          "from": {
-            "sets": [
-              {
-                "name": "size"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "foundation/typography.json",
-          "from": {
-            "sets": [
-              {
-                "name": "typography"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "foundation/animation.json",
-          "from": {
-            "sets": [
-              {
-                "name": "animation"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "theme/light.json",
-          "from": {
-            "modifier": "theme",
-            "context": "lightHighContrast",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "theme": "light"
-            },
-            {
-              "theme": "lightHighContrast"
-            }
-          ]
-        },
-        {
-          "file": "theme/dark-high-contrast.json",
-          "from": {
-            "modifier": "theme",
-            "context": "lightHighContrast",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "theme": "lightHighContrast"
-            },
-            {
-              "theme": "darkHighContrast"
-            }
-          ]
-        }
-      ]
+      "sources": [0, 1, 2, 4, 5]
     },
     {
       "input": {
         "theme": "dark"
       },
       "label": "theme: dark",
-      "sources": [
-        {
-          "file": "foundation/size.json",
-          "from": {
-            "sets": [
-              {
-                "name": "size"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "foundation/typography.json",
-          "from": {
-            "sets": [
-              {
-                "name": "typography"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "foundation/animation.json",
-          "from": {
-            "sets": [
-              {
-                "name": "animation"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "theme/dark.json",
-          "from": {
-            "modifier": "theme",
-            "context": "dark",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "theme": "dark"
-            },
-            {
-              "theme": "darkHighContrast"
-            }
-          ]
-        }
-      ]
+      "sources": [0, 1, 2, 6]
     },
     {
       "input": {
         "theme": "darkHighContrast"
       },
       "label": "theme: darkHighContrast",
-      "sources": [
+      "sources": [0, 1, 2, 7, 8]
+    }
+  ],
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "foundation/size.json",
+      "sets": [
         {
-          "file": "foundation/size.json",
-          "from": {
-            "sets": [
-              {
-                "name": "size"
-              }
-            ]
-          },
-          "readBy": "everyone"
+          "name": "size"
+        }
+      ],
+      "readBy": "everyone"
+    },
+    {
+      "file": "foundation/typography.json",
+      "sets": [
+        {
+          "name": "typography"
+        }
+      ],
+      "readBy": "everyone"
+    },
+    {
+      "file": "foundation/animation.json",
+      "sets": [
+        {
+          "name": "animation"
+        }
+      ],
+      "readBy": "everyone"
+    },
+    {
+      "file": "theme/light.json",
+      "context": {
+        "modifier": "theme",
+        "name": "light"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "theme",
+          "name": "light"
         },
         {
-          "file": "foundation/typography.json",
-          "from": {
-            "sets": [
-              {
-                "name": "typography"
-              }
-            ]
-          },
-          "readBy": "everyone"
+          "modifier": "theme",
+          "name": "lightHighContrast"
+        }
+      ]
+    },
+    {
+      "file": "theme/light.json",
+      "context": {
+        "modifier": "theme",
+        "name": "lightHighContrast"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "theme",
+          "name": "light"
         },
         {
-          "file": "foundation/animation.json",
-          "from": {
-            "sets": [
-              {
-                "name": "animation"
-              }
-            ]
-          },
-          "readBy": "everyone"
+          "modifier": "theme",
+          "name": "lightHighContrast"
+        }
+      ]
+    },
+    {
+      "file": "theme/dark-high-contrast.json",
+      "context": {
+        "modifier": "theme",
+        "name": "lightHighContrast"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "theme",
+          "name": "lightHighContrast"
         },
         {
-          "file": "theme/dark.json",
-          "from": {
-            "modifier": "theme",
-            "context": "darkHighContrast",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "theme": "dark"
-            },
-            {
-              "theme": "darkHighContrast"
-            }
-          ]
+          "modifier": "theme",
+          "name": "darkHighContrast"
+        }
+      ]
+    },
+    {
+      "file": "theme/dark.json",
+      "context": {
+        "modifier": "theme",
+        "name": "dark"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "theme",
+          "name": "dark"
         },
         {
-          "file": "theme/dark-high-contrast.json",
-          "from": {
-            "modifier": "theme",
-            "context": "darkHighContrast",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "theme": "lightHighContrast"
-            },
-            {
-              "theme": "darkHighContrast"
-            }
-          ]
+          "modifier": "theme",
+          "name": "darkHighContrast"
+        }
+      ]
+    },
+    {
+      "file": "theme/dark.json",
+      "context": {
+        "modifier": "theme",
+        "name": "darkHighContrast"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "theme",
+          "name": "dark"
+        },
+        {
+          "modifier": "theme",
+          "name": "darkHighContrast"
+        }
+      ]
+    },
+    {
+      "file": "theme/dark-high-contrast.json",
+      "context": {
+        "modifier": "theme",
+        "name": "darkHighContrast"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "theme",
+          "name": "lightHighContrast"
+        },
+        {
+          "modifier": "theme",
+          "name": "darkHighContrast"
         }
       ]
     }
-  ],
-  "diagnostics": []
+  ]
 }

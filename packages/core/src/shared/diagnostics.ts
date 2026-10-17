@@ -16,7 +16,8 @@ export function diagnostic<K extends SugarcubeDiagnosticKind>(
         kind,
         severity,
         message: message(detail),
-        ...(token && { path: token.path, at: token.source.at }),
+        ...(token && { path: token.path }),
+        ...(token && { span: token.valueFrom.span }),
         docs: diagnosticDocs(kind),
         detail,
     } as SugarcubeDiagnostic;

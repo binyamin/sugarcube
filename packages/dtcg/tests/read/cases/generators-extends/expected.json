@@ -40,18 +40,20 @@
             "value": 1,
             "unit": "rem"
           },
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "tokens.json",
-              "valueAfter": "\"steps\":"
-            }
-          },
           "generated": {
             "from": "inset",
             "extension": ["com.example", "steps"]
           },
-          "inherited": null
+          "inherited": null,
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "tokens.json",
+                "valueAfter": "\"steps\":"
+              }
+            }
+          ]
         }
       ]
     }

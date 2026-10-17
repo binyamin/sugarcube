@@ -6,16 +6,18 @@ describe("parseValue", () => {
         expect(parseValue("number", 1.5, [])).toStrictEqual({ ok: true, value: 1.5, ignored: [] });
         expect(parseValue("number", "{ratio.golden}", [])).toStrictEqual({
             ok: true,
-            value: { alias: "ratio.golden" },
+            value: { syntax: "curly-brace", path: "ratio.golden" },
             ignored: [],
         });
     });
 
     it("reports a value that does not fit the type, as that type's parser does", () => {
         const read = parseValue("dimension", "16px", ["base"], { references: false });
-        expect(read.ok ? [] : read.errors.map(({ path, detail }) => ({ path, detail }))).toEqual([
+        expect(
+            read.ok ? [] : read.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail })),
+        ).toEqual([
             {
-                path: ["base"],
+                jsonPath: ["base"],
                 detail: {
                     type: "dimension",
                     reason: "string-with-unit",
@@ -55,17 +57,21 @@ describe("parseValue", () => {
     });
 
     it.for([
-        { written: "{ratio.golden}", at: [], reference: "{ratio.golden}" },
-        { written: { $ref: "#/ratio/golden/$value" }, at: [], reference: "#/ratio/golden/$value" },
+        { written: "{ratio.golden}", jsonPath: [], reference: "{ratio.golden}" },
+        {
+            written: { $ref: "#/ratio/golden/$value" },
+            jsonPath: [],
+            reference: "#/ratio/golden/$value",
+        },
     ])(
         "refuses $written in place of a whole value, when only literals are wanted",
-        ({ written, at, reference }) => {
+        ({ written, jsonPath: inside, reference }) => {
             const read = parseValue("number", written, ["ratio"], { references: false });
             expect(
-                read.ok ? [] : read.errors.map(({ path, detail }) => ({ path, detail })),
+                read.ok ? [] : read.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail })),
             ).toEqual([
                 {
-                    path: ["ratio", ...at],
+                    jsonPath: ["ratio", ...inside],
                     detail: {
                         type: "number",
                         reason: "reference-not-allowed",
@@ -83,9 +89,11 @@ describe("parseValue", () => {
             ["base", "min"],
             { references: false },
         );
-        expect(read.ok ? [] : read.errors.map(({ path, detail }) => ({ path, detail }))).toEqual([
+        expect(
+            read.ok ? [] : read.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail })),
+        ).toEqual([
             {
-                path: ["base", "min", "value"],
+                jsonPath: ["base", "min", "value"],
                 detail: {
                     type: "dimension",
                     reason: "reference-not-allowed",
@@ -104,9 +112,11 @@ describe("parseValue", () => {
             spread: { value: 0, unit: "px" },
         };
         const read = parseValue("shadow", shadow, [], { references: false });
-        expect(read.ok ? [] : read.errors.map(({ path, detail }) => ({ path, detail }))).toEqual([
+        expect(
+            read.ok ? [] : read.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail })),
+        ).toEqual([
             {
-                path: ["color"],
+                jsonPath: ["color"],
                 detail: {
                     type: "shadow",
                     reason: "reference-not-allowed",

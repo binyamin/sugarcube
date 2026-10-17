@@ -9,9 +9,9 @@
       "detail": {
         "property": "fluid",
         "owner": "dimension",
-        "at": ["$extensions", "com.example", "sized", "size", "fluid"]
+        "jsonPath": ["$extensions", "com.example", "sized", "size", "fluid"]
       },
-      "at": { "file": "tokens.json", "text": "\"fluid\"" },
+      "span": { "file": "tokens.json", "text": "\"fluid\"" },
       "path": "space"
     }
   ]

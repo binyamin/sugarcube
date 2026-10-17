@@ -1,14 +1,14 @@
 // Shows problems in French, worded by the tool itself from each problem's details rather than from
 // the English message.
-import type { Document } from "@sugarcube-sh/dtcg";
+import type { DesignTokens } from "@sugarcube-sh/dtcg";
 
-declare const doc: Document;
+declare const tokens: DesignTokens;
 
-for (const d of doc.diagnostics) {
+for (const d of tokens.diagnostics) {
     switch (d.kind) {
         case "missing-reference":
             showMessage(
-                `Le jeton ${d.detail.ref} n'existe pas (utilisé par ${d.detail.referencedBy.join(", ")})`,
+                `Le jeton ${d.detail.ref} n'existe pas (utilisé par ${d.detail.from.join(", ")})`,
             );
             break;
         case "unknown-type":

@@ -5,83 +5,83 @@
     {
       "kind": "invalid-value",
       "detail": {
-        "at": ["$value"],
+        "jsonPath": ["$value"],
         "type": "dimension",
         "reason": "string-with-unit",
         "value": "16px",
         "asObject": { "value": 16, "unit": "px" }
       },
-      "at": { "file": "tokens.json", "text": "\"16px\"" },
+      "span": { "file": "tokens.json", "text": "\"16px\"" },
       "path": "space"
     },
     {
       "kind": "invalid-value",
       "detail": {
-        "at": ["$value"],
+        "jsonPath": ["$value"],
         "type": "dimension",
         "reason": "string-with-unit",
         "value": "16em"
       },
-      "at": { "file": "tokens.json", "text": "\"16em\"" },
+      "span": { "file": "tokens.json", "text": "\"16em\"" },
       "path": "wide"
     },
     {
       "kind": "invalid-value",
       "detail": {
-        "at": ["$value"],
+        "jsonPath": ["$value"],
         "type": "duration",
         "reason": "string-with-unit",
         "value": "200ms",
         "asObject": { "value": 200, "unit": "ms" }
       },
-      "at": { "file": "tokens.json", "text": "\"200ms\"" },
+      "span": { "file": "tokens.json", "text": "\"200ms\"" },
       "path": "fast"
     },
     {
       "kind": "invalid-value",
       "detail": {
-        "at": ["$value", 0],
+        "jsonPath": ["$value", 0],
         "type": "fontFamily",
-        "reason": "alias-not-allowed-here",
+        "reason": "curly-brace-not-allowed-here",
         "reference": "{font.brand}"
       },
-      "at": { "file": "tokens.json", "text": "\"{font.brand}\"" },
+      "span": { "file": "tokens.json", "text": "\"{font.brand}\"" },
       "path": "font.body"
     },
     {
       "kind": "invalid-value",
       "detail": {
-        "at": ["$value", "hex"],
+        "jsonPath": ["$value", "hex"],
         "type": "color",
         "reason": "hex-not-six-digits",
         "value": "#f00",
         "sixDigits": "#ff0000"
       },
-      "at": { "file": "tokens.json", "text": "\"#f00\"" },
+      "span": { "file": "tokens.json", "text": "\"#f00\"" },
       "path": "red"
     },
     {
       "kind": "invalid-value",
       "detail": {
-        "at": ["$value", "color", "hex"],
+        "jsonPath": ["$value", "color", "hex"],
         "type": "color",
         "reason": "hex-not-six-digits",
         "value": "#000",
         "sixDigits": "#000000"
       },
-      "at": { "file": "tokens.json", "text": "\"#000\"" },
+      "span": { "file": "tokens.json", "text": "\"#000\"" },
       "path": "lift"
     },
     {
       "kind": "invalid-value",
       "detail": {
-        "at": ["$value", "offsetX"],
+        "jsonPath": ["$value", "offsetX"],
         "type": "dimension",
         "reason": "string-with-unit",
         "value": "0px",
         "asObject": { "value": 0, "unit": "px" }
       },
-      "at": { "file": "tokens.json", "text": "\"0px\"" },
+      "span": { "file": "tokens.json", "text": "\"0px\"" },
       "path": "lift"
     }
   ]

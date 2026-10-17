@@ -13,12 +13,12 @@ function read(raw: unknown, options?: ParseOptions) {
 function details(raw: unknown, options?: ParseOptions) {
     const result = parseTypography(raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
-    return result.errors.map(({ path, detail }) => ({ path, detail }));
+    return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
     const result = parseTypography(raw, ["$value"], options);
-    return result.ignored.map(({ path, detail }) => ({ path, detail }));
+    return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 const px = (value: number) => ({ value, unit: "px" });
@@ -46,9 +46,9 @@ describe("parseTypography", () => {
                     lineHeight: 1,
                 }),
             ).toStrictEqual({
-                fontFamily: { alias: "font.serif" },
-                fontSize: { alias: "font.size.smallest" },
-                fontWeight: { alias: "font.weight.normal" },
+                fontFamily: { syntax: "curly-brace", path: "font.serif" },
+                fontSize: { syntax: "curly-brace", path: "font.size.smallest" },
+                fontWeight: { syntax: "curly-brace", path: "font.weight.normal" },
                 letterSpacing: px(0),
                 lineHeight: 1,
             });
@@ -68,13 +68,16 @@ describe("parseTypography", () => {
                     lineHeight: { $ref: "#/base/text/$value/lineHeight" },
                 }),
             ).toMatchObject({
-                fontFamily: { pointer: "#/base/text/$value/fontFamily" },
-                lineHeight: { pointer: "#/base/text/$value/lineHeight" },
+                fontFamily: { syntax: "json-pointer", pointer: "#/base/text/$value/fontFamily" },
+                lineHeight: { syntax: "json-pointer", pointer: "#/base/text/$value/lineHeight" },
             });
         });
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{type.heading}")).toStrictEqual({ alias: "type.heading" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{type.heading}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "type.heading",
+            });
         });
     });
 
@@ -86,7 +89,7 @@ describe("parseTypography", () => {
                 delete raw[part];
                 expect(details(raw)).toStrictEqual([
                     {
-                        path: ["$value", part],
+                        jsonPath: ["$value", part],
                         detail: { type: "typography", reason: "missing-property", property: part },
                     },
                 ]);
@@ -103,7 +106,7 @@ describe("parseTypography", () => {
                 }),
             ).toStrictEqual([
                 {
-                    path: ["$value", "letterSpacing"],
+                    jsonPath: ["$value", "letterSpacing"],
                     detail: {
                         type: "typography",
                         reason: "missing-property",
@@ -116,7 +119,7 @@ describe("parseTypography", () => {
         it("a line height with a unit, since spec 9.8 makes it a number", () => {
             expect(details({ ...heading, lineHeight: px(24) })).toStrictEqual([
                 {
-                    path: ["$value", "lineHeight"],
+                    jsonPath: ["$value", "lineHeight"],
                     detail: { type: "number", reason: "not-a-number", value: px(24) },
                 },
             ]);
@@ -125,7 +128,7 @@ describe("parseTypography", () => {
         it.for(["16px Roboto", null, [heading]])("%j, which is not a typography value", (raw) => {
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: { type: "typography", reason: "wrong-shape", value: raw },
                 },
             ]);
@@ -136,11 +139,11 @@ describe("parseTypography", () => {
                 details({ ...heading, fontFamily: [], fontSize: "42px", fontWeight: "Bold" }),
             ).toStrictEqual([
                 {
-                    path: ["$value", "fontFamily"],
+                    jsonPath: ["$value", "fontFamily"],
                     detail: { type: "fontFamily", reason: "empty-font-list" },
                 },
                 {
-                    path: ["$value", "fontSize"],
+                    jsonPath: ["$value", "fontSize"],
                     detail: {
                         type: "dimension",
                         reason: "string-with-unit",
@@ -149,7 +152,7 @@ describe("parseTypography", () => {
                     },
                 },
                 {
-                    path: ["$value", "fontWeight"],
+                    jsonPath: ["$value", "fontWeight"],
                     detail: {
                         type: "fontWeight",
                         reason: "unknown-font-weight-keyword",
@@ -165,7 +168,7 @@ describe("parseTypography", () => {
             const raw = { ...heading, paragraphSpacing: px(8) };
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value", "paragraphSpacing"],
+                    jsonPath: ["$value", "paragraphSpacing"],
                     detail: {
                         type: "typography",
                         reason: "unknown-property",
@@ -183,7 +186,10 @@ describe("parseTypography", () => {
                     const raw = { ...heading, [part]: "italic" };
                     expect(read(raw, lenient)).toStrictEqual(read(heading, lenient));
                     expect(ignored(raw, lenient)).toStrictEqual([
-                        { path: ["$value", part], detail: { type: "typography", property: part } },
+                        {
+                            jsonPath: ["$value", part],
+                            detail: { type: "typography", property: part },
+                        },
                     ]);
                 },
             );
@@ -193,7 +199,7 @@ describe("parseTypography", () => {
                 const raw = { ...partial, paragraphSpacing: px(8) };
                 expect(details(raw, lenient)).toStrictEqual([
                     {
-                        path: ["$value", "lineHeight"],
+                        jsonPath: ["$value", "lineHeight"],
                         detail: {
                             type: "typography",
                             reason: "missing-property",
@@ -203,7 +209,7 @@ describe("parseTypography", () => {
                 ]);
                 expect(ignored(raw, lenient)).toStrictEqual([
                     {
-                        path: ["$value", "paragraphSpacing"],
+                        jsonPath: ["$value", "paragraphSpacing"],
                         detail: { type: "typography", property: "paragraphSpacing" },
                     },
                 ]);

@@ -27,8 +27,8 @@ async function project(resolver: string) {
         variables: { path: "variables.css" },
         utilities: { classes },
     });
-    const doc = await read(resolver, readOptions(config));
-    return { config, doc };
+    const tokens = await read(resolver, readOptions(config));
+    return { config, tokens };
 }
 
 type Rule = [RegExp, (match: RegExpMatchArray) => Record<string, unknown> | undefined];
@@ -52,9 +52,9 @@ const projects = {
     ),
 };
 
-for (const [name, { config, doc }] of Object.entries(projects)) {
+for (const [name, { config, tokens }] of Object.entries(projects)) {
     describe(`utilities for ${name}, the fluid kit's classes, each safelisted class answered`, () => {
-        const declared = declare(doc, config);
+        const declared = declare(tokens, config);
 
         bench("new core: tokens, rules, safelist, answers, from the build's declarations", () => {
             const { rules, safelist } = utilityRules(utilityTokens(declared), classes);
@@ -66,7 +66,7 @@ for (const [name, { config, doc }] of Object.entries(projects)) {
         });
 
         bench("new core: declare, for scale", () => {
-            declare(doc, config);
+            declare(tokens, config);
         });
 
         bench("new core: emitCSS, for scale", () => {

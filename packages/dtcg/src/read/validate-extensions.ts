@@ -35,7 +35,7 @@ type Checked = Parameters<NonNullable<ExtensionValidator["validate"]>>[0];
  *     const { fluid } = extension as { fluid?: unknown };
  *     return typeof fluid === "boolean"
  *       ? []
- *       : [{ path: ["fluid"], reason: "not-a-boolean", data: { fluid } }];
+ *       : [{ jsonPath: ["fluid"], reason: "not-a-boolean", data: { fluid } }];
  *   },
  * });
  */
@@ -58,8 +58,11 @@ export function defineExtensionValidator<
 
 export function validateExtensions(
     normalised: NormalisedPermutation[],
-    permutations: Permutation[],
-    { validators, parseOptions }: { validators: ExtensionValidator[]; parseOptions: ParseOptions },
+    permutations: readonly Permutation[],
+    {
+        validators,
+        parseOptions,
+    }: { validators: readonly ExtensionValidator[]; parseOptions: ParseOptions },
     diagnostics: Diagnostic[],
 ): void {
     if (validators.length === 0) return;
@@ -81,7 +84,7 @@ export function validateExtensions(
             const problems = passed.ok
                 ? (validator.validate?.(on, passed.value, parseOptions) ?? [])
                 : passed.problems;
-            const place = {
+            const extension = {
                 within: [validator.key] as [string],
                 messages: validator.messages,
                 json,
@@ -90,20 +93,20 @@ export function validateExtensions(
                 permutation,
             };
             for (const problem of problems) {
-                diagnostics.push(extensionDiagnostic(problem, place));
+                diagnostics.push(extensionDiagnostic(problem, extension));
             }
         };
 
         for (const [path, group] of everyGroup(merged)) {
             const settings = settingsOf(merged, group);
             for (const validator of validators) {
-                const at = settings.extensionsAt?.[validator.key];
-                if (!at || !validator.appliesTo.includes("group")) continue;
-                const node = member(at.node, validator.key);
+                const written = settings.extensionsAt?.[validator.key];
+                if (!written || !validator.appliesTo.includes("group")) continue;
+                const node = member(written.node, validator.key);
                 if (!node) continue;
                 const value = settings.extensions?.[validator.key];
                 const on: Checked = { ...(path !== undefined && { path }), type: "group" };
-                check(validator, on, value, at.json, node);
+                check(validator, on, value, written.json, node);
             }
         }
 

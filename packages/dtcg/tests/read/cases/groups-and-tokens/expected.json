@@ -7,19 +7,21 @@
         {
           "path": "color.accent.$root",
           "type": "color",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "tokens.json",
-              "valueAfter": "\"$root\":"
-            }
-          },
           "authored": {
             "value": {
               "colorSpace": "srgb",
               "components": [0.867, 0, 0]
             }
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "tokens.json",
+                "valueAfter": "\"$root\":"
+              }
+            }
+          ]
         },
         {
           "path": "color.accent.light",
@@ -31,52 +33,58 @@
               "note": true
             }
           },
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "tokens.json",
-              "valueAfter": "\"light\":"
-            }
-          },
           "authored": {
             "value": {
               "colorSpace": "srgb",
               "components": [1, 0.133, 0.133]
             },
             "deprecated": "use the root accent"
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "tokens.json",
+                "valueAfter": "\"light\":"
+              }
+            }
+          ]
         },
         {
           "path": "opacity.half",
           "type": "number",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "tokens.json",
-              "valueAfter": "\"half\":"
-            }
-          },
           "authored": {
             "value": 0.5
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "tokens.json",
+                "valueAfter": "\"half\":"
+              }
+            }
+          ]
         },
         {
           "path": "space.sm",
           "type": "dimension",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "tokens.json",
-              "valueAfter": "\"sm\":"
-            }
-          },
           "authored": {
             "value": {
               "value": 4,
               "unit": "px"
             },
             "type": "dimension"
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "tokens.json",
+                "valueAfter": "\"sm\":"
+              }
+            }
+          ]
         }
       ],
       "groups": [
@@ -89,10 +97,10 @@
               "tier": 1
             }
           },
-          "declaredIn": [
+          "writtenAt": [
             {
-              "index": 0,
-              "at": {
+              "source": 0,
+              "span": {
                 "file": "tokens.json",
                 "valueAfter": "\"color\":"
               }
@@ -101,10 +109,10 @@
         },
         {
           "path": "color.accent",
-          "declaredIn": [
+          "writtenAt": [
             {
-              "index": 0,
-              "at": {
+              "source": 0,
+              "span": {
                 "file": "tokens.json",
                 "valueAfter": "\"accent\":"
               }
@@ -113,10 +121,10 @@
         },
         {
           "path": "opacity",
-          "declaredIn": [
+          "writtenAt": [
             {
-              "index": 0,
-              "at": {
+              "source": 0,
+              "span": {
                 "file": "tokens.json",
                 "valueAfter": "\"opacity\":"
               }
@@ -125,10 +133,10 @@
         },
         {
           "path": "space",
-          "declaredIn": [
+          "writtenAt": [
             {
-              "index": 0,
-              "at": {
+              "source": 0,
+              "span": {
                 "file": "tokens.json",
                 "valueAfter": "\"space\":"
               }

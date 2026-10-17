@@ -190,8 +190,8 @@ for (const size of SIZES) {
                 }),
             );
             const { config } = fx.loaded;
-            const doc = await read(config.resolver, readOptions(config));
-            tokenBuilt = await buildFrom(doc, fx.loaded, {}, tokenBuilt);
+            const tokens = await read(config.resolver, readOptions(config));
+            tokenBuilt = await buildFrom(tokens, fx.loaded, {}, tokenBuilt);
         });
     });
 }

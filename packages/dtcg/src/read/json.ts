@@ -79,7 +79,7 @@ const membersOf = new WeakMap<Node, Member[]>();
 
 function collectMembers(node: Node, duplicates: DuplicateKey[]): void {
     if (node.type === "array") {
-        for (const child of node.children ?? []) collectMembers(child, duplicates);
+        for (const item of node.children ?? []) collectMembers(item, duplicates);
         return;
     }
     if (node.type !== "object") return;
@@ -104,7 +104,7 @@ export function members(node: Node): readonly Member[] {
     return membersOf.get(node) ?? [];
 }
 
-export function propertyKey(node: Node, steps: (string | number)[]): Node | undefined {
+export function propertyKey(node: Node, steps: readonly (string | number)[]): Node | undefined {
     const name = steps.at(-1);
     let current: Node | undefined = node;
     for (const step of steps.slice(0, -1)) {
@@ -135,14 +135,24 @@ function findLineStarts(text: string): number[] {
     return starts;
 }
 
-export function spanOf(file: string, lineStarts: number[], offset: number, length: number): Span {
-    return {
-        file,
+const spans = new WeakMap<object, Span>();
+
+export function spanOf(
+    { path, lineStarts }: Pick<JsonFile, "path" | "lineStarts">,
+    node: { offset: number; length: number },
+): Span {
+    const known = spans.get(node);
+    if (known) return known;
+    const { offset, length } = node;
+    const span: Span = {
+        file: path,
         offset,
         length,
         start: position(lineStarts, offset),
         end: position(lineStarts, offset + length),
     };
+    spans.set(node, span);
+    return span;
 }
 
 function position(lineStarts: number[], offset: number): { line: number; column: number } {
@@ -166,7 +176,7 @@ export function plainValue(node: Node): unknown {
     return node.value;
 }
 
-export function deepestNode(node: Node, steps: (string | number)[]): Node {
+export function deepestNode(node: Node, steps: readonly (string | number)[]): Node {
     let current = node;
     for (const step of steps) {
         const next = child(current, step);

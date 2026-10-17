@@ -29,14 +29,54 @@ describe("similarName", () => {
 
 describe("a missing reference's similar name", () => {
     it("is never the token that holds the reference", () => {
-        const tokens = {
+        const json = {
             color: {
                 $type: "color",
                 line: { $value: "{color.lin}" },
             },
         };
-        const doc = readFromMemory({ files: { "tokens.json": JSON.stringify(tokens) } });
-        const [found] = doc.diagnostics;
+        const tokens = readFromMemory({ files: { "tokens.json": JSON.stringify(json) } });
+        const [found] = tokens.diagnostics;
+        expect(found?.kind).toBe("missing-reference");
+        expect(found?.detail).not.toHaveProperty("similar");
+    });
+
+    const pointingAt = ($ref: string, $type = "color") => {
+        const json = {
+            color: {
+                $type: "color",
+                ink: { $value: { colorSpace: "srgb", components: [0, 0, 0] } },
+            },
+            uses: { $type, $value: { $ref } },
+        };
+        const tokens = readFromMemory({ files: { "tokens.json": JSON.stringify(json) } });
+        return tokens.diagnostics.map(({ kind, detail }) => ({ kind, detail }));
+    };
+
+    it.for([
+        { $ref: "#/color/inc/$value", similar: "#/color/ink/$value" },
+        { $ref: "#/color/inc", similar: "#/color/ink" },
+    ])("is written as a pointer when the reference is one: $similar", ({ $ref, similar }) => {
+        expect(pointingAt($ref)).toStrictEqual([
+            { kind: "missing-reference", detail: { ref: $ref, from: ["uses"], similar } },
+        ]);
+    });
+
+    it("keeps a pointer's steps into the value", () => {
+        expect(pointingAt("#/color/inc/$value/components/0", "number")).toStrictEqual([
+            {
+                kind: "missing-reference",
+                detail: {
+                    ref: "#/color/inc/$value/components/0",
+                    from: ["uses"],
+                    similar: "#/color/ink/$value/components/0",
+                },
+            },
+        ]);
+    });
+
+    it("is not given when the token a pointer names exists and the step inside it does not", () => {
+        const [found] = pointingAt("#/color/ink/$value/components/9", "number");
         expect(found?.kind).toBe("missing-reference");
         expect(found?.detail).not.toHaveProperty("similar");
     });

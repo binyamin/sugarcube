@@ -2,7 +2,7 @@
   "diagnostics": [
     {
       "kind": "missing-reference",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"{color.brnad}\""
       },

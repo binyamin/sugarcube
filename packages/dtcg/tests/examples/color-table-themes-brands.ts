@@ -1,16 +1,16 @@
 // A table of every color in every combination of theme and brand: light and dark, default brand and
 // ocean.
-import { read, permutation, token, tokenPaths } from "@sugarcube-sh/dtcg";
+import { read } from "@sugarcube-sh/dtcg";
 
-const doc = await read("tokens.resolver.json", {
+const tokens = await read("tokens.resolver.json", {
     readText: (p) => fetch(p).then((r) => r.text()),
     inputs: [{}, { theme: "dark" }, { brand: "ocean" }, { theme: "dark", brand: "ocean" }],
 });
 
-row("", ...doc.permutations.map((p) => p.label));
-for (const path of tokenPaths(doc)) {
-    const each = doc.permutations.map((p) => token(p, path));
+row("", ...tokens.permutations.map((p) => p.label));
+for (const path of tokens.tokenPaths()) {
+    const each = tokens.permutations.map((p) => p.token(path));
     if (each.some((t) => t?.type === "color")) row(path, ...each.map((t) => t?.resolved));
 }
-const darkOcean = permutation(doc, { theme: "dark", brand: "ocean" });
-if (darkOcean) showMessage(`${darkOcean.tokens.length} tokens in ${darkOcean.label}`);
+const darkOcean = tokens.permutation({ theme: "dark", brand: "ocean" });
+showMessage(`${darkOcean.tokens.length} tokens in ${darkOcean.label}`);

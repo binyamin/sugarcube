@@ -47,7 +47,8 @@
           "value": [
             {
               "color": {
-                "alias": "brand"
+                "syntax": "curly-brace",
+                "path": "brand"
               },
               "offsetX": {
                 "value": 0,
@@ -74,13 +75,15 @@
           "value": [
             {
               "color": {
-                "alias": "brand"
+                "syntax": "curly-brace",
+                "path": "brand"
               },
               "position": 0
             },
             {
               "color": {
-                "alias": "brand"
+                "syntax": "curly-brace",
+                "path": "brand"
               },
               "position": 1
             }
@@ -91,7 +94,8 @@
           "value": {
             "fontFamily": ["Inter", "sans-serif"],
             "fontSize": {
-              "alias": "space"
+              "syntax": "curly-brace",
+              "path": "space"
             },
             "fontWeight": 400,
             "letterSpacing": {
@@ -104,7 +108,8 @@
         {
           "path": "accent",
           "value": {
-            "alias": "brand"
+            "syntax": "curly-brace",
+            "path": "brand"
           }
         }
       ]

@@ -13,7 +13,7 @@
           "hex": "#e11d48"
         }
       },
-      "at": { "file": "tokens.json", "text": "\"#e11d48\"" },
+      "span": { "file": "tokens.json", "text": "\"#e11d48\"" },
       "path": "space"
     }
   ]

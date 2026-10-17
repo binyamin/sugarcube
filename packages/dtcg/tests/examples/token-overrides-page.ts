@@ -1,15 +1,11 @@
 // A token's detail page. It shows the value as written, then each theme that overrides it, with the
 // file each value comes from.
-import { acrossPermutations, token, type Document } from "@sugarcube-sh/dtcg";
+import { type DesignTokens } from "@sugarcube-sh/dtcg";
+import { isJsonObject } from "@sugarcube-sh/dtcg/values";
 
-declare const doc: Document;
+declare const tokens: DesignTokens;
 const path = "color.danger";
 
-const base = token(doc, path);
-row("Base", base?.authored?.value, base?.source.at.file);
-
-for (const { permutation, token: there, from } of acrossPermutations(doc, path)) {
-    if (from && "modifier" in from) {
-        row(permutation.label, there.authored?.value, there.source.at.file);
-    }
+for (const { span, written, winsIn } of tokens.writtenAt(path)) {
+    row(winsIn.label, isJsonObject(written) ? written.$value : undefined, span.file);
 }

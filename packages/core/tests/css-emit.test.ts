@@ -1,4 +1,4 @@
-import { type Document, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { fillDefaults } from "../src/node/config/normalize.js";
 import { declare } from "../src/shared/css/declare.js";
@@ -8,19 +8,23 @@ import { readOptions } from "../src/shared/read-options.js";
 
 type Variables = Parameters<typeof fillDefaults>[0]["variables"];
 
-function built(doc: Document, config: InternalConfig) {
-    const declared = declare(doc, config);
+function built(tokens: DesignTokens, config: InternalConfig) {
+    const declared = declare(tokens, config);
     const { files, diagnostics } = emitCSS(declared, config);
     return { files, diagnostics: [...declared.diagnostics, ...diagnostics] };
 }
 
-function filesFor(files: Record<string, unknown>, variables: Variables = {}) {
+function builtFor(files: Record<string, unknown>, variables: Variables = {}) {
     const config = fillDefaults({ variables: { path: "variables.css", ...variables } });
     const texts = Object.fromEntries(
         Object.entries(files).map(([path, json]) => [path, JSON.stringify(json)]),
     );
-    const doc = readFromMemory({ files: texts }, readOptions(config));
-    return built(doc, config).files;
+    const tokens = readFromMemory({ files: texts }, readOptions(config));
+    return built(tokens, config);
+}
+
+function filesFor(files: Record<string, unknown>, variables: Variables = {}) {
+    return builtFor(files, variables).files;
 }
 
 function cssFor(files: Record<string, unknown>, variables: Variables = {}) {
@@ -135,14 +139,53 @@ describe("emitCSS", () => {
         );
     });
 
+    it("writes var() for a JSON Pointer to a whole value, as for a curly brace reference, and the value for one to a property", () => {
+        const ink = { colorSpace: "srgb", components: [0.2, 0.2, 0.2], hex: "#333333" };
+        expect(
+            cssFor({
+                "tokens.json": {
+                    ink: color(ink),
+                    text: color({ $ref: "#/ink/$value" }),
+                    tint: color({
+                        colorSpace: "srgb",
+                        components: [{ $ref: "#/ink/$value/components/0" }, 1, 1],
+                    }),
+                    line: {
+                        $type: "border",
+                        $value: { color: ink, width: { value: 1, unit: "px" }, style: "solid" },
+                    },
+                    edge: {
+                        $type: "border",
+                        $value: {
+                            color: { $ref: "#/line/$value/color" },
+                            width: { value: 2, unit: "px" },
+                            style: "dashed",
+                        },
+                    },
+                },
+            }),
+        ).toBe(
+            [
+                ":root {",
+                "    --ink: #333333;",
+                "    --text: var(--ink);",
+                "    --tint: rgb(51 255 255);",
+                "    --line: 1px solid #333333;",
+                "    --edge: 2px dashed #333333;",
+                "}",
+                "",
+            ].join("\n"),
+        );
+    });
+
     it("hands back what reading found from declaring, not from writing", () => {
         const config = fillDefaults({ variables: { path: "variables.css" } });
         const files = { "tokens.json": JSON.stringify({ broken: color("#e11d4") }) };
-        const doc = readFromMemory({ files }, readOptions(config));
-        const declared = declare(doc, config);
-        expect(declared.diagnostics).toStrictEqual(doc.diagnostics);
+        const tokens = readFromMemory({ files }, readOptions(config));
+        const declared = declare(tokens, config);
+        expect(declared.diagnostics).toStrictEqual(tokens.diagnostics);
         expect(emitCSS(declared, config).diagnostics).toStrictEqual([]);
-        expect(doc.diagnostics).not.toStrictEqual([]);
+        expect(tokens.diagnostics).not.toStrictEqual([]);
     });
 
     it("declares each permutation once, however many blocks write it", () => {
@@ -174,8 +217,11 @@ describe("emitCSS", () => {
             }),
             "tokens.json": JSON.stringify({ ink: color("#111111") }),
         };
-        const doc = readFromMemory({ files, entry: "tokens.resolver.json" }, readOptions(config));
-        const [first, second] = declare(doc, config).entries;
+        const tokens = readFromMemory(
+            { files, entry: "tokens.resolver.json" },
+            readOptions(config),
+        );
+        const [first, second] = declare(tokens, config).entries;
         expect(first?.declared).toBe(second?.declared);
     });
 
@@ -202,8 +248,11 @@ describe("emitCSS", () => {
             "tokens.json": JSON.stringify({ brand: color("#e11d48") }),
             "ocean.json": JSON.stringify({ brand: color("#0ea5e9") }),
         };
-        const doc = readFromMemory({ files, entry: "tokens.resolver.json" }, readOptions(config));
-        const declared = declare(doc, config);
+        const tokens = readFromMemory(
+            { files, entry: "tokens.resolver.json" },
+            readOptions(config),
+        );
+        const declared = declare(tokens, config);
         const { files: written } = emitCSS(declared, config);
         const { diagnostics } = declared;
 
@@ -214,10 +263,10 @@ describe("emitCSS", () => {
 
         it("keeps where the read found it, the modifier in the resolver", () => {
             const [found] = diagnostics;
-            expect(found?.at?.file).toBe("tokens.resolver.json");
+            expect(found?.span?.file).toBe("tokens.resolver.json");
         });
 
-        it("says which modifier needs a default, in place of the read's warning", () => {
+        it("says which modifier needs a default", () => {
             expect(diagnostics.map(({ kind }) => kind)).toStrictEqual(["default-required"]);
             expect(diagnostics[0]).toMatchObject({
                 severity: "error",
@@ -259,10 +308,62 @@ describe("emitCSS", () => {
             }),
             "tokens.json": JSON.stringify({ brand: color("#e11d48") }),
         };
-        const doc = readFromMemory({ files, entry: "tokens.resolver.json" }, readOptions(config));
-        expect(built(doc, config).diagnostics.map(({ message }) => message)).toStrictEqual([
+        const tokens = readFromMemory(
+            { files, entry: "tokens.resolver.json" },
+            readOptions(config),
+        );
+        expect(built(tokens, config).diagnostics.map(({ message }) => message)).toStrictEqual([
             "the modifiers `brand` and `size` have no default, so there is nothing to write on `:root`: give them a `default` in the resolver, or list the permutations to write in `variables.permutations`",
         ]);
+    });
+
+    it("needs a default when the only modifier has none", () => {
+        const config = fillDefaults({ variables: { path: "variables.css" } });
+        const files = {
+            "tokens.resolver.json": JSON.stringify({
+                version: "2025.10",
+                resolutionOrder: [
+                    { type: "set", name: "base", sources: [{ $ref: "tokens.json" }] },
+                    { type: "modifier", name: "theme", contexts: { light: [], dark: [] } },
+                ],
+            }),
+            "tokens.json": JSON.stringify({ brand: color("#e11d48") }),
+        };
+        const declared = declare(
+            readFromMemory({ files, entry: "tokens.resolver.json" }, readOptions(config)),
+            config,
+        );
+        expect(declared.entries).toStrictEqual([]);
+        expect(declared.diagnostics.map(({ kind }) => kind)).toStrictEqual(["default-required"]);
+        expect(declared.diagnostics[0]?.span?.file).toBe("tokens.resolver.json");
+    });
+
+    it("needs no default when the config lists the permutations to write", () => {
+        const config = fillDefaults({
+            variables: {
+                path: "variables.css",
+                permutations: [
+                    { input: { theme: "light" }, selector: ":root" },
+                    { input: { theme: "dark" }, selector: '[data-theme="dark"]' },
+                ],
+            },
+        });
+        const files = {
+            "tokens.resolver.json": JSON.stringify({
+                version: "2025.10",
+                resolutionOrder: [
+                    { type: "set", name: "base", sources: [{ $ref: "tokens.json" }] },
+                    { type: "modifier", name: "theme", contexts: { light: [], dark: [] } },
+                ],
+            }),
+            "tokens.json": JSON.stringify({ brand: color("#e11d48") }),
+        };
+        const declared = declare(
+            readFromMemory({ files, entry: "tokens.resolver.json" }, readOptions(config)),
+            config,
+        );
+        expect(declared.diagnostics).toStrictEqual([]);
+        expect(declared.entries).not.toStrictEqual([]);
     });
 
     describe("writes a later permutation's block", () => {
@@ -289,6 +390,37 @@ describe("emitCSS", () => {
 
         it("with only what changed when the first block reaches every element", () => {
             expect(cssFor(files, { permutations: brands(":root") })).toBe(
+                [
+                    ":root {",
+                    "    --brand: #e11d48;",
+                    "    --text: #111111;",
+                    "}",
+                    "",
+                    '[data-brand="ocean"] {',
+                    "    --brand: #0ea5e9;",
+                    "}",
+                    "",
+                ].join("\n"),
+            );
+        });
+
+        it("after the default permutation's, though the resolver lists another context first", () => {
+            const oceanFirst = {
+                ...files,
+                "tokens.resolver.json": {
+                    ...files["tokens.resolver.json"],
+                    resolutionOrder: [
+                        files["tokens.resolver.json"].resolutionOrder[0],
+                        {
+                            type: "modifier",
+                            name: "brand",
+                            contexts: { ocean: [{ $ref: "ocean.json" }], house: [] },
+                            default: "house",
+                        },
+                    ],
+                },
+            };
+            expect(cssFor(oceanFirst)).toBe(
                 [
                     ":root {",
                     "    --brand: #e11d48;",
@@ -469,6 +601,56 @@ describe("emitCSS", () => {
                     "",
                 ].join("\n"),
             );
+        });
+    });
+
+    describe("warns when a file's default permutation block comes after another block", () => {
+        const files = {
+            "tokens.resolver.json": {
+                version: "2025.10",
+                resolutionOrder: [
+                    { type: "set", name: "base", sources: [{ $ref: "tokens.json" }] },
+                    {
+                        type: "modifier",
+                        name: "mode",
+                        contexts: { light: [], dark: [{ $ref: "dark.json" }] },
+                        default: "light",
+                    },
+                ],
+            },
+            "tokens.json": { text: color("#111111") },
+            "dark.json": { text: color("#eeeeee") },
+        };
+        const dark = { input: { mode: "dark" }, selector: '[data-mode="dark"]' };
+        const light = { input: {}, selector: ":root" };
+        const warned = (permutations: NonNullable<Variables>["permutations"]) =>
+            builtFor(files, { permutations }).diagnostics.filter(
+                ({ kind }) => kind === "default-not-first",
+            );
+
+        it("naming both blocks and the file, since the default's values would win", () => {
+            expect(warned([dark, light])).toStrictEqual([
+                expect.objectContaining({
+                    severity: "warning",
+                    detail: {
+                        file: "variables.css",
+                        selector: ":root",
+                        after: '[data-mode="dark"]',
+                    },
+                    message:
+                        '`:root` is written after `[data-mode="dark"]` in `variables.css`, so it overrides it wherever both apply: list the default permutation first in `variables.permutations`',
+                }),
+            ]);
+        });
+
+        it("not when the default is listed first, though it is listed again later", () => {
+            expect(
+                warned([light, dark, { input: { mode: "light" }, selector: ".light" }]),
+            ).toStrictEqual([]);
+        });
+
+        it("not when the earlier block is in another file", () => {
+            expect(warned([{ ...dark, path: "dark.css" }, light])).toStrictEqual([]);
         });
     });
 
@@ -1503,7 +1685,7 @@ describe("emitCSS", () => {
             ]);
         });
 
-        it("reading a fluid range as the Document's values were read", () => {
+        it("reading a fluid range as the design tokens' values were read", () => {
             const config = fillDefaults({
                 variables: {
                     path: "variables.css",

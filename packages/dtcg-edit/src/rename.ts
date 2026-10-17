@@ -1,20 +1,14 @@
 import {
-    type Document,
-    type Move,
-    type Project,
+    type DesignTokens,
+    type ReferenceInPermutations,
     childPath,
     forbiddenInName,
-    group,
-    movedReference,
     parentOf,
-    pathBelow,
-    token,
 } from "@sugarcube-sh/dtcg";
-import { readReference } from "@sugarcube-sh/dtcg/values";
 import { refused } from "./error-messages.js";
-import type { FileOp, Json, OpResult } from "./index.js";
-import { groupCopies, tokenCopies } from "./placement.js";
-import { type Place, placeOf, unique } from "./project-text.js";
+import type { FileOp, OpResult } from "./index.js";
+import { copiesOf } from "./placement.js";
+import { type Member, memberAt } from "./file-text.js";
 
 /**
  * Renames a token or group where each is written, and rewrites every reference to it or to
@@ -23,79 +17,59 @@ import { type Place, placeOf, unique } from "./project-text.js";
  * a reference, such as a `$description` mentioning `{color.brand}`, is left alone. References are
  * found in the permutations the read built, so a read limited by `inputs` can miss one written in
  * a file only another permutation reads. `moved` gives the path that changed, which a session's
- * ids and {@link diff} follow.
+ * ids and `tokens.diff` follow. A reference a generator makes is written in no file, so it is left
+ * as it is, and its token is listed in `broken`.
  *
  * Refused, with the reason: a path that is neither a token nor a group, a name already taken or
  * one the spec forbids, a token a generator makes, or a token or group inherited through
  * `$extends`.
  *
  * @example
- * session.do(rename(session.project, "color.brand", "primary"));
+ * session.do(rename(session.tokens, "color.brand", "primary"));
  */
-export function rename(project: Project, path: string, newName: string): OpResult {
+export function rename(tokens: DesignTokens, path: string, newName: string): OpResult {
     if (newName === "") return refused({ kind: "invalid-name", name: newName });
     const character = forbiddenInName(newName);
     if (character !== undefined) return refused({ kind: "invalid-name", name: newName, character });
 
-    const copies =
-        tokenCopies(project, path) ??
-        groupCopies(project, path) ??
-        refused({ kind: "not-found", path });
+    const copies = copiesOf(tokens, path);
     if ("refused" in copies) return copies;
     const to = childPath(parentOf(path), newName);
     if (to === path) return { ops: [], alsoAffects: copies.alsoAffects, moved: [] };
-    if (taken(project.doc, to)) return refused({ kind: "taken", path: to });
+    if (tokens.has(to)) return refused({ kind: "taken", path: to });
 
     const moved = [{ from: path, to }];
-    const keys = copies.places.map(({ span, path: at, written }): FileOp => ({
+    const keys = copies.places.map(({ span, jsonPath, written }): FileOp => ({
         kind: "renameKey",
         file: span.file,
-        path: at,
+        jsonPath,
         name: newName,
         was: written,
     }));
-    const references = referencesTo(project, path).flatMap((place): FileOp[] => {
-        const value = movedWritten(place.written, moved);
-        if (value === undefined) return [];
-        const at = afterKeys(place, copies.places, newName);
-        return [{ kind: "set", file: place.span.file, path: at, value, was: place.written }];
+    const all = tokens.referencedBy(path);
+    const references = all.filter(isWritten).flatMap((reference): FileOp[] => {
+        const member = memberAt(tokens, reference.span);
+        if (!member) return [];
+        const jsonPath = afterKeys(member, copies.places, newName);
+        const value = reference.moved(moved);
+        return [{ kind: "set", file: member.span.file, jsonPath, value, was: member.written }];
     });
-    return { ops: [...keys, ...references], alsoAffects: copies.alsoAffects, moved };
+    const broken = [...new Set(all.filter((each) => !isWritten(each)).map(({ from }) => from))];
+    return { ops: [...keys, ...references], alsoAffects: copies.alsoAffects, broken, moved };
 }
 
-function taken(doc: Document, path: string): boolean {
-    return doc.permutations.some((perm) => (token(perm, path) ?? group(perm, path)) !== undefined);
-}
-
-function referencesTo(project: Project, path: string): Place[] {
-    const reaches = (target: string) => target === path || pathBelow(target, path) !== undefined;
-    const spans = project.doc.permutations.flatMap((perm) => [
-        ...perm.edges.filter(({ to }) => reaches(to)).map(({ at }) => at),
-        ...perm.groups.flatMap(({ extends: extended }) =>
-            extended && reaches(extended.path) ? [extended.at] : [],
-        ),
-    ]);
-    return unique(spans).flatMap((span) => placeOf(project, span) ?? []);
-}
-
-function movedWritten(written: Json, moved: Move[]): Json | undefined {
-    if (typeof written === "string" && written.startsWith("#")) {
-        return movedReference({ pointer: written }, moved).pointer;
-    }
-    const ref = readReference(written);
-    if (ref === undefined) return undefined;
-    if ("alias" in ref) return `{${movedReference(ref, moved).alias}}`;
-    return { $ref: movedReference(ref, moved).pointer };
-}
-
-function afterKeys(place: Place, keys: Place[], name: string): Place["path"] {
-    return keys.reduce((path, key) => {
+function afterKeys(member: Member, keys: Member[], name: string): Member["jsonPath"] {
+    return keys.reduce((jsonPath, key) => {
         const inside =
-            key.span.file === place.span.file &&
-            key.path.length <= path.length &&
-            key.path.every((step, index) => path[index] === step);
+            key.span.file === member.span.file &&
+            key.jsonPath.length <= jsonPath.length &&
+            key.jsonPath.every((step, index) => jsonPath[index] === step);
         return inside
-            ? path.map((step, index) => (index === key.path.length - 1 ? name : step))
-            : path;
-    }, place.path);
+            ? jsonPath.map((step, index) => (index === key.jsonPath.length - 1 ? name : step))
+            : jsonPath;
+    }, member.jsonPath);
+}
+
+function isWritten(reference: ReferenceInPermutations): boolean {
+    return !reference.permutations.some((each) => each.token(reference.from)?.generated);
 }

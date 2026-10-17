@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { type Diagnostic, type Document, read, readFromMemory } from "../../src/index.js";
+import { type Diagnostic, type DesignTokens, read, readFromMemory } from "../../src/index.js";
 
 const repo = join(import.meta.dirname, "../../../..");
 
@@ -46,7 +46,7 @@ const oldForms: OldForm[] = [
     {
         form: "a reference as part of a value",
         inRepo: false,
-        matches: (d) => reason(d) === "alias-not-allowed-here",
+        matches: (d) => reason(d) === "curly-brace-not-allowed-here",
     },
     {
         form: "an unknown property in a value",
@@ -66,7 +66,7 @@ const oldForms: OldForm[] = [
     {
         form: "a string in a dashArray that is not a reference",
         inRepo: false,
-        matches: (d) => d.kind === "invalid-value" && d.detail.at.includes("dashArray"),
+        matches: (d) => d.kind === "invalid-value" && d.detail.jsonPath.includes("dashArray"),
     },
     {
         form: "an empty dashArray",
@@ -143,7 +143,7 @@ const oldForms: OldForm[] = [
         inRepo: false,
         matches: (d) =>
             d.kind === "resolver-invalid" &&
-            d.detail.at[0] === "resolutionOrder" &&
+            d.detail.jsonPath[0] === "resolutionOrder" &&
             ["invalid-default", "wrong-type", "no-contexts"].includes(d.detail.rule),
     },
     {
@@ -153,7 +153,7 @@ const oldForms: OldForm[] = [
             d.kind === "resolver-invalid" &&
             d.detail.rule === "wrong-type" &&
             d.detail.name === "$ref" &&
-            d.detail.at.includes("sources"),
+            d.detail.jsonPath.includes("sources"),
     },
     {
         form: "a token file whose top level is a list",
@@ -291,15 +291,17 @@ function jsonFilesIn(folder: string): string[] {
         .sort();
 }
 
-const projects = new Map<string, Document>();
+const projects = new Map<string, DesignTokens>();
 
 beforeAll(async () => {
     const files = tokenFolders.flatMap(jsonFilesIn);
     const covered = new Set<string>();
     for (const entry of files.filter((file) => file.endsWith(".resolver.json"))) {
-        const doc = await read(entry, { readText: (path) => readFile(join(repo, path), "utf8") });
-        for (const file of doc.files) covered.add(join(dirname(entry), file));
-        projects.set(entry, doc);
+        const tokens = await read(entry, {
+            readText: (path) => readFile(join(repo, path), "utf8"),
+        });
+        for (const file of tokens.files) covered.add(join(dirname(entry), file));
+        projects.set(entry, tokens);
     }
     for (const together of readTogether) {
         const texts = together.map((file) => [file, readFileSync(join(repo, file), "utf8")]);
@@ -324,14 +326,14 @@ beforeAll(async () => {
 });
 
 function located(d: Diagnostic): string {
-    const where = d.at ? `${d.at.file}:${d.at.start.line}` : "no position";
+    const where = d.span ? `${d.span.file}:${d.span.start.line}` : "no position";
     return `${d.kind} ${JSON.stringify(d.detail)} at ${where}`;
 }
 
 describe("every token file and resolver in the repo", () => {
     it("fails only with forms old sugarcube accepted, or where a fixture is meant to", () => {
-        const unexplained = [...projects].flatMap(([project, doc]) =>
-            doc.diagnostics
+        const unexplained = [...projects].flatMap(([project, tokens]) =>
+            tokens.diagnostics
                 .filter((d) => !oldForms.some((each) => each.matches(d)))
                 .filter(
                     (d) =>
@@ -354,7 +356,7 @@ describe("every token file and resolver in the repo", () => {
     });
 
     it("finds in the repo exactly the forms old sugarcube accepted that are marked as there", () => {
-        const all = [...projects.values()].flatMap((doc) => doc.diagnostics);
+        const all = [...projects.values()].flatMap((tokens) => tokens.diagnostics);
         const found = oldForms.map(({ form, matches }) => ({
             form,
             inRepo: all.some(matches),

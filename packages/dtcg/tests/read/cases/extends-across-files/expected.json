@@ -13,19 +13,21 @@
         {
           "path": "card.raised",
           "type": "number",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "base.json",
-              "valueAfter": "\"raised\":"
-            }
-          },
           "authored": {
             "value": 1
           },
           "inherited": {
             "from": "surface"
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "base.json",
+                "valueAfter": "\"raised\":"
+              }
+            }
+          ]
         }
       ]
     },
@@ -40,19 +42,21 @@
         {
           "path": "card.raised",
           "type": "number",
-          "source": {
-            "index": 2,
-            "at": {
-              "file": "dark.json",
-              "valueAfter": "\"raised\":"
-            }
-          },
           "authored": {
             "value": 2
           },
           "inherited": {
             "from": "surface"
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 2,
+              "span": {
+                "file": "dark.json",
+                "valueAfter": "\"raised\":"
+              }
+            }
+          ]
         }
       ]
     }

@@ -25,7 +25,7 @@
         "size": "large",
         "beta": "false"
       },
-      "label": "theme: dark, size: large, beta: false",
+      "label": "theme: dark, size: large",
       "sources": []
     }
   ],
@@ -66,5 +66,6 @@
         "modifier": "beta"
       }
     }
-  ]
+  ],
+  "sources": []
 }

@@ -85,8 +85,8 @@ function project(options: Options = {}): Fixture {
 const css = ({ variables, utilities }: Built) => ({ variables, utilities });
 
 async function rebuilt(loaded: LoadedConfig, previous: Built): Promise<Built> {
-    const doc = await read(loaded.config.resolver, readOptions(loaded.config));
-    return buildFrom(doc, loaded, {}, previous);
+    const tokens = await read(loaded.config.resolver, readOptions(loaded.config));
+    return buildFrom(tokens, loaded, {}, previous);
 }
 
 describe("a save while watching makes what a cold build makes", () => {

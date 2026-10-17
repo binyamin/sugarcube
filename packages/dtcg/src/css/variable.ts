@@ -1,5 +1,6 @@
 import { withoutRoot } from "../path.js";
 
+/** How a token path becomes a CSS custom property's name. */
 export interface CSSVariableOptions {
     /** Put before every name, joined with a dash. */
     prefix?: string;

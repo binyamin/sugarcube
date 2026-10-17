@@ -13,12 +13,12 @@ function read(raw: unknown, options?: ParseOptions) {
 function details(raw: unknown, options?: ParseOptions) {
     const result = parseDimension(raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
-    return result.errors.map(({ path, detail }) => ({ path, detail }));
+    return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
     const result = parseDimension(raw, ["$value"], options);
-    return result.ignored.map(({ path, detail }) => ({ path, detail }));
+    return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 describe("parseDimension", () => {
@@ -34,12 +34,16 @@ describe("parseDimension", () => {
     });
 
     describe("references", () => {
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{space.small}")).toStrictEqual({ alias: "space.small" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{space.small}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "space.small",
+            });
         });
 
         it("reads a JSON Pointer as the whole value", () => {
             expect(read({ $ref: "#/base/spacing/$value" })).toStrictEqual({
+                syntax: "json-pointer",
                 pointer: "#/base/spacing/$value",
             });
         });
@@ -48,13 +52,13 @@ describe("parseDimension", () => {
             expect(
                 read({ value: { $ref: "#/base/spacing/$value/value" }, unit: "rem" }),
             ).toStrictEqual({
-                value: { pointer: "#/base/spacing/$value/value" },
+                value: { syntax: "json-pointer", pointer: "#/base/spacing/$value/value" },
                 unit: "rem",
             });
             expect(read({ value: 32, unit: { $ref: "#/base/spacing/$value/unit" } })).toStrictEqual(
                 {
                     value: 32,
-                    unit: { pointer: "#/base/spacing/$value/unit" },
+                    unit: { syntax: "json-pointer", pointer: "#/base/spacing/$value/unit" },
                 },
             );
         });
@@ -69,7 +73,7 @@ describe("parseDimension", () => {
         ] as const)("the string %s, which earlier drafts allowed", ([raw, value, unit]) => {
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: {
                         type: "dimension",
                         reason: "string-with-unit",
@@ -83,7 +87,7 @@ describe("parseDimension", () => {
         it("the string 1em, with no object to give, since a dimension cannot use em", () => {
             expect(details("1em")).toStrictEqual([
                 {
-                    path: ["$value"],
+                    jsonPath: ["$value"],
                     detail: { type: "dimension", reason: "string-with-unit", value: "1em" },
                 },
             ]);
@@ -94,7 +98,7 @@ describe("parseDimension", () => {
             (raw) => {
                 expect(details(raw)).toStrictEqual([
                     {
-                        path: ["$value"],
+                        jsonPath: ["$value"],
                         detail: { type: "dimension", reason: "wrong-shape", value: raw },
                     },
                 ]);
@@ -106,7 +110,7 @@ describe("parseDimension", () => {
             (unit) => {
                 expect(details({ value: 1, unit })).toStrictEqual([
                     {
-                        path: ["$value", "unit"],
+                        jsonPath: ["$value", "unit"],
                         detail: {
                             type: "dimension",
                             reason: "unit-not-allowed",
@@ -121,7 +125,7 @@ describe("parseDimension", () => {
         it("a unit left out, even when the value is 0, as spec 8.2.1 says", () => {
             expect(details({ value: 0 })).toStrictEqual([
                 {
-                    path: ["$value", "unit"],
+                    jsonPath: ["$value", "unit"],
                     detail: { type: "dimension", reason: "missing-property", property: "unit" },
                 },
             ]);
@@ -130,7 +134,7 @@ describe("parseDimension", () => {
         it("a value left out", () => {
             expect(details({ unit: "px" })).toStrictEqual([
                 {
-                    path: ["$value", "value"],
+                    jsonPath: ["$value", "value"],
                     detail: { type: "dimension", reason: "missing-property", property: "value" },
                 },
             ]);
@@ -139,7 +143,7 @@ describe("parseDimension", () => {
         it.for(["16", null])("the value %j, which is not a number", (value) => {
             expect(details({ value, unit: "px" })).toStrictEqual([
                 {
-                    path: ["$value", "value"],
+                    jsonPath: ["$value", "value"],
                     detail: { type: "dimension", reason: "not-a-number", value },
                 },
             ]);
@@ -148,10 +152,10 @@ describe("parseDimension", () => {
         it.for(["value", "unit"])("a curly-brace reference in place of %s", (part) => {
             expect(details({ value: 16, unit: "px", [part]: "{space.small}" })).toStrictEqual([
                 {
-                    path: ["$value", part],
+                    jsonPath: ["$value", part],
                     detail: {
                         type: "dimension",
-                        reason: "alias-not-allowed-here",
+                        reason: "curly-brace-not-allowed-here",
                         reference: "{space.small}",
                     },
                 },
@@ -164,7 +168,7 @@ describe("parseDimension", () => {
             const raw = { value: 16, unit: "px", fluid: true };
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value", "fluid"],
+                    jsonPath: ["$value", "fluid"],
                     detail: { type: "dimension", reason: "unknown-property", property: "fluid" },
                 },
             ]);
@@ -176,7 +180,10 @@ describe("parseDimension", () => {
                 const raw = { value: 16, unit: "px", fluid: true };
                 expect(read(raw, lenient)).toStrictEqual({ value: 16, unit: "px" });
                 expect(ignored(raw, lenient)).toStrictEqual([
-                    { path: ["$value", "fluid"], detail: { type: "dimension", property: "fluid" } },
+                    {
+                        jsonPath: ["$value", "fluid"],
+                        detail: { type: "dimension", property: "fluid" },
+                    },
                 ]);
             });
         });

@@ -3,9 +3,12 @@ import type {
     DiagnosticDetailByKind,
     DiagnosticKind,
     JsonErrorReason,
+    InputProblem,
+    PermutationErrorDetail,
     ResolverProblem,
     ResolverRule,
 } from "./index.js";
+import { permutationLabel } from "./lookup/permutation-label.js";
 import {
     didYouMean,
     ignoredMessage,
@@ -62,11 +65,35 @@ const propertyWords: Record<DiagnosticDetailByKind["invalid-property"]["expected
     "reference": 'a reference, such as "{group}" or { "$ref": "#/group" }',
 };
 
+function noModifierNamed(name: string): string {
+    return `there is no modifier named \`${name}\``;
+}
+
+function inputWords(problem: InputProblem): string {
+    const { modifier } = problem;
+    switch (problem.reason) {
+        case "unknown-modifier":
+            return noModifierNamed(modifier);
+        case "unknown-context":
+            return `\`${problem.context}\` is not a context of the modifier \`${modifier}\``;
+        case "missing-modifier":
+            return `the input doesn't choose a context for the modifier \`${modifier}\`, which has no default: choose ${oneOf(problem.valid)}`;
+        case "not-a-string":
+            return `the input for the modifier \`${modifier}\` must be a string`;
+    }
+}
+
+function oneOf(names: readonly string[]): string {
+    const quoted = names.map((name) => `\`${name}\``);
+    const last = quoted.pop();
+    return quoted.length === 0 ? (last ?? "") : `${quoted.join(", ")} or ${last}`;
+}
+
 const resolverRules: Record<Exclude<ResolverRule, "wrong-type">, (name: string) => string> = {
     "version": () => 'the resolver\'s version must be "2025.10"',
     "missing-property": (name) => `\`${name}\` is missing`,
     "unknown-set": (name) => `there is no set named \`${name}\``,
-    "unknown-modifier": (name) => `there is no modifier named \`${name}\``,
+    "unknown-modifier": (name) => noModifierNamed(name),
     "invalid-pointer": (name) => `\`${name}\` cannot be referred to from here`,
     "circular-reference": (name) => `\`${name}\` leads back to itself`,
     "resolver-as-source": (name) => `\`${name}\` is a resolver, and a source must hold tokens`,
@@ -84,10 +111,14 @@ const resolverRules: Record<Exclude<ResolverRule, "wrong-type">, (name: string) 
 };
 
 export const thrownMessages = {
+    permutation: (detail: PermutationErrorDetail) =>
+        detail.reason === "not-read"
+            ? `\`${permutationLabel(detail.input)}\` was not built by this read`
+            : inputWords(detail),
     noResolver: (files: string[]) =>
         files.length === 0
             ? "no files were given to read"
-            : `${files.map((file) => `\`${file}\``).join(", ")} are token files with no resolver among them: a resolver says which files make the design system and in what order, so give one, or name the entry to start from`,
+            : `${files.map((file) => `\`${file}\``).join(", ")} are token files with no resolver among them: a resolver says which files to read and in what order, so give one, or name the entry to start from`,
     severalResolvers: (files: string[]) =>
         `${files.map((file) => `\`${file}\``).join(", ")} are all resolvers: name the entry to start from`,
     asyncSchema: (key: string) =>
@@ -133,14 +164,7 @@ export const diagnosticMessages: { [K in DiagnosticKind]: Entry<K> } = {
     },
     "input-invalid": {
         severity: "error",
-        message: ({ reason, modifier, context }) => {
-            if (reason === "unknown-modifier") return `there is no modifier named \`${modifier}\``;
-            if (reason === "unknown-context")
-                return `\`${context}\` is not a context of the modifier \`${modifier}\``;
-            if (reason === "missing-modifier")
-                return `the modifier \`${modifier}\` has no default, so an input must choose one of its contexts`;
-            return `the input for the modifier \`${modifier}\` must be a string`;
-        },
+        message: inputWords,
     },
     "invalid-name": {
         severity: "error",
@@ -242,7 +266,7 @@ export const diagnosticMessages: { [K in DiagnosticKind]: Entry<K> } = {
     "unknown-property": {
         severity: "warning",
         message: (detail) =>
-            "at" in detail
+            "jsonPath" in detail
                 ? ignoredMessage(detail.owner, detail.property)
                 : `\`${detail.property}\` is not a property of ${ownerWords[detail.owner]}, so it is ignored${didYouMean(detail.similar)}`,
     },
@@ -254,12 +278,7 @@ export const diagnosticMessages: { [K in DiagnosticKind]: Entry<K> } = {
     "permutation-limit": {
         severity: "warning",
         message: ({ count, limit, built }) =>
-            `the modifiers make ${count} combinations, more than the limit of ${limit}, so ${built} were built: the default, and each context on its own`,
-    },
-    "no-default": {
-        severity: "warning",
-        message: ({ modifiers }) =>
-            `${modifiers.map((name) => `\`${name}\``).join(", ")} ${modifiers.length === 1 ? "has" : "have"} no default, so contexts of the other modifiers could not be built on their own`,
+            `the modifiers make ${count} combinations, more than the limit of ${limit}, so each context was built on its own instead: ${built} ${built === 1 ? "permutation" : "permutations"}`,
     },
     "not-in-resolution-order": {
         severity: "hint",

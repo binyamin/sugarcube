@@ -13,12 +13,12 @@ function read(raw: unknown, options?: ParseOptions) {
 function details(raw: unknown, options?: ParseOptions) {
     const result = parseBorder(raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
-    return result.errors.map(({ path, detail }) => ({ path, detail }));
+    return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
     const result = parseBorder(raw, ["$value"], options);
-    return result.ignored.map(({ path, detail }) => ({ path, detail }));
+    return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 const color = { colorSpace: "srgb", components: [0.218, 0.218, 0.218] };
@@ -48,7 +48,7 @@ describe("parseBorder", () => {
                     },
                 }),
             ).toStrictEqual({
-                color: { alias: "color.focusring" },
+                color: { syntax: "curly-brace", path: "color.focusring" },
                 width: { value: 1, unit: "px" },
                 style: {
                     kind: "dash",
@@ -63,15 +63,21 @@ describe("parseBorder", () => {
 
         it.for(["color", "width", "style"])("a reference in place of %s", (part) => {
             const raw = { color, width, style: "solid", [part]: `{border.${part}}` };
-            expect(read(raw)).toMatchObject({ [part]: { alias: `border.${part}` } });
+            expect(read(raw)).toMatchObject({
+                [part]: { syntax: "curly-brace", path: `border.${part}` },
+            });
         });
 
-        it("reads a reference to a whole token as an alias", () => {
-            expect(read("{border.heavy}")).toStrictEqual({ alias: "border.heavy" });
+        it("reads a reference to a whole token in curly brace syntax", () => {
+            expect(read("{border.heavy}")).toStrictEqual({
+                syntax: "curly-brace",
+                path: "border.heavy",
+            });
         });
 
         it("reads a JSON Pointer as the whole value", () => {
             expect(read({ $ref: "#/border/heavy/$value" })).toStrictEqual({
+                syntax: "json-pointer",
                 pointer: "#/border/heavy/$value",
             });
         });
@@ -83,7 +89,7 @@ describe("parseBorder", () => {
             (raw) => {
                 expect(details(raw)).toStrictEqual([
                     {
-                        path: ["$value"],
+                        jsonPath: ["$value"],
                         detail: { type: "border", reason: "wrong-shape", value: raw },
                     },
                 ]);
@@ -97,7 +103,7 @@ describe("parseBorder", () => {
                 delete raw[part];
                 expect(details(raw)).toStrictEqual([
                     {
-                        path: ["$value", part],
+                        jsonPath: ["$value", part],
                         detail: { type: "border", reason: "missing-property", property: part },
                     },
                 ]);
@@ -113,7 +119,7 @@ describe("parseBorder", () => {
                 }),
             ).toStrictEqual([
                 {
-                    path: ["$value", "color"],
+                    jsonPath: ["$value", "color"],
                     detail: {
                         type: "color",
                         reason: "hex-string",
@@ -122,7 +128,7 @@ describe("parseBorder", () => {
                     },
                 },
                 {
-                    path: ["$value", "width"],
+                    jsonPath: ["$value", "width"],
                     detail: {
                         type: "dimension",
                         reason: "string-with-unit",
@@ -131,7 +137,7 @@ describe("parseBorder", () => {
                     },
                 },
                 {
-                    path: ["$value", "style", "dashArray", 0, "unit"],
+                    jsonPath: ["$value", "style", "dashArray", 0, "unit"],
                     detail: {
                         type: "dimension",
                         reason: "unit-not-allowed",
@@ -148,7 +154,7 @@ describe("parseBorder", () => {
             const raw = { color, width, style: "solid", radius: width };
             expect(details(raw)).toStrictEqual([
                 {
-                    path: ["$value", "radius"],
+                    jsonPath: ["$value", "radius"],
                     detail: { type: "border", reason: "unknown-property", property: "radius" },
                 },
             ]);
@@ -162,7 +168,10 @@ describe("parseBorder", () => {
                     read({ color, width, style: "solid" }, lenient),
                 );
                 expect(ignored(raw, lenient)).toStrictEqual([
-                    { path: ["$value", "radius"], detail: { type: "border", property: "radius" } },
+                    {
+                        jsonPath: ["$value", "radius"],
+                        detail: { type: "border", property: "radius" },
+                    },
                 ]);
             });
         });

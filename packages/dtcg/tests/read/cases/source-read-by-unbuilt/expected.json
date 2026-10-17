@@ -13,49 +13,48 @@
       "input": {
         "mode": "light"
       },
-      "label": "mode: light",
-      "sources": [
+      "label": "default",
+      "sources": [0, 1, 2]
+    }
+  ],
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "all.json",
+      "pointer": "#/base",
+      "sets": [
         {
-          "file": "all.json",
-          "pointer": "#/base",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              }
-            ]
-          },
-          "readBy": "everyone"
+          "name": "base"
+        }
+      ],
+      "readBy": "everyone"
+    },
+    {
+      "file": "shared.json",
+      "sets": [
+        {
+          "name": "base"
+        }
+      ],
+      "readBy": "everyone"
+    },
+    {
+      "file": "both.json",
+      "context": {
+        "modifier": "mode",
+        "name": "light"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "mode",
+          "name": "light"
         },
         {
-          "file": "shared.json",
-          "from": {
-            "sets": [
-              {
-                "name": "base"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "both.json",
-          "from": {
-            "modifier": "mode",
-            "context": "light",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "mode": "light"
-            },
-            {
-              "mode": "dark"
-            }
-          ]
+          "modifier": "mode",
+          "name": "dark"
         }
       ]
     }
-  ],
-  "diagnostics": []
+  ]
 }

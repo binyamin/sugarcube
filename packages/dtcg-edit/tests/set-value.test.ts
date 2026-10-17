@@ -1,7 +1,7 @@
-import { defineGenerator, token } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, type Input, defineGenerator, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { setDescription, setValue } from "../src/index.js";
-import { demo, at, opsOf, committed, resolver, opened } from "./helpers.js";
+import { demo, at, opsOf, committed, resolver, opened, plainly } from "./helpers.js";
 describe("setValue, the shared value", () => {
     it("is one edit where the token is written, leaving dark's override alone", () => {
         const result = setValue(demo, "color.text.brand", "{color.brand.800}");
@@ -10,14 +10,16 @@ describe("setValue, the shared value", () => {
             {
                 kind: "set",
                 file: "color.json",
-                path: ["color", "text", "brand", "$value"],
+                jsonPath: ["color", "text", "brand", "$value"],
                 value: "{color.brand.800}",
                 was: "{color.brand.700}",
             },
         ]);
         const after = committed(demo, result);
-        expect(token(after.doc, "color.text.brand")?.authored?.value).toBe("{color.brand.800}");
-        expect(token(after.doc, "color.text.brand", { mode: "dark" })?.authored?.value).toBe(
+        expect(after.permutation().token("color.text.brand")?.authored?.value).toBe(
+            "{color.brand.800}",
+        );
+        expect(after.permutation({ mode: "dark" }).token("color.text.brand")?.authored?.value).toBe(
             "{color.brand.300}",
         );
     });
@@ -26,15 +28,15 @@ describe("setValue, the shared value", () => {
         const brand = setValue(demo, "color.text.brand", "{color.brand.800}");
         const radius = setValue(demo, "radius.md", { value: 0.3, unit: "rem" });
 
-        expect("ops" in brand && brand.alsoAffects).toEqual([{ mode: "light" }]);
-        expect("ops" in radius && radius.alsoAffects).toEqual([
+        expect(brand.ops && brand.alsoAffects.inputs).toEqual([{ mode: "light" }]);
+        expect(radius.ops && radius.alsoAffects.inputs).toEqual([
             { mode: "light" },
             { mode: "dark" },
         ]);
     });
 
     it("treats a context at its default as none", () => {
-        expect(setValue(demo, "radius.md", 1, { context: { mode: "light" } })).toEqual(
+        expect(setValue(demo, "radius.md", 1, { input: { mode: "light" } })).toEqual(
             setValue(demo, "radius.md", 1),
         );
     });
@@ -45,7 +47,7 @@ describe("setValue, the shared value", () => {
 
         expect(at(hex, "color.json", ["color", "brand", "500", "$value"])).toBe("#e11d48");
         expect(at(words, "radius.json", ["radius", "md", "$value"])).toBe("sixteen pixels");
-        expect(words.doc.diagnostics.some((each) => each.path === "radius.md")).toBe(true);
+        expect(words.diagnostics.some((each) => each.path === "radius.md")).toBe(true);
     });
 
     it("edits a shared value every context overrides, and says no context sees it", () => {
@@ -59,12 +61,12 @@ describe("setValue, the shared value", () => {
             "dark.json": '{ "bg": { "$type": "color", "$value": "#000000" } }',
         };
 
-        expect(setValue(opened(files), "bg", "#eeeeee")).toEqual({
+        expect(plainly(setValue(opened(files), "bg", "#eeeeee"))).toEqual({
             ops: [
                 {
                     kind: "set",
                     file: "base.json",
-                    path: ["bg", "$value"],
+                    jsonPath: ["bg", "$value"],
                     value: "#eeeeee",
                     was: "#ffffff",
                 },
@@ -85,7 +87,7 @@ describe("setValue, the shared value", () => {
             {
                 kind: "set",
                 file: "brand.json",
-                path: ["bg", "$value"],
+                jsonPath: ["bg", "$value"],
                 value: "#eeeeee",
                 was: "#fafafa",
             },
@@ -107,14 +109,14 @@ describe("setValue, the shared value", () => {
         });
     });
 
-    it("names no context when the project has no modifiers", () => {
+    it("names no context when the design tokens have no modifiers", () => {
         const files = {
             "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),
             "base.json": '{ "bg": { "$type": "color", "$value": "#ffffff" } }',
         };
         const result = setValue(opened(files), "bg", "#eeeeee");
 
-        expect("ops" in result && result.alsoAffects).toEqual([]);
+        expect(result.ops && result.alsoAffects.inputs).toEqual([]);
     });
 
     it("is refused for a token that doesn't exist", () => {
@@ -125,17 +127,51 @@ describe("setValue, the shared value", () => {
 });
 
 describe("setValue, for one context", () => {
-    const dark = { context: { mode: "dark" } };
+    it("names no permutation of the context it changes as also affected", () => {
+        const files = {
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }], {
+                light: [],
+                dark: [{ $ref: "./dark.json" }],
+            }),
+            "base.json": '{ "bg": { "$type": "color", "$value": "#ffffff" } }',
+            "dark.json": "{}",
+        };
+        const edit = setValue(opened(files), "bg", "#000000", { input: { mode: "dark" } });
+        expect(edit.ops && edit.alsoAffects.inputs).toEqual([]);
+    });
+
+    it("names a context that reads the same file only where that file's value wins", () => {
+        const files = {
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }], {
+                light: [],
+                dark: [{ $ref: "./night.json" }],
+                dim: [{ $ref: "./night.json" }, { $ref: "./dim.json" }],
+            }),
+            "base.json":
+                '{ "bg": { "$type": "color", "$value": "#ffffff" }, "text": { "$type": "color", "$value": "#000000" } }',
+            "night.json":
+                '{ "bg": { "$type": "color", "$value": "#000000" }, "text": { "$type": "color", "$value": "#ffffff" } }',
+            "dim.json": '{ "bg": { "$type": "color", "$value": "#222222" } }',
+        };
+        const tokens = opened(files);
+        const bg = setValue(tokens, "bg", "#111111", { input: { mode: "dark" } });
+        const text = setValue(tokens, "text", "#eeeeee", { input: { mode: "dark" } });
+        expect(opsOf(bg)[0]?.file).toBe("night.json");
+        expect(bg.ops && bg.alsoAffects.inputs).toEqual([]);
+        expect(text.ops && text.alsoAffects.inputs).toEqual([{ mode: "dim" }]);
+    });
+
+    const dark = { input: { mode: "dark" } };
 
     it("changes dark's own override, in dark's file only", () => {
         const result = setValue(demo, "color.text.brand", "{color.brand.200}", dark);
 
-        expect("ops" in result && result.alsoAffects).toEqual([]);
+        expect(result.ops && result.alsoAffects.inputs).toEqual([]);
         expect(opsOf(result)).toEqual([
             {
                 kind: "set",
                 file: "dark.json",
-                path: ["color", "text", "brand", "$value"],
+                jsonPath: ["color", "text", "brand", "$value"],
                 value: "{color.brand.200}",
                 was: "{color.brand.300}",
             },
@@ -149,16 +185,19 @@ describe("setValue, for one context", () => {
             {
                 kind: "add",
                 file: "dark.json",
-                path: ["radius", "md"],
+                jsonPath: ["radius", "md"],
                 value: { $value: { value: 0.5, unit: "rem" } },
             },
         ]);
         const after = committed(demo, result);
-        expect(token(after.doc, "radius.md", { mode: "dark" })?.resolved).toEqual({
+        expect(after.permutation({ mode: "dark" }).token("radius.md")?.resolved).toEqual({
             value: 0.5,
             unit: "rem",
         });
-        expect(token(after.doc, "radius.md")?.resolved).toEqual({ value: 0.25, unit: "rem" });
+        expect(after.permutation().token("radius.md")?.resolved).toEqual({
+            value: 0.25,
+            unit: "rem",
+        });
     });
 
     it("writes the type into a new override when the token declared its own", () => {
@@ -175,7 +214,7 @@ describe("setValue, for one context", () => {
             {
                 kind: "add",
                 file: "dark.json",
-                path: ["bg"],
+                jsonPath: ["bg"],
                 value: { $type: "color", $value: "#000000" },
             },
         ]);
@@ -197,13 +236,18 @@ describe("setValue, for one context", () => {
             "base.json": JSON.stringify({ bg }),
             "dark.json": "{}",
         };
-        const project = opened(files);
-        const result = setValue(project, "bg", "#000000", dark);
+        const tokens = opened(files);
+        const result = setValue(tokens, "bg", "#000000", dark);
 
         expect(opsOf(result)).toEqual([
-            { kind: "add", file: "dark.json", path: ["bg"], value: { ...bg, $value: "#000000" } },
+            {
+                kind: "add",
+                file: "dark.json",
+                jsonPath: ["bg"],
+                value: { ...bg, $value: "#000000" },
+            },
         ]);
-        expect(token(committed(project, result).doc, "bg", { mode: "dark" })).toMatchObject({
+        expect(committed(tokens, result).permutation({ mode: "dark" }).token("bg")).toMatchObject({
             description: "The page.",
             deprecated: "Use surface.",
             extensions: { "com.example": { role: "page" } },
@@ -221,15 +265,20 @@ describe("setValue, for one context", () => {
             }),
             "dark.json": "{}",
         };
-        const project = opened(files);
-        const result = setValue(project, "old.bg", "#000000", dark);
+        const tokens = opened(files);
+        const result = setValue(tokens, "old.bg", "#000000", dark);
 
         expect(opsOf(result)).toEqual([
-            { kind: "add", file: "dark.json", path: ["old", "bg"], value: { $value: "#000000" } },
+            {
+                kind: "add",
+                file: "dark.json",
+                jsonPath: ["old", "bg"],
+                value: { $value: "#000000" },
+            },
         ]);
-        expect(token(committed(project, result).doc, "old.bg", { mode: "dark" })?.deprecated).toBe(
-            true,
-        );
+        expect(
+            committed(tokens, result).permutation({ mode: "dark" }).token("old.bg")?.deprecated,
+        ).toBe(true);
     });
 
     it("asks which file when the context reads several, and takes the answer", () => {
@@ -242,22 +291,23 @@ describe("setValue, for one context", () => {
             "dark.json": "{}",
             "dark-extra.json": "{}",
         };
-        const project = opened(files);
+        const tokens = opened(files);
 
-        expect(setValue(project, "bg", "#000000", dark)).toEqual({
-            decision: {
-                kind: "placement",
-                path: "bg",
-                candidates: ["dark.json", "dark-extra.json"],
-            },
+        const edit = setValue(tokens, "bg", "#000000", dark);
+        expect(edit.question).toMatchObject({
+            kind: "placement",
+            path: "bg",
+            files: ["dark.json", "dark-extra.json"],
         });
-        expect(
-            opsOf(setValue(project, "bg", "#000000", { ...dark, place: "dark-extra.json" })),
-        ).toEqual([
+        expect(edit.question?.answer("base.json").question?.files).toStrictEqual([
+            "dark.json",
+            "dark-extra.json",
+        ]);
+        expect(opsOf(edit.question?.answer("dark-extra.json") ?? edit)).toEqual([
             {
                 kind: "add",
                 file: "dark-extra.json",
-                path: ["bg"],
+                jsonPath: ["bg"],
                 value: { $type: "color", $value: "#000000" },
             },
         ]);
@@ -278,7 +328,7 @@ describe("setValue, for one context", () => {
             {
                 kind: "add",
                 file: "dark-colors.json",
-                path: ["color", "bg"],
+                jsonPath: ["color", "bg"],
                 value: { $value: "#000000" },
             },
         ]);
@@ -313,7 +363,7 @@ describe("setValue, for one context", () => {
             refused: {
                 kind: "hidden-by-later-file",
                 path: "bg",
-                context: { mode: "dark" },
+                input: { mode: "dark" },
                 file: "a.json",
                 reason: expect.any(String),
             },
@@ -321,12 +371,25 @@ describe("setValue, for one context", () => {
     });
 
     it("is refused for a context the resolver doesn't have", () => {
-        expect(setValue(demo, "radius.md", 1, { context: { mode: "dim" } })).toEqual({
+        expect(setValue(demo, "radius.md", 1, { input: { mode: "dim" } })).toEqual({
             refused: {
                 kind: "no-permutation",
-                context: { mode: "dim" },
+                input: { mode: "dim" },
                 why: "unknown-context",
                 reason: expect.any(String),
+            },
+        });
+    });
+
+    it("is refused for a context that isn't a string", () => {
+        expect(setValue(demo, "radius.md", 1, { input: { mode: 1 } as unknown as Input })).toEqual({
+            refused: {
+                kind: "no-permutation",
+                input: { mode: 1 },
+                why: "not-a-string",
+                reason: expect.stringContaining(
+                    ": a context was given as something other than a string",
+                ),
             },
         });
     });
@@ -350,11 +413,11 @@ describe("setValue, for one context", () => {
         };
 
         expect(
-            setValue(opened(files), "bg", "#000000", { context: { mode: "dark", brand: "b" } }),
+            setValue(opened(files), "bg", "#000000", { input: { mode: "dark", brand: "b" } }),
         ).toEqual({
             refused: {
                 kind: "several-contexts",
-                context: { mode: "dark", brand: "b" },
+                input: { mode: "dark", brand: "b" },
                 reason: "an override for `mode: dark, brand: b` at once can't be written: no file is read by that combination alone",
             },
         });
@@ -370,7 +433,7 @@ describe("setValue, for one context", () => {
             refused: {
                 kind: "no-file-for-context",
                 path: "bg",
-                context: { mode: "dark" },
+                input: { mode: "dark" },
                 reason: expect.any(String),
             },
         });
@@ -388,7 +451,7 @@ describe("setValue, what it can't change", () => {
             {
                 kind: "set",
                 file: "all.json",
-                path: ["tokens", "bg", "$value"],
+                jsonPath: ["tokens", "bg", "$value"],
                 value: "#000000",
                 was: "#ffffff",
             },
@@ -405,11 +468,11 @@ describe("setValue, what it can't change", () => {
             "dark.json": '{ "tokens": {} }',
         };
 
-        expect(setValue(opened(files), "bg", "#000000", { context: { mode: "dark" } })).toEqual({
+        expect(setValue(opened(files), "bg", "#000000", { input: { mode: "dark" } })).toEqual({
             refused: {
                 kind: "no-file-for-context",
                 path: "bg",
-                context: { mode: "dark" },
+                input: { mode: "dark" },
                 reason: expect.any(String),
             },
         });
@@ -442,6 +505,49 @@ describe("setValue, what it can't change", () => {
                 reason: expect.any(String),
             },
         });
+    });
+
+    it("is refused for a token a generator makes in any permutation, whichever the read built first", () => {
+        const steps = defineGenerator({
+            extension: ["com.example", "steps"],
+            generate: () => ({
+                ok: true,
+                value: [{ name: "1", $value: { value: 2, unit: "rem" } }],
+            }),
+        });
+        for (const contexts of [
+            { dark: [{ $ref: "./dark.json" }], light: [] },
+            { light: [], dark: [{ $ref: "./dark.json" }] },
+        ]) {
+            const tokens = readFromMemory(
+                {
+                    files: {
+                        "tokens.resolver.json": JSON.stringify({
+                            version: "2025.10",
+                            resolutionOrder: [
+                                { type: "set", name: "base", sources: [{ $ref: "./base.json" }] },
+                                { type: "modifier", name: "mode", contexts },
+                            ],
+                        }),
+                        "base.json": JSON.stringify({
+                            space: {
+                                "$type": "dimension",
+                                "1": { $value: { value: 1, unit: "rem" } },
+                            },
+                        }),
+                        "dark.json": JSON.stringify({
+                            space: { $extensions: { "com.example": { steps: 1 } } },
+                        }),
+                    },
+                    entry: "tokens.resolver.json",
+                },
+                { generators: [steps] },
+            );
+            expect(setValue(tokens, "space.1", { value: 3, unit: "rem" }).refused).toMatchObject({
+                kind: "generated",
+                path: "space.1",
+            });
+        }
     });
 
     it("is refused for a token a generator makes at the top of a file, naming no group", () => {
@@ -488,7 +594,342 @@ describe("setValue, what it can't change", () => {
     });
 });
 
+describe("setValue, at a place it is written", () => {
+    const twoModifiers = () =>
+        readFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    resolutionOrder: [
+                        { type: "set", name: "base", sources: [{ $ref: "./base.json" }] },
+                        {
+                            type: "modifier",
+                            name: "mode",
+                            default: "light",
+                            contexts: { light: [], dark: [{ $ref: "./dark.json" }] },
+                        },
+                        {
+                            type: "modifier",
+                            name: "size",
+                            default: "small",
+                            contexts: { small: [], large: [{ $ref: "./large.json" }] },
+                        },
+                    ],
+                }),
+                "base.json": '{ "bg": { "$type": "color", "$value": "#ffffff" } }',
+                "dark.json": '{ "bg": { "$type": "color", "$value": "#000000" } }',
+                "large.json": '{ "bg": { "$type": "color", "$value": "#808080" } }',
+            },
+        });
+    const placeIn = (tokens: DesignTokens, path: string, file: string) => {
+        const place = tokens.writtenAt(path).find(({ span }) => span.file === file);
+        if (!place) throw new Error(`${path} is not written in ${file}`);
+        return place;
+    };
+
+    it("changes the value written there, and names the permutations whose value comes from it", () => {
+        const place = placeIn(demo, "color.text.brand", "dark.json");
+        const result = setValue(demo, "color.text.brand", "{color.brand.200}", { at: place.span });
+
+        expect(plainly(result)).toEqual({
+            ops: [
+                {
+                    kind: "set",
+                    file: "dark.json",
+                    jsonPath: ["color", "text", "brand", "$value"],
+                    value: "{color.brand.200}",
+                    was: "{color.brand.300}",
+                },
+            ],
+            alsoAffects: place.winsIn.inputs,
+            moved: [],
+        });
+        expect(place.winsIn.inputs).toEqual([{ mode: "dark" }]);
+    });
+
+    it("changes a file two modifiers' permutations read, which an input can't name, naming those whose value comes from it", () => {
+        const tokens = twoModifiers();
+        const place = placeIn(tokens, "bg", "dark.json");
+        const result = setValue(tokens, "bg", "#111111", { at: place.span });
+
+        expect(opsOf(result)).toEqual([
+            {
+                kind: "set",
+                file: "dark.json",
+                jsonPath: ["bg", "$value"],
+                value: "#111111",
+                was: "#000000",
+            },
+        ]);
+        expect(result.ops && result.alsoAffects.inputs).toEqual([{ mode: "dark", size: "small" }]);
+        expect(
+            setValue(tokens, "bg", "#111111", { input: { mode: "dark", size: "large" } }).refused
+                ?.kind,
+        ).toBe("several-contexts");
+    });
+
+    it("takes a place by its file, offset and length, such as one a tool saved", () => {
+        const place = placeIn(demo, "color.text.brand", "dark.json");
+        const { file, offset, length } = place.span;
+        const saved = { file, offset, length };
+
+        expect(setValue(demo, "color.text.brand", "{color.brand.200}", { at: saved })).toEqual(
+            setValue(demo, "color.text.brand", "{color.brand.200}", { at: place.span }),
+        );
+    });
+
+    it("changes a place no permutation's value comes from, and says none sees it", () => {
+        const files = {
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }, { $ref: "./brand.json" }]),
+            "base.json": '{ "bg": { "$type": "color", "$value": "#ffffff" } }',
+            "brand.json": '{ "bg": { "$type": "color", "$value": "#fafafa" } }',
+        };
+        const tokens = opened(files);
+        const result = setValue(tokens, "bg", "#eeeeee", {
+            at: placeIn(tokens, "bg", "base.json").span,
+        });
+
+        expect(plainly(result)).toEqual({
+            ops: [
+                {
+                    kind: "set",
+                    file: "base.json",
+                    jsonPath: ["bg", "$value"],
+                    value: "#eeeeee",
+                    was: "#ffffff",
+                },
+            ],
+            alsoAffects: [],
+            moved: [],
+        });
+    });
+
+    it("is refused for a place where another token is written", () => {
+        const other = placeIn(demo, "color.text.brand", "dark.json").span;
+
+        expect(setValue(demo, "radius.md", 1, { at: other })).toEqual({
+            refused: {
+                kind: "not-written-there",
+                path: "radius.md",
+                at: other,
+                reason: "`radius.md` isn't written at that place in `dark.json`; take the place from `writtenAt`",
+            },
+        });
+    });
+
+    it("is refused for a place from an older read that no longer matches", () => {
+        const before = placeIn(demo, "color.text.brand", "dark.json").span;
+        const text = demo.text("dark.json") ?? "";
+        const moved = readFromMemory({
+            files: { ...demo.toMemory().files, "dark.json": `\n${text}` },
+            entry: "tokens.resolver.json",
+        });
+
+        expect(
+            setValue(moved, "color.text.brand", "{color.brand.200}", { at: before }).refused,
+        ).toMatchObject({
+            kind: "not-written-there",
+            path: "color.text.brand",
+        });
+    });
+
+    it("is refused for a token that doesn't exist", () => {
+        const other = placeIn(demo, "radius.md", "radius.json").span;
+
+        expect(setValue(demo, "radius.nope", 1, { at: other }).refused?.kind).toBe("not-found");
+    });
+
+    it("is refused for a token a generator makes, though its extension is a place", () => {
+        const steps = defineGenerator({
+            extension: ["com.example", "steps"],
+            generate: () => ({
+                ok: true,
+                value: [{ name: "1", $value: { value: 1, unit: "rem" } }],
+            }),
+        });
+        const tokens = opened(
+            {
+                "tokens.resolver.json": resolver([{ $ref: "./space.json" }]),
+                "space.json": JSON.stringify({
+                    space: { $type: "dimension", $extensions: { "com.example": { steps: 1 } } },
+                }),
+            },
+            { generators: [steps] },
+        );
+        const [place] = tokens.writtenAt("space.1");
+
+        expect(place).toBeDefined();
+        expect(setValue(tokens, "space.1", 4, { at: place!.span }).refused?.kind).toBe("generated");
+    });
+
+    it("is refused for a token a group inherits, though the token it inherits is a place", () => {
+        const tokens = opened({
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),
+            "base.json": JSON.stringify({
+                button: { $type: "color", bg: { $value: "#ffffff" } },
+                danger: { $extends: "{button}" },
+            }),
+        });
+        const [place] = tokens.writtenAt("danger.bg");
+
+        expect(place?.span).toEqual(tokens.writtenAt("button.bg")[0]?.span);
+        expect(setValue(tokens, "danger.bg", "#ff0000", { at: place!.span }).refused).toMatchObject(
+            {
+                kind: "inherited",
+                from: "button",
+            },
+        );
+    });
+});
+
 describe("setDescription", () => {
+    const onlyInContexts = (modifiers: object[], files: Record<string, string>) =>
+        readFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    resolutionOrder: [
+                        { type: "set", name: "base", sources: [{ $ref: "./base.json" }] },
+                        ...modifiers,
+                    ],
+                }),
+                "base.json": "{}",
+                ...files,
+            },
+            entry: "tokens.resolver.json",
+        });
+    const accent = JSON.stringify({ accent: { glow: { $type: "number", $value: 1 } } });
+
+    it("writes a group's new description in the file read by the most permutations, when no file every permutation reads writes it", () => {
+        const tokens = onlyInContexts(
+            [
+                {
+                    type: "modifier",
+                    name: "mode",
+                    default: "light",
+                    contexts: { light: [{ $ref: "./light.json" }], dark: [], dim: [] },
+                },
+                {
+                    type: "modifier",
+                    name: "density",
+                    default: "comfy",
+                    contexts: { comfy: [], compact: [{ $ref: "./compact.json" }] },
+                },
+            ],
+            { "light.json": accent, "compact.json": accent },
+        );
+        expect(opsOf(setDescription(tokens, "accent", "Glow."))).toMatchObject([
+            { kind: "add", file: "compact.json", jsonPath: ["accent", "$description"] },
+        ]);
+    });
+
+    it("asks which file when the files that write a group are read by as many permutations", () => {
+        const tokens = onlyInContexts(
+            [
+                {
+                    type: "modifier",
+                    name: "mode",
+                    default: "light",
+                    contexts: {
+                        light: [],
+                        dark: [{ $ref: "./dark.json" }],
+                        dim: [{ $ref: "./dim.json" }],
+                    },
+                },
+            ],
+            { "dark.json": accent, "dim.json": accent },
+        );
+        const edit = setDescription(tokens, "accent", "Glow.");
+        expect(edit.question).toMatchObject({
+            kind: "placement",
+            path: "accent",
+            files: ["dark.json", "dim.json"],
+        });
+        expect(opsOf(edit.question?.answer("dim.json") ?? edit)).toMatchObject([
+            { kind: "add", file: "dim.json", jsonPath: ["accent", "$description"] },
+        ]);
+    });
+
+    it("writes a group's new description in a file every permutation reads, though a context's is read first", () => {
+        const group = JSON.stringify({ accent: { glow: { $type: "number", $value: 1 } } });
+        const tokens = readFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    resolutionOrder: [
+                        {
+                            type: "modifier",
+                            name: "mode",
+                            default: "light",
+                            contexts: { light: [{ $ref: "./light.json" }], dark: [] },
+                        },
+                        { type: "set", name: "base", sources: [{ $ref: "./base.json" }] },
+                    ],
+                }),
+                "light.json": group,
+                "base.json": group,
+            },
+            entry: "tokens.resolver.json",
+        });
+        expect(tokens.writtenAt("accent").map(({ span }) => span.file)).toEqual([
+            "light.json",
+            "base.json",
+        ]);
+        expect(opsOf(setDescription(tokens, "accent", "Glow."))).toEqual([
+            {
+                kind: "add",
+                file: "base.json",
+                jsonPath: ["accent", "$description"],
+                value: "Glow.",
+            },
+        ]);
+    });
+
+    it("describes a path that is a group in one permutation and a token in another as a token, where each is written", () => {
+        const tokens = readFromMemory({
+            files: {
+                "tokens.resolver.json": resolver([{ $ref: "./base.json" }], {
+                    light: [],
+                    dark: [{ $ref: "./dark.json" }],
+                }),
+                "base.json": JSON.stringify({ x: { y: { $type: "number", $value: 2 } } }),
+                "dark.json": JSON.stringify({ x: { $type: "number", $value: 1 } }),
+            },
+            entry: "tokens.resolver.json",
+        });
+        expect(opsOf(setDescription(tokens, "x", "Both.")).map(({ file }) => file)).toEqual([
+            "base.json",
+            "dark.json",
+        ]);
+    });
+
+    it("finds a group only one context writes, whichever permutation the read built first", () => {
+        for (const contexts of [
+            { dark: [{ $ref: "./dark.json" }], light: [] },
+            { light: [], dark: [{ $ref: "./dark.json" }] },
+        ]) {
+            const tokens = readFromMemory({
+                files: {
+                    "tokens.resolver.json": JSON.stringify({
+                        version: "2025.10",
+                        resolutionOrder: [
+                            { type: "set", name: "base", sources: [{ $ref: "./base.json" }] },
+                            { type: "modifier", name: "mode", contexts },
+                        ],
+                    }),
+                    "base.json": "{}",
+                    "dark.json": JSON.stringify({
+                        accent: { glow: { $type: "number", $value: 1 } },
+                    }),
+                },
+                entry: "tokens.resolver.json",
+            });
+            expect(opsOf(setDescription(tokens, "accent", "Only in dark."))).toMatchObject([
+                { kind: "add", file: "dark.json", jsonPath: ["accent", "$description"] },
+            ]);
+        }
+    });
+
     it("changes a token's description", () => {
         const result = setDescription(demo, "color.brand.500", "The anchor.");
 
@@ -496,7 +937,7 @@ describe("setDescription", () => {
             {
                 kind: "set",
                 file: "color.json",
-                path: ["color", "brand", "500", "$description"],
+                jsonPath: ["color", "brand", "500", "$description"],
                 value: "The anchor.",
                 was: at(demo, "color.json", ["color", "brand", "500", "$description"]),
             },
@@ -516,29 +957,29 @@ describe("setDescription", () => {
                 '{ "bg": { "$type": "color", "$value": "#000000", "$description": "Old." } }',
             "dim.json": '{ "bg": { "$type": "color", "$value": "#333333" } }',
         };
-        const project = opened(files);
-        const result = setDescription(project, "bg", "The page.");
+        const tokens = opened(files);
+        const result = setDescription(tokens, "bg", "The page.");
 
         expect(opsOf(result)).toEqual([
             {
                 kind: "set",
                 file: "base.json",
-                path: ["bg", "$description"],
+                jsonPath: ["bg", "$description"],
                 value: "The page.",
                 was: "Old.",
             },
             {
                 kind: "set",
                 file: "dark.json",
-                path: ["bg", "$description"],
+                jsonPath: ["bg", "$description"],
                 value: "The page.",
                 was: "Old.",
             },
-            { kind: "add", file: "dim.json", path: ["bg", "$description"], value: "The page." },
+            { kind: "add", file: "dim.json", jsonPath: ["bg", "$description"], value: "The page." },
         ]);
-        const after = committed(project, result).doc;
+        const after = committed(tokens, result);
         for (const mode of ["light", "dark", "dim"]) {
-            expect(token(after, "bg", { mode })?.description).toBe("The page.");
+            expect(after.permutation({ mode }).token("bg")?.description).toBe("The page.");
         }
     });
 
@@ -553,14 +994,14 @@ describe("setDescription", () => {
         };
 
         expect(opsOf(setDescription(opened(files), "glow", "Halo."))).toEqual([
-            { kind: "add", file: "dark.json", path: ["glow", "$description"], value: "Halo." },
+            { kind: "add", file: "dark.json", jsonPath: ["glow", "$description"], value: "Halo." },
         ]);
     });
 
     it("adds one to a token that has none", () => {
         const after = committed(demo, setDescription(demo, "color.brand.600", "Hover."));
 
-        expect(token(after.doc, "color.brand.600")?.description).toBe("Hover.");
+        expect(after.permutation().token("color.brand.600")?.description).toBe("Hover.");
     });
 
     it("changes a group's description where the group writes it", () => {
@@ -578,12 +1019,12 @@ describe("setDescription", () => {
             "more.json": '{ "color": { "$description": "Old.", "b": { "$value": "#000000" } } }',
         };
 
-        expect(setDescription(opened(files), "color", "New.")).toEqual({
+        expect(plainly(setDescription(opened(files), "color", "New."))).toEqual({
             ops: [
                 {
                     kind: "set",
                     file: "more.json",
-                    path: ["color", "$description"],
+                    jsonPath: ["color", "$description"],
                     value: "New.",
                     was: "Old.",
                 },
@@ -596,7 +1037,7 @@ describe("setDescription", () => {
     it("removes one with null, and does nothing when there is none", () => {
         const after = committed(demo, setDescription(demo, "color.brand.500", null));
 
-        expect(token(after.doc, "color.brand.500")?.description).toBeUndefined();
+        expect(after.permutation().token("color.brand.500")?.description).toBeUndefined();
         expect(opsOf(setDescription(demo, "color.brand.600", null))).toEqual([]);
     });
 

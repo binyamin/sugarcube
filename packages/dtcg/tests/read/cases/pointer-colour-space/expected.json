@@ -26,7 +26,7 @@
     {
       "kind": "invalid-value",
       "detail": {
-        "at": ["$value", "components", 0],
+        "jsonPath": ["$value", "components", 0],
         "type": "color",
         "reason": "component-out-of-range",
         "value": 400,
@@ -36,7 +36,7 @@
         "max": 360,
         "maxExclusive": true
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "400"
       },

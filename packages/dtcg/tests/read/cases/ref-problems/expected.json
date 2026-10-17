@@ -8,9 +8,9 @@
       "detail": {
         "rule": "invalid-pointer",
         "name": "#/modifiers/theme",
-        "at": ["sets", "base", "sources", 4, "$ref"]
+        "jsonPath": ["sets", "base", "sources", 4, "$ref"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 304,
         "length": 19,
@@ -29,9 +29,9 @@
       "detail": {
         "rule": "circular-reference",
         "name": "#/sets/loop",
-        "at": ["sets", "loop", "sources", 0, "$ref"]
+        "jsonPath": ["sets", "loop", "sources", 0, "$ref"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 74,
         "length": 13,
@@ -52,7 +52,7 @@
         "reason": "no-leading-slash",
         "corrected": "#/sets/loop"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"#sets/loop\""
       }
@@ -63,7 +63,7 @@
         "file": "missing.json",
         "referencedFrom": "tokens.resolver.json"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 145,
         "length": 14,
@@ -82,9 +82,9 @@
       "detail": {
         "rule": "invalid-pointer",
         "name": "all.json#/nowhere",
-        "at": ["sets", "base", "sources", 1, "$ref"]
+        "jsonPath": ["sets", "base", "sources", 1, "$ref"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 181,
         "length": 19,
@@ -103,10 +103,10 @@
       "detail": {
         "rule": "wrong-type",
         "name": "all.json#/count",
-        "at": ["sets", "base", "sources", 2, "$ref"],
+        "jsonPath": ["sets", "base", "sources", 2, "$ref"],
         "expected": "object"
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 222,
         "length": 17,
@@ -125,9 +125,9 @@
       "detail": {
         "rule": "resolver-as-source",
         "name": "other.resolver.json",
-        "at": ["sets", "base", "sources", 3, "$ref"]
+        "jsonPath": ["sets", "base", "sources", 3, "$ref"]
       },
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "offset": 261,
         "length": 21,

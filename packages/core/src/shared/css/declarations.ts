@@ -1,11 +1,9 @@
 import {
-    type Document,
+    type DesignTokens,
     type ParseOptions,
     type Permutation,
     type Source,
     type Token,
-    isAlias,
-    token,
 } from "@sugarcube-sh/dtcg";
 import { cssVariable } from "@sugarcube-sh/dtcg/css";
 import type { FluidConfig, InternalConfig } from "../../types/config.js";
@@ -35,14 +33,17 @@ export interface DeclarationOptions {
     parseOptions: ParseOptions;
 }
 
-export function declarationOptions(doc: Document, config: InternalConfig): DeclarationOptions {
+export function declarationOptions(
+    tokens: DesignTokens,
+    config: InternalConfig,
+): DeclarationOptions {
     const { prefix, variableName, transforms } = config.variables;
     return {
         variable: (path) => cssVariable(path, { prefix, name: variableName }),
         privateSource: (source) => !emits(source),
         fluid: transforms.fluid,
         polyfill: transforms.colorFallbackStrategy === "polyfill",
-        parseOptions: doc.parseOptions,
+        parseOptions: tokens.parseOptions,
     };
 }
 
@@ -50,8 +51,10 @@ export function declarations(
     permutation: Permutation,
     { variable, privateSource, fluid, polyfill, parseOptions }: DeclarationOptions,
 ): Declared {
-    const privateAt = permutation.sources.map(privateSource);
-    const isPrivate = (each: Token) => privateAt[each.source.index] ?? false;
+    const privateFrom = new Map(
+        permutation.sources.map((source) => [source, privateSource(source)]),
+    );
+    const isPrivate = (each: Token) => privateFrom.get(each.valueFrom.source) ?? false;
     const writer = (colors: "native" | "hex") => {
         const renderedFor = new Map<Token, Written | undefined>();
         const rendered = (each: Token): Written | undefined => {
@@ -64,7 +67,7 @@ export function declarations(
             return renderedFor.get(each);
         };
         const replacementFor: ReplacementFor = (ref) => {
-            const target = isAlias(ref) ? token(permutation, ref.alias) : undefined;
+            const target = ref.token;
             const written = target && rendered(target);
             if (!target || written === undefined) return undefined;
             return isPrivate(target) ? { written } : { variable: variable(target.path) };
@@ -93,7 +96,7 @@ export function declarations(
             undeclared.push({ token: each, private: hidden });
             return [];
         }
-        const found = polyfill ? fallbacksIn(permutation, each, isPrivate) : undefined;
+        const found = polyfill ? fallbacksIn(each, isPrivate) : undefined;
         const plain = found && found.spaces.length > 0 ? fallback(each) : undefined;
         if (found) missing.push(...found.missing);
         if (!found || plain === undefined) return lines(each, written);
@@ -111,10 +114,7 @@ export function declarations(
 }
 
 function emits(source: Source): boolean {
-    const outermostFirst = [
-        ...(source.from?.sets ?? []).map(({ extensions }) => extensions),
-        source.extensions,
-    ];
+    const outermostFirst = [...source.sets.map(({ extensions }) => extensions), source.extensions];
     let emitted = true;
     for (const extensions of outermostFirst) {
         const ours = extensions?.[SUGARCUBE_NAMESPACE];

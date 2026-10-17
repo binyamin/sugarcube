@@ -1,10 +1,10 @@
 import { existsSync } from "node:fs";
 import { createJiti } from "jiti";
-import { basename, dirname, resolve } from "pathe";
+import { basename, dirname, relative, resolve } from "pathe";
 import { validateInternalConfig, validateSugarcubeConfig } from "../../shared/config.js";
 import { ConfigError } from "../../shared/config-error.js";
 import type { InternalConfig, SugarcubeConfig } from "../../types/config.js";
-import { findResolverDocument } from "../resolver/find.js";
+import { findResolver } from "@sugarcube-sh/dtcg/node";
 import { fillDefaults } from "./normalize.js";
 
 export function isNoConfigError(error: unknown): boolean {
@@ -103,10 +103,12 @@ export async function loadInternalConfig(overrides: ConfigOverrides = {}): Promi
 }
 
 async function foundResolver(): Promise<string> {
-    const discovery = await findResolverDocument(process.cwd());
-    if (discovery.found === "one") return discovery.path;
-    if (discovery.found === "multiple") {
-        throw new ConfigError([{ reason: "several-resolvers", paths: discovery.paths }]);
+    const here = process.cwd();
+    const found = await findResolver(here);
+    if (found.kind === "one") return relative(here, found.path);
+    if (found.kind === "several") {
+        const paths = found.paths.map((path) => relative(here, path));
+        throw new ConfigError([{ reason: "several-resolvers", paths }]);
     }
     throw new ConfigError([{ reason: "no-resolver" }]);
 }

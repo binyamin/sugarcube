@@ -2,7 +2,7 @@
   "diagnostics": [
     {
       "kind": "unknown-property",
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"descripton\""
       },
@@ -22,7 +22,7 @@
     },
     {
       "kind": "unknown-property",
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"defualt\""
       },
@@ -42,7 +42,7 @@
     },
     {
       "kind": "unknown-property",
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"sourcse\""
       },

@@ -1,12 +1,12 @@
 // Shows a token whose value can't be read, with what's wrong, then fixes it.
-import { diagnosticsFor, token, type Project } from "@sugarcube-sh/dtcg";
+import { type DesignTokens } from "@sugarcube-sh/dtcg";
 import { setValue, commit } from "@sugarcube-sh/dtcg-edit";
 
-declare let project: Project;
+declare let tokens: DesignTokens;
 
-const t = token(project.doc, "color.brand");
+const t = tokens.permutation().token("color.brand");
 if (t?.invalid) {
-    showBroken(t.authored?.value, diagnosticsFor(project.doc, t.path));
-    const done = commit(project, setValue(project, t.path, "#e11d48"));
-    if ("project" in done) project = done.project;
+    showBroken(t.authored?.value, t.diagnostics);
+    const done = commit(tokens, setValue(tokens, t.path, "#e11d48"));
+    if (done.tokens) tokens = done.tokens;
 }

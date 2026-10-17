@@ -9,13 +9,14 @@ import type {
     UnresolvedValueByType,
     ValueError,
 } from "../index.js";
+import { type DiagnosticExtra, foundInPermutation } from "./diagnostics.js";
 import { ignoredDiagnostic, valueDiagnostic } from "./value-diagnostic.js";
 import {
     type Notes,
-    type Place,
+    type Slot,
     type ReadAgain,
     type ReferenceRead,
-    readPlace,
+    readSlot,
     readToken,
 } from "../values/read-syntax.js";
 import { deepestNode, spanOf } from "./json.js";
@@ -31,18 +32,20 @@ export interface ValueRead<V = unknown> {
     result: ParseResult<V>;
     references: LocatedReference[];
     readAgain: ReadAgain[];
+    diagnostics: Diagnostic[];
 }
 
 type Read = <T extends TokenType>(
     token: MergedToken,
     type: T,
+    permutation: Input,
 ) => ValueRead<UnresolvedValueByType[T]>;
 
 export interface ValueReader {
     read: Read;
     readTarget: (
         token: MergedToken,
-        place: Place,
+        slot: Slot,
         raw: unknown,
         permutation: Input,
     ) => { result: ParseResult<unknown>; notes: Notes };
@@ -53,34 +56,40 @@ type Cache = { [T in TokenType]?: Map<Node, ValueRead<UnresolvedValueByType[T]>>
 export function createValueReader(diagnostics: Diagnostic[], options: ParseOptions): ValueReader {
     const caches: Cache = {};
 
-    const read: Read = (token, type) => {
+    const read: Read = (token, type, permutation) => {
         const notes: Notes = { references: [], readAgain: [] };
         const result = readToken(type, token.authored, ["$value"], options, notes);
-        for (const each of result.ignored) diagnostics.push(ignoredToDiagnostic(token, each));
-        if (!result.ok) {
-            for (const error of result.errors) diagnostics.push(toDiagnostic(token, error));
-        }
+        const found = [
+            ...result.ignored.map((each) => ignoredToDiagnostic(token, each, permutation)),
+            ...(result.ok
+                ? []
+                : result.errors.map((error) => toDiagnostic(token, error, permutation))),
+        ];
+        diagnostics.push(...found);
         const references = notes.references.map((reference) => ({
             reference,
             occurrence: occurrence(token, reference),
         }));
-        return { result, references, readAgain: notes.readAgain };
+        return { result, references, readAgain: notes.readAgain, diagnostics: found };
     };
 
     return {
-        read: (token, type) => {
-            if (token.added) return read(token, type);
+        read: (token, type, permutation) => {
+            if (token.added) return read(token, type, permutation);
             const cache: NonNullable<Cache[typeof type]> = caches[type] ?? new Map();
             caches[type] = cache;
             const cached = cache.get(token.value);
-            if (cached) return cached;
-            const fresh = read(token, type);
+            if (cached) {
+                for (const each of cached.diagnostics) foundInPermutation(each, permutation);
+                return cached;
+            }
+            const fresh = read(token, type, permutation);
             cache.set(token.value, fresh);
             return fresh;
         },
-        readTarget: (token, place, raw, permutation) => {
+        readTarget: (token, slot, raw, permutation) => {
             const notes: Notes = { references: [], readAgain: [] };
-            const result = readPlace(place, raw, options, notes);
+            const result = readSlot(slot, raw, options, notes);
             if (!result.ok) {
                 for (const error of result.errors) {
                     diagnostics.push(toDiagnostic(token, error, permutation));
@@ -91,16 +100,20 @@ export function createValueReader(diagnostics: Diagnostic[], options: ParseOptio
     };
 }
 
-function ignoredToDiagnostic(token: MergedToken, ignored: IgnoredProperty): Diagnostic {
+function ignoredToDiagnostic(
+    token: MergedToken,
+    ignored: IgnoredProperty,
+    permutation: Input,
+): Diagnostic {
     const { json, value, path } = token;
-    const within = { node: value, steps: ignored.path.slice(1), json };
-    return ignoredDiagnostic(ignored, ignored.path, within, { path });
+    const within = { node: value, steps: ignored.jsonPath.slice(1), json };
+    return ignoredDiagnostic(ignored, ignored.jsonPath, within, { path, permutation });
 }
 
-function toDiagnostic(token: MergedToken, error: ValueError, permutation?: Input): Diagnostic {
+function toDiagnostic(token: MergedToken, error: ValueError, permutation: Input): Diagnostic {
     const { json, value, path } = token;
-    const node = deepestNode(value, error.path.slice(1));
-    const at = spanOf(json.path, json.lineStarts, node.offset, node.length);
-    const extra = { at, path, ...(permutation !== undefined && { permutation }) };
-    return valueDiagnostic(error.detail, error.path, node, extra);
+    const node = deepestNode(value, error.jsonPath.slice(1));
+    const span = spanOf(json, node);
+    const extra: DiagnosticExtra = { span, path, permutation };
+    return valueDiagnostic(error.detail, error.jsonPath, node, extra);
 }

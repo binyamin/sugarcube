@@ -2,7 +2,7 @@
   "diagnostics": [
     {
       "kind": "malformed-pointer",
-      "at": {
+      "span": {
         "file": "tokens.resolver.json",
         "text": "\"#sets/loop\""
       },

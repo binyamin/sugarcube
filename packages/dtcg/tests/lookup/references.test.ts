@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { readFromMemory, referenceAt, references, token, movedReference } from "../../src/index.js";
+import { type Reference, type WrittenReference, readFromMemory } from "../../src/index.js";
+import { movedReference } from "../../src/values/references.js";
 
 const color = { colorSpace: "srgb", components: [1, 0, 0] };
 const px = (value: number) => ({ value, unit: "px" });
 
-const tokens = {
+const json = {
     red: { $type: "color", $value: color },
     blue: { $type: "color", $value: { colorSpace: "srgb", components: [0, 0, 1] } },
     thin: { $type: "dimension", $value: px(1) },
@@ -58,130 +59,168 @@ const tokens = {
     broken: { $type: "dimension", $value: "4px" },
 };
 
-const doc = readFromMemory({ files: { "tokens.json": JSON.stringify(tokens) } });
+const tokens = readFromMemory({ files: { "tokens.json": JSON.stringify(json) } });
 const tokenAt = (path: string) => {
-    const found = token(doc, path);
+    const found = tokens.permutation().token(path);
     if (!found) throw new Error(`no token ${path}`);
     return found;
 };
-const referencesOf = (path: string) => references(tokenAt(path));
+const placed = ({ property, path }: Reference) => ({ ...(property && { property }), path });
+const referencesOf = (path: string) => tokenAt(path).references.map(placed);
+const referenceAt = (path: string, property: (string | number)[]) =>
+    tokenAt(path).referenceAt(property)?.path;
 
-describe("references", () => {
+describe("a token's references", () => {
     it("is empty for a value with no references", () => {
         expect(referencesOf("plain")).toStrictEqual([]);
     });
 
     it("finds a whole value written as a reference at the top of the value", () => {
-        expect(referencesOf("accent")).toStrictEqual([{ at: [], ref: { alias: "red" } }]);
+        expect(referencesOf("accent")).toStrictEqual([{ path: "red" }]);
     });
 
     it("finds each part of a composite written as a reference, in the value's order", () => {
         expect(referencesOf("border")).toStrictEqual([
-            { at: ["color"], ref: { alias: "red" } },
-            { at: ["width"], ref: { alias: "thin" } },
+            { property: ["color"], path: "red" },
+            { property: ["width"], path: "thin" },
         ]);
     });
 
     it("places a part by the value as read, so a single shadow is the first in a list", () => {
-        expect(referencesOf("lone")).toStrictEqual([{ at: [0, "color"], ref: { alias: "red" } }]);
+        expect(referencesOf("lone")).toStrictEqual([{ property: [0, "color"], path: "red" }]);
     });
 
     it("finds a reference standing for a whole item of a list, and parts inside other items", () => {
         expect(referencesOf("layered")).toStrictEqual([
-            { at: [0], ref: { alias: "lone" } },
-            { at: [1, "offsetX"], ref: { alias: "thin" } },
+            { property: [0], path: "lone" },
+            { property: [1, "offsetX"], path: "thin" },
         ]);
     });
 
     it("finds a gradient stop's color and position", () => {
         expect(referencesOf("fade")).toStrictEqual([
-            { at: [0, "color"], ref: { alias: "red" } },
-            { at: [1, "color"], ref: { alias: "blue" } },
-            { at: [1, "position"], ref: { alias: "half" } },
+            { property: [0, "color"], path: "red" },
+            { property: [1, "color"], path: "blue" },
+            { property: [1, "position"], path: "half" },
         ]);
     });
 
     it("finds an item of a dash pattern", () => {
-        expect(referencesOf("dash")).toStrictEqual([
-            { at: ["dashArray", 0], ref: { alias: "thin" } },
-        ]);
+        expect(referencesOf("dash")).toStrictEqual([{ property: ["dashArray", 0], path: "thin" }]);
     });
 
     it("finds typography parts", () => {
         expect(referencesOf("body")).toStrictEqual([
-            { at: ["fontFamily"], ref: { alias: "family" } },
-            { at: ["lineHeight"], ref: { alias: "half" } },
+            { property: ["fontFamily"], path: "family" },
+            { property: ["lineHeight"], path: "half" },
         ]);
     });
 
     it("finds a JSON Pointer anywhere in a value, such as one component of a color", () => {
         expect(referencesOf("mixed")).toStrictEqual([
-            { at: ["components", 0], ref: { pointer: "#/blue/$value/components/0" } },
+            { property: ["components", 0], path: "blue" },
         ]);
     });
 
-    it("is empty for a token whose value could not be read", () => {
+    it("is empty for a token whose value could not be read and writes none", () => {
         expect(referencesOf("broken")).toStrictEqual([]);
+    });
+});
+
+describe("a reference to nothing", () => {
+    it("still names the path it points at, so it can be found and moved", () => {
+        const misspelt = readFromMemory({
+            files: {
+                "tokens.json": JSON.stringify({
+                    text: { $type: "color", $value: { $ref: "#/color/inc/$value" } },
+                    border: { $type: "color", $value: "{color.inc}" },
+                }),
+            },
+        });
+        expect(
+            misspelt
+                .referencedBy("color.inc")
+                .map(({ from, path, syntax }) => ({ from, path, syntax })),
+        ).toStrictEqual([
+            { from: "text", path: "color.inc", syntax: "json-pointer" },
+            { from: "border", path: "color.inc", syntax: "curly-brace" },
+        ]);
     });
 });
 
 describe("referenceAt", () => {
     it("finds the reference written at a place in the value", () => {
-        expect(referenceAt(tokenAt("border"), ["width"])).toStrictEqual({ alias: "thin" });
-        expect(referenceAt(tokenAt("fade"), [1, "position"])).toStrictEqual({ alias: "half" });
-        expect(referenceAt(tokenAt("mixed"), ["components", 0])).toStrictEqual({
-            pointer: "#/blue/$value/components/0",
-        });
+        expect(referenceAt("border", ["width"])).toBe("thin");
+        expect(referenceAt("fade", [1, "position"])).toBe("half");
+        expect(referenceAt("mixed", ["components", 0])).toBe("blue");
     });
 
     it("finds a whole value written as a reference at the top of the value", () => {
-        expect(referenceAt(tokenAt("accent"), [])).toStrictEqual({ alias: "red" });
+        expect(referenceAt("accent", [])).toBe("red");
     });
 
     it("finds a reference standing for a whole item of a list", () => {
-        expect(referenceAt(tokenAt("layered"), [0])).toStrictEqual({ alias: "lone" });
+        expect(referenceAt("layered", [0])).toBe("lone");
     });
 
     it("finds nothing where the file wrote a value", () => {
-        expect(referenceAt(tokenAt("border"), ["style"])).toBeUndefined();
-        expect(referenceAt(tokenAt("plain"), [])).toBeUndefined();
+        expect(referenceAt("border", ["style"])).toBeUndefined();
+        expect(referenceAt("plain", [])).toBeUndefined();
     });
 
     it("finds nothing at a part when the reference is around it or inside it", () => {
-        expect(referenceAt(tokenAt("accent"), ["components", 0])).toBeUndefined();
-        expect(referenceAt(tokenAt("mixed"), [])).toBeUndefined();
+        expect(referenceAt("accent", ["components", 0])).toBeUndefined();
+        expect(referenceAt("mixed", [])).toBeUndefined();
     });
 
     it("finds nothing at a place the value does not have", () => {
-        expect(referenceAt(tokenAt("border"), ["shade"])).toBeUndefined();
-        expect(referenceAt(tokenAt("layered"), [5, "color"])).toBeUndefined();
-        expect(referenceAt(tokenAt("border"), [0])).toBeUndefined();
-        expect(referenceAt(tokenAt("layered"), ["length"])).toBeUndefined();
+        expect(referenceAt("border", ["shade"])).toBeUndefined();
+        expect(referenceAt("layered", [5, "color"])).toBeUndefined();
+        expect(referenceAt("border", [0])).toBeUndefined();
+        expect(referenceAt("layered", ["length"])).toBeUndefined();
     });
 
     it("finds nothing in a token whose value could not be read", () => {
-        expect(referenceAt(tokenAt("broken"), [])).toBeUndefined();
+        expect(referenceAt("broken", [])).toBeUndefined();
     });
 });
 
-describe("movedReference", () => {
+describe("the rule moved() follows", () => {
     const moved = [{ from: "color.brand", to: "color.primary" }];
 
-    it.for([
-        { ref: { alias: "color.brand" }, expected: { alias: "color.primary" } },
-        { ref: { alias: "color.brand.500" }, expected: { alias: "color.primary.500" } },
-        { ref: { alias: "color.branding" }, expected: { alias: "color.branding" } },
-        { ref: { pointer: "#/color/brand/500" }, expected: { pointer: "#/color/primary/500" } },
+    it.for<{ ref: WrittenReference; expected: WrittenReference }>([
         {
-            ref: { pointer: "#/color/brand/500/$value/components/0" },
-            expected: { pointer: "#/color/primary/500/$value/components/0" },
+            ref: { syntax: "curly-brace", path: "color.brand" },
+            expected: { syntax: "curly-brace", path: "color.primary" },
         },
-        { ref: { pointer: "#/space/sm" }, expected: { pointer: "#/space/sm" } },
         {
-            ref: { pointer: "other.json#/color/brand" },
-            expected: { pointer: "other.json#/color/brand" },
+            ref: { syntax: "curly-brace", path: "color.brand.500" },
+            expected: { syntax: "curly-brace", path: "color.primary.500" },
         },
-    ])("moves $ref.alias$ref.pointer", ({ ref, expected }) => {
+        {
+            ref: { syntax: "curly-brace", path: "color.branding" },
+            expected: { syntax: "curly-brace", path: "color.branding" },
+        },
+        {
+            ref: { syntax: "json-pointer", pointer: "#/color/brand/500" },
+            expected: { syntax: "json-pointer", pointer: "#/color/primary/500" },
+        },
+        {
+            ref: { syntax: "json-pointer", pointer: "#/color/brand/500/$value/components/0" },
+            expected: {
+                syntax: "json-pointer",
+                pointer: "#/color/primary/500/$value/components/0",
+            },
+        },
+        {
+            ref: { syntax: "json-pointer", pointer: "#/space/sm" },
+            expected: { syntax: "json-pointer", pointer: "#/space/sm" },
+        },
+        {
+            ref: { syntax: "json-pointer", pointer: "other.json#/color/brand" },
+            expected: { syntax: "json-pointer", pointer: "other.json#/color/brand" },
+        },
+    ])("moves $ref.path$ref.pointer", ({ ref, expected }) => {
         expect(movedReference(ref, moved)).toStrictEqual(expected);
     });
 
@@ -190,8 +229,11 @@ describe("movedReference", () => {
             { from: "color.brand", to: "color.house" },
             { from: "color.house.500", to: "color.house.550" },
         ];
-        expect(movedReference({ alias: "color.brand.500" }, twice)).toStrictEqual({
-            alias: "color.house.550",
+        expect(
+            movedReference({ syntax: "curly-brace", path: "color.brand.500" }, twice),
+        ).toStrictEqual({
+            syntax: "curly-brace",
+            path: "color.house.550",
         });
     });
 });

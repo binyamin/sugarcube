@@ -7,48 +7,54 @@
         {
           "path": "brand",
           "type": "color",
-          "source": {
-            "index": 0,
-            "at": {
-              "file": "all.json",
-              "valueAfter": "\"brand\":"
+          "writtenAt": [
+            {
+              "source": 0,
+              "span": {
+                "file": "all.json",
+                "valueAfter": "\"brand\":"
+              }
             }
-          }
+          ]
         },
         {
           "path": "size.sm",
           "type": "number",
-          "source": {
-            "index": 1,
-            "at": {
-              "file": "base.json",
-              "valueAfter": "\"sm\":",
-              "occurrence": 3
-            }
-          },
           "authored": {
             "value": 2
-          }
+          },
+          "writtenAt": [
+            {
+              "source": 1,
+              "span": {
+                "file": "base.json",
+                "valueAfter": "\"sm\":",
+                "occurrence": 3
+              }
+            }
+          ]
         },
         {
           "path": "space.md",
           "type": "number",
-          "source": {
-            "index": 1,
-            "at": {
-              "file": "tokens.resolver.json",
-              "valueAfter": "\"md\":"
+          "writtenAt": [
+            {
+              "source": 1,
+              "span": {
+                "file": "tokens.resolver.json",
+                "valueAfter": "\"md\":"
+              }
             }
-          }
+          ]
         }
       ],
       "groups": [
         {
           "path": "size",
-          "declaredIn": [
+          "writtenAt": [
             {
-              "index": 1,
-              "at": {
+              "source": 1,
+              "span": {
                 "file": "base.json",
                 "valueAfter": "\"size\":"
               }
@@ -57,10 +63,10 @@
         },
         {
           "path": "space",
-          "declaredIn": [
+          "writtenAt": [
             {
-              "index": 1,
-              "at": {
+              "source": 1,
+              "span": {
                 "file": "tokens.resolver.json",
                 "valueAfter": "\"space\":"
               }
@@ -76,7 +82,7 @@
       "detail": {
         "key": "sm"
       },
-      "at": {
+      "span": {
         "file": "base.json",
         "text": "\"sm\"",
         "occurrence": 3
@@ -84,7 +90,7 @@
       "related": [
         {
           "message": "also written here",
-          "at": {
+          "span": {
             "file": "base.json",
             "text": "\"sm\"",
             "occurrence": 2

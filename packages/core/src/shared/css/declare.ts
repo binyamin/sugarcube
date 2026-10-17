@@ -1,12 +1,10 @@
 import {
-    type Diagnostic,
-    type Document,
+    type DesignTokens,
     type Input,
     type Permutation,
-    modifier,
-    permutation as permutationFor,
+    PermutationError,
 } from "@sugarcube-sh/dtcg";
-import type { InternalConfig } from "../../types/config.js";
+import type { Permutation as ConfigPermutation, InternalConfig } from "../../types/config.js";
 import type { Reported } from "../../types/diagnostics.js";
 import { diagnostic } from "../diagnostics.js";
 import { type Declared, declarationOptions, declarations } from "./declarations.js";
@@ -23,8 +21,9 @@ export interface Entry {
 /**
  * Each permutation the config writes, in its order, with where it goes and what it declares (one
  * `declared` for every entry of one permutation); and every problem found reading and declaring:
- * the read's own, a deprecated `colorFallbackStrategy`, fluid text that fails text zoom, a color
- * with no `hex` to fall back to, and two paths making one variable.
+ * the read's own, a deprecated `colorFallbackStrategy`, a default permutation's block written after
+ * another in its file, fluid text that fails text zoom, a color with no `hex` to fall back to, and
+ * two paths making one variable.
  */
 export interface Declarations {
     entries: Entry[];
@@ -37,34 +36,36 @@ export interface Declarations {
  * on `:root`, so nothing is declared.
  *
  * @example
- * const declared = declare(doc, config);
+ * const declared = declare(tokens, config);
  * const { files } = emitCSS(declared, config);
  * const { rules, safelist } = utilityRules(utilityTokens(declared), config.utilities.classes);
  */
-export function declare(doc: Document, config: InternalConfig): Declarations {
-    const reported = doc.diagnostics.map(asReported);
+export function declare(tokens: DesignTokens, config: InternalConfig): Declarations {
     const deprecated =
         config.variables.transforms.colorFallbackStrategy === "polyfill"
             ? [diagnostic("option-deprecated", { option: 'colorFallbackStrategy: "polyfill"' })]
             : [];
-    if (reported.some(({ kind }) => kind === "default-required"))
-        return { entries: [], diagnostics: [...reported, ...deprecated] };
+    const listed = config.variables.permutations ?? [];
+    const required = listed.length === 0 ? defaultRequired(tokens) : undefined;
+    if (required)
+        return { entries: [], diagnostics: [...tokens.diagnostics, required, ...deprecated] };
 
-    const options = declarationOptions(doc, config);
+    const options = declarationOptions(tokens, config);
     const declaredIn = new Map<Permutation, Declared>();
     const declaredFor = (permutation: Permutation) => {
         const found = declaredIn.get(permutation) ?? declarations(permutation, options);
         declaredIn.set(permutation, found);
         return found;
     };
-    const toWrite = entries(doc, config, declaredFor);
+    const toWrite = entries(tokens, config, listed, declaredFor);
     const once = [...declaredIn.values()];
 
     return {
         entries: toWrite,
         diagnostics: [
-            ...reported,
+            ...tokens.diagnostics,
             ...deprecated,
+            ...defaultsNotFirst(toWrite),
             ...textZoomWarnings([...declaredIn.keys()], options.fluid, options.parseOptions),
             ...missingHex(once),
             ...sameNames(once),
@@ -73,21 +74,23 @@ export function declare(doc: Document, config: InternalConfig): Declarations {
 }
 
 function entries(
-    doc: Document,
+    tokens: DesignTokens,
     config: InternalConfig,
+    listed: ConfigPermutation[],
     declaredFor: (permutation: Permutation) => Declared,
 ): Entry[] {
-    const listed = config.variables.permutations ?? [];
     if (listed.length === 0) {
-        return doc.permutations.map((permutation) => ({
+        const base = tokens.permutations.filter(({ isDefault }) => isDefault);
+        const overrides = tokens.permutations.filter(({ isDefault }) => !isDefault);
+        return [...base, ...overrides].map((permutation) => ({
             permutation,
-            selector: derivedSelector(doc, permutation.input),
+            selector: derivedSelector(permutation),
             path: config.variables.path,
             declared: declaredFor(permutation),
         }));
     }
     return listed.flatMap(({ input, selector, atRule, path }) => {
-        const permutation = permutationFor(doc, input);
+        const permutation = configured(tokens, input);
         if (!permutation) return [];
         return [
             {
@@ -101,19 +104,45 @@ function entries(
     });
 }
 
-function derivedSelector(doc: Document, input: Input): string {
-    const changed = Object.entries(input).find(
-        ([name, context]) => context !== modifier(doc, name)?.default,
-    );
-    return changed ? `[data-${changed[0]}="${changed[1]}"]` : ":root";
+function defaultsNotFirst(toWrite: Entry[]): Reported[] {
+    return [...new Set(toWrite.map(({ path }) => path))].flatMap((file) => {
+        const inFile = toWrite.filter(({ path }) => path === file);
+        const [first] = inFile;
+        const base = inFile.find(({ permutation }) => permutation.isDefault);
+        if (!first || !base || base === first) return [];
+        const selector = selectorText(base.selector);
+        const after = selectorText(first.selector);
+        return [diagnostic("default-not-first", { file, selector, after })];
+    });
 }
 
-function asReported(found: Diagnostic): Reported {
-    if (found.kind !== "no-default") return found;
-    const { at } = found;
+function selectorText(selector: string | string[]): string {
+    return typeof selector === "string" ? selector : selector.join(", ");
+}
+
+function configured(tokens: DesignTokens, input: Input): Permutation | undefined {
+    try {
+        return tokens.permutation(input);
+    } catch (error) {
+        if (error instanceof PermutationError) return undefined;
+        throw error;
+    }
+}
+
+function derivedSelector(permutation: Permutation): string {
+    const changed = permutation.contexts.find((context) => !context.isDefault);
+    return changed ? `[data-${changed.modifier.name}="${changed.name}"]` : ":root";
+}
+
+function defaultRequired(tokens: DesignTokens): Reported | undefined {
+    const withoutDefault = (tokens.resolver?.modifiers ?? []).filter(
+        (modifier) => modifier.default === undefined,
+    );
+    const [first] = withoutDefault;
+    if (!first) return undefined;
     return {
-        ...diagnostic("default-required", { modifiers: found.detail.modifiers }),
-        ...(at && { at }),
+        ...diagnostic("default-required", { modifiers: withoutDefault.map(({ name }) => name) }),
+        span: first.span,
     };
 }
 

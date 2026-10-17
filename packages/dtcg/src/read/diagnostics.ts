@@ -1,7 +1,19 @@
 import { diagnosticMessages } from "../error-messages.js";
-import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind, Input } from "../index.js";
+import type {
+    Diagnostic,
+    DiagnosticDetailByKind,
+    DiagnosticKind,
+    Input,
+    Permutations,
+} from "../index.js";
+import type { Building } from "./building.js";
+import { permutationsOf } from "./permutations-of.js";
 
-export type DiagnosticExtra = Partial<Pick<Diagnostic, "at" | "path" | "related" | "tags">> & {
+const foundIn = new WeakMap<Diagnostic, Input[]>();
+
+export type DiagnosticExtra = Partial<
+    Pick<Diagnostic, "message" | "span" | "path" | "related" | "tags">
+> & {
     permutation?: Input;
 };
 
@@ -11,15 +23,16 @@ export function diagnostic<K extends DiagnosticKind>(
     { permutation, ...extra }: DiagnosticExtra = {},
 ): Diagnostic {
     const { severity, message } = diagnosticMessages[kind];
-    return {
+    const made = {
         kind,
         severity: typeof severity === "function" ? severity(detail) : severity,
         message: message(detail),
         ...extra,
-        ...(permutation !== undefined && { permutations: [permutation] }),
         docs: docsFor(kind, detail),
         detail,
     } as Diagnostic;
+    if (permutation !== undefined) foundIn.set(made, [permutation]);
+    return made;
 }
 
 function docsFor<K extends DiagnosticKind>(kind: K, detail: DiagnosticDetailByKind[K]): string {
@@ -38,20 +51,59 @@ export function onceEach(diagnostics: Diagnostic[]): Diagnostic[] {
     });
 }
 
-export function collapse(diagnostics: Diagnostic[], inputs: Input[]): Diagnostic[] {
-    const alike = new Map<string, Diagnostic>();
+export function inReadingPermutations(
+    diagnostics: Building<Diagnostic>[],
+    permutations: Permutations,
+    entry: string,
+): Diagnostic[] {
     for (const found of diagnostics) {
-        const key = JSON.stringify({ ...found, permutations: undefined });
+        found.permutations ??= permutationsWith(found, permutations, entry);
+    }
+    return diagnostics;
+}
+
+function permutationsWith(
+    found: Diagnostic,
+    permutations: Permutations,
+    entry: string,
+): Permutations {
+    const file = found.span?.file;
+    if (file === undefined || file === entry) return permutations;
+    const reading = permutations.filter(({ sources }) =>
+        sources.some((each) => each.file === file),
+    );
+    return reading.length === permutations.length
+        ? permutations
+        : permutationsOf(reading, permutations);
+}
+
+export function foundInPermutation(found: Diagnostic, permutation: Input): void {
+    const inputs = foundIn.get(found);
+    if (!inputs) foundIn.set(found, [permutation]);
+    else if (!inputs.includes(permutation)) inputs.push(permutation);
+}
+
+export function collapse(
+    diagnostics: Building<Diagnostic>[],
+    permutations: Permutations,
+): Diagnostic[] {
+    const alike = new Map<string, Building<Diagnostic>>();
+    for (const found of diagnostics) {
+        const key = JSON.stringify(found);
         const earlier = alike.get(key);
+        const theirs = foundIn.get(found);
+        const ours = earlier && foundIn.get(earlier);
         if (!earlier) alike.set(key, found);
-        else if (earlier.permutations && found.permutations) {
-            const both = new Set([...earlier.permutations, ...found.permutations]);
-            earlier.permutations = inputs.filter((input) => both.has(input));
-        }
+        else if (ours && theirs) foundIn.set(earlier, [...ours, ...theirs]);
     }
     const collapsed = [...alike.values()];
     for (const found of collapsed) {
-        if (found.permutations?.length === inputs.length) delete found.permutations;
+        const inputs = foundIn.get(found) ?? [];
+        const narrowed = permutations.filter(({ input }) => inputs.includes(input));
+        found.permutations =
+            narrowed.length === permutations.length
+                ? permutations
+                : permutationsOf(narrowed, permutations);
     }
     return collapsed;
 }

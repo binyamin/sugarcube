@@ -16,7 +16,7 @@
                 "file": "light.json"
               }
             ],
-            "at": {
+            "span": {
               "file": "tokens.resolver.json",
               "offset": 95,
               "length": 68,
@@ -37,7 +37,7 @@
                 "file": "dark.json"
               }
             ],
-            "at": {
+            "span": {
               "file": "tokens.resolver.json",
               "offset": 181,
               "length": 67,
@@ -52,7 +52,7 @@
             }
           }
         ],
-        "at": {
+        "span": {
           "file": "tokens.resolver.json",
           "offset": 56,
           "length": 206,
@@ -79,43 +79,45 @@
         "theme": "light"
       },
       "label": "theme: light",
-      "sources": [
-        {
-          "file": "light.json",
-          "from": {
-            "modifier": "theme",
-            "context": "light",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "theme": "light"
-            }
-          ]
-        }
-      ]
+      "sources": [0]
     },
     {
       "input": {
         "theme": "dark"
       },
       "label": "theme: dark",
-      "sources": [
+      "sources": [1]
+    }
+  ],
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "light.json",
+      "context": {
+        "modifier": "theme",
+        "name": "light"
+      },
+      "sets": [],
+      "readBy": [
         {
-          "file": "dark.json",
-          "from": {
-            "modifier": "theme",
-            "context": "dark",
-            "sets": []
-          },
-          "readBy": [
-            {
-              "theme": "dark"
-            }
-          ]
+          "modifier": "theme",
+          "name": "light"
+        }
+      ]
+    },
+    {
+      "file": "dark.json",
+      "context": {
+        "modifier": "theme",
+        "name": "dark"
+      },
+      "sets": [],
+      "readBy": [
+        {
+          "modifier": "theme",
+          "name": "dark"
         }
       ]
     }
-  ],
-  "diagnostics": []
+  ]
 }

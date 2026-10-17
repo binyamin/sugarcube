@@ -6,41 +6,38 @@
     {
       "input": {},
       "label": "",
-      "sources": [
-        {
-          "file": "palette.json",
-          "from": {
-            "sets": [
-              {
-                "name": "palette",
-                "extensions": {
-                  "com.example": {
-                    "owner": "design"
-                  }
-                }
-              }
-            ]
-          },
-          "extensions": {
-            "sh.sugarcube": {
-              "emit": false
-            }
-          },
-          "readBy": "everyone"
-        },
-        {
-          "file": "semantic.json",
-          "from": {
-            "sets": [
-              {
-                "name": "semantic"
-              }
-            ]
-          },
-          "readBy": "everyone"
-        }
-      ]
+      "sources": [0, 1]
     }
   ],
-  "diagnostics": []
+  "diagnostics": [],
+  "sources": [
+    {
+      "file": "palette.json",
+      "sets": [
+        {
+          "name": "palette",
+          "extensions": {
+            "com.example": {
+              "owner": "design"
+            }
+          }
+        }
+      ],
+      "readBy": "everyone",
+      "extensions": {
+        "sh.sugarcube": {
+          "emit": false
+        }
+      }
+    },
+    {
+      "file": "semantic.json",
+      "sets": [
+        {
+          "name": "semantic"
+        }
+      ],
+      "readBy": "everyone"
+    }
+  ]
 }

@@ -2,7 +2,7 @@
   "diagnostics": [
     {
       "kind": "malformed-pointer",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#color/ink\""
       },
@@ -22,7 +22,7 @@
     },
     {
       "kind": "malformed-pointer",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "\"#g\""
       },
@@ -42,7 +42,7 @@
     },
     {
       "kind": "malformed-pointer",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#g\" }",
         "occurrence": 2
@@ -64,7 +64,7 @@
     },
     {
       "kind": "malformed-pointer",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#color/ink/$value/colorSpace\" }"
       },
@@ -84,7 +84,7 @@
     },
     {
       "kind": "malformed-pointer",
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#/a~b/$value\" }"
       },

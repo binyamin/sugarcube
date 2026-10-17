@@ -25,9 +25,11 @@
             "colorSpace": "srgb",
             "components": [
               {
+                "syntax": "json-pointer",
                 "pointer": "#/base/blue/$value/components/0"
               },
               {
+                "syntax": "json-pointer",
                 "pointer": "#/base/blue/$value/components/1"
               },
               0.7
@@ -125,7 +127,7 @@
         "expected": "color",
         "found": "dimension"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#/base/spacing\" }",
         "occurrence": 2
@@ -139,7 +141,7 @@
         "expected": "color",
         "found": "dimension"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#/base/spacing/$value\" }"
       },
@@ -149,11 +151,11 @@
       "kind": "invalid-value",
       "detail": {
         "type": "color",
-        "at": ["$value", "components", 0],
+        "jsonPath": ["$value", "components", 0],
         "reason": "component-not-a-number",
         "value": "px"
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#/base/spacing/$value/unit\" }"
       },
@@ -164,7 +166,7 @@
       "detail": {
         "chain": ["loop.a", "loop.b", "loop.a"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#/loop/b/$value\" }"
       },
@@ -172,7 +174,7 @@
       "related": [
         {
           "message": "part of the same loop",
-          "at": {
+          "span": {
             "file": "tokens.json",
             "text": "{ \"$ref\": \"#/loop/a/$value\" }"
           }
@@ -183,9 +185,9 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "#/base/card/$value/0/color",
-        "referencedBy": ["semantic.shadow-listed"]
+        "from": ["semantic.shadow-listed"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#/base/card/$value/0/color\" }"
       },
@@ -195,9 +197,9 @@
       "kind": "missing-reference",
       "detail": {
         "ref": "#/base/alias/$value/components/0",
-        "referencedBy": ["semantic.through-alias"]
+        "from": ["semantic.through-alias"]
       },
-      "at": {
+      "span": {
         "file": "tokens.json",
         "text": "{ \"$ref\": \"#/base/alias/$value/components/0\" }"
       },
