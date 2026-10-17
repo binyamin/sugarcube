@@ -1,4 +1,4 @@
-import { readFromMemory } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it, vi } from "vitest";
 import {
     apply,
@@ -135,7 +135,8 @@ describe("createSession", () => {
         const replayed = apply(demo, session.unsaved.ops);
         if (replayed.conflicts) throw new Error(JSON.stringify(replayed.conflicts));
         expect(replayed.tokens.toMemory().files).toEqual(session.tokens.toMemory().files);
-        expect(replayed.tokens).toEqual(session.tokens);
+        const plain = (tokens: DesignTokens) => JSON.parse(JSON.stringify(tokens));
+        expect(plain(replayed.tokens)).toStrictEqual(plain(session.tokens));
     });
 });
 
