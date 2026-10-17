@@ -113,8 +113,8 @@ export function usedByIn(
     for (const permutation of tokens.permutations) {
         for (const { from } of referencedIn(permutation, path, options)) {
             const found = users.get(from.path);
-            if (!found) users.set(from.path, [permutation]);
-            else if (found.at(-1) !== permutation) found.push(permutation);
+            if (found) found.push(permutation);
+            else users.set(from.path, [permutation]);
         }
     }
     return [...users].map(([user, permutations]) => ({
@@ -131,9 +131,8 @@ function across(
     for (const permutation of tokens.permutations) {
         for (const reference of inPermutation(permutation)) {
             const found = merged.get(reference.span);
-            if (!found) merged.set(reference.span, { reference, permutations: [permutation] });
-            else if (!found.permutations.includes(permutation))
-                found.permutations.push(permutation);
+            if (found) found.permutations.push(permutation);
+            else merged.set(reference.span, { reference, permutations: [permutation] });
         }
     }
     return [...merged.values()].map(({ reference, permutations }) =>

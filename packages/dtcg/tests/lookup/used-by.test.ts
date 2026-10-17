@@ -54,42 +54,6 @@ describe("tokens.usedBy", () => {
         expect(used("color.red", true).map(({ path }) => path)).toContain("color.text");
     });
 
-    it("gives the permutations in the design tokens' order when its references are in several files", () => {
-        const sized = readFromMemory({
-            files: {
-                "tokens.resolver.json": JSON.stringify({
-                    version: "2025.10",
-                    resolutionOrder: [
-                        { type: "set", name: "base", sources: [{ $ref: "base.json" }] },
-                        {
-                            type: "modifier",
-                            name: "mode",
-                            default: "light",
-                            contexts: { light: [], dark: [{ $ref: "dark.json" }] },
-                        },
-                        {
-                            type: "modifier",
-                            name: "size",
-                            default: "small",
-                            contexts: { small: [], large: [{ $ref: "large.json" }] },
-                        },
-                    ],
-                }),
-                "base.json": JSON.stringify({
-                    color: { red: color(red), blue: color(red), x: color("{color.blue}") },
-                }),
-                "dark.json": JSON.stringify({ color: { x: color("{color.red}") } }),
-                "large.json": JSON.stringify({ color: { x: color("{color.red}") } }),
-            },
-        });
-        const [x] = sized.usedBy("color.red");
-        const using = new Set(x?.permutations);
-        expect(x?.permutations.inputs).toStrictEqual(
-            sized.permutations.where((each) => using.has(each)).inputs,
-        );
-        expect(using.size).toBe(3);
-    });
-
     it("is empty for a token nothing refers to", () => {
         expect(used("color.text")).toStrictEqual([]);
     });

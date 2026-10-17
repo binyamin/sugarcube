@@ -15,7 +15,7 @@ export function writtenAtIn(tokens: DesignTokens, path: string): PlaceInPermutat
                 continue;
             }
             if (!known.sources.includes(source)) known.sources.push(source);
-            if (!known.readIn.includes(permutation)) known.readIn.push(permutation);
+            known.readIn.push(permutation);
         }
     }
     return [...found].map(([span, { sources, readIn }]) => ({

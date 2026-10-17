@@ -1,7 +1,12 @@
 import type { Permutation, Permutations, Scope } from "../index.js";
 import { scopeLabel, scopeOf } from "../lookup/permutation-label.js";
 
-export function permutationsOf(list: Permutation[], all: readonly Permutation[]): Permutations {
+export function permutationsOf(
+    given: readonly Permutation[],
+    all: readonly Permutation[],
+): Permutations {
+    const held = new Set(given);
+    const list = all.filter((each) => held.has(each));
     let scope: Scope | undefined;
     let label: string | undefined;
     const inputs = () => list.map(({ input }) => input);
