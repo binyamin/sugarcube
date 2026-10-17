@@ -5,8 +5,9 @@ import {
     type JsonPath,
     type ReadOptions,
     readFromMemory,
+    type JsonValue,
 } from "@sugarcube-sh/dtcg";
-import { type FileOp, type Json, type OpResult, commit } from "../src/index.js";
+import { type FileOp, type OpResult, commit } from "../src/index.js";
 import { removeAt, setAt } from "../src/text-edits.js";
 
 const folder = join(import.meta.dirname, "fixtures/demo");
@@ -18,14 +19,14 @@ export const demo = readFromMemory({
     entry: "tokens.resolver.json",
 });
 
-export const at = (tokens: DesignTokens, file: string, jsonPath: JsonPath): Json | undefined =>
+export const at = (tokens: DesignTokens, file: string, jsonPath: JsonPath): JsonValue | undefined =>
     jsonPath.reduce((value, step) => value?.[step], JSON.parse(tokens.text(file) ?? "null"));
 
 export function plainly(result: OpResult) {
     return result.ops ? { ...result, alsoAffects: result.alsoAffects.inputs } : result;
 }
 
-export function opsOf(result: OpResult): FileOp[] {
+export function opsOf(result: OpResult): readonly FileOp[] {
     if (!result.ops) throw new Error(JSON.stringify(result));
     return result.ops;
 }
@@ -52,7 +53,7 @@ export const opened = (files: Record<string, string>, options?: ReadOptions) =>
 
 export function changed(
     tokens: DesignTokens,
-    changes: [file: string, jsonPath: JsonPath, value: Json | undefined][],
+    changes: [file: string, jsonPath: JsonPath, value: JsonValue | undefined][],
 ): DesignTokens {
     const texts: Record<string, string> = {};
     for (const [file, jsonPath, value] of changes) {

@@ -11,6 +11,7 @@ import type {
     ResolverNode,
 } from "./resolver.js";
 import { type SetsUsed, fileRef, setNamed } from "./sources.js";
+import type { Building } from "./building.js";
 import { linkedContext, linkedModifier } from "./linked.js";
 
 export function resolverPart(
@@ -72,7 +73,7 @@ function publicSet(resolver: CheckedResolver, set: SetDefinition): ResolverSet {
 
 function publicModifier(resolver: CheckedResolver, modifier: ModifierDefinition): ResolverModifier {
     const extensions = modifier.extensions && plainObject(modifier.extensions);
-    const made = linkedModifier({
+    const made: Building<ResolverModifier> = linkedModifier({
         name: modifier.name,
         ...(modifier.description !== undefined && { description: modifier.description }),
         ...(extensions && { extensions }),

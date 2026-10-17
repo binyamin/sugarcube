@@ -21,7 +21,7 @@ export interface LoadedPermutation {
 type Built = Pick<Loaded, "modifiers" | "permutations">;
 
 export interface PermutationOptions {
-    inputs?: Record<string, unknown>[];
+    inputs?: readonly Readonly<Record<string, unknown>>[];
     permutations: "all" | "each-context";
     limit: number;
 }
@@ -208,7 +208,7 @@ function whoReadsEachSource(
     sources: Map<SourceEntry, LoadedSource>,
     contextOf: ContextOf,
 ): Map<string, Source["readBy"]> {
-    const readBy = new Map<string, Source["readBy"]>();
+    const readBy = new Map<string, "everyone" | ResolverContext[]>();
     const read = (entry: SourceEntry, context?: ResolverContext) => {
         const loaded = sources.get(entry);
         if (!loaded) return;

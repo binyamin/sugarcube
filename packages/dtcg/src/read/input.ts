@@ -13,7 +13,7 @@ export type CheckedInput =
 export function checkedInput(modifiers: Modifier[], raw: Record<string, unknown>): CheckedInput {
     if (modifiers.length === 0) return { ok: true, input: {} };
     const problems: InputProblem[] = [];
-    const chosen: Input = {};
+    const chosen: Record<string, string> = {};
     const mentioned = new Set<Modifier>();
 
     for (const [key, value] of Object.entries(raw)) {
@@ -50,7 +50,7 @@ export function checkedInput(modifiers: Modifier[], raw: Record<string, unknown>
 }
 
 export function withDefaults(modifiers: Modifier[], chosen: Input): Input {
-    const input: Input = {};
+    const input: Record<string, string> = {};
     for (const { name, default: fallback } of modifiers) {
         const context = chosen[name] ?? fallback;
         if (context !== undefined) input[name] = context;
@@ -59,7 +59,7 @@ export function withDefaults(modifiers: Modifier[], chosen: Input): Input {
 }
 
 export function findByName<T>(
-    candidates: T[],
+    candidates: readonly T[],
     wanted: string,
     nameOf: (candidate: T) => string,
 ): T | undefined {

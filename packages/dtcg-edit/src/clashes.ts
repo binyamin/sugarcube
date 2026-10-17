@@ -5,10 +5,10 @@ import type { Clash, FileOp } from "./index.js";
 import { valueAt } from "./text-edits.js";
 
 export function clashesOf(
-    skipped: FileOp[],
+    skipped: readonly FileOp[],
     theirs: DesignTokens,
     mine: DesignTokens,
-    madeOn: DesignTokens[] = [],
+    madeOn: readonly DesignTokens[] = [],
 ): Clash[] {
     const byMember = new Map<string, { file: string; jsonPath: JsonPath; ops: FileOp[] }>();
     for (const op of skipped) {

@@ -119,6 +119,6 @@ function readByEveryone({ readBy }: Source): boolean {
     return readBy === "everyone";
 }
 
-function readersOf({ readBy }: Source): ResolverContext[] {
+function readersOf({ readBy }: Source): readonly ResolverContext[] {
     return readBy === "everyone" ? [] : readBy;
 }

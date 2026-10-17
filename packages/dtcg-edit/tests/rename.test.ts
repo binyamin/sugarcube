@@ -311,7 +311,7 @@ describe("rename, in a session", () => {
         session.do(setValue(session.tokens, "color.brand.500", red));
         session.do(rename(session.tokens, "color.brand", "primary"));
         session.do(setValue(session.tokens, "color.primary.600", red));
-        const ops: FileOp[] = session.unsaved.ops;
+        const ops: readonly FileOp[] = session.unsaved.ops;
 
         expect(
             committed(demo, {

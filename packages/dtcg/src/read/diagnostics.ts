@@ -6,6 +6,7 @@ import type {
     Input,
     Permutations,
 } from "../index.js";
+import type { Building } from "./building.js";
 import { permutationsOf } from "./permutations-of.js";
 
 const foundIn = new WeakMap<Diagnostic, Input[]>();
@@ -49,7 +50,7 @@ export function onceEach(diagnostics: Diagnostic[]): Diagnostic[] {
 }
 
 export function inReadingPermutations(
-    diagnostics: Diagnostic[],
+    diagnostics: Building<Diagnostic>[],
     permutations: Permutations,
 ): Diagnostic[] {
     for (const found of diagnostics) {
@@ -70,8 +71,11 @@ export function alsoFoundIn(found: Diagnostic, permutation: Input): void {
     if (inputs && !inputs.includes(permutation)) inputs.push(permutation);
 }
 
-export function collapse(diagnostics: Diagnostic[], permutations: Permutations): Diagnostic[] {
-    const alike = new Map<string, Diagnostic>();
+export function collapse(
+    diagnostics: Building<Diagnostic>[],
+    permutations: Permutations,
+): Diagnostic[] {
+    const alike = new Map<string, Building<Diagnostic>>();
     for (const found of diagnostics) {
         const key = JSON.stringify(found);
         const earlier = alike.get(key);

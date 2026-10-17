@@ -114,7 +114,7 @@ interface Ids {
 
 function followed(
     ids: Ids | undefined,
-    moved: Move[],
+    moved: readonly Move[],
     tokens: DesignTokens,
     counter: { made: number },
     known?: Ids,
@@ -147,7 +147,7 @@ function followed(
     return { byId, byPath };
 }
 
-function kept(moved: Move[], tokens: DesignTokens): Move[] {
+function kept(moved: readonly Move[], tokens: DesignTokens): Move[] {
     const paths = pathsIn(tokens);
     const later: Move[] = [];
     for (let index = moved.length - 1; index >= 0; index--) {

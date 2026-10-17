@@ -3,7 +3,7 @@ import { apply } from "./apply.js";
 import { thrown } from "./error-messages.js";
 import type { FileOp, OpResult, Operation } from "./index.js";
 
-type Made = Extract<OpResult, { ops: FileOp[] }>;
+type Made = Extract<OpResult, { ops: readonly FileOp[] }>;
 
 /**
  * Puts several edits together as one: each operation is given the design tokens the operations
@@ -14,14 +14,14 @@ type Made = Extract<OpResult, { ops: FileOp[] }>;
  * @example
  * const edit = combine(tokens, unused.map((path) => (current) => remove(current, path)));
  */
-export function combine(tokens: DesignTokens, operations: Operation[]): OpResult {
+export function combine(tokens: DesignTokens, operations: readonly Operation[]): OpResult {
     return carriedOn(tokens, tokens, operations, []);
 }
 
 function carriedOn(
     tokens: DesignTokens,
     from: DesignTokens,
-    operations: Operation[],
+    operations: readonly Operation[],
     before: Made[],
 ): OpResult {
     let current = from;

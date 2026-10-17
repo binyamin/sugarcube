@@ -104,7 +104,7 @@ export function members(node: Node): readonly Member[] {
     return membersOf.get(node) ?? [];
 }
 
-export function propertyKey(node: Node, steps: (string | number)[]): Node | undefined {
+export function propertyKey(node: Node, steps: readonly (string | number)[]): Node | undefined {
     const name = steps.at(-1);
     let current: Node | undefined = node;
     for (const step of steps.slice(0, -1)) {
@@ -169,7 +169,7 @@ export function plainValue(node: Node): unknown {
     return node.value;
 }
 
-export function deepestNode(node: Node, steps: (string | number)[]): Node {
+export function deepestNode(node: Node, steps: readonly (string | number)[]): Node {
     let current = node;
     for (const step of steps) {
         const next = child(current, step);

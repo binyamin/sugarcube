@@ -82,7 +82,7 @@ export function defineGenerator<
 
 export function fillGenerated(
     merged: Merged,
-    generators: Generator[],
+    generators: readonly Generator[],
     { permutation, parseOptions }: { permutation: Input; parseOptions: ParseOptions },
     diagnostics: Diagnostic[],
 ): void {

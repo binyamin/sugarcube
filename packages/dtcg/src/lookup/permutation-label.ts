@@ -22,7 +22,7 @@ export function ownLabel(contexts: ResolverContext[]): string {
     );
 }
 
-type Part = Scope[number];
+type Part = Record<string, string[]>;
 
 export function scopeOf(set: readonly Permutation[], all: readonly Permutation[]): Scope {
     if (set.length === 0) return [];
@@ -52,7 +52,7 @@ export function scopeLabel(scope: Scope, all: readonly Permutation[]): string {
         .join("; ");
 }
 
-function matches(part: Part, perm: Permutation): boolean {
+function matches(part: Scope[number], perm: Permutation): boolean {
     return perm.contexts.every(({ modifier, name }) => part[modifier.name]?.includes(name) ?? true);
 }
 
@@ -81,7 +81,7 @@ function joinedOn(one: Part | undefined, other: Part | undefined): Part | undefi
     return { ...one, [key]: [...new Set([...(one[key] ?? []), ...(other[key] ?? [])])] };
 }
 
-function sameNames(one: string[], other: string[]): boolean {
+function sameNames(one: readonly string[], other: readonly string[]): boolean {
     return one.length === other.length && one.every((name) => other.includes(name));
 }
 

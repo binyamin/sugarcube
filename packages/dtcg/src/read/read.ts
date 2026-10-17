@@ -1,4 +1,11 @@
-import type { DesignTokens, Input, ReadOptions, ReadText, TokensInMemory } from "../index.js";
+import type {
+    DesignTokens,
+    Diagnostic,
+    Input,
+    ReadOptions,
+    ReadText,
+    TokensInMemory,
+} from "../index.js";
 import type { Answer, FileText, Request } from "./files.js";
 import { collapse, inReadingPermutations } from "./diagnostics.js";
 import { type Loaded, load } from "./load.js";
@@ -128,7 +135,7 @@ function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
         hexStringColors,
         ignoreUnknownProperties,
     } = options;
-    const found: DesignTokens["diagnostics"] = [];
+    const found: Diagnostic[] = [];
     const parseOptions = {
         hexStringColors: hexStringColors ?? false,
         ignoreUnknownProperties: ignoreUnknownProperties ?? false,

@@ -27,7 +27,7 @@ import type { FileOp } from "./index.js";
  */
 export async function applyToDisk(
     { entry, options }: TokensOnDisk,
-    ops: FileOp[],
+    ops: readonly FileOp[],
 ): Promise<ReturnType<typeof changedFiles>> {
     const changes = changedFiles(await read(entry, options), ops);
     if (changes.conflicts) return changes;

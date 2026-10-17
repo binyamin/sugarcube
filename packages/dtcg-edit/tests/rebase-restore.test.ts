@@ -1,7 +1,6 @@
-import { readFromMemory } from "@sugarcube-sh/dtcg";
+import { readFromMemory, type JsonValue } from "@sugarcube-sh/dtcg";
 import { describe, expect, it, vi } from "vitest";
 import {
-    type Json,
     type FileOp,
     create,
     createSession,
@@ -294,7 +293,7 @@ describe("restore", () => {
 
     it("says where a clash on what is neither a token nor a group is, and names no token", () => {
         const sources = ["resolutionOrder", 0, "sources"];
-        const listed = at(demo, "tokens.resolver.json", sources) as Json[];
+        const listed = at(demo, "tokens.resolver.json", sources) as JsonValue[];
         const yours = [...listed, { $ref: "./extra.json" }];
         const mine: FileOp = {
             kind: "set",

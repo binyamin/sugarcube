@@ -86,7 +86,7 @@ function writtenIn(permutation: Permutation): WrittenIn {
     if (cached) return cached;
     const position = new Map<Reference, number>();
     const byPath = new Map<string, Reference[]>();
-    const visit = (items: (Token | Group)[]) => {
+    const visit = (items: readonly (Token | Group)[]) => {
         for (const each of items) {
             for (const reference of each.references) {
                 position.set(reference, position.size);

@@ -47,7 +47,11 @@ type Pair<T> =
 
 type Found = Change extends infer C ? (C extends Change ? Omit<C, "permutations"> : never) : never;
 
-function matched<T extends Token | Group>(earlier: T[], later: T[], moved: Move[]): Pair<T>[] {
+function matched<T extends Token | Group>(
+    earlier: readonly T[],
+    later: readonly T[],
+    moved: Move[],
+): Pair<T>[] {
     const byPath = new Map<string, T>();
     for (const each of earlier) {
         const path = movedPath(each.path, moved);

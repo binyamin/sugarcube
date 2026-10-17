@@ -1,6 +1,6 @@
-import { type DesignTokens, forbiddenInName, parentOf } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, forbiddenInName, parentOf, type JsonValue } from "@sugarcube-sh/dtcg";
 import { refused } from "./error-messages.js";
-import type { FileOp, Json, NewToken, OpResult, Where } from "./index.js";
+import type { FileOp, NewToken, OpResult, Where } from "./index.js";
 import { asked, newPlace } from "./placement.js";
 
 /**
@@ -50,7 +50,7 @@ function createIn(
     if (!("into" in placed)) return placed;
     const { into: file, alsoAffects } = placed;
 
-    const value: Json =
+    const value: JsonValue =
         "group" in token
             ? {}
             : {

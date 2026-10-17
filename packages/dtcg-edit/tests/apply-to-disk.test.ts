@@ -1,3 +1,4 @@
+import type { JsonValue } from "@sugarcube-sh/dtcg";
 import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setValue } from "../src/index.js";
 import { applyToDisk } from "../src/node.js";
 import { at, changed, demo, opsOf } from "./helpers.js";
-import type { FileOp, Json } from "../src/index.js";
+import type { FileOp } from "../src/index.js";
 
 let folder: string;
 let entry: string;
@@ -125,7 +126,7 @@ describe("applyToDisk", () => {
         expect(readdirSync(folder)).not.toContain("extra.json");
 
         const sources = ["resolutionOrder", 0, "sources"];
-        const was = at(demo, "tokens.resolver.json", sources) as Json[];
+        const was = at(demo, "tokens.resolver.json", sources) as JsonValue[];
         const reference: FileOp = {
             kind: "set",
             file: "tokens.resolver.json",
@@ -174,7 +175,7 @@ describe("applyToDisk", () => {
 
 function madeAndRead(...files: string[]): FileOp[] {
     const sources = ["resolutionOrder", 0, "sources"];
-    const was = at(demo, "tokens.resolver.json", sources) as Json[];
+    const was = at(demo, "tokens.resolver.json", sources) as JsonValue[];
     return [
         ...files.map((file): FileOp => ({ kind: "createFile", file, value: { extra: {} } })),
         {

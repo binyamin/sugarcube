@@ -42,7 +42,7 @@ const RESOLUTION_ORDER = Buffer.from('"resolutionOrder"');
  * await findResolver("src/tokens", { by: "content" });
  */
 export async function findResolver(
-    paths: string | string[],
+    paths: string | readonly string[],
     { by = "name" }: FindResolverOptions = {},
 ): Promise<FoundResolver> {
     const keep = by === "name" ? isResolverName : isJson;

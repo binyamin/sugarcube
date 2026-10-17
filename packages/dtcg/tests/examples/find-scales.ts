@@ -9,7 +9,7 @@ for (const group of tokens.permutation().groups) {
         row(group.path, "made by a generator");
         continue;
     }
-    const steps = group.children.filter((child) => child.kind === "token");
+    const steps = group.childTokens;
     if (steps.length > 1 && steps.every((t) => t.type === "dimension" && !t.generated)) {
         row(group.path, "written by hand");
     }

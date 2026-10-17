@@ -3,6 +3,7 @@ import type {
     DesignTokens,
     Input,
     JsonPath,
+    JsonValue,
     Move,
     PermutationErrorDetail,
     Permutations,
@@ -31,13 +32,10 @@ export interface Fix {
      * likely guess a person should confirm.
      */
     safe: boolean;
-    edits: TextEdit[];
+    edits: readonly TextEdit[];
 }
 
 export { fixesFor } from "./fixes.js";
-
-/** Any JSON value. */
-export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
 /**
  * One change to one file, addressed by its route through the file's JSON (`jsonPath`), so it still
@@ -57,11 +55,11 @@ export type Json = string | number | boolean | null | Json[] | { [key: string]: 
  * only to tell when the rename is already done: the key is renamed whatever its value now.
  */
 export type FileOp =
-    | { kind: "set"; file: string; jsonPath: JsonPath; value: Json; was: Json }
-    | { kind: "add"; file: string; jsonPath: JsonPath; value: Json }
-    | { kind: "remove"; file: string; jsonPath: JsonPath; was: Json }
-    | { kind: "renameKey"; file: string; jsonPath: JsonPath; name: string; was: Json }
-    | { kind: "createFile"; file: string; value: Json }
+    | { kind: "set"; file: string; jsonPath: JsonPath; value: JsonValue; was: JsonValue }
+    | { kind: "add"; file: string; jsonPath: JsonPath; value: JsonValue }
+    | { kind: "remove"; file: string; jsonPath: JsonPath; was: JsonValue }
+    | { kind: "renameKey"; file: string; jsonPath: JsonPath; name: string; was: JsonValue }
+    | { kind: "createFile"; file: string; value: JsonValue }
     | { kind: "deleteFile"; file: string; was: string };
 
 /**
@@ -80,7 +78,7 @@ export type FileOp =
 export interface Question {
     kind: "placement";
     path: string;
-    files: string[];
+    files: readonly string[];
     answer(file: string): OpResult;
 }
 
@@ -94,7 +92,7 @@ export interface Question {
  */
 export type OpResult =
     | {
-          ops: FileOp[];
+          ops: readonly FileOp[];
           /**
            * The permutations, other than the one edited, where the change shows, labelled
            * (`alsoAffects.label`, such as `"mode: dark"`). Only permutations the read built are
@@ -105,9 +103,9 @@ export type OpResult =
            * The tokens and groups left referring to nothing, after a {@link remove}, or a
            * {@link combine} holding one.
            */
-          broken?: string[];
+          broken?: readonly string[];
           /** Tokens and groups whose path changed, such as after a {@link rename}. Empty when none did. */
-          moved: Move[];
+          moved: readonly Move[];
           question?: undefined;
           refused?: undefined;
       }
@@ -145,7 +143,7 @@ export type Refusal = { reason: string } & (
     | { kind: "taken"; path: string }
     | { kind: "override-instead"; path: string; input: Input }
     | { kind: "invalid-name"; name: string; character?: "$" | "." | "{" | "}" }
-    | { kind: "generated"; path: string; from?: string; extension: [string, ...string[]] }
+    | { kind: "generated"; path: string; from?: string; extension: readonly [string, ...string[]] }
     | { kind: "inherited"; path: string; from: string }
     | {
           kind: "no-permutation";
@@ -180,7 +178,7 @@ export interface NewToken {
      */
     $type?: TokenType;
     /** Written exactly as given. */
-    $value: Json;
+    $value: JsonValue;
     $description?: string;
 }
 
@@ -220,7 +218,7 @@ export interface ValueAt {
  */
 export function setValues(
     tokens: DesignTokens,
-    values: ({ path: string; value: Json } & ValueOptions)[],
+    values: readonly ({ path: string; value: JsonValue } & ValueOptions)[],
 ): OpResult {
     throw new Error("not implemented yet");
 }
@@ -281,7 +279,7 @@ export function setExtension(
     tokens: DesignTokens,
     path: string,
     jsonPath: JsonPath,
-    value: Json | null,
+    value: JsonValue | null,
 ): OpResult {
     throw new Error("not implemented yet");
 }
@@ -295,7 +293,7 @@ export function setExtension(
  * const safe = tokens.diagnostics.flatMap((d) => fixesFor(tokens, d).filter((f) => f.safe));
  * commit(tokens, fix(tokens, safe));
  */
-export function fix(tokens: DesignTokens, fixes: Fix[]): OpResult {
+export function fix(tokens: DesignTokens, fixes: readonly Fix[]): OpResult {
     throw new Error("not implemented yet");
 }
 
@@ -348,7 +346,7 @@ export function addContext(
 export function addModifier(
     tokens: DesignTokens,
     modifier: string,
-    options: { contexts: string[]; default?: string },
+    options: { contexts: readonly string[]; default?: string },
 ): OpResult {
     throw new Error("not implemented yet");
 }
@@ -434,9 +432,9 @@ export type Committed =
           /** The design tokens with the edits applied. */
           tokens: DesignTokens;
           /** The edits that were applied, for undo, saving, and sharing. */
-          ops: FileOp[];
+          ops: readonly FileOp[];
           /** Tokens and groups whose path changed, for keeping a selection or a URL on them. */
-          moved: Move[];
+          moved: readonly Move[];
           question?: undefined;
           refused?: undefined;
           conflicts?: undefined;
@@ -447,8 +445,8 @@ export type Committed =
 
 /** Edits, with the moves they made, as they are kept for undo and saved for later. */
 export interface Edits {
-    ops: FileOp[];
-    moved: Move[];
+    ops: readonly FileOp[];
+    moved: readonly Move[];
 }
 
 export { isEdits } from "./is-edits.js";
@@ -466,9 +464,9 @@ export interface Clash {
     /** The token or group at `jsonPath`, when one is there. */
     path?: string;
     /** What the edits write for it there, put on top of the file as it is now; absent when they remove it. */
-    yours?: Json;
+    yours?: JsonValue;
     /** What the file has for it now; absent when it isn't there, or the file is gone. */
-    theirs?: Json;
+    theirs?: JsonValue;
 }
 
 /**

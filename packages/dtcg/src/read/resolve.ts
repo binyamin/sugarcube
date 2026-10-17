@@ -19,6 +19,7 @@ import type {
     Written,
     WrittenReference,
 } from "../index.js";
+import type { Building } from "./building.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { applying, inherited } from "./inherit.js";
 import type { Merged, MergedGroup, MergedToken, MergedTopLevel, WrittenAt } from "./merge.js";
@@ -244,7 +245,7 @@ function resolvePermutation(
         if (rest.length === 0) return places.only(sourceAt(first.index), first.span);
         return written.map(({ index, span }) => places.at(sourceAt(index), span));
     };
-    const linked = linkedPermutation({
+    const linked: Building<Permutation> = linkedPermutation({
         input,
         label,
         sources,
@@ -255,15 +256,15 @@ function resolvePermutation(
         groups: [],
     });
 
-    const groups = new Map<string, Group>();
+    const groups = new Map<string, Building<Group>>();
     for (const group of merged.groups.values()) {
         const writtenAt = placed(group.declaredIn);
         groups.set(group.path, publicGroup(group, applying(merged, group), writtenAt));
     }
 
     const built = new Map<string, Token>();
-    const written: [Token, LocatedReference[]][] = [];
-    const childrenOf = (parentPath: string | undefined, parent: Group | undefined) => {
+    const written: [Building<Token>, LocatedReference[]][] = [];
+    const childrenOf = (parentPath: string | undefined, parent: Building<Group> | undefined) => {
         const children: (Token | Group)[] = [];
         for (const path of merged.children.get(parentPath) ?? []) {
             const entry = tokens.get(path);

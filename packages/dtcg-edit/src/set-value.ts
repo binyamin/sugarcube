@@ -1,5 +1,5 @@
-import type { DesignTokens, Token } from "@sugarcube-sh/dtcg";
-import type { FileOp, Json, OpResult, ValueOptions } from "./index.js";
+import type { DesignTokens, Token, JsonValue } from "@sugarcube-sh/dtcg";
+import type { FileOp, OpResult, ValueOptions } from "./index.js";
 import { asked, copiesOf, describedPlace, placement } from "./placement.js";
 import { type Member, writtenIn } from "./file-text.js";
 
@@ -36,7 +36,7 @@ import { type Member, writtenIn } from "./file-text.js";
 export function setValue(
     tokens: DesignTokens,
     path: string,
-    value: Json,
+    value: JsonValue,
     options: ValueOptions = {},
 ): OpResult {
     return setValueIn(tokens, path, value, options);
@@ -45,7 +45,7 @@ export function setValue(
 function setValueIn(
     tokens: DesignTokens,
     path: string,
-    value: Json,
+    value: JsonValue,
     options: ValueOptions,
     place?: string,
 ): OpResult {
@@ -70,13 +70,13 @@ function setValueIn(
     return { ops: [op], alsoAffects, moved: [] };
 }
 
-function ownProperties(token: Token): Record<string, Json> {
+function ownProperties(token: Token): Record<string, JsonValue> {
     const { authored, description, extensions } = token;
     return {
         ...(authored?.type !== undefined && { $type: authored.type }),
         ...(description !== undefined && { $description: description }),
         ...(authored?.deprecated !== undefined && { $deprecated: authored.deprecated }),
-        ...(extensions && { $extensions: extensions as Json }),
+        ...(extensions && { $extensions: extensions as JsonValue }),
     };
 }
 
@@ -120,7 +120,7 @@ function setDescriptionIn(
     return { ops, alsoAffects: described.alsoAffects, moved: [] };
 }
 
-function written(tokens: DesignTokens, at: Member, key: string, value: Json | null): FileOp[] {
+function written(tokens: DesignTokens, at: Member, key: string, value: JsonValue | null): FileOp[] {
     const { file } = at.span;
     const jsonPath = [...at.jsonPath, key];
     const was = writtenIn(tokens, file, jsonPath);

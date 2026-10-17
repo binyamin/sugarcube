@@ -7,8 +7,8 @@ import { setValues, type Session } from "@sugarcube-sh/dtcg-edit";
 declare const session: Session;
 declare function showPreview(tokens: DesignTokens): void;
 
-const steps = (session.tokens.permutation().group("space")?.children ?? []).flatMap((t) =>
-    t.kind === "token" && t.type === "dimension" && t.resolved && !t.referenceAt() && !t.generated
+const steps = (session.tokens.permutation().group("space")?.childTokens ?? []).flatMap((t) =>
+    t.type === "dimension" && t.resolved && !t.referenceAt() && !t.generated
         ? [{ path: t.path, size: t.resolved }]
         : [],
 );

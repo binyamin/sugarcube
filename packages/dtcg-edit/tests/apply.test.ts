@@ -1,6 +1,6 @@
-import { type DesignTokens, readFromMemory } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, readFromMemory, type JsonValue } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
-import { type FileOp, type Json, type Question, apply, commit } from "../src/index.js";
+import { type FileOp, type Question, apply, commit } from "../src/index.js";
 import { demo, at, changed } from "./helpers.js";
 function applied(tokens: DesignTokens, ops: FileOp[]): DesignTokens {
     const result = apply(tokens, ops);
@@ -15,7 +15,7 @@ const setBrand500 = (tokens: DesignTokens): FileOp => ({
     file: "color.json",
     jsonPath: brand500,
     value: red,
-    was: at(tokens, "color.json", brand500) as Json,
+    was: at(tokens, "color.json", brand500) as JsonValue,
 });
 
 describe("apply's result", () => {
@@ -57,9 +57,9 @@ describe("apply, set", () => {
 
     it("still applies when someone wrote the same value with its keys in another order", () => {
         const op = setBrand500(demo);
-        const written = at(demo, "color.json", brand500) as Record<string, Json>;
+        const written = at(demo, "color.json", brand500) as Record<string, JsonValue>;
         const { hex, ...rest } = written;
-        const reordered = { hex, ...rest } as Json;
+        const reordered = { hex, ...rest } as JsonValue;
         const theirs = changed(demo, [["color.json", brand500, reordered]]);
 
         expect(at(applied(theirs, [op]), "color.json", brand500)).toEqual(red);
@@ -163,7 +163,7 @@ const removeSm = (): FileOp => ({
     kind: "remove",
     file: "radius.json",
     jsonPath: sm,
-    was: at(demo, "radius.json", sm) as Json,
+    was: at(demo, "radius.json", sm) as JsonValue,
 });
 
 describe("apply, remove", () => {
@@ -196,7 +196,7 @@ describe("apply, renameKey", () => {
         file: "radius.json",
         jsonPath: sm,
         name,
-        was: at(demo, "radius.json", sm) as Json,
+        was: at(demo, "radius.json", sm) as JsonValue,
     });
 
     it("is a conflict when a sibling has taken the name since", () => {
@@ -260,7 +260,7 @@ describe("apply, several edits", () => {
                 file: "radius.json",
                 jsonPath,
                 value: { value: 2, unit: "px" },
-                was: at(demo, "radius.json", jsonPath) as Json,
+                was: at(demo, "radius.json", jsonPath) as JsonValue,
             },
         ]);
         const before = (demo.text("radius.json") ?? "").split("\n");
@@ -279,14 +279,14 @@ describe("apply, several edits", () => {
                 file: "radius.json",
                 jsonPath: sm,
                 name: "small",
-                was: at(demo, "radius.json", sm) as Json,
+                was: at(demo, "radius.json", sm) as JsonValue,
             },
             {
                 kind: "set",
                 file: "radius.json",
                 jsonPath: ["radius", "small", "$value"],
                 value: { value: 2, unit: "px" },
-                was: at(demo, "radius.json", ["radius", "sm", "$value"]) as Json,
+                was: at(demo, "radius.json", ["radius", "sm", "$value"]) as JsonValue,
             },
         ]);
 
@@ -303,14 +303,14 @@ describe("apply, several edits", () => {
             file: "radius.json",
             jsonPath: ["radius", "sm", "$value"],
             value: { value: 2, unit: "px" },
-            was: at(demo, "radius.json", ["radius", "sm", "$value"]) as Json,
+            was: at(demo, "radius.json", ["radius", "sm", "$value"]) as JsonValue,
         };
         const takenName: FileOp = {
             kind: "renameKey",
             file: "color.json",
             jsonPath: ["color", "brand"],
             name: "neutral",
-            was: at(demo, "color.json", ["color", "brand"]) as Json,
+            was: at(demo, "color.json", ["color", "brand"]) as JsonValue,
         };
         const gone: FileOp = {
             kind: "set",

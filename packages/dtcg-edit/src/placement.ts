@@ -18,7 +18,7 @@ import { type Member, memberAt, writtenIn } from "./file-text.js";
 
 interface Choice {
     path: string;
-    files: string[];
+    files: readonly string[];
 }
 
 export function asked(

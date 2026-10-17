@@ -1,5 +1,5 @@
+import type { JsonValue } from "@sugarcube-sh/dtcg";
 import { type Node, findNodeAtLocation } from "jsonc-parser";
-import type { Json } from "./index.js";
 
 export interface Splice {
     offset: number;
@@ -13,7 +13,7 @@ export function refString(node: Node): Node | undefined {
     return ref?.type === "string" ? ref : undefined;
 }
 
-export function spliced(text: string, splices: Splice[]): string {
+export function spliced(text: string, splices: readonly Splice[]): string {
     return [...splices]
         .sort((a, b) => b.offset - a.offset)
         .reduce(
@@ -59,7 +59,7 @@ export function removal(text: string, value: Node): Splice[] {
     return [{ offset: from, length: end(member) - from, text: "" }];
 }
 
-export function insertion(text: string, container: Node, key: string, value: Json): Splice[] {
+export function insertion(text: string, container: Node, key: string, value: JsonValue): Splice[] {
     const members = container.children ?? [];
     const last = members[members.length - 1];
     const unit = indentUnit(text);
@@ -106,7 +106,7 @@ export function insertion(text: string, container: Node, key: string, value: Jso
     ];
 }
 
-export function replacement(text: string, node: Node, value: Json): Splice {
+export function replacement(text: string, node: Node, value: JsonValue): Splice {
     const written = text.slice(node.offset, end(node)).includes("\n")
         ? spread(value, indentOf(text, node.offset), indentUnit(text), lineBreak(text))
         : inline(value);
@@ -122,7 +122,7 @@ export function inline(value: unknown): string {
     return `{ ${members.join(", ")} }`;
 }
 
-function spread(value: Json, indent: string, unit: string, eol: string): string {
+function spread(value: JsonValue, indent: string, unit: string, eol: string): string {
     return JSON.stringify(value, null, unit).split("\n").join(`${eol}${indent}`);
 }
 

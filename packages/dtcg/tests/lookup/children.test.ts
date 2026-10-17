@@ -3,7 +3,7 @@ import { type DesignTokens, defineGenerator, readFromMemory } from "../../src/in
 
 const color = (red: number) => ({ $value: { colorSpace: "srgb", components: [red, 0, 0] } });
 
-const paths = (items: { path: string }[] | undefined) => items?.map(({ path }) => path);
+const paths = (items: readonly { path: string }[] | undefined) => items?.map(({ path }) => path);
 
 function oneFile(json: unknown): DesignTokens {
     return readFromMemory({ files: { "tokens.json": JSON.stringify(json) } });
@@ -35,6 +35,26 @@ describe("a group's children", () => {
             "color.brand.500",
             "color.brand.$root",
         ]);
+    });
+
+    it("give a group's child tokens alone as childTokens, in the same order, its $root included", () => {
+        const colors = tokens.permutation().group("color");
+        const brand = tokens.permutation().group("color.brand");
+
+        expect(paths(colors?.childTokens)).toStrictEqual(["color.bg", "color.text"]);
+        expect(paths(brand?.childTokens)).toStrictEqual(["color.brand.500", "color.brand.$root"]);
+        expect(colors?.childTokens).toStrictEqual(
+            colors?.children.filter((child) => child.kind === "token"),
+        );
+        expect(paths(tokens.permutation().group("color.raw")?.childTokens)).toStrictEqual([]);
+    });
+
+    it("give the same lists each time they are read, as children does", () => {
+        const colors = tokens.permutation().group("color")!;
+
+        expect(colors.childTokens).toBe(colors.childTokens);
+        expect(colors.tokens).toBe(colors.tokens);
+        expect(colors.children).toBe(colors.children);
     });
 
     it("are the tokens and groups themselves", () => {

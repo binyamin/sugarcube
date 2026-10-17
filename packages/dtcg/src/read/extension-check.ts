@@ -25,7 +25,7 @@ export type ExtensionProblem =
     | { jsonPath: JsonPath; message: string };
 
 export interface CheckedExtension {
-    within: [string, ...string[]];
+    within: readonly [string, ...string[]];
     messages?: ExtensionMessages | undefined;
     json: JsonFile;
     node: Node;
@@ -52,7 +52,7 @@ export function checkSchema(
 }
 
 function issuePath(path: StandardSchemaV1.Issue["path"]): JsonPath {
-    const steps: JsonPath = [];
+    const steps: (string | number)[] = [];
     for (const segment of path ?? []) {
         const key = typeof segment === "object" ? segment.key : segment;
         if (typeof key !== "string" && typeof key !== "number") break;

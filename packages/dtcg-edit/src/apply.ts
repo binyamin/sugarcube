@@ -1,7 +1,7 @@
-import type { DesignTokens } from "@sugarcube-sh/dtcg";
+import type { DesignTokens, JsonValue } from "@sugarcube-sh/dtcg";
 import { type Node, findNodeAtLocation, getNodeValue, parseTree } from "jsonc-parser";
 import { conflict } from "./error-messages.js";
-import type { Applied, Committed, Conflict, FileOp, Json, OpResult } from "./index.js";
+import type { Applied, Committed, Conflict, FileOp, OpResult } from "./index.js";
 import { type Splice, indentUnit, lineBreak, removal, spliced } from "./json-text.js";
 import { renameSplices, setSplices, valueAt } from "./text-edits.js";
 
@@ -35,7 +35,7 @@ interface Texts {
  * if (next.conflicts) showConflicts(next.conflicts);
  * else tokens = next.tokens;
  */
-export function apply(tokens: DesignTokens, ops: FileOp[]): Applied {
+export function apply(tokens: DesignTokens, ops: readonly FileOp[]): Applied {
     const changes = changedFiles(tokens, ops);
     return changes.conflicts ? { conflicts: changes.conflicts } : { tokens: changes.tokens };
 }
@@ -54,7 +54,7 @@ export function apply(tokens: DesignTokens, ops: FileOp[]): Applied {
  */
 export function changedFiles(
     tokens: DesignTokens,
-    ops: FileOp[],
+    ops: readonly FileOp[],
 ):
     | {
           tokens: DesignTokens;
@@ -80,8 +80,8 @@ export function changedFiles(
 
 export function applyWhatFits(
     tokens: DesignTokens,
-    ops: FileOp[],
-): { tokens: DesignTokens; applied: FileOp[]; skipped: FileOp[] } {
+    ops: readonly FileOp[],
+): { tokens: DesignTokens; applied: readonly FileOp[]; skipped: readonly FileOp[] } {
     const { changed, conflicts } = editedFiles(tokens, ops);
     if (conflicts.length === ops.length) return { tokens, applied: [], skipped: ops };
     const next = tokens.reread(changed);
@@ -91,7 +91,7 @@ export function applyWhatFits(
     return { tokens: next, applied: ops.filter((op) => !failed.has(op)), skipped };
 }
 
-function editedFiles(tokens: DesignTokens, ops: FileOp[]) {
+function editedFiles(tokens: DesignTokens, ops: readonly FileOp[]) {
     const changed: Changed = {};
     const texts: Texts = {
         of: (file) => (file in changed ? (changed[file] ?? undefined) : tokens.text(file)),
@@ -121,7 +121,7 @@ function editedFiles(tokens: DesignTokens, ops: FileOp[]) {
     return { changed, conflicts };
 }
 
-function unread(next: DesignTokens, ops: FileOp[]): FileOp[] {
+function unread(next: DesignTokens, ops: readonly FileOp[]): FileOp[] {
     return ops.filter((op) => op.kind === "createFile" && next.text(op.file) === undefined);
 }
 
@@ -180,11 +180,11 @@ function memberEdit(draft: Draft, op: MemberOp): Outcome {
     const { text, pending } = draft;
     draft.root ??= parseTree(text);
     const { root } = draft;
-    const node = root && findNodeAtLocation(root, op.jsonPath);
+    const node = root && findNodeAtLocation(root, [...op.jsonPath]);
     if (pending.length > 0 && (!node || reads(node, op).some((range) => touches(range, pending)))) {
         return "stale";
     }
-    const current = node && (getNodeValue(node) as Json);
+    const current = node && (getNodeValue(node) as JsonValue);
     const written = (unwritable: Conflict["kind"]): Outcome => {
         const splices = root && splicesFor(text, root, op);
         if (splices === undefined) return { conflict: unwritable };
@@ -209,7 +209,7 @@ function memberEdit(draft: Draft, op: MemberOp): Outcome {
             if (!node) {
                 const renamed =
                     root && findNodeAtLocation(root, [...op.jsonPath.slice(0, -1), op.name]);
-                const there = renamed && (getNodeValue(renamed) as Json);
+                const there = renamed && (getNodeValue(renamed) as JsonValue);
                 return same(there, op.was) ? undefined : { conflict: "gone" };
             }
             return written("taken");
@@ -220,7 +220,7 @@ function memberEdit(draft: Draft, op: MemberOp): Outcome {
 function splicesFor(text: string, root: Node, op: MemberOp): Splice[] | undefined {
     if (op.kind === "set" || op.kind === "add")
         return setSplices(text, root, op.jsonPath, op.value);
-    const node = findNodeAtLocation(root, op.jsonPath);
+    const node = findNodeAtLocation(root, [...op.jsonPath]);
     if (!node) return op.kind === "remove" ? [] : undefined;
     return op.kind === "remove" ? removal(text, node) : renameSplices(node, op.name);
 }
@@ -249,13 +249,13 @@ export function editedText(text: string, op: MemberOp): string | undefined {
     return splices && spliced(text, splices);
 }
 
-function same(a: Json | undefined, b: Json | undefined): boolean {
+function same(a: JsonValue | undefined, b: JsonValue | undefined): boolean {
     if (a === b) return true;
     if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
-    if (Array.isArray(a) || Array.isArray(b)) {
+    if (isList(a) || isList(b)) {
         return (
-            Array.isArray(a) &&
-            Array.isArray(b) &&
+            isList(a) &&
+            isList(b) &&
             a.length === b.length &&
             a.every((each, i) => same(each, b[i]))
         );
@@ -265,4 +265,8 @@ function same(a: Json | undefined, b: Json | undefined): boolean {
         keys.length === Object.keys(b).length &&
         keys.every((key) => key in b && same(a[key], b[key]))
     );
+}
+
+function isList(value: JsonValue): value is readonly JsonValue[] {
+    return Array.isArray(value);
 }

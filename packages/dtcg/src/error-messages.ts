@@ -83,7 +83,7 @@ function inputWords(problem: InputProblem): string {
     }
 }
 
-function oneOf(names: string[]): string {
+function oneOf(names: readonly string[]): string {
     const quoted = names.map((name) => `\`${name}\``);
     const last = quoted.pop();
     return quoted.length === 0 ? (last ?? "") : `${quoted.join(", ")} or ${last}`;

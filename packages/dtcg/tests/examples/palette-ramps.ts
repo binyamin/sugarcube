@@ -8,12 +8,9 @@ declare function swatch(color: ColorValue | undefined): string;
 const permutation = tokens.permutation();
 
 for (const group of permutation.groups) {
-    const ramp = group.children.flatMap((child) =>
-        child.kind === "token" && child.type === "color" && !child.referenceAt()
-            ? [swatch(child.resolved)]
-            : [],
-    );
-    if (ramp.length > 0) row(group.path, ...ramp);
+    const colors = group.childTokens.filter((t) => t.type === "color");
+    const steps = colors.filter((t) => !t.referenceAt());
+    if (steps.length > 0) row(group.path, ...steps.map((step) => swatch(step.resolved)));
 }
 
 for (const t of permutation.tokens) {

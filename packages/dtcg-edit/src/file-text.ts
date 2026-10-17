@@ -1,4 +1,4 @@
-import type { DesignTokens, JsonPath, Span } from "@sugarcube-sh/dtcg";
+import type { DesignTokens, JsonPath, Span, JsonValue } from "@sugarcube-sh/dtcg";
 import {
     type Node,
     findNodeAtLocation,
@@ -7,12 +7,11 @@ import {
     getNodeValue,
     parseTree,
 } from "jsonc-parser";
-import type { Json } from "./index.js";
 
 export interface Member {
     span: Span;
     jsonPath: JsonPath;
-    written: Json;
+    written: JsonValue;
 }
 
 const parsed = new WeakMap<DesignTokens, Map<string, Node | undefined>>();
@@ -38,13 +37,13 @@ export function writtenIn(
     tokens: DesignTokens,
     file: string,
     jsonPath: JsonPath,
-): Json | undefined {
+): JsonValue | undefined {
     const tree = treeOf(tokens, file);
-    const node = tree && findNodeAtLocation(tree, jsonPath);
-    return node && (getNodeValue(node) as Json);
+    const node = tree && findNodeAtLocation(tree, [...jsonPath]);
+    return node && (getNodeValue(node) as JsonValue);
 }
 
 export function memberAt(tokens: DesignTokens, span: Span): Member | undefined {
     const node = nodeAt(tokens, span);
-    return node && { span, jsonPath: getNodePath(node), written: getNodeValue(node) as Json };
+    return node && { span, jsonPath: getNodePath(node), written: getNodeValue(node) as JsonValue };
 }

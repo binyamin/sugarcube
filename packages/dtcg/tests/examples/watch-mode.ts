@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 declare function watchFiles(onChange: () => void): { set(files: string[]): void };
 
 const entry = "tokens/tokens.resolver.json";
-const onDisk = (files: string[]) => files.map((file) => join(dirname(entry), file));
+const onDisk = (files: readonly string[]) => files.map((file) => join(dirname(entry), file));
 
 let tokens = await read(entry);
 const watcher = watchFiles(async () => {

@@ -248,7 +248,7 @@ const knownDifferences = [
     },
 ];
 
-function place(steps: (string | number)[]): string {
+function place(steps: readonly (string | number)[]): string {
     return steps.reduce<string>(
         (joined, step) => (typeof step === "number" ? `${joined}[${step}]` : `${joined}.${step}`),
         "scale",

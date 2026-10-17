@@ -26,7 +26,7 @@ export interface MergedToken extends SourceToken {
     piece: Piece;
     replaces?: WrittenAt[];
     inherited?: { from: string };
-    generated?: { from?: string; extension: [string, ...string[]] };
+    generated?: { from?: string; extension: readonly [string, ...string[]] };
     added?: true;
 }
 

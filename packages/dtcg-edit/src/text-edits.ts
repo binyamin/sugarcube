@@ -1,6 +1,5 @@
-import type { JsonPath } from "@sugarcube-sh/dtcg";
+import type { JsonPath, JsonValue } from "@sugarcube-sh/dtcg";
 import { type Node, findNodeAtLocation, getNodeValue, parseTree } from "jsonc-parser";
-import type { Json } from "./index.js";
 import { type Splice, insertion, removal, replacement, spliced } from "./json-text.js";
 
 /**
@@ -12,7 +11,7 @@ import { type Splice, insertion, removal, replacement, spliced } from "./json-te
  * @returns the new text, or `undefined` when `jsonPath` runs through something that isn't a group,
  * or past the end of a list
  */
-export function setAt(text: string, jsonPath: JsonPath, value: Json): string | undefined {
+export function setAt(text: string, jsonPath: JsonPath, value: JsonValue): string | undefined {
     const root = parseTree(text);
     const splices = root && setSplices(text, root, jsonPath, value);
     return splices && spliced(text, splices);
@@ -22,7 +21,7 @@ export function setSplices(
     text: string,
     root: Node,
     jsonPath: JsonPath,
-    value: Json,
+    value: JsonValue,
 ): Splice[] | undefined {
     let node = root;
     for (const [index, step] of jsonPath.entries()) {
@@ -36,7 +35,7 @@ export function setSplices(
             return undefined;
         }
         const [key, ...inner] = missing as string[];
-        const nested = inner.reduceRight<Json>((acc, each) => ({ [each]: acc }), value);
+        const nested = inner.reduceRight<JsonValue>((acc, each) => ({ [each]: acc }), value);
         return insertion(text, node, key as string, nested);
     }
     return [replacement(text, node, value)];
@@ -76,12 +75,12 @@ export function renameSplices(node: Node, name: string): Splice[] | undefined {
     return [{ offset: key.offset, length: key.length, text: JSON.stringify(name) }];
 }
 
-export function valueAt(text: string, jsonPath: JsonPath): Json | undefined {
+export function valueAt(text: string, jsonPath: JsonPath): JsonValue | undefined {
     const node = find(text, jsonPath);
-    return node === undefined ? undefined : (getNodeValue(node) as Json);
+    return node === undefined ? undefined : (getNodeValue(node) as JsonValue);
 }
 
 function find(text: string, jsonPath: JsonPath): Node | undefined {
     const root = parseTree(text);
-    return root === undefined ? undefined : findNodeAtLocation(root, jsonPath);
+    return root === undefined ? undefined : findNodeAtLocation(root, [...jsonPath]);
 }

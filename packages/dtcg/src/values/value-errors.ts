@@ -14,97 +14,103 @@ import { fontWeightKeywords } from "./keywords.js";
 export interface ValueErrorFacts {
     /** The value is not the JSON its type is written as, such as a number for a dimension. */
     "wrong-shape": {
-        value: unknown;
+        readonly value: unknown;
         /** A string that reads as a token's path, written as the reference it was probably meant as. */
-        reference?: string;
+        readonly reference?: string;
     };
     /** An object has a property its type does not define. */
-    "unknown-property": { property: string };
+    "unknown-property": { readonly property: string };
     /** A `$ref` has other properties beside it: a JSON Pointer stands alone. */
     "pointer-not-alone": Record<never, never>;
     /** An object lacks a property its type needs. */
-    "missing-property": { property: string };
+    "missing-property": { readonly property: string };
     /** A number is needed, and the value is not one. */
-    "not-a-number": { value: unknown };
+    "not-a-number": { readonly value: unknown };
     /** A `"{token}"` reference is written inside a value, where only a JSON Pointer can be. */
-    "curly-brace-not-allowed-here": { reference: string };
+    "curly-brace-not-allowed-here": { readonly reference: string };
     /** A color is written as a hex string. Through `read`, this is `hex-string-color`. */
     "hex-string": {
-        value: string;
+        readonly value: string;
         /** The color object it stands for, as it would be written: `alpha` only when the hex has alpha digits. */
-        asObject: Omit<ColorValue, "alpha"> & { alpha?: number };
+        readonly asObject: Omit<ColorValue, "alpha"> & { readonly alpha?: number };
     };
     /** A color's `colorSpace` is not one the Color module defines. */
-    "unknown-color-space": { value: unknown };
+    "unknown-color-space": { readonly value: unknown };
     /** A color's `components` is not a list of three. */
-    "not-three-components": { value: unknown };
+    "not-three-components": { readonly value: unknown };
     /** A color component is neither a number nor `"none"`. */
-    "component-not-a-number": { value: unknown };
+    "component-not-a-number": { readonly value: unknown };
     /** A color component is outside its channel's range, as `colorSpaces` gives it. */
     "component-out-of-range": {
-        value: number;
-        colorSpace: ColorSpace;
+        readonly value: number;
+        readonly colorSpace: ColorSpace;
         /** The channel's name, such as `"H"`. */
-        component: string;
-        min: number;
+        readonly component: string;
+        readonly min: number;
         /** Left out when the channel has no upper limit, which JSON cannot write as a number. */
-        max?: number;
+        readonly max?: number;
         /** Whether `max` itself is outside the range, as for a hue. */
-        maxExclusive: boolean;
+        readonly maxExclusive: boolean;
     };
     /** A color's `alpha` is outside 0 to 1. */
-    "alpha-out-of-range": { value: number };
+    "alpha-out-of-range": { readonly value: number };
     /** A color's `hex` is not six hex digits after a `#`. */
     "hex-not-six-digits": {
-        value: unknown;
+        readonly value: unknown;
         /** A three-digit hex, such as `#f0a`, written with six digits: `#ff00aa`. */
-        sixDigits?: string;
+        readonly sixDigits?: string;
     };
     /**
      * A hex string with three or four digits, read with `hexStringColors`, which takes six or
      * eight.
      */
     "short-hex-string": {
-        value: string;
+        readonly value: string;
         /** The six or eight digits it stands for: `#f0a` is `#ff00aa`, `#f0a8` is `#ff00aa88`. */
-        expanded: string;
+        readonly expanded: string;
     };
     /** A dimension or duration is written as a string with its unit, such as `"16px"`. */
     "string-with-unit": {
-        value: string;
+        readonly value: string;
         /** The object it stands for, `{ value: 16, unit: "px" }`, when its unit is one the type allows. */
-        asObject?: { value: number; unit: DimensionValue["unit"] | DurationValue["unit"] };
+        readonly asObject?: {
+            readonly value: number;
+            readonly unit: DimensionValue["unit"] | DurationValue["unit"];
+        };
     };
     /** A cubic Bézier does not have four numbers. */
-    "not-four-numbers": { count: number };
+    "not-four-numbers": { readonly count: number };
     /** A cubic Bézier's `x1` or `x2` is outside 0 to 1. */
-    "x-out-of-range": { value: number; coordinate: "x1" | "x2" };
+    "x-out-of-range": { readonly value: number; readonly coordinate: "x1" | "x2" };
     /** A list of font names is empty. */
     "empty-font-list": Record<never, never>;
     /** A font name is not a string, or is empty. */
-    "not-a-font-name": { value: unknown };
+    "not-a-font-name": { readonly value: unknown };
     /** A stroke style string is not one of its keywords. */
-    "unknown-stroke-style-keyword": { value: string; keywords: readonly string[] };
+    "unknown-stroke-style-keyword": {
+        readonly value: string;
+        readonly keywords: readonly string[];
+    };
     /** A stroke style's `dashArray` is not a list. */
-    "dash-array-not-a-list": { value: unknown };
+    "dash-array-not-a-list": { readonly value: unknown };
     /** A stroke style's `dashArray` is empty. */
     "empty-dash-array": Record<never, never>;
     /** A stroke style's `lineCap` is not one of the line caps. */
-    "unknown-line-cap": { value: unknown; lineCaps: readonly string[] };
+    "unknown-line-cap": { readonly value: unknown; readonly lineCaps: readonly string[] };
     /** A list of shadows is empty. */
     "no-shadows": Record<never, never>;
     /** A gradient has no stops. */
     "no-gradient-stops": Record<never, never>;
     /** A shadow's `inset` is not `true` or `false`. */
-    "not-a-boolean": { value: unknown };
+    "not-a-boolean": { readonly value: unknown };
     /** A font weight number is outside 1 to 1000. */
-    "font-weight-out-of-range": { value: number };
+    "font-weight-out-of-range": { readonly value: number };
     /** A font weight string is not one of the keywords the spec defines. */
-    "unknown-font-weight-keyword": { value: string };
+    "unknown-font-weight-keyword": { readonly value: string };
     /** A reference is written where only a literal value is accepted. */
-    "reference-not-allowed": { reference: string };
+    "reference-not-allowed": { readonly reference: string };
     /** A dimension or duration has a unit its type does not allow. */
-    "unit-not-allowed": { unit: unknown; allowed: readonly string[] };
+    "unit-not-allowed": { readonly unit: unknown; readonly allowed: readonly string[] };
 }
 
 /** Why a value could not be read, as a stable name to switch on, such as `"unit-not-allowed"`. */
@@ -119,7 +125,7 @@ export type ValueErrorCode = keyof ValueErrorFacts;
  * { type: "dimension", reason: "unit-not-allowed", unit: "em", allowed: ["px", "rem"] }
  */
 export type ValueErrorDetail = {
-    [R in ValueErrorCode]: { type: TokenType; reason: R } & ValueErrorFacts[R];
+    [R in ValueErrorCode]: { readonly type: TokenType; readonly reason: R } & ValueErrorFacts[R];
 }[ValueErrorCode];
 
 type DetailOf<R extends ValueErrorCode> = Extract<ValueErrorDetail, { reason: R }>;

@@ -144,7 +144,7 @@ function deleteEmptyType(
     return { title: fixTitles.deleteType, safe: true, edits };
 }
 
-function readsClean(tokens: DesignTokens, edits: TextEdit[]): boolean {
+function readsClean(tokens: DesignTokens, edits: readonly TextEdit[]): boolean {
     const [first] = edits;
     if (!first) return true;
     const { file } = first;
@@ -199,6 +199,6 @@ function safe(title: string, change: TextEdit): Fix {
     return { title, safe: true, edits: [change] };
 }
 
-function guess(title: string, edits: TextEdit[]): Fix {
+function guess(title: string, edits: readonly TextEdit[]): Fix {
     return { title, safe: false, edits };
 }

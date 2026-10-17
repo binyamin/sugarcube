@@ -1,8 +1,8 @@
 // Fake functions that a consumer might call so we can test our types.
 
-declare function askPerson(candidates: string[]): Promise<string>;
+declare function askPerson(candidates: readonly string[]): Promise<string>;
 declare function showMessage(message: string): void;
-declare function showBroken(authored: unknown, problems: { message: string }[]): void;
+declare function showBroken(authored: unknown, problems: readonly { message: string }[]): void;
 declare function openPullRequest(
     changes: { written: Record<string, string>; deleted: string[] },
     pr: { title: string; body: string },

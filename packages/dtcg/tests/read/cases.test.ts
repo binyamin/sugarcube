@@ -67,7 +67,7 @@ function observedPermutation(
     };
 }
 
-function picked<T extends { path: string }>(found: T[], wanted: Partial<T>[]) {
+function picked<T extends { path: string }>(found: readonly T[], wanted: readonly Partial<T>[]) {
     return found.map((each) => {
         const expected: Record<string, unknown> =
             wanted.find((one) => one.path === each.path) ?? each;

@@ -53,6 +53,6 @@ export function follow(root: Node, steps: string[]): Followed {
     return { ok: true, node };
 }
 
-export function encodePointer(steps: (string | number)[]): string {
+export function encodePointer(steps: readonly (string | number)[]): string {
     return `#${steps.map((step) => `/${String(step).replaceAll("~", "~0").replaceAll("/", "~1")}`).join("")}`;
 }

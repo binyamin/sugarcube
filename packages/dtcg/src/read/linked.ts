@@ -30,6 +30,19 @@ export const NO_PLACES: Place[] = Object.freeze([]) as unknown as Place[];
 
 const designTokensOf = new WeakMap<Permutation, DesignTokens>();
 
+const aliasChainOf = new WeakMap<Token, readonly Token[]>();
+const partsOfToken = new WeakMap<Token, Part | undefined>();
+const diagnosticsOfToken = new WeakMap<Token, readonly Diagnostic[]>();
+const childTokensOf = new WeakMap<Group, readonly Token[]>();
+const tokensOf = new WeakMap<Group, readonly Token[]>();
+
+function cached<K extends object, T>(cache: WeakMap<K, T>, key: K, make: () => T): T {
+    if (cache.has(key)) return cache.get(key) as T;
+    const made = make();
+    cache.set(key, made);
+    return made;
+}
+
 const tokenShared = {
     kind: "token",
     referenceAt(this: Token, property: JsonPath = []): Reference | undefined {
@@ -41,27 +54,30 @@ const tokenShared = {
     usedBy(this: Token, options?: ReferenceOptions): (Token | Group)[] {
         return [...new Set(this.referencedBy(options).map(({ from }) => from))];
     },
-    get aliasChain(): Token[] {
-        const chain: Token[] = [];
-        for (
-            let current: Token | undefined = this as unknown as Token;
-            current && !chain.includes(current);
-        ) {
-            chain.push(current);
-            current = current.referenceAt()?.token;
-        }
-        return chain;
+    get aliasChain(): readonly Token[] {
+        const token = this as unknown as Token;
+        return cached(aliasChainOf, token, () => {
+            const chain: Token[] = [];
+            for (let current: Token | undefined = token; current && !chain.includes(current);) {
+                chain.push(current);
+                current = current.referenceAt()?.token;
+            }
+            return chain;
+        });
     },
     get valueFrom(): Place {
         const { writtenAt } = this as unknown as Token;
         return writtenAt[writtenAt.length - 1] as Place;
     },
     get parts(): Part | undefined {
-        return partsOf(this as unknown as Token);
-    },
-    get diagnostics(): Diagnostic[] {
         const token = this as unknown as Token;
-        return diagnosticsOf(designTokensOf.get(token.permutation) as DesignTokens, token);
+        return cached(partsOfToken, token, () => partsOf(token));
+    },
+    get diagnostics(): readonly Diagnostic[] {
+        const token = this as unknown as Token;
+        return cached(diagnosticsOfToken, token, () =>
+            diagnosticsOf(designTokensOf.get(token.permutation) as DesignTokens, token),
+        );
     },
     toJSON(this: Token) {
         return { ...this, group: undefined, permutation: undefined };
@@ -70,16 +86,25 @@ const tokenShared = {
 
 const groupShared = {
     kind: "group",
-    get tokens(): Token[] {
-        const found: Token[] = [];
-        const visit = (items: (Token | Group)[]) => {
-            for (const each of items) {
-                if (each.kind === "token") found.push(each);
-                else visit(each.children);
-            }
-        };
-        visit((this as unknown as Group).children);
-        return found;
+    get childTokens(): readonly Token[] {
+        const group = this as unknown as Group;
+        return cached(childTokensOf, group, () =>
+            group.children.filter((child): child is Token => child.kind === "token"),
+        );
+    },
+    get tokens(): readonly Token[] {
+        const group = this as unknown as Group;
+        return cached(tokensOf, group, () => {
+            const found: Token[] = [];
+            const visit = (items: readonly (Token | Group)[]) => {
+                for (const each of items) {
+                    if (each.kind === "token") found.push(each);
+                    else visit(each.children);
+                }
+            };
+            visit(group.children);
+            return found;
+        });
     },
     toJSON(this: Group) {
         return {
@@ -309,7 +334,7 @@ function pathsIn(tokens: DesignTokens, kind: "tokens" | "groups"): string[] {
     return [...found];
 }
 
-function paths(items: (Token | Group)[]): string[] {
+function paths(items: readonly (Token | Group)[]): string[] {
     return items.map(({ path }) => path);
 }
 

@@ -42,7 +42,7 @@ export function stepInto(
     steps: string[],
 ): { value: unknown; property: JsonPath } | undefined {
     let current = raw;
-    const property: JsonPath = [];
+    const property: (string | number)[] = [];
     for (const step of steps) {
         if (Array.isArray(current) && /^(?:0|[1-9]\d*)$/.test(step)) {
             current = current[Number(step)];
