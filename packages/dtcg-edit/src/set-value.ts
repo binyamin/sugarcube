@@ -1,4 +1,5 @@
 import type { DesignTokens, Token, JsonValue } from "@sugarcube-sh/dtcg";
+import { isJsonObject } from "@sugarcube-sh/dtcg/values";
 import type { FileOp, OpResult, ValueOptions } from "./index.js";
 import { asked, copiesOf, describedPlace, placement } from "./placement.js";
 import { type Member, writtenIn } from "./file-text.js";
@@ -71,13 +72,8 @@ function setValueIn(
 }
 
 function ownProperties(token: Token): Record<string, JsonValue> {
-    const { authored, description, extensions } = token;
-    return {
-        ...(authored?.type !== undefined && { $type: authored.type }),
-        ...(description !== undefined && { $description: description }),
-        ...(authored?.deprecated !== undefined && { $deprecated: authored.deprecated }),
-        ...(extensions && { $extensions: extensions as JsonValue }),
-    };
+    const own = token.valueFrom.written;
+    return isJsonObject(own) ? (own as Record<string, JsonValue>) : {};
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { DesignTokens, JsonValue } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, type JsonValue, sameJson } from "@sugarcube-sh/dtcg";
 import { type Node, findNodeAtLocation, getNodeValue, parseTree } from "jsonc-parser";
 import { conflict } from "./error-messages.js";
 import type { Applied, Committed, Conflict, FileOp, OpResult } from "./index.js";
@@ -169,7 +169,8 @@ function fileEdit(texts: Texts, op: FileLevelOp, style: string): Conflict["kind"
         texts.set(op.file, null);
         return undefined;
     }
-    if (existing !== undefined) return same(valueAt(existing, []), op.value) ? undefined : "taken";
+    if (existing !== undefined)
+        return sameJson(valueAt(existing, []), op.value) ? undefined : "taken";
     const eol = lineBreak(style);
     const written = JSON.stringify(op.value, null, indentUnit(style));
     texts.set(op.file, written.replaceAll("\n", eol) + eol);
@@ -195,22 +196,22 @@ function memberEdit(draft: Draft, op: MemberOp): Outcome {
     switch (op.kind) {
         case "set":
             if (!node) return { conflict: "gone" };
-            if (same(current, op.value)) return undefined;
-            if (!same(current, op.was)) return { conflict: "changed" };
+            if (sameJson(current, op.value)) return undefined;
+            if (!sameJson(current, op.was)) return { conflict: "changed" };
             return written("not-a-group");
         case "add":
-            if (node) return same(current, op.value) ? undefined : { conflict: "taken" };
+            if (node) return sameJson(current, op.value) ? undefined : { conflict: "taken" };
             return written("not-a-group");
         case "remove":
             if (!node) return undefined;
-            if (!same(current, op.was)) return { conflict: "changed" };
+            if (!sameJson(current, op.was)) return { conflict: "changed" };
             return written("not-a-group");
         case "renameKey": {
             if (!node) {
                 const renamed =
                     root && findNodeAtLocation(root, [...op.jsonPath.slice(0, -1), op.name]);
                 const there = renamed && (getNodeValue(renamed) as JsonValue);
-                return same(there, op.was) ? undefined : { conflict: "gone" };
+                return sameJson(there, op.was) ? undefined : { conflict: "gone" };
             }
             return written("taken");
         }
@@ -247,26 +248,4 @@ export function editedText(text: string, op: MemberOp): string | undefined {
     const root = parseTree(text);
     const splices = root && splicesFor(text, root, op);
     return splices && spliced(text, splices);
-}
-
-function same(a: JsonValue | undefined, b: JsonValue | undefined): boolean {
-    if (a === b) return true;
-    if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
-    if (isList(a) || isList(b)) {
-        return (
-            isList(a) &&
-            isList(b) &&
-            a.length === b.length &&
-            a.every((each, i) => same(each, b[i]))
-        );
-    }
-    const keys = Object.keys(a);
-    return (
-        keys.length === Object.keys(b).length &&
-        keys.every((key) => key in b && same(a[key], b[key]))
-    );
-}
-
-function isList(value: JsonValue): value is readonly JsonValue[] {
-    return Array.isArray(value);
 }

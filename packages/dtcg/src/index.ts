@@ -2154,7 +2154,7 @@ export interface GroupChange {
     inherited?: Group["inherited"];
 }
 
-export { sameValue } from "./values/same-value.js";
+export { sameJson, sameValue } from "./values/same-value.js";
 
 /** What is at a position in a file. */
 export type AtOffset =
