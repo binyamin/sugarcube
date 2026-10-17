@@ -119,6 +119,10 @@ function entryAmong(texts: Map<string, string>): string {
     throw new TypeError(thrownMessages.noResolver(names));
 }
 
+function readingAgain(entry: string, options: ReadOptions) {
+    return (files: Record<string, string>) => readFromMemory({ files, entry }, options);
+}
+
 function permutationOptions({
     inputs,
     permutations = "all",
@@ -184,7 +188,7 @@ function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
         {
             texts: loaded.texts,
             modifiers: loaded.modifiers,
-            readFiles: (files) => readFromMemory({ files, entry: loaded.entry }, options),
+            readFiles: readingAgain(loaded.entry, options),
         },
     );
 }
