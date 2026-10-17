@@ -70,8 +70,9 @@ export function resolvePermutations(
     permutations: NormalisedPermutation[],
     readValue: ValueReader,
     diagnostics: Diagnostic[],
+    texts: Readonly<Record<string, string>>,
 ): Permutation[] {
-    const places = placesIn();
+    const places = placesIn(texts);
     return permutations.map((permutation) =>
         resolvePermutation(permutation, { readValue, diagnostics, places }),
     );

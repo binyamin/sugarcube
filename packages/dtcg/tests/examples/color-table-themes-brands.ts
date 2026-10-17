@@ -13,4 +13,4 @@ for (const path of tokens.tokenPaths()) {
     if (each.some((t) => t?.type === "color")) row(path, ...each.map((t) => t?.resolved));
 }
 const darkOcean = tokens.permutation({ theme: "dark", brand: "ocean" });
-if (darkOcean) showMessage(`${darkOcean.tokens.length} tokens in ${darkOcean.label}`);
+showMessage(`${darkOcean.tokens.length} tokens in ${darkOcean.label}`);

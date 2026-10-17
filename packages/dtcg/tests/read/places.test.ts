@@ -265,3 +265,52 @@ describe("the plain form", () => {
         expect(plain.permutations[1]).not.toHaveProperty("contexts");
     });
 });
+
+describe("what is written at a place", () => {
+    const placed = readFromMemory({
+        files: {
+            "tokens.resolver.json": JSON.stringify({
+                version: "2025.10",
+                resolutionOrder: [
+                    {
+                        type: "set",
+                        name: "base",
+                        sources: [{ $ref: "base.json" }, { $ref: "all.json#/tokens" }],
+                    },
+                    {
+                        type: "modifier",
+                        name: "mode",
+                        default: "light",
+                        contexts: { light: [], dark: [{ $ref: "dark.json" }] },
+                    },
+                ],
+            }),
+            "base.json":
+                '{\n  "red": { "$type": "color", "$value": "#ff0000", "$description": "Red." }\n}',
+            "dark.json": '{ "red": { "$type": "color", "$value": "#990000" } }',
+            "all.json": '{ "tokens": { "gap": { "$type": "number", "$value": 4 } } }',
+        },
+    });
+
+    it("is the JSON the file writes there, exactly as written, for each place", () => {
+        const places = placed.writtenAt("red");
+
+        expect(places.map(({ span, written: json }) => [span.file, json])).toStrictEqual([
+            ["base.json", { $type: "color", $value: "#ff0000", $description: "Red." }],
+            ["dark.json", { $type: "color", $value: "#990000" }],
+        ]);
+        expect(placed.permutation().token("red")?.writtenAt[0]?.written).toStrictEqual(
+            places[0]?.written,
+        );
+    });
+
+    it("is found at its place in a file read through a pointer", () => {
+        expect(placed.writtenAt("gap")[0]?.written).toStrictEqual({ $type: "number", $value: 4 });
+    });
+
+    it("is the same value each time it is read", () => {
+        const [place] = placed.permutation().token("red")?.writtenAt ?? [];
+
+        expect(place?.written).toBe(place?.written);
+    });
+});

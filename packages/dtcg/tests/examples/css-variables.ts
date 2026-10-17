@@ -21,7 +21,7 @@ function declarations(p: Permutation): string[] {
 }
 
 const base = tokens.permutation();
-const inBase = new Set(base ? declarations(base) : []);
+const inBase = new Set(declarations(base));
 for (const p of tokens.permutations) {
     const lines = p === base ? declarations(p) : declarations(p).filter((l) => !inBase.has(l));
     if (lines.length) row(`${p === base ? ":root" : selectorFor(p)} {\n${lines.join("\n")}\n}`);

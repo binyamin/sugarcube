@@ -1,13 +1,12 @@
 // Generates padding utility classes (`.p-sm`, `.p-md` and so on), one for each token in the `space`
 // group.
 import { type DesignTokens } from "@sugarcube-sh/dtcg";
+import { cssName, cssVariable } from "@sugarcube-sh/dtcg/css";
 
 declare const tokens: DesignTokens;
-declare function cssName(path: string): string;
 
-const base = tokens.permutation().input;
-for (const t of tokens.permutation(base).group("space")?.tokens ?? []) {
+for (const t of tokens.permutation().group("space")?.tokens ?? []) {
     if (t.type !== "dimension") continue;
-    const suffix = t.path.slice("space.".length).replaceAll(".", "-");
-    row(`.p-${suffix} { padding: var(--${cssName(t.path)}); }`);
+    const suffix = cssName(t.path.slice("space.".length));
+    row(`.p-${suffix} { padding: var(${cssVariable(t.path)}); }`);
 }

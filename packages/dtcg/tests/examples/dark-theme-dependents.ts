@@ -6,7 +6,5 @@ declare const tokens: DesignTokens;
 const dark = tokens.permutation({ theme: "dark" });
 const brand = dark.token("color.brand");
 
-const restate = new Set<string>();
-for (const reference of brand?.referencedBy({ chained: true }) ?? [])
-    restate.add(reference.from.path);
-row([...restate].join(", "));
+const restate = brand?.usedBy({ chained: true }).map(({ path }) => path) ?? [];
+row(restate.join(", "));

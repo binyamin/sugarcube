@@ -5,17 +5,16 @@ import { type DesignTokens } from "@sugarcube-sh/dtcg";
 declare const tokens: DesignTokens;
 const path = "color";
 
-const children = tokens.permutation().group(path)?.children ?? [];
+const group = tokens.permutation().group(path);
 
-for (const child of children) {
+for (const child of group?.children ?? []) {
     if (child.kind === "group") row(child.path, child.tokens.length);
 }
 
-for (const t of children) {
-    if (t.kind !== "token") continue;
-    const overrides = tokens.permutations.flatMap((permutation) => {
-        const there = permutation.token(t.path)?.valueFrom;
-        return there?.source.context ? [`${permutation.label} in ${there.source.file}`] : [];
-    });
+for (const t of group?.childTokens ?? []) {
+    const overrides = tokens
+        .writtenAt(t.path)
+        .filter(({ sources }) => sources.some(({ context }) => context))
+        .map(({ winsIn, span }) => `${winsIn.label} in ${span.file}`);
     row(t.path, t.authored?.value, t.valueFrom.source.file, overrides.join(", "));
 }

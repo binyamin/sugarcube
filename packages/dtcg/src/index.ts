@@ -811,6 +811,12 @@ export interface TopLevel {
 export interface Place {
     readonly source: Source;
     readonly span: Span;
+    /**
+     * The JSON the file writes at {@link Place.span | span}, exactly as written: for a token, its
+     * whole object, `$value`, `$type` and the rest, before any reference is followed or anything is
+     * taken from a group.
+     */
+    readonly written: JsonValue;
 }
 
 /**
@@ -819,6 +825,8 @@ export interface Place {
  */
 export interface PlaceInPermutations {
     readonly span: Span;
+    /** The JSON the file writes at `span`, exactly as written, as {@link Place.written} gives it. */
+    readonly written: JsonValue;
     readonly sources: readonly Source[];
     /** The permutations that read it. */
     readonly readIn: Permutations;

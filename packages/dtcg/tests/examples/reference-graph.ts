@@ -4,7 +4,7 @@ import { type DesignTokens } from "@sugarcube-sh/dtcg";
 
 declare const tokens: DesignTokens;
 
-const references = tokens.tokenPaths().flatMap((path) => tokens.references(path));
-const referenced = new Set(references.map(({ path }) => path));
-const unusedPrimitives = tokens.permutation().tokens.filter((t) => !referenced.has(t.path));
-row(references.length, unusedPrimitives.length);
+const paths = tokens.tokenPaths();
+const references = paths.flatMap((path) => tokens.references(path));
+const unused = paths.filter((path) => tokens.usedBy(path).length === 0);
+row(references.length, unused.length);

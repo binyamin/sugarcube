@@ -158,7 +158,7 @@ function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
     const resolving = performance.now();
     onStage?.("generate", generating);
     onStage?.("normalise", resolving - normalising - generating);
-    const resolved = resolvePermutations(normalised, readValue, found);
+    const resolved = resolvePermutations(normalised, readValue, found, loaded.texts);
     const permutations = permutationsOf(resolved, resolved);
     onStage?.("resolve", performance.now() - resolving);
     validateExtensions(

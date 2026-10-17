@@ -1,9 +1,11 @@
+import { parse } from "jsonc-parser";
 import type {
     DesignTokens,
     Diagnostic,
     Group,
     Input,
     JsonPath,
+    JsonValue,
     Move,
     Part,
     Permutation,
@@ -281,10 +283,21 @@ class PlaceObject {
     readonly source: Source;
     readonly span: Span;
     #alone: Place[] | undefined;
+    #texts: Readonly<Record<string, string>>;
+    #written: JsonValue | undefined;
 
-    constructor(source: Source, span: Span) {
+    constructor(source: Source, span: Span, texts: Readonly<Record<string, string>>) {
         this.source = source;
         this.span = span;
+        this.#texts = texts;
+    }
+
+    get written(): JsonValue {
+        const { file, offset, length } = this.span;
+        this.#written ??= parse(
+            this.#texts[file]?.slice(offset, offset + length) ?? "null",
+        ) as JsonValue;
+        return this.#written;
     }
 
     static alone(place: PlaceObject): Place[] {
@@ -302,13 +315,13 @@ export interface Places {
     only(source: Source, span: Span): Place[];
 }
 
-export function placesIn(): Places {
+export function placesIn(texts: Readonly<Record<string, string>>): Places {
     const made = new Map<Span, PlaceObject[]>();
     const at = (source: Source, span: Span): PlaceObject => {
         const atSpan = made.get(span);
         const found = atSpan?.find((each) => each.source === source);
         if (found) return found;
-        const place = new PlaceObject(source, span);
+        const place = new PlaceObject(source, span, texts);
         if (atSpan) atSpan.push(place);
         else made.set(span, [place]);
         return place;
