@@ -101,7 +101,10 @@ export type OpResult =
            * listed, so a read limited by `inputs` lists only those.
            */
           alsoAffects: Permutations;
-          /** The tokens and groups left referring to nothing, after a {@link remove}. */
+          /**
+           * The tokens and groups left referring to nothing, after a {@link remove}, or a
+           * {@link combine} holding one.
+           */
           broken?: string[];
           /** Tokens and groups whose path changed, such as after a {@link rename}. Empty when none did. */
           moved: Move[];
@@ -402,6 +405,14 @@ export interface Conflict {
 }
 
 export { apply, changedFiles, commit } from "./apply.js";
+
+export { combine } from "./combine.js";
+
+/**
+ * An operation for {@link combine}: given the design tokens the operations before it leave, it
+ * makes its edit from them, as `(current) => remove(current, path)` does.
+ */
+export type Operation = (tokens: DesignTokens) => OpResult;
 
 /**
  * The outcome of {@link apply}. Test it by its field: `next.tokens`, or `next.conflicts`.

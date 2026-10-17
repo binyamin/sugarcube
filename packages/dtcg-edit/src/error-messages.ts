@@ -1,6 +1,11 @@
 import { type Input, type PermutationErrorDetail, permutationLabel } from "@sugarcube-sh/dtcg";
 import type { Conflict, FileOp, Refusal } from "./index.js";
 
+export const thrown = {
+    operationDoesNotFit:
+        "an operation's edits don't fit the design tokens it was given; make them from the tokens the operation is passed",
+};
+
 export const fixTitles = {
     useSimilar: (name: string) => `use \`${name}\`, which has a similar name`,
     deleteEarlier: (key: string) => `delete the earlier \`${key}\`, which is never used`,
