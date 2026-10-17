@@ -688,7 +688,8 @@ export interface TokenBase<T extends TokenType> {
     readonly parts: Part | undefined;
     /**
      * The problems about it in its permutation: its own, a missing reference it writes, a loop it
-     * is part of. Those only another permutation has are left out.
+     * is part of, a problem in a value it inherits. Those only another permutation has are left
+     * out.
      *
      * @example
      * for (const problem of dark.token("color.brand")?.diagnostics ?? []) show(problem.message);
@@ -1025,10 +1026,11 @@ export interface Permutation {
     readonly input: Input;
     /**
      * Its shortest input written out for people: each modifier away from its default, and any with
-     * no default, in the order `resolutionOrder` names them, such as `"theme: dark, brand: ocean"`,
-     * since a modifier with a default may be left out of an input (Resolver 6.1). `"default"` for the
-     * permutation an empty input names. Empty when there are no modifiers, as for token files read
-     * without a resolver. For display only: functions take an {@link Input}, never a label.
+     * no default, in the order `resolutionOrder` names them, such as
+     * `"theme: dark, brand: ocean"`, since a modifier with a default may be left out of an input
+     * (Resolver 6.1). `"default"` for the permutation an empty input names. Empty when there are
+     * no modifiers, as for token files read without a resolver. For display only: functions take
+     * an {@link Input}, never a label.
      */
     readonly label: string;
     /**
@@ -1623,7 +1625,8 @@ export interface DesignTokens {
     /**
      * The problems about the token or group at `path`, in every permutation, each with the
      * permutations it is in: its own, a missing reference it writes (reported once however many
-     * write it), a loop it is part of.
+     * write it), a loop it is part of, a problem in a value it inherits (reported once, about the
+     * token that writes it).
      *
      * @example
      * for (const { message, permutations } of tokens.diagnosticsFor("color.brand")) {
@@ -1844,7 +1847,10 @@ export interface ExtensionValidator {
 
 /** A token a generator makes, written as it would be in a file, with its name in the group. */
 export interface GeneratedToken {
-    /** Its name in the group, such as `"md"`. */
+    /**
+     * Its name in the group, such as `"md"`. A name the specification forbids (Format 5.1.1), such
+     * as one with a `.`, makes no token and is reported as `invalid-name`.
+     */
     name: string;
     /** @default the group's type */
     $type?: TokenType;

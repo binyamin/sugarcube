@@ -11,7 +11,9 @@ import { permutationsOf } from "./permutations-of.js";
 
 const foundIn = new WeakMap<Diagnostic, Input[]>();
 
-export type DiagnosticExtra = Partial<Pick<Diagnostic, "span" | "path" | "related" | "tags">> & {
+export type DiagnosticExtra = Partial<
+    Pick<Diagnostic, "message" | "span" | "path" | "related" | "tags">
+> & {
     permutation?: Input;
 };
 
@@ -66,7 +68,7 @@ function permutationsWith(
     entry: string,
 ): Permutations {
     const file = found.span?.file;
-    if (file === undefined || file === entry || foundIn.has(found)) return permutations;
+    if (file === undefined || file === entry) return permutations;
     const reading = permutations.filter(({ sources }) =>
         sources.some((each) => each.file === file),
     );
@@ -75,9 +77,10 @@ function permutationsWith(
         : permutationsOf(reading, permutations);
 }
 
-export function alsoFoundIn(found: Diagnostic, permutation: Input): void {
+export function foundInPermutation(found: Diagnostic, permutation: Input): void {
     const inputs = foundIn.get(found);
-    if (inputs && !inputs.includes(permutation)) inputs.push(permutation);
+    if (!inputs) foundIn.set(found, [permutation]);
+    else if (!inputs.includes(permutation)) inputs.push(permutation);
 }
 
 export function collapse(
@@ -95,11 +98,12 @@ export function collapse(
     }
     const collapsed = [...alike.values()];
     for (const found of collapsed) {
-        const inputs = foundIn.get(found);
-        const narrowed = permutations.filter(({ input }) => inputs?.includes(input));
-        if (inputs && narrowed.length < permutations.length) {
-            found.permutations = permutationsOf(narrowed, permutations);
-        }
+        const inputs = foundIn.get(found) ?? [];
+        const narrowed = permutations.filter(({ input }) => inputs.includes(input));
+        found.permutations =
+            narrowed.length === permutations.length
+                ? permutations
+                : permutationsOf(narrowed, permutations);
     }
     return collapsed;
 }

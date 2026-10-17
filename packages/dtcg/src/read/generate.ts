@@ -1,6 +1,6 @@
 import { applying } from "./inherit.js";
 import type { Settings } from "./settings.js";
-import { childPath } from "../path.js";
+import { childPath, forbiddenInName } from "../path.js";
 import type { Node } from "jsonc-parser";
 import type {
     Diagnostic,
@@ -23,6 +23,7 @@ import {
     checkSchema,
     extensionDiagnostic,
 } from "./extension-check.js";
+import { diagnostic } from "./diagnostics.js";
 import { type JsonFile, member, spanOf } from "./json.js";
 import { type Merged, type MergedToken, type Piece, everyGroup } from "./merge.js";
 
@@ -134,6 +135,18 @@ export function fillGenerated(
                 extension: generator.extension,
             };
             for (const made of result.value) {
+                const character = forbiddenInName(made.name);
+                if (character) {
+                    const detail = { name: made.name, character };
+                    diagnostics.push(
+                        diagnostic("invalid-name", detail, {
+                            span: spanOf(extension.json, extension.node),
+                            ...(groupPath !== undefined && { path: groupPath }),
+                            permutation,
+                        }),
+                    );
+                    continue;
+                }
                 const path = childPath(groupPath, made.name);
                 const written = merged.tokens.get(path);
                 if (written) merged.tokens.set(path, { ...written, generated: from });

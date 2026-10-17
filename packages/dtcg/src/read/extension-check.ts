@@ -83,17 +83,17 @@ export function extensionDiagnostic(
 
     const key = within[0];
     if ("message" in problem) {
-        return {
-            ...diagnostic("extension-invalid", { key, jsonPath }, extra),
-            message: problem.message,
-        };
+        return diagnostic(
+            "extension-invalid",
+            { key, jsonPath },
+            { ...extra, message: problem.message },
+        );
     }
     const { reason, data } = problem;
-    const invalid = diagnostic(
+    const worded = messages && Object.hasOwn(messages, reason) && messages[reason];
+    return diagnostic(
         "extension-invalid",
         { key, jsonPath, reason, ...(data !== undefined && { data }) },
-        extra,
+        { ...extra, ...(worded && { message: worded(data) }) },
     );
-    if (!messages || !Object.hasOwn(messages, reason)) return invalid;
-    return { ...invalid, message: messages[reason]!(data) };
 }

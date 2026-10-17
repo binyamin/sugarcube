@@ -4,6 +4,7 @@ import type {
     DiagnosticDetailByKind,
     DiagnosticKind,
     Group,
+    Input,
     JsonPath,
     ParseResult,
     Permutation,
@@ -20,7 +21,7 @@ import type {
     WrittenReference,
 } from "../index.js";
 import type { Building } from "./building.js";
-import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
+import { type DiagnosticExtra, diagnostic, foundInPermutation } from "./diagnostics.js";
 import { applying, inherited } from "./inherit.js";
 import type { Merged, MergedGroup, MergedToken, MergedTopLevel, WrittenAt } from "./merge.js";
 import type { Properties } from "./walk.js";
@@ -66,6 +67,15 @@ interface Missing {
     uses: Span[];
 }
 
+interface MissingAcross {
+    ref: string;
+    similar: string | undefined;
+    first: { from: string; span: Span };
+    from: string[];
+    uses: Span[];
+    inputs: [Input, ...Input[]];
+}
+
 export function resolvePermutations(
     permutations: NormalisedPermutation[],
     readValue: ValueReader,
@@ -73,20 +83,38 @@ export function resolvePermutations(
     texts: Readonly<Record<string, string>>,
 ): Permutation[] {
     const places = placesIn(texts);
-    return permutations.map((permutation) =>
-        resolvePermutation(permutation, { readValue, diagnostics, places }),
+    const missingAcross = new Map<string, MissingAcross>();
+    const resolved = permutations.map((permutation) =>
+        resolvePermutation(permutation, { readValue, diagnostics, places, missingAcross }),
     );
+    for (const { ref, similar, first, from, uses, inputs } of missingAcross.values()) {
+        const related = uses
+            .filter((span) => span !== first.span)
+            .map((span) => ({ message: relatedMessages.alsoUsedHere, span }));
+        const detail = { ref, from, ...(similar !== undefined && { similar }) };
+        const [input, ...others] = inputs;
+        const found = diagnostic("missing-reference", detail, {
+            span: first.span,
+            path: first.from,
+            permutation: input,
+            ...(related.length > 0 && { related }),
+        });
+        for (const each of others) foundInPermutation(found, each);
+        diagnostics.push(found);
+    }
+    return resolved;
 }
 
 interface Context {
     readValue: ValueReader;
     diagnostics: Diagnostic[];
     places: Places;
+    missingAcross: Map<string, MissingAcross>;
 }
 
 function resolvePermutation(
     permutation: NormalisedPermutation,
-    { readValue, diagnostics, places }: Context,
+    { readValue, diagnostics, places, missingAcross }: Context,
 ): Permutation {
     const { tokens, merged } = permutation;
     const outcomes = new Map<string, Outcome | "resolving">();
@@ -327,13 +355,15 @@ function resolvePermutation(
 
     for (const [ref, { reference, first, from, uses }] of missing) {
         const similar = similarReference(reference, tokens, from);
-        const related = uses
-            .filter((span) => span !== first.span)
-            .map((span) => ({ message: relatedMessages.alsoUsedHere, span }));
-        const detail = { ref, from, ...(similar !== undefined && { similar }) };
-        report("missing-reference", detail, first.from, first.span, {
-            ...(related.length > 0 && { related }),
-        });
+        const key = JSON.stringify([ref, similar]);
+        let entry = missingAcross.get(key);
+        if (entry) entry.inputs.push(permutation.input);
+        else {
+            entry = { ref, similar, first, from: [], uses: [], inputs: [permutation.input] };
+            missingAcross.set(key, entry);
+        }
+        for (const each of from) if (!entry.from.includes(each)) entry.from.push(each);
+        for (const span of uses) if (!entry.uses.includes(span)) entry.uses.push(span);
     }
 
     linked.tokens = [...built.values()];

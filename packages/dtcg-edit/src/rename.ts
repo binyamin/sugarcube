@@ -17,7 +17,8 @@ import { type Member, memberAt } from "./file-text.js";
  * a reference, such as a `$description` mentioning `{color.brand}`, is left alone. References are
  * found in the permutations the read built, so a read limited by `inputs` can miss one written in
  * a file only another permutation reads. `moved` gives the path that changed, which a session's
- * ids and `tokens.diff` follow.
+ * ids and `tokens.diff` follow. A reference a generator makes is written in no file, so it is left
+ * as it is, and its token is listed in `broken`.
  *
  * Refused, with the reason: a path that is neither a token nor a group, a name already taken or
  * one the spec forbids, a token a generator makes, or a token or group inherited through

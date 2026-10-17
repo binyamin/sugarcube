@@ -9,7 +9,7 @@ import type {
     UnresolvedValueByType,
     ValueError,
 } from "../index.js";
-import { type DiagnosticExtra, alsoFoundIn } from "./diagnostics.js";
+import { type DiagnosticExtra, foundInPermutation } from "./diagnostics.js";
 import { ignoredDiagnostic, valueDiagnostic } from "./value-diagnostic.js";
 import {
     type Notes,
@@ -80,7 +80,7 @@ export function createValueReader(diagnostics: Diagnostic[], options: ParseOptio
             caches[type] = cache;
             const cached = cache.get(token.value);
             if (cached) {
-                for (const each of cached.diagnostics) alsoFoundIn(each, permutation);
+                for (const each of cached.diagnostics) foundInPermutation(each, permutation);
                 return cached;
             }
             const fresh = read(token, type, permutation);

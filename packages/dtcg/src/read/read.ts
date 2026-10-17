@@ -176,11 +176,10 @@ function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
             sources,
             permutations,
             parseOptions,
-            diagnostics: inReadingPermutations(
-                [...loaded.diagnostics, ...collapse(found, permutations)],
-                permutations,
-                loaded.entry,
-            ),
+            diagnostics: [
+                ...inReadingPermutations(loaded.diagnostics, permutations, loaded.entry),
+                ...collapse(found, permutations),
+            ],
         },
         {
             texts: loaded.texts,

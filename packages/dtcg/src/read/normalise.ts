@@ -1,5 +1,5 @@
 import type { Diagnostic, Input, ResolverContext, Source, TokenType } from "../index.js";
-import { diagnostic } from "./diagnostics.js";
+import { diagnostic, foundInPermutation } from "./diagnostics.js";
 import { applyExtends } from "./extends.js";
 import { inherited } from "./inherit.js";
 import { type Merged, type MergedToken, merge } from "./merge.js";
@@ -33,11 +33,18 @@ export function normalisePermutations(
     diagnostics: Diagnostic[],
     generate: (merged: Merged, permutation: Input) => void,
 ): { permutations: NormalisedPermutation[]; sources: Source[] } {
-    const walked = new Map<string, SourceContents | undefined>();
-    const walk = (loaded: LoadedSource) => {
+    const walked = new Map<string, { contents?: SourceContents; problems: Diagnostic[] }>();
+    const walk = (loaded: LoadedSource, permutation?: Input) => {
         const key = JSON.stringify([loaded.file, loaded.pointer, loaded.overriddenKeys]);
-        if (!walked.has(key)) walked.set(key, walkSource(loaded, diagnostics));
-        return walked.get(key);
+        let found = walked.get(key);
+        if (!found) {
+            const problems: Diagnostic[] = [];
+            found = { contents: walkSource(loaded, problems), problems };
+            diagnostics.push(...problems);
+            walked.set(key, found);
+        }
+        if (permutation) for (const each of found.problems) foundInPermutation(each, permutation);
+        return found.contents;
     };
     const published = new Map<ListedSource, Source>();
     const publish = (listed: ListedSource): Source => {
@@ -52,7 +59,7 @@ export function normalisePermutations(
 
     const normalised = permutations.map(({ input, label, contexts, sources }) => {
         const walkedPieces = sources.flatMap((each, source) =>
-            each.pieces.map((piece) => ({ contents: walk(piece), source })),
+            each.pieces.map((piece) => ({ contents: walk(piece, input), source })),
         );
         const merged = merge(walkedPieces, input, diagnostics);
         applyExtends(merged, input, diagnostics);

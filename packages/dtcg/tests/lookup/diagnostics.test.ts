@@ -162,6 +162,34 @@ describe("a problem in a file only some permutations read", () => {
     });
 });
 
+describe("a problem in a value a token inherits", () => {
+    const extended = readFromMemory({
+        files: {
+            "tokens.json": JSON.stringify({
+                button: {
+                    $type: "number",
+                    base: { pad: { $value: "wide" } },
+                    primary: { $extends: "{button.base}" },
+                },
+            }),
+        },
+    });
+
+    it("is reported once, about the token that writes the value", () => {
+        expect(extended.diagnostics.map(({ kind, path }) => [kind, path])).toStrictEqual([
+            ["invalid-value", "button.base.pad"],
+        ]);
+    });
+
+    it("is given to the token that inherits the value too", () => {
+        const [problem] = extended.diagnostics;
+        expect(extended.permutation().token("button.primary.pad")?.diagnostics).toStrictEqual([
+            problem,
+        ]);
+        expect(extended.diagnosticsFor("button.primary.pad")).toStrictEqual([problem]);
+    });
+});
+
 describe("tokens.diagnosticsAt", () => {
     const bad = tokens.diagnosticsFor("color.bad")[0];
     const at = bad?.span;
