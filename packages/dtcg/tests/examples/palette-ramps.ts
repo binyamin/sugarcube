@@ -1,26 +1,23 @@
 // A palette page. Groups of plain colors show as swatch ramps, and colors that point at a palette
 // show underneath as roles, each with the swatch it points at.
-import { type ColorValue, type DesignTokens, type Token } from "@sugarcube-sh/dtcg";
+import { type ColorValue, type DesignTokens } from "@sugarcube-sh/dtcg";
 
 declare const tokens: DesignTokens;
 declare function swatch(color: ColorValue | undefined): string;
 
-type ColorToken = Extract<Token, { type: "color" }>;
+const permutation = tokens.permutation();
 
-const ramps = new Map<string, ColorToken[]>();
-const roles: ColorToken[] = [];
-
-for (const t of tokens.permutation().tokens) {
-    if (t.type !== "color") continue;
-    if (t.referenceAt()) {
-        roles.push(t);
-        continue;
-    }
-    const group = t.group?.path ?? "";
-    ramps.set(group, [...(ramps.get(group) ?? []), t]);
+for (const group of permutation.groups) {
+    const ramp = group.children.flatMap((child) =>
+        child.kind === "token" && child.type === "color" && !child.referenceAt()
+            ? [swatch(child.resolved)]
+            : [],
+    );
+    if (ramp.length > 0) row(group.path, ...ramp);
 }
 
-for (const [group, steps] of ramps) row(group, ...steps.map((step) => swatch(step.resolved)));
-for (const role of roles) {
-    row(role.path, role.referenceAt()?.path ?? "", swatch(role.resolved));
+for (const t of permutation.tokens) {
+    if (t.type !== "color") continue;
+    const target = t.referenceAt();
+    if (target) row(t.path, target.path ?? "", swatch(t.resolved));
 }

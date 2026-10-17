@@ -764,7 +764,8 @@ export interface Group {
     rootToken?: Token;
     /**
      * Every token inside it, however deeply nested, in the order the files write them, its root
-     * token included.
+     * token included. For only the tokens directly in it, filter
+     * {@link Group.children | children} by `kind`.
      *
      * @example
      * dark.group("color")?.tokens.map(({ path }) => path)
