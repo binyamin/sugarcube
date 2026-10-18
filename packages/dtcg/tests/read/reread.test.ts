@@ -143,6 +143,65 @@ describe("a reread", () => {
         expect(again.permutation().token("gap")).toBe(broken.permutation().token("gap"));
     });
 
+    describe("in the file that changed", () => {
+        const sizes = (sm: number) =>
+            JSON.stringify(
+                {
+                    size: {
+                        $type: "number",
+                        sm: { $value: sm },
+                        md: { $value: 2 },
+                        gap: { $value: "{size.md}" },
+                    },
+                },
+                null,
+                2,
+            );
+        const first = readFromMemory({ files: { "sizes.json": sizes(1) } });
+        const second = first.reread({ "sizes.json": sizes(10) });
+        const third = second.reread({ "sizes.json": sizes(100) });
+        const token = (tokens: typeof first, path: string) => tokens.permutation().token(path);
+        const written = (tokens: typeof first, span: { offset: number; length: number }) =>
+            (tokens.text("sizes.json") ?? "").slice(span.offset, span.offset + span.length);
+
+        it("keeps a token below the edit, though it moved", () => {
+            expect(token(second, "size.md")).toBe(token(first, "size.md"));
+            expect(token(second, "size.gap")).toBe(token(first, "size.gap"));
+            expect(token(second, "size.sm")).not.toBe(token(first, "size.sm"));
+        });
+
+        it("gives a kept place and a kept reference where they are now", () => {
+            const md = token(second, "size.md");
+            const gap = token(second, "size.gap");
+            if (!md || !gap?.references[0]) throw new Error("size.md or size.gap is not read");
+            expect(JSON.parse(written(second, second.spanOf(md.valueFrom)))).toStrictEqual({
+                $value: 2,
+            });
+            expect(written(second, second.spanOf(gap.references[0]))).toBe('"{size.md}"');
+            expect(second.spanOf(md.valueFrom)).not.toStrictEqual(first.spanOf(md.valueFrom));
+        });
+
+        it("keeps it through another reread", () => {
+            expect(token(third, "size.md")).toBe(token(first, "size.md"));
+        });
+
+        it("gives a kept place's new line when only line breaks above it moved", () => {
+            const text =
+                '{"a": {"$type": "number", "$value": 1}, "b": {"$type": "number", "$value": 2}}';
+            const edited = text.replace(', "b"', ',\n"b"');
+            const once = readFromMemory({ files: { "t.json": text } });
+            const again = once.reread({ "t.json": edited });
+            const fresh = readFromMemory({ files: { "t.json": edited } });
+            const spanOfB = (tokens: typeof first) => {
+                const place = tokens.permutation().token("b")?.valueFrom;
+                if (!place) throw new Error("b is not read");
+                return tokens.spanOf(place);
+            };
+            expect(again.permutation().token("b")).toBe(once.permutation().token("b"));
+            expect(spanOfB(again)).toStrictEqual(spanOfB(fresh));
+        });
+    });
+
     it("makes the resolver new when the resolver's text changes", () => {
         const renamed = before.reread({
             "tokens.resolver.json": (files["tokens.resolver.json"] as string).replace(

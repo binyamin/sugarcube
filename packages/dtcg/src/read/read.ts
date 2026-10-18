@@ -13,7 +13,7 @@ import { fileName, filePath, folderOf, normalise } from "./paths.js";
 import { parseJson } from "./json.js";
 import { isResolver } from "./resolver.js";
 import { thrownMessages } from "../error-messages.js";
-import { linkedDesignTokens } from "./linked.js";
+import { linkedDesignTokens, placesIn } from "./linked.js";
 import { permutationsOf } from "./permutations-of.js";
 
 const { performance } = globalThis as unknown as { performance: { now(): number } };
@@ -169,7 +169,8 @@ function toDesignTokens(
     const resolving = performance.now();
     onStage?.("generate", generating);
     onStage?.("normalise", resolving - normalising - generating);
-    const resolved = resolvePermutations(normalised, readValue, found, loaded.texts, previous);
+    const places = placesIn(loaded.texts, previous);
+    const resolved = resolvePermutations(normalised, readValue, found, places, previous);
     const permutations = permutationsOf(resolved, resolved);
     onStage?.("resolve", performance.now() - resolving);
     validateExtensions(
@@ -194,6 +195,7 @@ function toDesignTokens(
         },
         {
             texts: loaded.texts,
+            moved: places.moved,
             readFiles: readingAgain(loaded.entry, options),
         },
     );

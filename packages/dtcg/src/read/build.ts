@@ -5,6 +5,7 @@ import type {
     Place,
     Reference,
     Source,
+    Span,
     Token,
     TopLevel,
     Written,
@@ -59,11 +60,11 @@ export function buildPermutation(
     earlier: Earlier,
 ): Permutation {
     const sourceAt = (index: number) => sources[index] as Source;
-    const placed = (written: WrittenAt[]): readonly Place[] => {
+    const placed = (written: WrittenAt[], path: string | undefined): readonly Place[] => {
         const [first, ...rest] = written;
         if (!first) return NO_PLACES;
-        if (rest.length === 0) return places.only(sourceAt(first.source), first.span);
-        return written.map(({ source, span }) => places.at(sourceAt(source), span));
+        if (rest.length === 0) return places.only(sourceAt(first.source), first.span, path);
+        return written.map(({ source, span }) => places.at(sourceAt(source), span, path));
     };
     const builtTokens = new Map<string, Token>();
     const builtGroups = new Map<string, Group>();
@@ -73,7 +74,7 @@ export function buildPermutation(
             label,
             sources,
             contexts,
-            root: publicTopLevel(merged.root, placed(merged.root.declaredIn)),
+            root: publicTopLevel(merged.root, placed(merged.root.declaredIn, undefined)),
             children: [],
             tokens: [],
             groups: [],
@@ -114,14 +115,15 @@ export function buildPermutation(
             invalid: read.ok ? undefined : true,
             deprecated: inherited(written, merged, "deprecated"),
             writtenAt: replaces
-                ? [...placed(replaces), places.at(sourceAt(source), span)]
-                : places.only(sourceAt(source), span),
+                ? [...placed(replaces, path), places.at(sourceAt(source), span, path)]
+                : places.only(sourceAt(source), span, path),
         };
         const reached = targets.every(isAimed) ? targets : undefined;
-        const token =
-            (reached &&
-                earlier.tokens.get(path)?.find((each) => sameToken(each, written, now, reached))) ??
-            newToken(written, now, located, reached);
+        const kept =
+            reached &&
+            earlier.tokens.get(path)?.find((each) => sameToken(each, written, now, reached));
+        if (kept && reached) places.movedTo(kept.references, spansOf(reached));
+        const token = kept ?? newToken(written, now, located, reached);
         builtTokens.set(path, token);
         return token;
     };
@@ -169,13 +171,13 @@ export function buildPermutation(
         const extending =
             written.extendsGroup === undefined ? undefined : groupAt(written.extendsGroup);
         const applies = applying(merged, written);
-        const writtenAt = placed(written.declaredIn);
+        const writtenAt = placed(written.declaredIn, path);
+        const kept = earlier.groups
+            .get(path)
+            ?.find((each) => sameGroup(each, written, applies, writtenAt, children, extending));
+        if (kept && written.extends) places.movedTo(kept.references, [written.extends.span]);
         const group =
-            earlier.groups
-                .get(path)
-                ?.find((each) =>
-                    sameGroup(each, written, applies, writtenAt, children, extending),
-                ) ??
+            kept ??
             newGroup(written, groupFields(written, applies, writtenAt), children, extending);
         builtGroups.set(path, group);
         return group;
@@ -231,6 +233,10 @@ function remember<T>(earlier: Map<string, T[]>, path: string, each: T): void {
     const list = earlier.get(path);
     if (!list) earlier.set(path, [each]);
     else if (!list.includes(each)) list.push(each);
+}
+
+function spansOf(targets: readonly Aimed<Token>[]): Span[] {
+    return targets.map(({ occurrence }) => occurrence.span);
 }
 
 function isAimed(target: Aimed<Pending<Token>>): target is Aimed<Token> {

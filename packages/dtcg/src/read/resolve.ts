@@ -22,7 +22,7 @@ import { similarName } from "./similar.js";
 import { movedReference, namedPath, referenceText } from "../values/references.js";
 import { type Occurrence, wholeReference } from "./occurrence.js";
 import { type Resolving, UNRESOLVED, resolveValue } from "./resolve-value.js";
-import { type Places, placesIn } from "./linked.js";
+import type { Places } from "./linked.js";
 import { usableType } from "./walk.js";
 
 interface Resolved {
@@ -59,10 +59,9 @@ export function resolvePermutations(
     permutations: NormalisedPermutation[],
     readValue: ValueReader,
     diagnostics: Problems,
-    texts: Readonly<Record<string, string>>,
+    places: Places,
     previous: DesignTokens | undefined,
 ): Permutation[] {
-    const places = placesIn(texts, previous);
     const missingAcross = new Map<string, MissingAcross>();
     const earlier = earlierIn(previous);
     const resolved = permutations.map((permutation) =>

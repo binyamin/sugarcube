@@ -213,6 +213,7 @@ const contextShared = {
 
 interface Kept {
     texts: Readonly<Record<string, string>>;
+    moved: ReadonlyMap<Place | Reference, Span>;
     readFiles(files: Record<string, string>, previous: DesignTokens): DesignTokens;
 }
 
@@ -298,6 +299,8 @@ class DesignTokensObject {
     }
 
     spanOf(of: Place | Reference): Span {
+        const moved = this.#kept.moved.get(of);
+        if (moved) return moved;
         return "source" in of ? PlaceObject.spanOf(of as PlaceObject) : spanOfReference(of);
     }
 
@@ -358,38 +361,32 @@ class PlaceObject {
     readonly #span: Span;
     #alone: Place[] | undefined;
     #text: string | undefined;
+    #textAt: Span;
     #written: JsonValue | undefined;
 
     constructor(source: Source, span: Span, text: string | undefined) {
         this.source = source;
         this.#span = span;
         this.#text = text;
+        this.#textAt = span;
     }
 
     get written(): JsonValue {
-        this.#written ??= parse(
-            PlaceObject.#writtenIn(this.#text, this.#span) ?? "null",
-        ) as JsonValue;
-        return this.#written;
-    }
-
-    static #writtenIn(text: string | undefined, { offset, length }: Span): string | undefined {
-        return text?.slice(offset, offset + length);
+        if (this.#written === undefined) {
+            this.#written = parse(textAt(this.#text, this.#textAt) ?? "null");
+            this.#text = undefined;
+        }
+        return this.#written as JsonValue;
     }
 
     static spanOf(place: PlaceObject): Span {
         return place.#span;
     }
 
-    static keptIn(place: PlaceObject, source: Source, span: Span, text: string | undefined) {
-        if (place.source !== source || !sameOffsets(place.#span, span)) return false;
-        if (place.#text === text) return true;
-        if (PlaceObject.#writtenIn(place.#text, span) !== PlaceObject.#writtenIn(text, span)) {
-            return false;
-        }
-        void place.written;
-        place.#text = undefined;
-        return true;
+    static foundIn(place: PlaceObject, text: string | undefined, span: Span): void {
+        if (place.#written !== undefined) return;
+        place.#text = text;
+        place.#textAt = span;
     }
 
     static alone(place: PlaceObject): Place[] {
@@ -403,8 +400,10 @@ class PlaceObject {
 }
 
 export interface Places {
-    at(source: Source, span: Span): Place;
-    only(source: Source, span: Span): Place[];
+    at(source: Source, span: Span, path: string | undefined): Place;
+    only(source: Source, span: Span, path: string | undefined): Place[];
+    movedTo(references: readonly Reference[], spans: readonly Span[]): void;
+    readonly moved: ReadonlyMap<Place | Reference, Span>;
 }
 
 export function placesIn(
@@ -412,46 +411,93 @@ export function placesIn(
     previous: DesignTokens | undefined,
 ): Places {
     const made = new Map<Span, PlaceObject[]>();
+    const moved = new Map<Place | Reference, Span>();
+    const checked = new Set<readonly Reference[]>();
     const before = previous && placesBy(previous);
-    const at = (source: Source, span: Span): PlaceObject => {
+    const kept = (
+        source: Source,
+        span: Span,
+        path: string | undefined,
+        text: string | undefined,
+    ) => {
+        if (!previous || !before) return undefined;
+        for (const each of before.get(path) ?? []) {
+            if (each.source !== source || !writtenAlike(previous, each, text, span)) continue;
+            if (previous.text(span.file) !== text) PlaceObject.foundIn(each, text, span);
+            if (!sameSpan(PlaceObject.spanOf(each), span)) moved.set(each, span);
+            return each;
+        }
+        return undefined;
+    };
+    const at = (source: Source, span: Span, path: string | undefined): PlaceObject => {
         const atSpan = made.get(span);
         const found = atSpan?.find((each) => each.source === source);
         if (found) return found;
         const text = texts[span.file];
-        const place =
-            before
-                ?.get(span.file)
-                ?.get(span.offset)
-                ?.find((each) => PlaceObject.keptIn(each, source, span, text)) ??
-            new PlaceObject(source, span, text);
+        const place = kept(source, span, path, text) ?? new PlaceObject(source, span, text);
         if (atSpan) atSpan.push(place);
         else made.set(span, [place]);
         return place;
     };
-    return { at, only: (source, span) => PlaceObject.alone(at(source, span)) };
+    return {
+        at,
+        only: (source, span, path) => PlaceObject.alone(at(source, span, path)),
+        movedTo: (references, spans) => {
+            if (!previous || checked.has(references)) return;
+            checked.add(references);
+            for (const [index, reference] of references.entries()) {
+                const span = spans[index];
+                if (span && !sameSpan(spanOfReference(reference), span)) moved.set(reference, span);
+            }
+        },
+        moved,
+    };
 }
 
-function placesBy(tokens: DesignTokens): Map<string, Map<number, PlaceObject[]>> {
-    const found = new Map<string, Map<number, PlaceObject[]>>();
+function placesBy(tokens: DesignTokens): Map<string | undefined, PlaceObject[]> {
+    const found = new Map<string | undefined, PlaceObject[]>();
     const seen = new Set<{ readonly writtenAt: readonly Place[] }>();
-    const add = (each: { readonly writtenAt: readonly Place[] }) => {
+    const add = (path: string | undefined, each: { readonly writtenAt: readonly Place[] }) => {
         if (seen.has(each)) return;
         seen.add(each);
+        const list = found.get(path) ?? [];
+        found.set(path, list);
         for (const place of each.writtenAt as PlaceObject[]) {
-            const { file, offset } = PlaceObject.spanOf(place);
-            let inFile = found.get(file);
-            if (!inFile) found.set(file, (inFile = new Map()));
-            const list = inFile.get(offset);
-            if (!list) inFile.set(offset, [place]);
-            else if (!list.includes(place)) list.push(place);
+            if (!list.includes(place)) list.push(place);
         }
     };
     for (const permutation of tokens.permutations) {
-        add(permutation.root);
-        for (const token of permutation.tokens) add(token);
-        for (const group of permutation.groups) add(group);
+        add(undefined, permutation.root);
+        for (const token of permutation.tokens) add(token.path, token);
+        for (const group of permutation.groups) add(group.path, group);
     }
     return found;
+}
+
+function writtenAlike(
+    previous: DesignTokens,
+    place: Place,
+    text: string | undefined,
+    span: Span,
+): boolean {
+    const was = previous.spanOf(place);
+    const then = previous.text(was.file);
+    if (then === text) return sameOffsets(was, span);
+    return textAt(then, was) === textAt(text, span);
+}
+
+function textAt(text: string | undefined, { offset, length }: Span): string | undefined {
+    return text?.slice(offset, offset + length);
+}
+
+function sameSpan(a: Span, b: Span): boolean {
+    return (
+        sameOffsets(a, b) &&
+        a.start.line === b.start.line &&
+        a.start.column === b.start.column &&
+        a.end.line === b.end.line &&
+        a.end.column === b.end.column
+    );
 }
 
 function sameOffsets(a: Span, b: Span): boolean {
