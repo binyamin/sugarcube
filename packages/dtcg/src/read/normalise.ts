@@ -9,6 +9,7 @@ import type { ListedSource, LoadedPermutation } from "./permutations.js";
 import type { LoadedSource } from "./sources.js";
 import { type SourceContents, walkSource } from "./walk.js";
 import { withPosition } from "./linked.js";
+import { sameSource } from "./same-object.js";
 
 export interface NormalisedToken {
     token: MergedToken;
@@ -32,6 +33,7 @@ export function normalisePermutations(
     readValue: ValueReader,
     diagnostics: Problems,
     generate: (merged: Merged, permutation: Input) => void,
+    previous: readonly Source[] | undefined,
 ): { permutations: NormalisedPermutation[]; sources: Source[] } {
     const walked = new Map<string, { contents?: SourceContents; problems: Diagnostic[] }>();
     const walk = (loaded: LoadedSource, permutation?: Input) => {
@@ -52,9 +54,11 @@ export function normalisePermutations(
         if (found) return found;
         const { source, pieces } = listed;
         const extensions = pieces.map((each) => walk(each)?.root.extensions).find(Boolean);
-        const made = withPosition({ ...source, ...(extensions && { extensions }) }, published.size);
-        published.set(listed, made);
-        return made;
+        const made = { ...source, ...(extensions && { extensions }) };
+        const was = previous?.[published.size];
+        const kept = was && sameSource(was, made) ? was : withPosition(made, published.size);
+        published.set(listed, kept);
+        return kept;
     };
 
     const normalised = permutations.map(({ input, label, contexts, sources }) => {

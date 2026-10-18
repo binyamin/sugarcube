@@ -42,13 +42,13 @@ export async function read(
     { readText, ...options }: ReadOptions & { readText: ReadText },
 ): Promise<DesignTokens> {
     const started = performance.now();
-    const run = load(fileName(entry), permutationOptions(options));
+    const run = load(fileName(entry), permutationOptions(options), undefined);
     let step = run.next();
     while (!step.done) {
         step = run.next(await fetchAll(step.value, folderOf(entry), readText));
     }
     options.onStage?.("load", performance.now() - started);
-    return toDesignTokens(step.value, options);
+    return toDesignTokens(step.value, options, undefined);
 }
 
 async function fetchAll(files: Request, folder: string, readText: ReadText): Promise<Answer> {
@@ -78,13 +78,21 @@ async function fetchAll(files: Request, folder: string, readText: ReadText): Pro
  * const tokens = readFromMemory({ files: { "tokens.json": text } });
  */
 export function readFromMemory(memory: TokensInMemory, options: ReadOptions = {}): DesignTokens {
+    return fromMemory(memory, options, undefined);
+}
+
+function fromMemory(
+    memory: TokensInMemory,
+    options: ReadOptions,
+    previous: DesignTokens | undefined,
+): DesignTokens {
     const started = performance.now();
     const texts = new Map(
         Object.entries(memory.files).map(([path, text]) => [normalise(path), text]),
     );
     const entry = normalise(memory.entry ?? entryAmong(texts));
     const folder = folderOf(entry);
-    const run = load(fileName(entry), permutationOptions(options));
+    const run = load(fileName(entry), permutationOptions(options), previous?.resolver);
 
     let step = run.next();
     while (!step.done) {
@@ -96,7 +104,7 @@ export function readFromMemory(memory: TokensInMemory, options: ReadOptions = {}
         step = run.next(answer);
     }
     options.onStage?.("load", performance.now() - started);
-    return toDesignTokens(step.value, options);
+    return toDesignTokens(step.value, options, previous);
 }
 
 function entryAmong(texts: Map<string, string>): string {
@@ -113,7 +121,8 @@ function entryAmong(texts: Map<string, string>): string {
 }
 
 function readingAgain(entry: string, options: ReadOptions) {
-    return (files: Record<string, string>) => readFromMemory({ files, entry }, options);
+    return (files: Record<string, string>, previous: DesignTokens) =>
+        fromMemory({ files, entry }, options, previous);
 }
 
 function permutationOptions({
@@ -124,7 +133,11 @@ function permutationOptions({
     return { ...(inputs && { inputs }), permutations, limit: permutationLimit };
 }
 
-function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
+function toDesignTokens(
+    loaded: Loaded,
+    options: ReadOptions,
+    previous: DesignTokens | undefined,
+): DesignTokens {
     const {
         onStage,
         generators = [],
@@ -151,11 +164,12 @@ function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
         readValue,
         found,
         generate,
+        previous?.sources,
     );
     const resolving = performance.now();
     onStage?.("generate", generating);
     onStage?.("normalise", resolving - normalising - generating);
-    const resolved = resolvePermutations(normalised, readValue, found, loaded.texts);
+    const resolved = resolvePermutations(normalised, readValue, found, loaded.texts, previous);
     const permutations = permutationsOf(resolved, resolved);
     onStage?.("resolve", performance.now() - resolving);
     validateExtensions(

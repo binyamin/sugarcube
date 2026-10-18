@@ -4,7 +4,7 @@ import type { Modifier } from "./input.js";
 export interface Kept {
     texts: Readonly<Record<string, string>>;
     modifiers: Modifier[];
-    readFiles(files: Record<string, string>): DesignTokens;
+    readFiles(files: Record<string, string>, previous: DesignTokens): DesignTokens;
 }
 
 const kept = new WeakMap<DesignTokens, Kept>();

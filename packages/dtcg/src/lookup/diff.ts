@@ -34,10 +34,10 @@ export function diffIn(
         if ("reason" in was) continue;
         changes.add(topLevelChange(was.root, now.root), now);
         for (const pair of matched(was.groups, now.groups, moved)) {
-            changes.add(groupChange(pair, moved), now);
+            if (pair.before !== pair.after) changes.add(groupChange(pair, moved), now);
         }
         for (const pair of matched(was.tokens, now.tokens, moved)) {
-            changes.add(tokenChange(pair, moved), now);
+            if (pair.before !== pair.after) changes.add(tokenChange(pair, moved), now);
         }
     }
     return changes.list(after.permutations);

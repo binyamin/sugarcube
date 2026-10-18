@@ -19,6 +19,7 @@ import { checkResolver, isResolver } from "./resolver.js";
 import { resolverPart } from "./resolver-part.js";
 import { Problems } from "./diagnostics.js";
 import { entriesOf, expandSources, filesNamedBy, openSources } from "./sources.js";
+import { sameResolver } from "./same-object.js";
 
 export interface Loaded {
     files: string[];
@@ -33,6 +34,7 @@ export interface Loaded {
 export function* load(
     entry: string,
     options: PermutationOptions,
+    previous: Resolver | undefined,
 ): Generator<Request, Loaded, Answer> {
     const used: string[] = [];
     const diagnostics = new Problems();
@@ -59,7 +61,8 @@ export function* load(
     const entries = entriesOf(items);
     yield* fetchFiles(files, filesNamedBy(resolver, entries));
     const sources = openSources(files, resolver, entries);
-    const part = resolverPart(resolver, setsUsed, diagnostics);
+    const made = resolverPart(resolver, setsUsed, diagnostics);
+    const part = previous && sameResolver(previous, made) ? previous : made;
     return loaded({
         resolver: part,
         ...fromResolver(part, items, sources, options, diagnostics),

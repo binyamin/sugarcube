@@ -1,0 +1,156 @@
+import { describe, expect, it } from "vitest";
+import { readFromMemory } from "../../src/index.js";
+
+const rgb = (red: number) => ({ colorSpace: "srgb", components: [red, 0, 0] });
+
+const files = {
+    "tokens.resolver.json": JSON.stringify({
+        version: "2025.10",
+        resolutionOrder: [
+            {
+                type: "set",
+                name: "base",
+                sources: [{ $ref: "colors.json" }, { $ref: "space.json" }, { $ref: "theme.json" }],
+            },
+            {
+                type: "modifier",
+                name: "mode",
+                default: "light",
+                contexts: { light: [], dark: [{ $ref: "dark.json" }] },
+            },
+        ],
+    }),
+    "colors.json": JSON.stringify({
+        color: { $type: "color", red: { $value: rgb(1) }, blue: { $value: rgb(0) } },
+    }),
+    "space.json": JSON.stringify({
+        space: { $type: "number", sm: { $value: 4 }, md: { $value: 8 } },
+    }),
+    "theme.json": JSON.stringify({
+        theme: {
+            text: { $type: "color", $value: "{color.red}" },
+            gap: { $type: "number", $value: "{space.sm}" },
+        },
+    }),
+    "dark.json": JSON.stringify({ color: { blue: { $value: rgb(0.2) } } }),
+};
+
+const before = readFromMemory({ files, entry: "tokens.resolver.json" });
+const after = before.reread({
+    "colors.json": JSON.stringify({
+        color: { $type: "color", red: { $value: rgb(0.5) }, blue: { $value: rgb(0) } },
+    }),
+});
+const modes = ["light", "dark"] as const;
+const kept = (path: string) =>
+    modes.every(
+        (mode) =>
+            before.permutation({ mode }).token(path) === after.permutation({ mode }).token(path),
+    );
+
+describe("a reread", () => {
+    it("keeps every token in a file whose text did not change", () => {
+        expect(after.permutation().token("space.sm")).toBeDefined();
+        expect(kept("space.sm")).toBe(true);
+        expect(kept("space.md")).toBe(true);
+    });
+
+    it("keeps a token that points only at kept tokens", () => {
+        expect(kept("theme.gap")).toBe(true);
+    });
+
+    it("makes a token whose value changed new, and every token that points at it", () => {
+        expect(kept("color.red")).toBe(false);
+        expect(kept("theme.text")).toBe(false);
+        expect(after.permutation().token("color.red")?.resolved).toMatchObject({
+            components: [0.5, 0, 0],
+        });
+        expect(after.permutation().token("theme.text")?.references[0]?.token).toBe(
+            after.permutation().token("color.red"),
+        );
+    });
+
+    it("keeps a group whose tokens are all kept, and makes new one that holds a new token", () => {
+        expect(after.permutation().group("space")).toBe(before.permutation().group("space"));
+        expect(after.permutation().group("theme")).not.toBe(before.permutation().group("theme"));
+    });
+
+    it("keeps the resolver and the sources of files that did not change", () => {
+        expect(after.resolver).toBe(before.resolver);
+        const space = (tokens: typeof before) =>
+            tokens.sources.find(({ file }) => file === "space.json");
+        expect(space(after)).toBe(space(before));
+    });
+
+    it("gives a kept place where it is in the new read's text", () => {
+        const place = after.permutation().token("space.md")?.valueFrom;
+        if (!place) throw new Error("space.md is not read");
+        const span = after.spanOf(place);
+        const text = after.text("space.json") ?? "";
+        expect(JSON.parse(text.slice(span.offset, span.offset + span.length))).toStrictEqual({
+            $value: 8,
+        });
+    });
+
+    it("keeps a token above the edit in the file that changed", () => {
+        const blue = before.reread({
+            "colors.json": JSON.stringify({
+                color: { $type: "color", red: { $value: rgb(1) }, blue: { $value: rgb(0.5) } },
+            }),
+        });
+        expect(blue.permutation().token("color.red")).toBe(before.permutation().token("color.red"));
+        expect(blue.permutation().token("color.blue")).not.toBe(
+            before.permutation().token("color.blue"),
+        );
+    });
+
+    it("leaves the read it started from as it was", () => {
+        expect(before.permutation().token("color.red")?.resolved).toMatchObject({
+            components: [1, 0, 0],
+        });
+        expect(before.permutation().token("theme.text")?.references[0]?.token).toBe(
+            before.permutation().token("color.red"),
+        );
+    });
+
+    it("still reports the problems in a file that did not change", () => {
+        const broken = readFromMemory({
+            files: {
+                "tokens.resolver.json": JSON.stringify({
+                    version: "2025.10",
+                    resolutionOrder: [
+                        {
+                            type: "set",
+                            name: "base",
+                            sources: [{ $ref: "space.json" }, { $ref: "broken.json" }],
+                        },
+                    ],
+                }),
+                "space.json": files["space.json"],
+                "broken.json": JSON.stringify({ gap: { $type: "number", $value: "{missing}" } }),
+            },
+            entry: "tokens.resolver.json",
+        });
+        const again = broken.reread({
+            "space.json": JSON.stringify({ space: { $type: "number", sm: { $value: 2 } } }),
+        });
+        const found = (tokens: typeof before) =>
+            tokens.diagnostics.map(({ kind, span }) => ({ kind, span }));
+        expect(found(broken)).toContainEqual(
+            expect.objectContaining({ kind: "missing-reference" }),
+        );
+        expect(found(again)).toStrictEqual(found(broken));
+        expect(again.permutation().token("gap")).toBe(broken.permutation().token("gap"));
+    });
+
+    it("makes the resolver new when the resolver's text changes", () => {
+        const renamed = before.reread({
+            "tokens.resolver.json": (files["tokens.resolver.json"] as string).replace(
+                '"default":"light"',
+                '"default":"dark"',
+            ),
+        });
+        expect(renamed.resolver).not.toBe(before.resolver);
+        expect(renamed.permutation().input).toStrictEqual({ mode: "dark" });
+    });
+});

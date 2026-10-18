@@ -1,4 +1,5 @@
 import type {
+    DesignTokens,
     Group,
     JsonPath,
     Permutation,
@@ -45,6 +46,15 @@ type Aimed<Found> = Omit<Target, "token"> & { token?: Found | undefined; occurre
 const BUILDING = Symbol("building");
 
 const NO_TARGETS: readonly Aimed<Token>[] = [];
+
+export function earlierIn(previous: DesignTokens | undefined): Earlier {
+    const earlier: Earlier = { tokens: new Map(), groups: new Map() };
+    for (const permutation of previous?.permutations ?? []) {
+        for (const token of permutation.tokens) rememberOnce(earlier.tokens, token.path, token);
+        for (const group of permutation.groups) rememberOnce(earlier.groups, group.path, group);
+    }
+    return earlier;
+}
 
 const NONE_MADE: readonly Token[] = [];
 
@@ -227,6 +237,12 @@ function referenceOf(
         targetProperty,
     };
     return linkedReference(facts, from, token, { pointerAlone });
+}
+
+function rememberOnce<T>(earlier: Map<string, T[]>, path: string, each: T): void {
+    const list = earlier.get(path);
+    if (!list) earlier.set(path, [each]);
+    else if (!list.includes(each)) list.push(each);
 }
 
 function remember<T>(earlier: Map<string, T[]>, path: string, each: T): void {

@@ -1,5 +1,6 @@
 import { relatedMessages } from "../error-messages.js";
 import type {
+    DesignTokens,
     DiagnosticDetailByKind,
     DiagnosticKind,
     Input,
@@ -9,7 +10,7 @@ import type {
     TokenType,
     WrittenReference,
 } from "../index.js";
-import { type Earlier, buildPermutation } from "./build.js";
+import { type Earlier, buildPermutation, earlierIn } from "./build.js";
 import {
     type DiagnosticExtra,
     diagnostic,
@@ -63,10 +64,11 @@ export function resolvePermutations(
     readValue: ValueReader,
     diagnostics: Problems,
     texts: Readonly<Record<string, string>>,
+    previous: DesignTokens | undefined,
 ): Permutation[] {
-    const places = placesIn(texts);
+    const places = placesIn(texts, previous);
     const missingAcross = new Map<string, MissingAcross>();
-    const earlier: Earlier = { tokens: new Map(), groups: new Map() };
+    const earlier = earlierIn(previous);
     const resolved = permutations.map((permutation) =>
         resolvePermutation(permutation, { readValue, diagnostics, places, missingAcross, earlier }),
     );

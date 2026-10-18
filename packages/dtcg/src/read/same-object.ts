@@ -1,4 +1,4 @@
-import type { Group, JsonPath, Place, Token, TokenType } from "../index.js";
+import type { Group, JsonPath, Place, Resolver, Source, Token, TokenType } from "../index.js";
 import type { MergedGroup, MergedToken } from "./merge.js";
 import type { Properties } from "./walk.js";
 import { sameJson } from "../values/same-value.js";
@@ -31,18 +31,14 @@ export function sameToken(
     if (earlier.inherited?.from !== written.inherited?.from) return false;
     const { references } = earlier;
     if (references.length !== targets.length) return false;
-    let followed = targets.length > 0;
+    let intoParts = false;
     for (const [index, { path, token, targetProperty }] of targets.entries()) {
         const reference = references[index];
         if (!reference || reference.token !== token || reference.path !== path) return false;
-        if (targetProperty !== undefined) followed = false;
+        if (targetProperty !== undefined) intoParts = true;
     }
-    const resolved =
-        followed ||
-        earlier.resolved === now.resolved ||
-        ((targets.length > 0 || written.added === true) &&
-            sameJson(earlier.resolved, now.resolved));
-    if (!written.added) return earlier.value === now.value && resolved;
+    const resolved = !intoParts || sameJson(earlier.resolved, now.resolved);
+    if (!written.added) return resolved;
     return (
         resolved &&
         sameJson(earlier.value, now.value) &&
@@ -71,4 +67,24 @@ export function sameGroup(
 
 function sameList(a: readonly unknown[], b: readonly unknown[]): boolean {
     return a.length === b.length && a.every((each, index) => each === b[index]);
+}
+
+export function sameResolver(was: Resolver, now: Resolver): boolean {
+    return JSON.stringify(was) === JSON.stringify(now);
+}
+
+export function sameSource(was: Source, now: Source): boolean {
+    return (
+        was.file === now.file &&
+        was.pointer === now.pointer &&
+        was.context === now.context &&
+        sameReaders(was.readBy, now.readBy) &&
+        sameJson(was.sets, now.sets) &&
+        sameJson(was.extensions, now.extensions)
+    );
+}
+
+function sameReaders(was: Source["readBy"], now: Source["readBy"]): boolean {
+    if (was === "everyone" || now === "everyone") return was === now;
+    return sameList(was, now);
 }

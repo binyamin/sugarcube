@@ -234,7 +234,7 @@ const designTokensShared = {
             if (text === null) delete files[file];
             else files[file] = text;
         }
-        return readFiles(files);
+        return readFiles(files, this);
     },
     toMemory(this: DesignTokens) {
         return { entry: this.entry, files: { ...keptBy(this).texts } };
@@ -294,25 +294,39 @@ class PlaceObject {
     readonly source: Source;
     readonly #span: Span;
     #alone: Place[] | undefined;
-    #texts: Readonly<Record<string, string>>;
+    #text: string | undefined;
     #written: JsonValue | undefined;
 
-    constructor(source: Source, span: Span, texts: Readonly<Record<string, string>>) {
+    constructor(source: Source, span: Span, text: string | undefined) {
         this.source = source;
         this.#span = span;
-        this.#texts = texts;
+        this.#text = text;
     }
 
     get written(): JsonValue {
-        const { file, offset, length } = this.#span;
         this.#written ??= parse(
-            this.#texts[file]?.slice(offset, offset + length) ?? "null",
+            PlaceObject.#writtenIn(this.#text, this.#span) ?? "null",
         ) as JsonValue;
         return this.#written;
     }
 
+    static #writtenIn(text: string | undefined, { offset, length }: Span): string | undefined {
+        return text?.slice(offset, offset + length);
+    }
+
     static spanOf(place: PlaceObject): Span {
         return place.#span;
+    }
+
+    static keptIn(place: PlaceObject, source: Source, span: Span, text: string | undefined) {
+        if (place.source !== source || !sameOffsets(place.#span, span)) return false;
+        if (place.#text === text) return true;
+        if (PlaceObject.#writtenIn(place.#text, span) !== PlaceObject.#writtenIn(text, span)) {
+            return false;
+        }
+        void place.written;
+        place.#text = undefined;
+        return true;
     }
 
     static alone(place: PlaceObject): Place[] {
@@ -330,18 +344,55 @@ export interface Places {
     only(source: Source, span: Span): Place[];
 }
 
-export function placesIn(texts: Readonly<Record<string, string>>): Places {
+export function placesIn(
+    texts: Readonly<Record<string, string>>,
+    previous: DesignTokens | undefined,
+): Places {
     const made = new Map<Span, PlaceObject[]>();
+    const before = previous && placesBy(previous);
     const at = (source: Source, span: Span): PlaceObject => {
         const atSpan = made.get(span);
         const found = atSpan?.find((each) => each.source === source);
         if (found) return found;
-        const place = new PlaceObject(source, span, texts);
+        const text = texts[span.file];
+        const place =
+            before
+                ?.get(span.file)
+                ?.get(span.offset)
+                ?.find((each) => PlaceObject.keptIn(each, source, span, text)) ??
+            new PlaceObject(source, span, text);
         if (atSpan) atSpan.push(place);
         else made.set(span, [place]);
         return place;
     };
     return { at, only: (source, span) => PlaceObject.alone(at(source, span)) };
+}
+
+function placesBy(tokens: DesignTokens): Map<string, Map<number, PlaceObject[]>> {
+    const found = new Map<string, Map<number, PlaceObject[]>>();
+    const seen = new Set<{ readonly writtenAt: readonly Place[] }>();
+    const add = (each: { readonly writtenAt: readonly Place[] }) => {
+        if (seen.has(each)) return;
+        seen.add(each);
+        for (const place of each.writtenAt as PlaceObject[]) {
+            const { file, offset } = PlaceObject.spanOf(place);
+            let inFile = found.get(file);
+            if (!inFile) found.set(file, (inFile = new Map()));
+            const list = inFile.get(offset);
+            if (!list) inFile.set(offset, [place]);
+            else if (!list.includes(place)) list.push(place);
+        }
+    };
+    for (const permutation of tokens.permutations) {
+        add(permutation.root);
+        for (const token of permutation.tokens) add(token);
+        for (const group of permutation.groups) add(group);
+    }
+    return found;
+}
+
+function sameOffsets(a: Span, b: Span): boolean {
+    return a.file === b.file && a.offset === b.offset && a.length === b.length;
 }
 
 export function linkedDesignTokens(
