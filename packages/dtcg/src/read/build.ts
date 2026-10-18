@@ -31,7 +31,7 @@ import {
 import { malformation } from "./malformed-pointer.js";
 import type { Merged, MergedGroup, MergedToken, MergedTopLevel, WrittenAt } from "./merge.js";
 import { type MissingIn, type MissingReferences, missingReferences } from "./missing.js";
-import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
+import type { NormalisedPermutation } from "./normalise.js";
 import { type Occurrence, wholeReference } from "./occurrence.js";
 import type { LocatedReference, ValueReader } from "./parse-value.js";
 import { type ReferenceTo, linkedReference } from "./reference.js";
@@ -104,8 +104,8 @@ function buildPermutation(
     permutation: NormalisedPermutation,
     { readValue, diagnostics, places, missing: missingAcross, earlier }: Context,
 ): Permutation {
-    const { input, label, contexts, sources, merged, tokens } = permutation;
-    const missing = missingAcross.in(input, tokens);
+    const { input, label, contexts, sources, merged } = permutation;
+    const missing = missingAcross.in(input, merged.tokens);
     const valueOf = workingOut(permutation, readValue, diagnostics, missing);
 
     const sourceAt = (index: number) => sources[index] as Source;
@@ -131,17 +131,17 @@ function buildPermutation(
     const targetAt = (path: string): Pending<Token> | undefined =>
         beingMade.has(path) ? BEING_MADE : tokenAt(path);
 
-    const tokenAt = (path: string, entry = tokens.get(path)): Token | undefined => {
+    const tokenAt = (path: string): Token | undefined => {
         const done = builtTokens.get(path);
         if (done) return done;
-        if (!entry) return undefined;
-        const value = valueOf(entry);
+        const written = merged.tokens.get(path);
+        if (!written) return undefined;
+        const value = valueOf(written);
         if (value === "untyped") return undefined;
         const located = value.references;
         beingMade.add(path);
         const targets = targetsOf(located, targetAt);
         beingMade.delete(path);
-        const { token: written } = entry;
         const { replaces, source, span } = written;
         const { read } = value;
         const now: MadeFrom = {
@@ -193,10 +193,7 @@ function buildPermutation(
         }
         return children;
     };
-    const childAt = (path: string) => {
-        const entry = tokens.get(path);
-        return entry ? tokenAt(path, entry) : groupAt(path);
-    };
+    const childAt = (path: string) => (merged.tokens.has(path) ? tokenAt(path) : groupAt(path));
 
     const groupAt = (path: string): Group | undefined => {
         const done = builtGroups.get(path);
@@ -264,11 +261,11 @@ function buildPermutation(
 }
 
 function workingOut(
-    { input, merged, tokens }: NormalisedPermutation,
+    { input, merged }: NormalisedPermutation,
     readValue: ValueReader,
     diagnostics: Problems,
     missing: MissingIn,
-): (entry: NormalisedToken) => WorkedOut {
+): (token: MergedToken) => WorkedOut {
     const report = <K extends DiagnosticKind>(
         kind: K,
         detail: DiagnosticDetailByKind[K],
@@ -296,16 +293,16 @@ function workingOut(
     const asking: { path: string; span: Span }[] = [];
 
     const valueAt = (path: string, from: string, span: Span): WorkedOut | undefined => {
-        const entry = tokens.get(path);
-        if (!entry) return merged.tokens.has(path) ? "untyped" : undefined;
+        const token = merged.tokens.get(path);
+        if (!token) return undefined;
         asking.push({ path: from, span });
-        const value = valueOf(entry);
+        const value = valueOf(token);
         asking.pop();
         return value;
     };
 
-    const valueOf = (entry: NormalisedToken): WorkedOut => {
-        const { path } = entry.token;
+    const valueOf = (token: MergedToken): WorkedOut => {
+        const { path } = token;
         const known = workedOut.get(path);
         if (known === WORKING_OUT) {
             reportLoop(path);
@@ -313,7 +310,7 @@ function workingOut(
         }
         if (known) return known;
         workedOut.set(path, WORKING_OUT);
-        const value = workOut(entry);
+        const value = workOut(token);
         workedOut.set(path, value);
         return value;
     };
@@ -345,16 +342,24 @@ function workingOut(
         return reached.kind === "part" ? { kind: "part" } : { kind: "unreachable" };
     };
 
-    const workOut = (entry: NormalisedToken): WorkedOut => {
-        const { token } = entry;
+    const workOut = (token: MergedToken): WorkedOut => {
         const whole = wholeReference(token);
 
-        let type = entry.type;
+        let type: TokenType | undefined;
+        if (token.type !== undefined || !token.reference) {
+            const own = inherited(token, merged, "type");
+            if (own === "unusable") return "untyped";
+            if (own === undefined) {
+                report("missing-type", {}, token.path, token.span);
+                return "untyped";
+            }
+            type = own;
+        }
         if (whole) {
             const followed = followWhole(token, whole);
             if (followed.kind === "unreachable") {
                 reportUnreachable(whole, token.path, whole.span);
-                return fallback(entry, type);
+                return fallback(token, type);
             }
             if (followed.kind === "part") {
                 type ??= groupType(token);
@@ -364,14 +369,14 @@ function workingOut(
                 }
             } else {
                 const target = followed.value;
-                if (target === undefined || target === "untyped") return fallback(entry, type);
-                if (!("resolved" in target)) return unresolved(entry, type ?? target.type);
+                if (target === undefined || target === "untyped") return fallback(token, type);
+                if (!("resolved" in target)) return unresolved(token, type ?? target.type);
                 type ??= target.type;
             }
         }
         if (type === undefined) return "untyped";
 
-        const { result: read, references, readAgain } = readAs(entry, type);
+        const { result: read, references, readAgain } = readValue.read(token, type, input);
         const base = { type, read, references };
         if (!read.ok) return base;
         if (references.length === 0) return { ...base, resolved: read.value };
@@ -380,21 +385,18 @@ function workingOut(
         return value === UNRESOLVED ? base : { ...base, resolved: value };
     };
 
-    const fallback = (entry: NormalisedToken, type: TokenType | undefined): WorkedOut => {
-        const shown = type ?? groupType(entry.token);
-        return shown === undefined ? "untyped" : unresolved(entry, shown);
+    const fallback = (token: MergedToken, type: TokenType | undefined): WorkedOut => {
+        const shown = type ?? groupType(token);
+        return shown === undefined ? "untyped" : unresolved(token, shown);
     };
 
     const groupType = (token: MergedToken): TokenType | undefined =>
         usableType(inherited(token, merged, "type"));
 
-    const unresolved = (entry: NormalisedToken, type: TokenType): WorkedOut => {
-        const { result: read, references } = readAs(entry, type);
+    const unresolved = (token: MergedToken, type: TokenType): WorkedOut => {
+        const { result: read, references } = readValue.read(token, type, input);
         return { type, read, references };
     };
-
-    const readAs = (entry: NormalisedToken, type: TokenType) =>
-        entry.read ?? readValue.read(entry.token, type, input);
 
     const resolving: Resolving = {
         readValue,

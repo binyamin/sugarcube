@@ -161,7 +161,6 @@ function toDesignTokens(
     const normalising = performance.now();
     const { permutations: normalised, sources } = normalisePermutations(
         loaded.permutations,
-        readValue,
         found,
         generate,
         previous?.sources,
