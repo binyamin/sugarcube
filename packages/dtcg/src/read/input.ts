@@ -1,9 +1,19 @@
-import type { Input, InputProblem } from "../index.js";
+import type { Input, InputProblem, Resolver } from "../index.js";
 
 export interface Modifier {
     name: string;
     contexts: string[];
     default: string | undefined;
+}
+
+export function modifiersIn(resolver: Resolver | undefined): Modifier[] {
+    return (resolver?.order ?? []).flatMap((item) => {
+        const modifier =
+            "modifier" in item && resolver?.modifiers.find(({ name }) => name === item.modifier);
+        if (!modifier) return [];
+        const contexts = modifier.contexts.map(({ name }) => name);
+        return [{ name: modifier.name, contexts, default: modifier.default }];
+    });
 }
 
 export type CheckedInput =

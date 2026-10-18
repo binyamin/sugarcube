@@ -1,29 +1,29 @@
 import { describe, expect, it } from "vitest";
 import type { ParseOptions } from "../../src/index.js";
-import { lineCaps, parseStrokeStyle, strokeStyleKeywords } from "../../src/values.js";
+import { lineCaps, strokeStyleKeywords, parseValue } from "../../src/values.js";
 
 const lenient: ParseOptions = { ignoreUnknownProperties: true };
 
 function read(raw: unknown, options?: ParseOptions) {
-    const result = parseStrokeStyle(raw, ["$value"], options);
+    const result = parseValue("strokeStyle", raw, ["$value"], options);
     if (!result.ok) throw new Error(`expected a value, got ${JSON.stringify(result.errors)}`);
     return result.value;
 }
 
 function details(raw: unknown, options?: ParseOptions) {
-    const result = parseStrokeStyle(raw, ["$value"], options);
+    const result = parseValue("strokeStyle", raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
     return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
-    const result = parseStrokeStyle(raw, ["$value"], options);
+    const result = parseValue("strokeStyle", raw, ["$value"], options);
     return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 const px = (value: number) => ({ value, unit: "px" });
 
-describe("parseStrokeStyle", () => {
+describe("parseValue, strokeStyle", () => {
     describe("reads", () => {
         it.for([...strokeStyleKeywords])("the keyword %s", (keyword) => {
             expect(read(keyword)).toStrictEqual({ kind: "keyword", keyword });

@@ -1,27 +1,27 @@
 import { describe, expect, it } from "vitest";
 import type { ParseOptions } from "../../src/index.js";
-import { parseDuration } from "../../src/values.js";
+import { parseValue } from "../../src/values.js";
 
 const lenient: ParseOptions = { ignoreUnknownProperties: true };
 
 function read(raw: unknown, options?: ParseOptions) {
-    const result = parseDuration(raw, ["$value"], options);
+    const result = parseValue("duration", raw, ["$value"], options);
     if (!result.ok) throw new Error(`expected a value, got ${JSON.stringify(result.errors)}`);
     return result.value;
 }
 
 function details(raw: unknown, options?: ParseOptions) {
-    const result = parseDuration(raw, ["$value"], options);
+    const result = parseValue("duration", raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
     return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
-    const result = parseDuration(raw, ["$value"], options);
+    const result = parseValue("duration", raw, ["$value"], options);
     return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
-describe("parseDuration", () => {
+describe("parseValue, duration", () => {
     describe("reads", () => {
         it.for([
             { value: 100, unit: "ms" },

@@ -1,7 +1,7 @@
 import type { Input, Resolver, ResolverContext, SetOnRoute, Source } from "../index.js";
 import { ownLabel } from "../lookup/permutation-label.js";
 import { diagnostic, type Problems } from "./diagnostics.js";
-import { type Modifier, checkedInput, withDefaults } from "./input.js";
+import { type Modifier, checkedInput, modifiersIn, withDefaults } from "./input.js";
 import { type JsonFile, plainObject } from "./json.js";
 import type { Loaded } from "./load.js";
 import type { ExpandedItem, LoadedSource, SourceEntry } from "./sources.js";
@@ -18,7 +18,7 @@ export interface LoadedPermutation {
     sources: ListedSource[];
 }
 
-type Built = Pick<Loaded, "modifiers" | "permutations">;
+type Built = Pick<Loaded, "permutations">;
 
 export interface PermutationOptions {
     inputs?: readonly Readonly<Record<string, unknown>>[];
@@ -28,7 +28,6 @@ export interface PermutationOptions {
 
 export function fromTokenFile(path: string, json: JsonFile | undefined): Built {
     return {
-        modifiers: [],
         permutations: [
             {
                 input: {},
@@ -52,7 +51,7 @@ export function fromResolver(
     options: PermutationOptions,
     diagnostics: Problems,
 ): Built {
-    const modifiers = modifiersOf(items);
+    const modifiers = modifiersIn(part);
     const inputs = chooseInputs(modifiers, options, diagnostics);
     const contextOf = (modifier: string, name: string | undefined) =>
         part.modifiers
@@ -60,7 +59,6 @@ export function fromResolver(
             ?.contexts.find((each) => each.name === name);
     const listed = listedSources(items, sources, contextOf);
     return {
-        modifiers,
         permutations: inputs.map((input) => {
             const contexts = modifiers.flatMap(({ name }) => contextOf(name, input[name]) ?? []);
             return {
@@ -74,20 +72,6 @@ export function fromResolver(
 }
 
 type ContextOf = (modifier: string, name: string | undefined) => ResolverContext | undefined;
-
-function modifiersOf(items: ExpandedItem[]): Modifier[] {
-    return items.flatMap((item) =>
-        item.kind === "modifier"
-            ? [
-                  {
-                      name: item.modifier.name,
-                      contexts: [...item.contexts.keys()],
-                      default: item.modifier.default,
-                  },
-              ]
-            : [],
-    );
-}
 
 function chooseInputs(
     modifiers: Modifier[],

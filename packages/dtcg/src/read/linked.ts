@@ -31,7 +31,6 @@ import {
 } from "../lookup/references.js";
 import { resolvedValuesIn } from "../lookup/resolved-values.js";
 import { writtenAtIn } from "../lookup/written-at.js";
-import type { Modifier } from "./input.js";
 import { spanOfReference } from "./reference.js";
 import { samePlace } from "./same-object.js";
 
@@ -214,7 +213,6 @@ const contextShared = {
 
 interface Kept {
     texts: Readonly<Record<string, string>>;
-    modifiers: Modifier[];
     readFiles(files: Record<string, string>, previous: DesignTokens): DesignTokens;
 }
 
@@ -311,10 +309,6 @@ class DesignTokensObject {
 
     get #self(): DesignTokens {
         return this as unknown as DesignTokens;
-    }
-
-    static modifiersInOrder(tokens: DesignTokensObject): Modifier[] {
-        return tokens.#kept.modifiers;
     }
 }
 
@@ -470,10 +464,6 @@ export function linkedDesignTokens(fields: DesignTokensFields, kept: Kept): Desi
         PermutationObject.belongsTo(permutation as unknown as PermutationObject, tokens);
     }
     return tokens;
-}
-
-export function modifiersInOrder(tokens: DesignTokens): Modifier[] {
-    return DesignTokensObject.modifiersInOrder(tokens as unknown as DesignTokensObject);
 }
 
 function pathsIn(tokens: DesignTokens, kind: "tokens" | "groups"): string[] {

@@ -1,23 +1,23 @@
 import { describe, expect, it } from "vitest";
 import type { ParseOptions } from "../../src/index.js";
-import { parseGradient } from "../../src/values.js";
+import { parseValue } from "../../src/values.js";
 
 const lenient: ParseOptions = { ignoreUnknownProperties: true };
 
 function read(raw: unknown, options?: ParseOptions) {
-    const result = parseGradient(raw, ["$value"], options);
+    const result = parseValue("gradient", raw, ["$value"], options);
     if (!result.ok) throw new Error(`expected a value, got ${JSON.stringify(result.errors)}`);
     return result.value;
 }
 
 function details(raw: unknown, options?: ParseOptions) {
-    const result = parseGradient(raw, ["$value"], options);
+    const result = parseValue("gradient", raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
     return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
-    const result = parseGradient(raw, ["$value"], options);
+    const result = parseValue("gradient", raw, ["$value"], options);
     return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
@@ -25,7 +25,7 @@ const blue = { colorSpace: "srgb", components: [0, 0, 1] };
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 const withAlpha = (color: object) => ({ ...color, alpha: 1 });
 
-describe("parseGradient", () => {
+describe("parseValue, gradient", () => {
     describe("reads", () => {
         it("blue to red, spec example 55", () => {
             expect(

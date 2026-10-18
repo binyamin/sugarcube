@@ -1,23 +1,23 @@
 import { describe, expect, it } from "vitest";
 import type { ParseOptions } from "../../src/index.js";
-import { parseTypography } from "../../src/values.js";
+import { parseValue } from "../../src/values.js";
 
 const lenient: ParseOptions = { ignoreUnknownProperties: true };
 
 function read(raw: unknown, options?: ParseOptions) {
-    const result = parseTypography(raw, ["$value"], options);
+    const result = parseValue("typography", raw, ["$value"], options);
     if (!result.ok) throw new Error(`expected a value, got ${JSON.stringify(result.errors)}`);
     return result.value;
 }
 
 function details(raw: unknown, options?: ParseOptions) {
-    const result = parseTypography(raw, ["$value"], options);
+    const result = parseValue("typography", raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
     return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
-    const result = parseTypography(raw, ["$value"], options);
+    const result = parseValue("typography", raw, ["$value"], options);
     return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
@@ -30,7 +30,7 @@ const heading = {
     lineHeight: 1.2,
 };
 
-describe("parseTypography", () => {
+describe("parseValue, typography", () => {
     describe("reads", () => {
         it("heading-level-1 from spec example 58, with each part in its own shape", () => {
             expect(read(heading)).toStrictEqual({ ...heading, fontFamily: ["Roboto"] });

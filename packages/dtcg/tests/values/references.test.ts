@@ -2,16 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
     asJsonPointer,
     isReference,
-    parseDimension,
-    parseNumber,
     readReference,
     referenceText,
+    parseValue,
 } from "../../src/values.js";
 
 describe("isReference", () => {
     it("recognises the references a parser reads, in either syntax", () => {
-        const curly = parseNumber("{ratio.golden}", []);
-        const pointer = parseNumber({ $ref: "#/ratio/golden/$value" }, []);
+        const curly = parseValue("number", "{ratio.golden}", []);
+        const pointer = parseValue("number", { $ref: "#/ratio/golden/$value" }, []);
         expect(curly.ok && isReference(curly.value)).toBe(true);
         expect(pointer.ok && isReference(pointer.value)).toBe(true);
         expect(curly.ok && isReference(curly.value) && curly.value.syntax).toBe("curly-brace");
@@ -21,7 +20,8 @@ describe("isReference", () => {
     });
 
     it("recognises a pointer in place of part of a value", () => {
-        const dimension = parseDimension(
+        const dimension = parseValue(
+            "dimension",
             { value: { $ref: "#/size/base/$value/value" }, unit: "rem" },
             [],
         );

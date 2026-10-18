@@ -1772,12 +1772,6 @@ export type ParseResult<V> =
     | { ok: true; value: V; ignored: IgnoredProperty[] }
     | { ok: false; errors: ValueError[]; ignored: IgnoredProperty[] };
 
-/**
- * Reads one raw value into its shape, or explains why it cannot. `jsonPath` is where the value
- * sits, and each problem's `jsonPath` starts with it.
- */
-export type Parse<V> = (raw: unknown, jsonPath: JsonPath, options?: ParseOptions) => ParseResult<V>;
-
 /** How values are read, for {@link read} and the parsers alike. */
 export interface ParseOptions {
     /**

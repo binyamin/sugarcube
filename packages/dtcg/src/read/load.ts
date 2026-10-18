@@ -1,5 +1,4 @@
 import type { Diagnostic, Resolver } from "../index.js";
-import type { Modifier } from "./input.js";
 import {
     type Answer,
     type FileText,
@@ -26,7 +25,6 @@ export interface Loaded {
     texts: Record<string, string>;
     entry: string;
     resolver?: Resolver;
-    modifiers: Modifier[];
     permutations: LoadedPermutation[];
     diagnostics: Diagnostic[];
 }
@@ -41,7 +39,7 @@ export function* load(
     yield* fetchFiles(files, [entry]);
 
     const root = parseFile(files, entry)?.root;
-    const loaded = (built: Pick<Loaded, "resolver" | "modifiers" | "permutations">): Loaded => ({
+    const loaded = (built: Pick<Loaded, "resolver" | "permutations">): Loaded => ({
         files: files.used,
         texts: textsOf(files.texts, files.used),
         entry,
@@ -53,7 +51,7 @@ export function* load(
     }
 
     const file = openFile(files, entry, "resolver");
-    if (!file) return loaded({ modifiers: [], permutations: [] });
+    if (!file) return loaded({ permutations: [] });
 
     const resolver = checkResolver(file, diagnostics);
     const { items, setsUsed } = expandSources(resolver, diagnostics);

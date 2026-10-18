@@ -20,89 +20,69 @@ export interface ReferenceFacts {
     targetProperty: JsonPath | undefined;
 }
 
-class CurlyBraceReferenceIn {
-    declare readonly syntax: "curly-brace";
-    readonly path: string;
-    readonly from: Token | Group;
-    readonly token: Token | undefined;
-    readonly property: JsonPath | undefined;
-    readonly #span: Span;
-
-    constructor(path: string, written: ReferenceFacts, from: Token | Group, token?: Token) {
-        this.path = path;
-        this.from = from;
-        this.token = token;
-        this.property = written.property;
-        this.#span = written.span;
-    }
-
-    static spanOf(reference: CurlyBraceReferenceIn): Span {
-        return reference.#span;
-    }
-
-    moved(moves: readonly Move[]): JsonValue {
-        return writtenAfter(this, moves, false);
-    }
-
-    across(permutations: Permutations, span: Span): ReferenceAcrossPermutations {
-        return new ReferenceAcrossPermutations(this, permutations, span, false);
-    }
-
-    toJSON() {
-        const { syntax, path, property } = this;
-        return { syntax, path, property };
-    }
-}
-Object.defineProperty(CurlyBraceReferenceIn.prototype, "syntax", { value: "curly-brace" });
-
-class JsonPointerReferenceIn {
-    declare readonly syntax: "json-pointer";
-    readonly pointer: string;
+class ReferenceObject {
+    declare readonly pointer?: string;
+    declare readonly targetProperty?: JsonPath | undefined;
     readonly path: string | undefined;
     readonly from: Token | Group;
     readonly token: Token | undefined;
-    readonly targetProperty: JsonPath | undefined;
     readonly property: JsonPath | undefined;
-    readonly #pointerAlone: boolean;
+    readonly #written: WrittenReference;
     readonly #span: Span;
+    readonly #pointerAlone: boolean;
 
     constructor(
-        pointer: string,
-        written: ReferenceFacts,
+        facts: ReferenceFacts,
         from: Token | Group,
         token: Token | undefined,
         pointerAlone: boolean,
     ) {
-        this.pointer = pointer;
-        this.path = written.path;
+        const { reference } = facts;
+        this.path = facts.path;
         this.from = from;
         this.token = token;
-        this.targetProperty = written.targetProperty;
-        this.property = written.property;
+        this.property = facts.property;
+        if (reference.syntax === "json-pointer") {
+            Object.assign(this, {
+                pointer: reference.pointer,
+                targetProperty: facts.targetProperty,
+            });
+        }
+        this.#written = reference;
+        this.#span = facts.span;
         this.#pointerAlone = pointerAlone;
-        this.#span = written.span;
     }
 
-    static spanOf(reference: JsonPointerReferenceIn): Span {
+    get syntax(): WrittenReference["syntax"] {
+        return this.#written.syntax;
+    }
+
+    static spanOf(reference: ReferenceObject): Span {
         return reference.#span;
     }
 
     moved(moves: readonly Move[]): JsonValue {
-        return writtenAfter(this, moves, this.#pointerAlone);
+        return writtenAfter(this.#written, moves, this.#pointerAlone);
     }
 
     across(permutations: Permutations, span: Span): ReferenceAcrossPermutations {
-        return new ReferenceAcrossPermutations(this, permutations, span, this.#pointerAlone);
+        return new ReferenceAcrossPermutations(
+            this,
+            this.#written,
+            permutations,
+            span,
+            this.#pointerAlone,
+        );
     }
 
     toJSON() {
-        const { syntax, pointer, property } = this;
-        return { syntax, pointer, property };
+        const { syntax, path, property } = this;
+        const written = this.#written;
+        return written.syntax === "curly-brace"
+            ? { syntax, path, property }
+            : { syntax, pointer: written.pointer, property };
     }
 }
-Object.defineProperty(JsonPointerReferenceIn.prototype, "syntax", { value: "json-pointer" });
-
-type ReferenceIn = CurlyBraceReferenceIn | JsonPointerReferenceIn;
 
 class ReferenceAcrossPermutations {
     readonly syntax: WrittenReference["syntax"];
@@ -113,23 +93,30 @@ class ReferenceAcrossPermutations {
     readonly span: Span;
     readonly property: JsonPath | undefined;
     readonly permutations: Permutations;
+    readonly #written: WrittenReference;
     readonly #pointerAlone: boolean;
 
-    constructor(reference: ReferenceIn, permutations: Permutations, span: Span, alone: boolean) {
-        this.syntax = reference.syntax;
+    constructor(
+        reference: ReferenceObject,
+        written: WrittenReference,
+        permutations: Permutations,
+        span: Span,
+        alone: boolean,
+    ) {
+        this.syntax = written.syntax;
         this.path = reference.path;
-        this.pointer = reference.syntax === "json-pointer" ? reference.pointer : undefined;
+        this.pointer = written.syntax === "json-pointer" ? written.pointer : undefined;
         this.from = reference.from.path;
-        this.targetProperty =
-            reference.syntax === "json-pointer" ? reference.targetProperty : undefined;
+        this.targetProperty = reference.targetProperty;
         this.span = span;
         this.property = reference.property;
         this.permutations = permutations;
+        this.#written = written;
         this.#pointerAlone = alone;
     }
 
     moved(moves: readonly Move[]): JsonValue {
-        return writtenAfter(this, moves, this.#pointerAlone);
+        return writtenAfter(this.#written, moves, this.#pointerAlone);
     }
 }
 
@@ -139,18 +126,11 @@ export function linkedReference(
     token: Token | undefined,
     { pointerAlone = false } = {},
 ): Reference {
-    const { reference } = written;
-    const made =
-        reference.syntax === "curly-brace"
-            ? new CurlyBraceReferenceIn(reference.path, written, from, token)
-            : new JsonPointerReferenceIn(reference.pointer, written, from, token, pointerAlone);
-    return made as unknown as Reference;
+    return new ReferenceObject(written, from, token, pointerAlone) as unknown as Reference;
 }
 
 export function spanOfReference(reference: Reference): Span {
-    return reference.syntax === "curly-brace"
-        ? CurlyBraceReferenceIn.spanOf(reference as unknown as CurlyBraceReferenceIn)
-        : JsonPointerReferenceIn.spanOf(reference as unknown as JsonPointerReferenceIn);
+    return ReferenceObject.spanOf(reference as unknown as ReferenceObject);
 }
 
 export function acrossPermutations(
@@ -158,16 +138,15 @@ export function acrossPermutations(
     permutations: Permutations,
     span: Span,
 ): ReferenceInPermutations {
-    const across = (reference as unknown as ReferenceIn).across(permutations, span);
+    const across = (reference as unknown as ReferenceObject).across(permutations, span);
     return across as unknown as ReferenceInPermutations;
 }
 
 function writtenAfter(
-    reference: { syntax: WrittenReference["syntax"]; path?: string; pointer?: string },
+    written: WrittenReference,
     moves: readonly Move[],
     pointerAlone: boolean,
 ): JsonValue {
-    const written = reference as WrittenReference;
     const now = movedReference(written, moves);
     if (now.syntax === "curly-brace") return `{${now.path}}`;
     return pointerAlone ? now.pointer : { $ref: now.pointer };

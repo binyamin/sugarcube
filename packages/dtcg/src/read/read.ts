@@ -194,7 +194,6 @@ function toDesignTokens(
         },
         {
             texts: loaded.texts,
-            modifiers: loaded.modifiers,
             readFiles: readingAgain(loaded.entry, options),
         },
     );
