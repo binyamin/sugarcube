@@ -11,13 +11,11 @@ import type {
     WrittenReference,
 } from "../index.js";
 import { movedReference } from "../values/references.js";
+import type { Occurrence } from "./occurrence.js";
+import type { Target } from "./same-object.js";
 
-export interface ReferenceFacts {
-    reference: WrittenReference;
-    path: string | undefined;
-    span: Span;
-    property: JsonPath | undefined;
-    targetProperty: JsonPath | undefined;
+export interface ReferenceTo extends Target {
+    occurrence: Occurrence;
 }
 
 class ReferenceObject {
@@ -31,25 +29,18 @@ class ReferenceObject {
     readonly #span: Span;
     readonly #pointerAlone: boolean;
 
-    constructor(
-        facts: ReferenceFacts,
-        from: Token | Group,
-        token: Token | undefined,
-        pointerAlone: boolean,
-    ) {
-        const { reference } = facts;
-        this.path = facts.path;
+    constructor(from: Token | Group, to: ReferenceTo, pointerAlone: boolean) {
+        const { occurrence, path, token, targetProperty } = to;
+        const { reference, span, property } = occurrence;
+        this.path = path;
         this.from = from;
         this.token = token;
-        this.property = facts.property;
+        this.property = property.length > 0 ? property : undefined;
         if (reference.syntax === "json-pointer") {
-            Object.assign(this, {
-                pointer: reference.pointer,
-                targetProperty: facts.targetProperty,
-            });
+            Object.assign(this, { pointer: reference.pointer, targetProperty });
         }
         this.#written = reference;
-        this.#span = facts.span;
+        this.#span = span;
         this.#pointerAlone = pointerAlone;
     }
 
@@ -121,12 +112,11 @@ class ReferenceAcrossPermutations {
 }
 
 export function linkedReference(
-    written: ReferenceFacts,
     from: Token | Group,
-    token: Token | undefined,
+    to: ReferenceTo,
     { pointerAlone = false } = {},
 ): Reference {
-    return new ReferenceObject(written, from, token, pointerAlone) as unknown as Reference;
+    return new ReferenceObject(from, to, pointerAlone) as unknown as Reference;
 }
 
 export function spanOfReference(reference: Reference): Span {

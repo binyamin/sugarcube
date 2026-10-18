@@ -7,7 +7,7 @@ import { fillGenerated } from "./generate.js";
 import { validateExtensions } from "./validate-extensions.js";
 import type { Merged } from "./merge.js";
 import { createValueReader } from "./parse-value.js";
-import { resolvePermutations } from "./resolve.js";
+import { buildPermutations } from "./build.js";
 import type { PermutationOptions } from "./permutations.js";
 import { fileName, filePath, folderOf, normalise } from "./paths.js";
 import { parseJson } from "./json.js";
@@ -170,7 +170,7 @@ function toDesignTokens(
     onStage?.("generate", generating);
     onStage?.("normalise", resolving - normalising - generating);
     const places = placesIn(loaded.texts, previous);
-    const resolved = resolvePermutations(normalised, readValue, found, places, previous);
+    const resolved = buildPermutations(normalised, readValue, found, places, previous);
     const permutations = permutationsOf(resolved, resolved);
     onStage?.("resolve", performance.now() - resolving);
     validateExtensions(

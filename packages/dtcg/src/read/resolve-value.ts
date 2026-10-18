@@ -24,7 +24,7 @@ export interface Resolving {
     readValue: ValueReader;
     merged: Merged;
     input: Input;
-    outcomeOf(path: string, from: string, span: Span): Target | undefined;
+    valueAt(path: string, from: string, span: Span): Target | undefined;
     report<K extends DiagnosticKind>(
         kind: K,
         detail: DiagnosticDetailByKind[K],
@@ -140,7 +140,7 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
 }
 
 function substitute(
-    { outcomeOf, report, notReached }: Resolving,
+    { valueAt, report, notReached }: Resolving,
     token: MergedToken,
     reference: WrittenReference,
     path: string,
@@ -150,7 +150,7 @@ function substitute(
 ): unknown {
     const { span } = use;
     const shown = referenceText(reference);
-    const target = outcomeOf(path, token.path, span);
+    const target = valueAt(path, token.path, span);
     if (target === undefined) {
         notReached({ reference, steps: stepsOf(reference) }, token.path, span);
         return UNRESOLVED;
