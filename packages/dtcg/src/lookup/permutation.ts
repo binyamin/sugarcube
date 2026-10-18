@@ -8,7 +8,7 @@ import type {
     ResolverModifier,
 } from "../index.js";
 import { checkedInput, findByName } from "../read/input.js";
-import { keptBy } from "../read/kept.js";
+import { modifiersInOrder } from "../read/linked.js";
 
 /**
  * Thrown by {@link DesignTokens.permutation} when there is no permutation for the input. The
@@ -64,7 +64,7 @@ function sameInput(built: Input, complete: Input): boolean {
  * completeInput(tokens, { theme: "sepia" })  // { ok: false, reason: "unknown-context", modifier: "theme", context: "sepia", valid: ["light", "dark"] }
  */
 export function completeInput(tokens: DesignTokens, input: Input): CompleteInput {
-    const checked = checkedInput(keptBy(tokens).modifiers, input);
+    const checked = checkedInput(modifiersInOrder(tokens), input);
     return checked.ok ? checked : { ok: false, ...checked.problems[0] };
 }
 

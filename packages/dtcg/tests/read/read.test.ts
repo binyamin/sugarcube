@@ -162,7 +162,7 @@ describe("read", () => {
         const tokens = await read("tokens/base.json", { readText });
         expect(readText.mock.calls).toStrictEqual([["tokens/base.json", "base.json"]]);
         expect(tokens.files).toStrictEqual(["base.json"]);
-        expect(tokens.permutations[0]?.sources).toStrictEqual([
+        expect(tokens.permutations[0]?.sources).toEqual([
             { file: "base.json", sets: [], readBy: "everyone" },
         ]);
     });

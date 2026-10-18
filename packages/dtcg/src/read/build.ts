@@ -22,7 +22,6 @@ import {
     linkedPermutation,
     linkedToken,
     tokensIn,
-    withIndex,
 } from "./linked.js";
 import type { Merged, MergedGroup, MergedToken, MergedTopLevel, WrittenAt } from "./merge.js";
 import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
@@ -71,19 +70,23 @@ export function buildPermutation(
         if (rest.length === 0) return places.only(sourceAt(first.index), first.span);
         return written.map(({ index, span }) => places.at(sourceAt(index), span));
     };
-    const linked: Building<Permutation> = linkedPermutation({
-        input,
-        label,
-        sources,
-        contexts,
-        root: publicTopLevel(merged.root, placed(merged.root.declaredIn)),
-        children: [],
-        tokens: [],
-        groups: [],
-    });
-
     const builtTokens = new Map<string, Token>();
     const builtGroups = new Map<string, Group>();
+    const linked: Building<Permutation> = linkedPermutation(
+        {
+            input,
+            label,
+            sources,
+            contexts,
+            root: publicTopLevel(merged.root, placed(merged.root.declaredIn)),
+            children: [],
+            tokens: [],
+            groups: [],
+        },
+        builtTokens,
+        builtGroups,
+    );
+
     const building = new Set<string>();
     const finish: (() => void)[] = [];
     const builtToken = (path: string) => builtTokens.get(path);
@@ -220,7 +223,6 @@ export function buildPermutation(
     for (const each of finish) each();
     linked.tokens = tokensIn(linked.children);
     linked.groups = [...merged.groups.keys()].flatMap((path) => builtGroups.get(path) ?? []);
-    withIndex(linked, builtTokens, builtGroups);
     return linked;
 }
 
