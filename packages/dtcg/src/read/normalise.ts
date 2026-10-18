@@ -30,11 +30,11 @@ export function normalisePermutations(
     permutations: LoadedPermutation[],
     readValue: ValueReader,
     diagnostics: Problems,
-    generate: (merged: Merged, permutation: Input) => void,
+    generate: (merged: Merged, input: Input) => void,
     previous: readonly Source[] | undefined,
 ): { permutations: NormalisedPermutation[]; sources: Source[] } {
     const walked = new Map<string, { contents?: SourceContents; problems: Diagnostic[] }>();
-    const walk = (loaded: LoadedSource, permutation?: Input) => {
+    const walk = (loaded: LoadedSource, input?: Input) => {
         const key = JSON.stringify([loaded.file, loaded.pointer, loaded.overriddenKeys]);
         let found = walked.get(key);
         if (!found) {
@@ -43,7 +43,7 @@ export function normalisePermutations(
             found = { contents, problems: diagnostics.foundAll(problems) };
             walked.set(key, found);
         }
-        if (permutation) for (const each of found.problems) foundInPermutation(each, permutation);
+        if (input) for (const each of found.problems) foundInPermutation(each, input);
         return found.contents;
     };
     const published = new Map<ListedSource, Source>();
@@ -77,9 +77,7 @@ export function normalisePermutations(
             if (type === "unusable") continue;
             if (type === undefined) {
                 const { span, path } = token;
-                diagnostics.found(
-                    diagnostic("missing-type", {}, { span, path, permutation: input }),
-                );
+                diagnostics.found(diagnostic("missing-type", {}, { span, path, input }));
                 continue;
             }
             tokens.set(token.path, { token, type, read: readValue.read(token, type, input) });

@@ -152,10 +152,10 @@ function toDesignTokens(
     };
     const readValue = createValueReader(found, parseOptions);
     let generating = 0;
-    const generate = (merged: Merged, permutation: Input) => {
+    const generate = (merged: Merged, input: Input) => {
         if (generators.length === 0) return;
         const started = performance.now();
-        fillGenerated(merged, generators, { permutation, parseOptions }, found);
+        fillGenerated(merged, generators, { input, parseOptions }, found);
         generating += performance.now() - started;
     };
     const normalising = performance.now();

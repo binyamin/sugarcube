@@ -1249,7 +1249,7 @@ export interface DiagnosticDetailByKind {
               /**
                * The type of the value it is in, which for a part of a composite is the part's type.
                */
-              readonly owner: TokenType;
+              readonly type: TokenType;
               /** Where in the token or group, such as `["$value", "paragraphSpacing"]`. */
               readonly jsonPath: JsonPath;
           };
@@ -2168,7 +2168,7 @@ export { sameJson, sameValue } from "./values/same-value.js";
 export type AtOffset =
     | { kind: "token"; path: string; expects?: TokenType }
     | { kind: "group"; path: string }
-    | { kind: "reference"; from: string; to: string; permutation: Input; expects?: TokenType }
+    | { kind: "reference"; from: string; to: string; input: Input; expects?: TokenType }
     | { kind: "nothing" };
 
 /**

@@ -185,6 +185,7 @@ const expectedFailures: Expected[] = [
         matches: (d) =>
             d.kind === "unknown-property" &&
             d.detail.property === "$extensions" &&
+            "owner" in d.detail &&
             d.detail.owner === "resolver",
     },
     {

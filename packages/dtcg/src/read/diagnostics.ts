@@ -16,13 +16,13 @@ type Finding = Building<Diagnostic> & { [FOUND_IN]?: Input[] };
 export type DiagnosticExtra = Partial<
     Pick<Diagnostic, "message" | "span" | "path" | "related" | "tags">
 > & {
-    permutation?: Input;
+    input?: Input;
 };
 
 export function diagnostic<K extends DiagnosticKind>(
     kind: K,
     detail: DiagnosticDetailByKind[K],
-    { permutation, ...extra }: DiagnosticExtra = {},
+    { input, ...extra }: DiagnosticExtra = {},
 ): Diagnostic {
     const { severity, message } = diagnosticMessages[kind];
     const made = {
@@ -33,7 +33,7 @@ export function diagnostic<K extends DiagnosticKind>(
         docs: docsFor(kind, detail),
         detail,
     } as Finding;
-    if (permutation !== undefined) made[FOUND_IN] = [permutation];
+    if (input !== undefined) made[FOUND_IN] = [input];
     return made;
 }
 
@@ -105,9 +105,9 @@ function permutationsWith(
     return permutations.where(({ sources }) => sources.some((each) => each.file === file));
 }
 
-export function foundInPermutation(found: Diagnostic, permutation: Input): void {
+export function foundInPermutation(found: Diagnostic, input: Input): void {
     const finding = found as Finding;
     const inputs = finding[FOUND_IN];
-    if (!inputs) finding[FOUND_IN] = [permutation];
-    else if (!inputs.includes(permutation)) inputs.push(permutation);
+    if (!inputs) finding[FOUND_IN] = [input];
+    else if (!inputs.includes(input)) inputs.push(input);
 }

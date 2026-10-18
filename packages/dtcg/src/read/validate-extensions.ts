@@ -74,7 +74,7 @@ export function validateExtensions(
 ): void {
     if (validators.length === 0) return;
 
-    normalised.forEach(({ merged, input: permutation }, index) => {
+    normalised.forEach(({ merged, input }, index) => {
         const reported = new Reported();
         const check = (
             validator: ExtensionValidator,
@@ -94,7 +94,7 @@ export function validateExtensions(
                 json,
                 node,
                 ...(on.path !== undefined && { path: on.path }),
-                permutation,
+                input,
             };
             for (const each of problems) diagnostics.found(extensionDiagnostic(each, extension));
         };

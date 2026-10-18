@@ -7,7 +7,7 @@
       "kind": "unknown-property",
       "detail": {
         "property": "style",
-        "owner": "dimension",
+        "type": "dimension",
         "jsonPath": ["$extensions", "com.example", "outline", "style"]
       },
       "span": { "file": "tokens.json", "text": "\"style\"" },

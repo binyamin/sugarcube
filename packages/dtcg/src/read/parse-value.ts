@@ -38,7 +38,7 @@ export interface ValueRead<V = unknown> {
 type Read = <T extends TokenType>(
     token: MergedToken,
     type: T,
-    permutation: Input,
+    input: Input,
 ) => ValueRead<UnresolvedValueByType[T]>;
 
 export interface ValueReader {
@@ -47,7 +47,7 @@ export interface ValueReader {
         token: MergedToken,
         slot: Slot,
         raw: unknown,
-        permutation: Input,
+        input: Input,
     ) => { result: ParseResult<unknown>; notes: Notes };
 }
 
@@ -56,14 +56,12 @@ type Cache = { [T in TokenType]?: Map<Node, ValueRead<UnresolvedValueByType[T]>>
 export function createValueReader(diagnostics: Problems, options: ParseOptions): ValueReader {
     const caches: Cache = {};
 
-    const read: Read = (token, type, permutation) => {
+    const read: Read = (token, type, input) => {
         const notes: Notes = { references: [], readAgain: [] };
         const result = readToken(type, token.authored, ["$value"], options, notes);
         const found = [
-            ...result.ignored.map((each) => ignoredToDiagnostic(token, each, permutation)),
-            ...(result.ok
-                ? []
-                : result.errors.map((error) => toDiagnostic(token, error, permutation))),
+            ...result.ignored.map((each) => ignoredToDiagnostic(token, each, input)),
+            ...(result.ok ? [] : result.errors.map((error) => toDiagnostic(token, error, input))),
         ];
         const kept = diagnostics.foundAll(found);
         const references = notes.references.map((reference) => ({
@@ -74,25 +72,25 @@ export function createValueReader(diagnostics: Problems, options: ParseOptions):
     };
 
     return {
-        read: (token, type, permutation) => {
-            if (token.added) return read(token, type, permutation);
+        read: (token, type, input) => {
+            if (token.added) return read(token, type, input);
             const cache: NonNullable<Cache[typeof type]> = caches[type] ?? new Map();
             caches[type] = cache;
             const cached = cache.get(token.value);
             if (cached) {
-                for (const each of cached.diagnostics) foundInPermutation(each, permutation);
+                for (const each of cached.diagnostics) foundInPermutation(each, input);
                 return cached;
             }
-            const fresh = read(token, type, permutation);
+            const fresh = read(token, type, input);
             cache.set(token.value, fresh);
             return fresh;
         },
-        readTarget: (token, slot, raw, permutation) => {
+        readTarget: (token, slot, raw, input) => {
             const notes: Notes = { references: [], readAgain: [] };
             const result = readSlot(slot, raw, options, notes);
             if (!result.ok) {
                 for (const error of result.errors) {
-                    diagnostics.found(toDiagnostic(token, error, permutation));
+                    diagnostics.found(toDiagnostic(token, error, input));
                 }
             }
             return { result, notes };
@@ -103,17 +101,17 @@ export function createValueReader(diagnostics: Problems, options: ParseOptions):
 function ignoredToDiagnostic(
     token: MergedToken,
     ignored: IgnoredProperty,
-    permutation: Input,
+    input: Input,
 ): Diagnostic {
     const { json, value, path } = token;
     const within = { node: value, steps: ignored.jsonPath.slice(1), json };
-    return ignoredDiagnostic(ignored, ignored.jsonPath, within, { path, permutation });
+    return ignoredDiagnostic(ignored, ignored.jsonPath, within, { path, input });
 }
 
-function toDiagnostic(token: MergedToken, error: ValueError, permutation: Input): Diagnostic {
+function toDiagnostic(token: MergedToken, error: ValueError, input: Input): Diagnostic {
     const { json, value, path } = token;
     const node = deepestNode(value, error.jsonPath.slice(1));
     const span = spanOf(json, node);
-    const extra: DiagnosticExtra = { span, path, permutation };
+    const extra: DiagnosticExtra = { span, path, input };
     return valueDiagnostic(error.detail, error.jsonPath, node, extra);
 }

@@ -9,7 +9,7 @@ import { reachOf, refObjectMeaning } from "./ref-meaning.js";
 
 type Extending = MergedGroup & { extends: NonNullable<MergedGroup["extends"]> };
 
-export function applyExtends(merged: Merged, permutation: Input, diagnostics: Problems): void {
+export function applyExtends(merged: Merged, input: Input, diagnostics: Problems): void {
     const state = new Map<string, "extending" | "done" | "in-a-loop">();
     const report = <K extends DiagnosticKind>(
         kind: K,
@@ -21,7 +21,7 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Pr
             diagnostic(kind, detail, {
                 span: group.extends.span,
                 path: group.path,
-                permutation,
+                input,
                 ...extra,
             }),
         );
@@ -73,7 +73,7 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Pr
             group.extendsGroup = reached.path;
             inherit(merged, group, reached.path);
         } else if (keyword === "$ref" && refObjectMeaning(reached) === "token") {
-            becomeToken(merged, group, permutation, diagnostics);
+            becomeToken(merged, group, input, diagnostics);
         } else {
             report("not-a-group", { ref: written }, group);
         }
@@ -139,12 +139,7 @@ function inherit(merged: Merged, group: MergedGroup, from: string): void {
     }
 }
 
-function becomeToken(
-    merged: Merged,
-    group: Extending,
-    permutation: Input,
-    diagnostics: Problems,
-): void {
+function becomeToken(merged: Merged, group: Extending, input: Input, diagnostics: Problems): void {
     const { path, extends: extending, type, description, deprecated, extensions } = group;
     const inside = (each: string) => pathBelow(each, path) !== undefined;
     if ([...merged.tokens.keys(), ...merged.groups.keys()].some(inside)) {
@@ -152,7 +147,7 @@ function becomeToken(
             diagnostic(
                 "token-and-group",
                 { reason: "ref", ref: referenceText(extending.reference) },
-                { span: extending.span, path, permutation },
+                { span: extending.span, path, input },
             ),
         );
     }

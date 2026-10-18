@@ -85,7 +85,7 @@ export function defineGenerator<
 export function fillGenerated(
     merged: Merged,
     generators: readonly Generator[],
-    { permutation, parseOptions }: { permutation: Input; parseOptions: ParseOptions },
+    { input, parseOptions }: { input: Input; parseOptions: ParseOptions },
     diagnostics: Problems,
 ): void {
     const added = new Map<string, MergedToken>();
@@ -103,7 +103,7 @@ export function fillGenerated(
                 json: extension.json,
                 node: extension.node,
                 ...(groupPath !== undefined && { path: groupPath }),
-                permutation,
+                input,
             };
             const report = (problems: ExtensionProblem[], seen = reported) => {
                 if (!seen.first(generator, extension.node)) return;
@@ -137,7 +137,7 @@ export function fillGenerated(
                         diagnostic("invalid-name", detail, {
                             span: spanOf(extension.json, extension.node),
                             ...(groupPath !== undefined && { path: groupPath }),
-                            permutation,
+                            input,
                         }),
                     );
                     continue;

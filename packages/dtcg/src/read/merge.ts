@@ -52,7 +52,7 @@ export interface Merged {
 
 export function merge(
     pieces: { contents: SourceContents | undefined; source: number }[],
-    permutation: Input,
+    input: Input,
     diagnostics: Problems,
 ): Merged {
     const merged: Merged = {
@@ -72,7 +72,7 @@ export function merge(
                 {
                     span: later,
                     path,
-                    permutation,
+                    input,
                     related: earlier.map((span) => ({
                         message: relatedMessages.declaredAs(earlierIs),
                         span,

@@ -23,7 +23,7 @@ export type Target = "untyped" | { type: TokenType; resolved?: unknown };
 export interface Resolving {
     readValue: ValueReader;
     merged: Merged;
-    permutation: Input;
+    input: Input;
     outcomeOf(path: string, from: string, span: Span): Target | undefined;
     report<K extends DiagnosticKind>(
         kind: K,
@@ -74,13 +74,13 @@ function resolveIn(
     }
     if (failed) return UNRESOLVED;
 
-    const { readValue, permutation } = resolving;
+    const { readValue, input } = resolving;
     const { token, within } = following;
     for (const again of readAgain) {
         const { jsonPath, owner, raw } = again;
         const syntax = again.from(siblingsOf(again, followed));
         const slot = { syntax, jsonPath, owner, element: false };
-        const { result, notes } = readValue.readTarget(token, slot, raw, permutation);
+        const { result, notes } = readValue.readTarget(token, slot, raw, input);
         if (!result.ok) return UNRESOLVED;
         const inner = notes.references.map((reference) => ({
             reference,
@@ -94,7 +94,7 @@ function resolveIn(
 }
 
 function follow(resolving: Resolving, following: Following, located: LocatedReference): unknown {
-    const { merged, readValue, permutation, report, notReached, reportUnreachable } = resolving;
+    const { merged, readValue, input, report, notReached, reportUnreachable } = resolving;
     const { token, seen, within } = following;
     const { ref, syntax, owner, element, jsonPath } = located.reference;
     const use = within ?? located.occurrence;
@@ -132,7 +132,7 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
     const raw = stepped.value;
 
     const slot = { syntax, jsonPath, owner, element };
-    const { result, notes } = readValue.readTarget(token, slot, raw, permutation);
+    const { result, notes } = readValue.readTarget(token, slot, raw, input);
     if (!result.ok) return UNRESOLVED;
     const inner = notes.references.map((reference) => ({ reference, occurrence: use }));
     const deeper = { token, seen: [...seen, written], within: use };

@@ -130,7 +130,7 @@
       "kind": "unknown-property",
       "detail": {
         "property": "paragraphSpacing",
-        "owner": "typography",
+        "type": "typography",
         "jsonPath": ["$value", "paragraphSpacing"]
       },
       "span": {
@@ -143,7 +143,7 @@
       "kind": "unknown-property",
       "detail": {
         "property": "textDecoration",
-        "owner": "typography",
+        "type": "typography",
         "jsonPath": ["$value", "textDecoration"]
       },
       "span": {
@@ -156,7 +156,7 @@
       "kind": "unknown-property",
       "detail": {
         "property": "radius",
-        "owner": "border",
+        "type": "border",
         "jsonPath": ["$value", "radius"]
       },
       "span": {
@@ -169,7 +169,7 @@
       "kind": "unknown-property",
       "detail": {
         "property": "extra",
-        "owner": "dimension",
+        "type": "dimension",
         "jsonPath": ["$value", "extra"]
       },
       "span": {

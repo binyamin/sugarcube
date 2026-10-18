@@ -82,7 +82,7 @@ export function resolvePermutations(
         const found = diagnostic("missing-reference", detail, {
             span: first.span,
             path: first.from,
-            permutation: input,
+            input,
             ...(related.length > 0 && { related }),
         });
         for (const each of others) foundInPermutation(found, each);
@@ -116,7 +116,7 @@ function resolvePermutation(
         extra: Omit<DiagnosticExtra, "span" | "path" | "permutation"> = {},
     ) =>
         diagnostics.found(
-            diagnostic(kind, detail, { span, path, permutation: permutation.input, ...extra }),
+            diagnostic(kind, detail, { span, path, input: permutation.input, ...extra }),
         );
 
     const recordMissing = (reference: WrittenReference, from: string, span: Span) => {
@@ -246,7 +246,7 @@ function resolvePermutation(
     const resolving: Resolving = {
         readValue,
         merged,
-        permutation: permutation.input,
+        input: permutation.input,
         outcomeOf,
         report,
         notReached,

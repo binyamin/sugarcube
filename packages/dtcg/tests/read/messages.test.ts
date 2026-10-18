@@ -351,10 +351,10 @@ const examples: { [K in DiagnosticKind]: DiagnosticDetailByKind[K][] } = {
         { property: "$whatever", owner: "group" },
         {
             property: "paragraphSpacing",
-            owner: "typography",
+            type: "typography",
             jsonPath: ["$value", "paragraphSpacing"],
         },
-        { property: "fluid", owner: "dimension", jsonPath: ["$value", "width", "fluid"] },
+        { property: "fluid", type: "dimension", jsonPath: ["$value", "width", "fluid"] },
     ],
     "misspelt-property": [
         { written: "value", property: "$value", owner: "token" },
