@@ -38,75 +38,105 @@ export const NO_PLACES: Place[] = Object.freeze([]) as unknown as Place[];
 
 const designTokensOf = new WeakMap<Permutation, DesignTokens>();
 
-const aliasChainOf = new WeakMap<Token, readonly Token[]>();
-const partsOfToken = new WeakMap<Token, Part | undefined>();
-const childTokensOf = new WeakMap<Group, readonly Token[]>();
-const tokensOf = new WeakMap<Group, readonly Token[]>();
+const NOT_YET = Symbol("not yet worked out");
 
-function cached<K extends object, T>(cache: WeakMap<K, T>, key: K, make: () => T): T {
-    if (cache.has(key)) return cache.get(key) as T;
-    const made = make();
-    cache.set(key, made);
-    return made;
-}
+type TokenFields = Omit<Token, "kind" | "referenceAt" | "aliasChain" | "valueFrom" | "parts">;
 
-const tokenShared = {
-    kind: "token",
-    referenceAt(this: Token, property: JsonPath = []): Reference | undefined {
-        return this.references.find((each) => samePlace(each.property, property));
-    },
+type GroupFields = Omit<Group, "kind" | "childTokens" | "tokens">;
+
+class TokenObject {
+    #aliasChain: readonly Token[] | undefined;
+    #parts: Part | undefined | typeof NOT_YET = NOT_YET;
+
+    constructor(fields: TokenFields) {
+        const self = this as unknown as Record<string, unknown>;
+        self.path = fields.path;
+        self.type = fields.type;
+        self.references = fields.references;
+        self.writtenAt = fields.writtenAt;
+        if (fields.value !== undefined) self.value = fields.value;
+        if (fields.resolved !== undefined) self.resolved = fields.resolved;
+        if (fields.invalid) self.invalid = fields.invalid;
+        if (fields.description !== undefined) self.description = fields.description;
+        if (fields.deprecated !== undefined) self.deprecated = fields.deprecated;
+        if (fields.extensions) self.extensions = fields.extensions;
+        if (fields.authored) self.authored = fields.authored;
+        if (fields.generated) self.generated = fields.generated;
+        if (fields.inherited) self.inherited = fields.inherited;
+    }
+
+    referenceAt(property: JsonPath = []): Reference | undefined {
+        return (this as unknown as Token).references.find((each) =>
+            samePlace(each.property, property),
+        );
+    }
+
     get aliasChain(): readonly Token[] {
-        const token = this as unknown as Token;
-        return cached(aliasChainOf, token, () => {
-            const chain: Token[] = [];
-            for (let current: Token | undefined = token; current && !chain.includes(current);) {
-                chain.push(current);
-                current = current.referenceAt()?.token;
-            }
-            return chain;
-        });
-    },
+        this.#aliasChain ??= aliasChainOf(this as unknown as Token);
+        return this.#aliasChain;
+    }
+
     get valueFrom(): Place {
         const { writtenAt } = this as unknown as Token;
         return writtenAt[writtenAt.length - 1] as Place;
-    },
-    get parts(): Part | undefined {
-        const token = this as unknown as Token;
-        return cached(partsOfToken, token, () => partsOf(token));
-    },
-};
+    }
 
-const groupShared = {
-    kind: "group",
+    get parts(): Part | undefined {
+        if (this.#parts === NOT_YET) this.#parts = partsOf(this as unknown as Token);
+        return this.#parts;
+    }
+}
+Object.defineProperty(TokenObject.prototype, "kind", { value: "token" });
+
+class GroupObject {
+    #childTokens: readonly Token[] | undefined;
+    #tokens: readonly Token[] | undefined;
+
+    constructor(fields: GroupFields) {
+        Object.assign(this, fields);
+    }
+
     get childTokens(): readonly Token[] {
-        const group = this as unknown as Group;
-        return cached(childTokensOf, group, () =>
-            group.children.filter((child): child is Token => child.kind === "token"),
+        this.#childTokens ??= (this as unknown as Group).children.filter(
+            (child): child is Token => child.kind === "token",
         );
-    },
+        return this.#childTokens;
+    }
+
     get tokens(): readonly Token[] {
+        this.#tokens ??= tokensIn((this as unknown as Group).children);
+        return this.#tokens;
+    }
+
+    toJSON() {
         const group = this as unknown as Group;
-        return cached(tokensOf, group, () => {
-            const found: Token[] = [];
-            const visit = (items: readonly (Token | Group)[]) => {
-                for (const each of items) {
-                    if (each.kind === "token") found.push(each);
-                    else visit(each.children);
-                }
-            };
-            visit(group.children);
-            return found;
-        });
-    },
-    toJSON(this: Group) {
         return {
-            ...this,
+            ...group,
             extends: undefined,
             rootToken: undefined,
-            children: paths(this.children),
+            children: paths(group.children),
         };
-    },
-};
+    }
+}
+Object.defineProperty(GroupObject.prototype, "kind", { value: "group" });
+
+function aliasChainOf(token: Token): Token[] {
+    const chain: Token[] = [];
+    for (let current: Token | undefined = token; current;) {
+        if (chain.includes(current)) break;
+        chain.push(current);
+        current = current.referenceAt()?.token;
+    }
+    return chain;
+}
+
+export function tokensIn(children: readonly (Token | Group)[], found: Token[] = []): Token[] {
+    for (const child of children) {
+        if (child.kind === "token") found.push(child);
+        else tokensIn(child.children, found);
+    }
+    return found;
+}
 
 interface Index {
     tokens: Map<string, Token>;
@@ -215,31 +245,12 @@ const designTokensShared = {
     },
 };
 
-type TokenFields = Omit<Token, keyof typeof tokenShared>;
-
-function TokenObject(this: Record<string, unknown>, fields: TokenFields): void {
-    this.path = fields.path;
-    this.type = fields.type;
-    this.references = fields.references;
-    this.writtenAt = fields.writtenAt;
-    if (fields.value !== undefined) this.value = fields.value;
-    if (fields.resolved !== undefined) this.resolved = fields.resolved;
-    if (fields.invalid) this.invalid = fields.invalid;
-    if (fields.description !== undefined) this.description = fields.description;
-    if (fields.deprecated !== undefined) this.deprecated = fields.deprecated;
-    if (fields.extensions) this.extensions = fields.extensions;
-    if (fields.authored) this.authored = fields.authored;
-    if (fields.generated) this.generated = fields.generated;
-    if (fields.inherited) this.inherited = fields.inherited;
-}
-TokenObject.prototype = tokenShared;
-
 export function linkedToken(fields: TokenFields): Token {
-    return new (TokenObject as unknown as new (fields: TokenFields) => Token)(fields);
+    return new TokenObject(fields) as unknown as Token;
 }
 
-export function linkedGroup(fields: Omit<Group, keyof typeof groupShared>): Group {
-    return Object.assign(Object.create(groupShared), fields);
+export function linkedGroup(fields: GroupFields): Group {
+    return new GroupObject(fields) as unknown as Group;
 }
 
 export function linkedPermutation(

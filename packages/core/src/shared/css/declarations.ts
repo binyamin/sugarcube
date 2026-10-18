@@ -47,14 +47,27 @@ export function declarationOptions(
     };
 }
 
-export function declarations(
-    permutation: Permutation,
-    { variable, privateSource, fluid, polyfill, parseOptions }: DeclarationOptions,
-): Declared {
-    const privateFrom = new Map(
-        permutation.sources.map((source) => [source, privateSource(source)]),
-    );
-    const isPrivate = (each: Token) => privateFrom.get(each.valueFrom.source) ?? false;
+export interface Renderer {
+    native(token: Token): Written | undefined;
+    fallback(token: Token): Written | undefined;
+    isPrivate(token: Token): boolean;
+}
+
+export function renderer({
+    variable,
+    privateSource,
+    fluid,
+    parseOptions,
+}: DeclarationOptions): Renderer {
+    const privateFrom = new Map<Source, boolean>();
+    const isPrivate = ({ valueFrom: { source } }: Token) => {
+        let found = privateFrom.get(source);
+        if (found === undefined) {
+            found = privateSource(source);
+            privateFrom.set(source, found);
+        }
+        return found;
+    };
     const writer = (colors: "native" | "hex") => {
         const renderedFor = new Map<Token, Written | undefined>();
         const rendered = (each: Token): Written | undefined => {
@@ -74,8 +87,14 @@ export function declarations(
         };
         return rendered;
     };
-    const native = writer("native");
-    const fallback = writer("hex");
+    return { native: writer("native"), fallback: writer("hex"), isPrivate };
+}
+
+export function declarations(
+    permutation: Permutation,
+    { variable, polyfill }: DeclarationOptions,
+    { native, fallback, isPrivate }: Renderer,
+): Declared {
     const lines = (each: Token, written: Written): Declaration[] => {
         const name = variable(each.path);
         if (typeof written === "string") return [{ token: each, name, value: written }];

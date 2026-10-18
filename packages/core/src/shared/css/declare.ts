@@ -7,7 +7,7 @@ import {
 import type { Permutation as ConfigPermutation, InternalConfig } from "../../types/config.js";
 import type { Reported } from "../../types/diagnostics.js";
 import { diagnostic } from "../diagnostics.js";
-import { type Declared, declarationOptions, declarations } from "./declarations.js";
+import { type Declared, declarationOptions, declarations, renderer } from "./declarations.js";
 import { textZoomWarnings } from "./text-zoom.js";
 
 export interface Entry {
@@ -51,9 +51,10 @@ export function declare(tokens: DesignTokens, config: InternalConfig): Declarati
         return { entries: [], diagnostics: [...tokens.diagnostics, required, ...deprecated] };
 
     const options = declarationOptions(tokens, config);
+    const rendering = renderer(options);
     const declaredIn = new Map<Permutation, Declared>();
     const declaredFor = (permutation: Permutation) => {
-        const found = declaredIn.get(permutation) ?? declarations(permutation, options);
+        const found = declaredIn.get(permutation) ?? declarations(permutation, options, rendering);
         declaredIn.set(permutation, found);
         return found;
     };

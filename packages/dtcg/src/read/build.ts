@@ -20,6 +20,7 @@ import {
     linkedGroup,
     linkedPermutation,
     linkedToken,
+    tokensIn,
     withIndex,
 } from "./linked.js";
 import type { Merged, MergedGroup, MergedToken, MergedTopLevel, WrittenAt } from "./merge.js";
@@ -236,14 +237,6 @@ function remember<T>(earlier: Map<string, T[]>, path: string, each: T): void {
 
 function isAimed(target: Aimed<Pending<Token>>): target is Aimed<Token> {
     return target.token !== BUILDING;
-}
-
-function tokensIn(children: readonly (Token | Group)[], found: Token[] = []): Token[] {
-    for (const child of children) {
-        if (child.kind === "token") found.push(child);
-        else tokensIn(child.children, found);
-    }
-    return found;
 }
 
 function aimAt<Found extends Pending<Token>>(
