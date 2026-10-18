@@ -274,11 +274,6 @@ describe("tokens.tokenPaths", () => {
             "glow",
         ]);
     });
-
-    it("is a list the caller may change", () => {
-        tokens.tokenPaths().reverse();
-        expect(tokens.tokenPaths()[0]).toBe("px");
-    });
 });
 
 describe("tokens.groupPaths", () => {

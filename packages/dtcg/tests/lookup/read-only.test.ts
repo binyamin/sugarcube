@@ -68,13 +68,21 @@ function changesWhatTheReadGave(): void {
         // @ts-expect-error
         if (found.kind === "missing-reference") found.detail.from.push("color.other");
     }
+    // @ts-expect-error an answer is part of what the read gives, so it can't be changed either
+    tokens.usedBy("color.red").sort();
+    // @ts-expect-error
+    permutation.referencedBy("color.red").pop();
+    // @ts-expect-error
+    tokens.tokenPaths().reverse();
+    // @ts-expect-error
+    tokens.diff(tokens)[0]!.path = "color.other";
 }
 
 describe("the design tokens a read gives", () => {
-    it("are read-only, while a copy, and what a call builds, can be changed", () => {
+    it("are read-only, answers included, while a copy can be changed", () => {
         expect(changesWhatTheReadGave).toBeTypeOf("function");
         const sorted = [...permutation.tokens].sort((a, b) => a.path.localeCompare(b.path));
-        const users = tokens.usedBy("color.red").sort((a, b) => a.path.localeCompare(b.path));
+        const users = [...tokens.usedBy("color.red")].sort((a, b) => a.path.localeCompare(b.path));
 
         expect(sorted.map(({ path }) => path)).toStrictEqual([
             "color.brand",

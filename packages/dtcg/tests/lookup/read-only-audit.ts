@@ -15,7 +15,7 @@ export interface Breaks {
     parameters: Record<Package, string[]>;
 }
 
-type Role = "snapshot" | "input" | "result" | "call";
+type Role = "snapshot" | "input" | "result" | "call" | "answer";
 
 const internals = ts as unknown as {
     getCheckFlags(symbol: ts.Symbol): number;
@@ -127,7 +127,8 @@ export function readOnlyBreaks(): Breaks {
                     owner,
                 );
             }
-            walk(signature.getReturnType(), "result", `${where}() returns`);
+            const returns = role === "answer" ? "snapshot" : "result";
+            walk(signature.getReturnType(), returns, `${where}() returns`);
         }
         for (const info of checker.getIndexInfosOfType(type)) {
             if (role === "snapshot" && !info.isReadonly)
@@ -138,7 +139,7 @@ export function readOnlyBreaks(): Breaks {
             const label = `${name}.${property.name}`;
             const propertyType = checker.getTypeOfSymbol(property);
             if (property.flags & ts.SymbolFlags.Method) {
-                walk(propertyType, "call", label);
+                walk(propertyType, role === "snapshot" ? "answer" : "call", label);
                 continue;
             }
             if (role === "snapshot" && !readOnly(property))

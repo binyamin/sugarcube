@@ -508,7 +508,7 @@ export interface Session {
     /** Does again the last edit undone. */
     redo(): void;
     /** What changed since {@link Session.opened}, renames included. */
-    changes(): Change[];
+    changes(): readonly Change[];
     /**
      * Records that the unsaved edits were saved: the current version becomes
      * {@link Session.opened}. Undo still works; undoing past a save makes unsaved edits that
