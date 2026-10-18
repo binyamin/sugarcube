@@ -1,7 +1,7 @@
-import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind, Input } from "../index.js";
+import type { DiagnosticDetailByKind, DiagnosticKind, Input } from "../index.js";
 import { namedPath, referenceText } from "../values/references.js";
 import { relatedMessages } from "../error-messages.js";
-import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
+import { type DiagnosticExtra, diagnostic, type Problems } from "./diagnostics.js";
 import { malformation } from "./malformed-pointer.js";
 import { type Merged, type MergedGroup, removeGroup } from "./merge.js";
 import { pathBelow, atOrWithin } from "../path.js";
@@ -9,7 +9,7 @@ import { reach, refObjectMeaning } from "./ref-meaning.js";
 
 type Extending = MergedGroup & { extends: NonNullable<MergedGroup["extends"]> };
 
-export function applyExtends(merged: Merged, permutation: Input, diagnostics: Diagnostic[]): void {
+export function applyExtends(merged: Merged, permutation: Input, diagnostics: Problems): void {
     const state = new Map<string, "extending" | "done" | "in-a-loop">();
     const report = <K extends DiagnosticKind>(
         kind: K,
@@ -17,7 +17,7 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
         group: Extending,
         extra: Omit<DiagnosticExtra, "span" | "path" | "permutation"> = {},
     ) =>
-        diagnostics.push(
+        diagnostics.found(
             diagnostic(kind, detail, {
                 span: group.extends.span,
                 path: group.path,
@@ -143,12 +143,12 @@ function becomeToken(
     merged: Merged,
     group: Extending,
     permutation: Input,
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
 ): void {
     const { path, extends: extending, type, description, deprecated, extensions } = group;
     const inside = (each: string) => pathBelow(each, path) !== undefined;
     if ([...merged.tokens.keys(), ...merged.groups.keys()].some(inside)) {
-        diagnostics.push(
+        diagnostics.found(
             diagnostic(
                 "token-and-group",
                 { reason: "ref", ref: referenceText(extending.reference) },

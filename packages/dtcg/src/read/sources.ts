@@ -1,5 +1,6 @@
+import type { Problems } from "./diagnostics.js";
 import type { Node } from "jsonc-parser";
-import type { Diagnostic, JsonPath } from "../index.js";
+import type { JsonPath } from "../index.js";
 import { type Files, openFile, parseFile } from "./files.js";
 import { type JsonFile, member, members, spanOf } from "./json.js";
 import { malformedPointer } from "./malformed-pointer.js";
@@ -63,7 +64,7 @@ export interface SetsUsed {
 
 export function expandSources(
     resolver: CheckedResolver,
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
 ): { items: ExpandedItem[]; setsUsed: SetsUsed } {
     const setsUsed: SetsUsed = { reached: new Set(), pointedInto: new Set() };
     const expander: Expander = {
@@ -132,7 +133,7 @@ function openSource(files: Files, resolver: CheckedResolver, entry: SourceEntry)
     const refText = entry.ref.value as string;
     const jsonPath = [...entry.jsonPath, "$ref"];
     const report = (problem: Parameters<typeof resolverProblem>[1]) =>
-        files.diagnostics.push(resolverProblem(resolver.file, problem, entry.ref));
+        files.diagnostics.found(resolverProblem(resolver.file, problem, entry.ref));
 
     const root = parseFile(files, path)?.root;
     if (isResolver(path, root)) {

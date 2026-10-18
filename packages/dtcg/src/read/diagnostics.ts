@@ -4,12 +4,16 @@ import type {
     DiagnosticDetailByKind,
     DiagnosticKind,
     Input,
+    Permutation,
     Permutations,
 } from "../index.js";
+import { sameJson } from "../values/same-value.js";
 import type { Building } from "./building.js";
 import { permutationsOf } from "./permutations-of.js";
 
-const foundIn = new WeakMap<Diagnostic, Input[]>();
+const FOUND_IN = Symbol("found in");
+
+type Finding = Building<Diagnostic> & { [FOUND_IN]?: Input[] };
 
 export type DiagnosticExtra = Partial<
     Pick<Diagnostic, "message" | "span" | "path" | "related" | "tags">
@@ -30,8 +34,8 @@ export function diagnostic<K extends DiagnosticKind>(
         ...extra,
         docs: docsFor(kind, detail),
         detail,
-    } as Diagnostic;
-    if (permutation !== undefined) foundIn.set(made, [permutation]);
+    } as Finding;
+    if (permutation !== undefined) made[FOUND_IN] = [permutation];
     return made;
 }
 
@@ -41,14 +45,48 @@ function docsFor<K extends DiagnosticKind>(kind: K, detail: DiagnosticDetailByKi
     return `${page}#${(detail as DiagnosticDetailByKind["invalid-value"]).reason}`;
 }
 
-export function onceEach(diagnostics: Diagnostic[]): Diagnostic[] {
-    const seen = new Set<string>();
-    return diagnostics.filter((found) => {
-        const key = JSON.stringify(found);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
+export class Problems {
+    readonly #all: Finding[] = [];
+    readonly #atSpot = new Map<string, Finding[]>();
+
+    found(problem: Diagnostic): Diagnostic {
+        const spot = spotOf(problem);
+        const here = this.#atSpot.get(spot);
+        const same = here?.find((each) => sameJson(each, problem));
+        if (same) {
+            for (const input of (problem as Finding)[FOUND_IN] ?? [])
+                foundInPermutation(same, input);
+            return same;
+        }
+        if (here) here.push(problem);
+        else this.#atSpot.set(spot, [problem]);
+        this.#all.push(problem);
+        return problem;
+    }
+
+    foundAll(problems: readonly Diagnostic[]): Diagnostic[] {
+        return problems.map((each) => this.found(each));
+    }
+
+    inPermutations(permutations: Permutations): Diagnostic[] {
+        for (const found of this.#all) {
+            const inputs = found[FOUND_IN] ?? [];
+            delete found[FOUND_IN];
+            found.permutations = narrowedTo(
+                permutations.filter(({ input }) => inputs.includes(input)),
+                permutations,
+            );
+        }
+        return this.#all;
+    }
+
+    get list(): readonly Diagnostic[] {
+        return this.#all;
+    }
+}
+
+function spotOf({ span }: Diagnostic): string {
+    return span === undefined ? "" : `${span.file}:${span.offset}:${span.length}`;
 }
 
 export function inReadingPermutations(
@@ -69,41 +107,19 @@ function permutationsWith(
 ): Permutations {
     const file = found.span?.file;
     if (file === undefined || file === entry) return permutations;
-    const reading = permutations.filter(({ sources }) =>
-        sources.some((each) => each.file === file),
+    return narrowedTo(
+        permutations.filter(({ sources }) => sources.some((each) => each.file === file)),
+        permutations,
     );
-    return reading.length === permutations.length
-        ? permutations
-        : permutationsOf(reading, permutations);
+}
+
+function narrowedTo(held: Permutation[], permutations: Permutations): Permutations {
+    return held.length === permutations.length ? permutations : permutationsOf(held, permutations);
 }
 
 export function foundInPermutation(found: Diagnostic, permutation: Input): void {
-    const inputs = foundIn.get(found);
-    if (!inputs) foundIn.set(found, [permutation]);
+    const finding = found as Finding;
+    const inputs = finding[FOUND_IN];
+    if (!inputs) finding[FOUND_IN] = [permutation];
     else if (!inputs.includes(permutation)) inputs.push(permutation);
-}
-
-export function collapse(
-    diagnostics: Building<Diagnostic>[],
-    permutations: Permutations,
-): Diagnostic[] {
-    const alike = new Map<string, Building<Diagnostic>>();
-    for (const found of diagnostics) {
-        const key = JSON.stringify(found);
-        const earlier = alike.get(key);
-        const theirs = foundIn.get(found);
-        const ours = earlier && foundIn.get(earlier);
-        if (!earlier) alike.set(key, found);
-        else if (ours && theirs) foundIn.set(earlier, [...ours, ...theirs]);
-    }
-    const collapsed = [...alike.values()];
-    for (const found of collapsed) {
-        const inputs = foundIn.get(found) ?? [];
-        const narrowed = permutations.filter(({ input }) => inputs.includes(input));
-        found.permutations =
-            narrowed.length === permutations.length
-                ? permutations
-                : permutationsOf(narrowed, permutations);
-    }
-    return collapsed;
 }

@@ -9,7 +9,7 @@ import type {
     UnresolvedValueByType,
     ValueError,
 } from "../index.js";
-import { type DiagnosticExtra, foundInPermutation } from "./diagnostics.js";
+import { type DiagnosticExtra, foundInPermutation, type Problems } from "./diagnostics.js";
 import { ignoredDiagnostic, valueDiagnostic } from "./value-diagnostic.js";
 import {
     type Notes,
@@ -53,7 +53,7 @@ export interface ValueReader {
 
 type Cache = { [T in TokenType]?: Map<Node, ValueRead<UnresolvedValueByType[T]>> };
 
-export function createValueReader(diagnostics: Diagnostic[], options: ParseOptions): ValueReader {
+export function createValueReader(diagnostics: Problems, options: ParseOptions): ValueReader {
     const caches: Cache = {};
 
     const read: Read = (token, type, permutation) => {
@@ -65,12 +65,12 @@ export function createValueReader(diagnostics: Diagnostic[], options: ParseOptio
                 ? []
                 : result.errors.map((error) => toDiagnostic(token, error, permutation))),
         ];
-        diagnostics.push(...found);
+        const kept = diagnostics.foundAll(found);
         const references = notes.references.map((reference) => ({
             reference,
             occurrence: occurrence(token, reference),
         }));
-        return { result, references, readAgain: notes.readAgain, diagnostics: found };
+        return { result, references, readAgain: notes.readAgain, diagnostics: kept };
     };
 
     return {
@@ -92,7 +92,7 @@ export function createValueReader(diagnostics: Diagnostic[], options: ParseOptio
             const result = readSlot(slot, raw, options, notes);
             if (!result.ok) {
                 for (const error of result.errors) {
-                    diagnostics.push(toDiagnostic(token, error, permutation));
+                    diagnostics.found(toDiagnostic(token, error, permutation));
                 }
             }
             return { result, notes };

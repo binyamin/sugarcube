@@ -17,7 +17,7 @@ import {
 } from "./permutations.js";
 import { checkResolver, isResolver } from "./resolver.js";
 import { resolverPart } from "./resolver-part.js";
-import { onceEach } from "./diagnostics.js";
+import { Problems } from "./diagnostics.js";
 import { entriesOf, expandSources, filesNamedBy, openSources } from "./sources.js";
 
 export interface Loaded {
@@ -35,7 +35,7 @@ export function* load(
     options: PermutationOptions,
 ): Generator<Request, Loaded, Answer> {
     const used: string[] = [];
-    const diagnostics: Diagnostic[] = [];
+    const diagnostics = new Problems();
     const files = createFiles(used, diagnostics);
     yield* fetchFiles(files, [entry]);
 
@@ -44,7 +44,7 @@ export function* load(
         files: used,
         texts: textsOf(files.texts, used),
         entry,
-        diagnostics: onceEach(diagnostics),
+        diagnostics: [...diagnostics.list],
         ...built,
     });
     if (!isResolver(entry, root)) {

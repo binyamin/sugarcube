@@ -1,6 +1,6 @@
-import type { Diagnostic, Span } from "../index.js";
+import type { Span } from "../index.js";
 import { relatedMessages } from "../error-messages.js";
-import { diagnostic } from "./diagnostics.js";
+import { diagnostic, type Problems } from "./diagnostics.js";
 import { type JsonFile, type JsonProblem, type ParsedJson, parseJson, spanOf } from "./json.js";
 
 export type FileText = { text: string } | { missing: true };
@@ -13,10 +13,10 @@ export interface Files {
     parsed: Map<string, ParsedJson>;
     opened: Map<string, JsonFile | undefined>;
     used: string[];
-    diagnostics: Diagnostic[];
+    diagnostics: Problems;
 }
 
-export function createFiles(used: string[], diagnostics: Diagnostic[]): Files {
+export function createFiles(used: string[], diagnostics: Problems): Files {
     return { texts: new Map(), parsed: new Map(), opened: new Map(), used, diagnostics };
 }
 
@@ -59,7 +59,7 @@ function openOnce(
     const { diagnostics } = files;
     const parsed = parseFile(files, path);
     if (!parsed) {
-        diagnostics.push(
+        diagnostics.found(
             diagnostic(
                 "file-not-found",
                 { file: path, ...(referencedFrom && { referencedFrom: referencedFrom.file }) },
@@ -79,7 +79,7 @@ function openOnce(
             : []),
     ];
     for (const problem of problems.sort((a, b) => a.offset - b.offset)) {
-        diagnostics.push(
+        diagnostics.found(
             diagnostic("invalid-json", { reason: problem.reason }, { span: spanOf(file, problem) }),
         );
     }
@@ -87,7 +87,7 @@ function openOnce(
 
     for (const { key, first, last } of parsed.duplicates) {
         const related = [{ message: relatedMessages.alsoWrittenHere, span: spanOf(file, first) }];
-        diagnostics.push(
+        diagnostics.found(
             diagnostic("duplicate-key", { key }, { span: spanOf(file, last), related }),
         );
     }

@@ -1,6 +1,6 @@
-import type { Diagnostic, Input, Resolver, ResolverContext, SetOnRoute, Source } from "../index.js";
+import type { Input, Resolver, ResolverContext, SetOnRoute, Source } from "../index.js";
 import { ownLabel } from "../lookup/permutation-label.js";
-import { diagnostic } from "./diagnostics.js";
+import { diagnostic, type Problems } from "./diagnostics.js";
 import { type Modifier, checkedInput, withDefaults } from "./input.js";
 import { type JsonFile, plainObject } from "./json.js";
 import type { Loaded } from "./load.js";
@@ -48,7 +48,7 @@ export function fromResolver(
     items: ExpandedItem[],
     sources: Map<SourceEntry, LoadedSource>,
     options: PermutationOptions,
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
 ): Built {
     const modifiers = modifiersOf(items);
     const inputs = chooseInputs(modifiers, options, diagnostics);
@@ -90,7 +90,7 @@ function modifiersOf(items: ExpandedItem[]): Modifier[] {
 function chooseInputs(
     modifiers: Modifier[],
     { inputs, permutations, limit }: PermutationOptions,
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
 ): Input[] {
     if (modifiers.length === 0) return [{}];
     if (inputs) {
@@ -98,7 +98,7 @@ function chooseInputs(
             const found = checkedInput(modifiers, raw);
             if (found.ok) return [found.input];
             for (const problem of found.problems) {
-                diagnostics.push(diagnostic("input-invalid", { input: index, ...problem }));
+                diagnostics.found(diagnostic("input-invalid", { input: index, ...problem }));
             }
             return [];
         });
@@ -119,11 +119,11 @@ function distinct(modifiers: Modifier[], inputs: Input[]): Input[] {
     });
 }
 
-function allWithinLimit(modifiers: Modifier[], limit: number, diagnostics: Diagnostic[]): Input[] {
+function allWithinLimit(modifiers: Modifier[], limit: number, diagnostics: Problems): Input[] {
     const count = modifiers.reduce((product, { contexts }) => product * contexts.length, 1);
     if (count <= limit) return combinations(modifiers);
     const built = eachContext(modifiers);
-    diagnostics.push(diagnostic("permutation-limit", { count, limit, built: built.length }));
+    diagnostics.found(diagnostic("permutation-limit", { count, limit, built: built.length }));
     return built;
 }
 

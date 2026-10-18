@@ -1,6 +1,6 @@
 import type { Node } from "jsonc-parser";
-import type { Diagnostic, Resolver, ResolverModifier, ResolverSet, SourceRef } from "../index.js";
-import { diagnostic } from "./diagnostics.js";
+import type { Resolver, ResolverModifier, ResolverSet, SourceRef } from "../index.js";
+import { diagnostic, type Problems } from "./diagnostics.js";
 import { member, plainObject, spanOf } from "./json.js";
 import { folderOf, join } from "./paths.js";
 import { encodePointer, readPointerText } from "./pointer.js";
@@ -17,7 +17,7 @@ import { linkedContext, linkedModifier } from "./linked.js";
 export function resolverPart(
     resolver: CheckedResolver,
     setsUsed: SetsUsed,
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
 ): Resolver {
     const named = resolver.order.flatMap((item) => (item.kind === "set" ? [item.set] : []));
     const sets = new Map(named.map((set) => [set.name, set]));
@@ -38,7 +38,7 @@ export function resolverPart(
             if (used.has(name)) continue;
             const span = spanOf(resolver.file, node);
             const detail = { item, name };
-            diagnostics.push(
+            diagnostics.found(
                 diagnostic("not-in-resolution-order", detail, { span, tags: ["unnecessary"] }),
             );
         }

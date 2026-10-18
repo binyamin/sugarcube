@@ -6,7 +6,7 @@ import { sameJson } from "../values/same-value.js";
 export interface Target {
     path?: string | undefined;
     token?: Token | undefined;
-    targetProperty?: JsonPath;
+    targetProperty?: JsonPath | undefined;
 }
 
 export interface MadeFrom {

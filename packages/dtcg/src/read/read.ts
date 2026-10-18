@@ -1,13 +1,6 @@
-import type {
-    DesignTokens,
-    Diagnostic,
-    Input,
-    ReadOptions,
-    ReadText,
-    TokensInMemory,
-} from "../index.js";
+import type { DesignTokens, Input, ReadOptions, ReadText, TokensInMemory } from "../index.js";
 import type { Answer, FileText, Request } from "./files.js";
-import { collapse, inReadingPermutations } from "./diagnostics.js";
+import { Problems, inReadingPermutations } from "./diagnostics.js";
 import { type Loaded, load } from "./load.js";
 import { normalisePermutations } from "./normalise.js";
 import { fillGenerated } from "./generate.js";
@@ -139,7 +132,7 @@ function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
         hexStringColors,
         ignoreUnknownProperties,
     } = options;
-    const found: Diagnostic[] = [];
+    const found = new Problems();
     const parseOptions = {
         hexStringColors: hexStringColors ?? false,
         ignoreUnknownProperties: ignoreUnknownProperties ?? false,
@@ -182,7 +175,7 @@ function toDesignTokens(loaded: Loaded, options: ReadOptions): DesignTokens {
             parseOptions,
             diagnostics: [
                 ...inReadingPermutations(loaded.diagnostics, permutations, loaded.entry),
-                ...collapse(found, permutations),
+                ...found.inPermutations(permutations),
             ],
         },
         {

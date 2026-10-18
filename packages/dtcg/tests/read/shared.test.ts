@@ -203,3 +203,64 @@ describe("a loop", () => {
         }
     });
 });
+
+describe("what resolving a shared token finds", () => {
+    const found = readFromMemory({
+        files: {
+            "tokens.resolver.json": JSON.stringify({
+                version: "2025.10",
+                resolutionOrder: [
+                    { type: "set", name: "base", sources: [{ $ref: "base.json" }] },
+                    {
+                        type: "modifier",
+                        name: "mode",
+                        default: "light",
+                        contexts: { light: [], dark: [{ $ref: "dark.json" }], dim: [] },
+                    },
+                ],
+            }),
+            "base.json": JSON.stringify({
+                color: {
+                    $type: "color",
+                    red: { $value: rgb(1) },
+                    lost: { $value: "{color.missing}" },
+                    grouped: { $value: "{space}" },
+                    edge: {
+                        $type: "border",
+                        $value: {
+                            color: "{space.sm}",
+                            width: { value: 1, unit: "px" },
+                            style: "solid",
+                        },
+                    },
+                },
+                space: { $type: "number", sm: { $value: 4 } },
+            }),
+            "dark.json": JSON.stringify({ color: { red: { $value: rgb(0.5) } } }),
+        },
+        entry: "tokens.resolver.json",
+    });
+    const kinds = (path: string) =>
+        found
+            .diagnosticsFor(path)
+            .map(({ kind, permutations }) => `${kind} in ${permutations.label}`);
+
+    it("is shared too, naming every permutation that shares the token", () => {
+        const [inLight, inDark, inDim] = ["light", "dark", "dim"].map((mode) =>
+            found.permutation({ mode }),
+        );
+        expect(inLight?.token("color.lost")).toBe(inDim?.token("color.lost"));
+        expect(inLight?.token("color.lost")).toBe(inDark?.token("color.lost"));
+        expect(kinds("color.lost")).toStrictEqual(["missing-reference in everywhere"]);
+        expect(kinds("color.grouped")).toStrictEqual(["not-a-token in everywhere"]);
+        expect(kinds("color.edge")).toStrictEqual(["type-mismatch in everywhere"]);
+    });
+
+    it("is the same as every permutation resolving it again would find", () => {
+        for (const permutation of found.permutations) {
+            expect(permutation.diagnosticsFor("color.lost").map(({ kind }) => kind)).toStrictEqual([
+                "missing-reference",
+            ]);
+        }
+    });
+});

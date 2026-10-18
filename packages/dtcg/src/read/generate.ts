@@ -3,7 +3,6 @@ import type { Settings } from "./settings.js";
 import { childPath, forbiddenInName } from "../path.js";
 import type { Node } from "jsonc-parser";
 import type {
-    Diagnostic,
     ExtensionError,
     ExtensionMessages,
     GeneratedToken,
@@ -23,7 +22,7 @@ import {
     checkSchema,
     extensionDiagnostic,
 } from "./extension-check.js";
-import { diagnostic } from "./diagnostics.js";
+import { diagnostic, type Problems } from "./diagnostics.js";
 import { type JsonFile, member, spanOf } from "./json.js";
 import { type Merged, type MergedToken, type Piece, everyGroup } from "./merge.js";
 
@@ -85,7 +84,7 @@ export function fillGenerated(
     merged: Merged,
     generators: readonly Generator[],
     { permutation, parseOptions }: { permutation: Input; parseOptions: ParseOptions },
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
 ): void {
     const added: MergedToken[] = [];
     const addedPaths = new Set<string>();
@@ -111,7 +110,7 @@ export function fillGenerated(
                 if (done.has(extension.node)) return;
                 done.add(extension.node);
                 for (const problem of problems) {
-                    diagnostics.push(extensionDiagnostic(problem, checked));
+                    diagnostics.found(extensionDiagnostic(problem, checked));
                 }
             };
             const passed = checkSchema(generator.schema, extension.value, generator.extension[0]);
@@ -138,7 +137,7 @@ export function fillGenerated(
                 const character = forbiddenInName(made.name);
                 if (character) {
                     const detail = { name: made.name, character };
-                    diagnostics.push(
+                    diagnostics.found(
                         diagnostic("invalid-name", detail, {
                             span: spanOf(extension.json, extension.node),
                             ...(groupPath !== undefined && { path: groupPath }),

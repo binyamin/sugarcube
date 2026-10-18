@@ -1,6 +1,5 @@
 import { relatedMessages } from "../error-messages.js";
 import type {
-    Diagnostic,
     DiagnosticDetailByKind,
     DiagnosticKind,
     Input,
@@ -11,7 +10,12 @@ import type {
     WrittenReference,
 } from "../index.js";
 import { type Earlier, buildPermutation } from "./build.js";
-import { type DiagnosticExtra, diagnostic, foundInPermutation } from "./diagnostics.js";
+import {
+    type DiagnosticExtra,
+    diagnostic,
+    foundInPermutation,
+    type Problems,
+} from "./diagnostics.js";
 import { inherited } from "./inherit.js";
 import type { MergedToken } from "./merge.js";
 import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
@@ -57,7 +61,7 @@ interface MissingAcross {
 export function resolvePermutations(
     permutations: NormalisedPermutation[],
     readValue: ValueReader,
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
     texts: Readonly<Record<string, string>>,
 ): Permutation[] {
     const places = placesIn(texts);
@@ -79,14 +83,14 @@ export function resolvePermutations(
             ...(related.length > 0 && { related }),
         });
         for (const each of others) foundInPermutation(found, each);
-        diagnostics.push(found);
+        diagnostics.found(found);
     }
     return resolved;
 }
 
 interface Context {
     readValue: ValueReader;
-    diagnostics: Diagnostic[];
+    diagnostics: Problems;
     places: Places;
     missingAcross: Map<string, MissingAcross>;
     earlier: Earlier;
@@ -108,7 +112,7 @@ function resolvePermutation(
         span: Span,
         extra: Omit<DiagnosticExtra, "span" | "path" | "permutation"> = {},
     ) =>
-        diagnostics.push(
+        diagnostics.found(
             diagnostic(kind, detail, { span, path, permutation: permutation.input, ...extra }),
         );
 

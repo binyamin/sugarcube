@@ -1,7 +1,9 @@
 import { relatedMessages } from "../error-messages.js";
 import { atOrWithin } from "../path.js";
-import type { Diagnostic, Input, Span } from "../index.js";
-import { diagnostic } from "./diagnostics.js";
+import type { Input, Span } from "../index.js";
+import { diagnostic, type Problems } from "./diagnostics.js";
+import type { Inheritable } from "./inherit.js";
+import type { Settings } from "./settings.js";
 import type {
     ExtensionsAt,
     GroupReference,
@@ -49,12 +51,14 @@ export interface Merged {
     groups: Map<string, MergedGroup>;
     order: Set<string>;
     children: Map<string | undefined, string[]>;
+    settings: Map<MergedTopLevel, Settings>;
+    inheritedAt: { [K in Inheritable]: Map<string, Properties[K]> };
 }
 
 export function merge(
     pieces: { contents: SourceContents | undefined; source: number }[],
     permutation: Input,
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
 ): Merged {
     const merged: Merged = {
         root: { declaredIn: [] },
@@ -62,9 +66,11 @@ export function merge(
         groups: new Map(),
         order: new Set(),
         children: new Map(),
+        settings: new Map(),
+        inheritedAt: { type: new Map(), deprecated: new Map() },
     };
     const conflict = (path: string, later: Span, earlier: Span[], earlierIs: "token" | "group") =>
-        diagnostics.push(
+        diagnostics.found(
             diagnostic(
                 "token-and-group",
                 { reason: "declared", here: earlierIs === "token" ? "group" : "token" },

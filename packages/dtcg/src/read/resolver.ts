@@ -6,7 +6,7 @@ import type {
     JsonPath,
     ResolverProblem,
 } from "../index.js";
-import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
+import { type DiagnosticExtra, diagnostic, type Problems } from "./diagnostics.js";
 import { type JsonFile, member, members, spanOf } from "./json.js";
 import { malformedPointer } from "./malformed-pointer.js";
 import { parsePointer, readPointerText } from "./pointer.js";
@@ -96,7 +96,7 @@ export function isResolverName(file: string): boolean {
     return file.endsWith(".resolver.json");
 }
 
-export function checkResolver(file: JsonFile, diagnostics: Diagnostic[]): CheckedResolver {
+export function checkResolver(file: JsonFile, diagnostics: Problems): CheckedResolver {
     const reader = createReader(file, diagnostics);
     const root: ResolverNode = { node: file.root, jsonPath: [] };
 
@@ -137,13 +137,13 @@ export function resolverProblem(
     });
 }
 
-export function createReader(file: JsonFile, diagnostics: Diagnostic[]): Reader {
+export function createReader(file: JsonFile, diagnostics: Problems): Reader {
     const reader: Reader = {
         report: (problem, node, extra) =>
-            diagnostics.push(resolverProblem(file, problem, node, extra)),
+            diagnostics.found(resolverProblem(file, problem, node, extra)),
         diagnose: (kind, detail, node, extra = {}) => {
             const span = spanOf(file, node);
-            diagnostics.push(diagnostic(kind, detail, { ...extra, span }));
+            diagnostics.found(diagnostic(kind, detail, { ...extra, span }));
         },
         expect: (node, type, name, jsonPath): node is Node => {
             if (!node) return false;
@@ -161,7 +161,7 @@ export function createReader(file: JsonFile, diagnostics: Diagnostic[]): Reader 
                     owner: kind,
                     ...(similar !== undefined && { similar }),
                 };
-                diagnostics.push(diagnostic("unknown-property", detail, { span }));
+                diagnostics.found(diagnostic("unknown-property", detail, { span }));
             }
         },
     };

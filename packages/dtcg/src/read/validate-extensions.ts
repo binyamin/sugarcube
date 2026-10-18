@@ -1,6 +1,6 @@
+import type { Problems } from "./diagnostics.js";
 import type { Node } from "jsonc-parser";
 import type {
-    Diagnostic,
     ExtensionError,
     ExtensionMessages,
     ExtensionValidator,
@@ -63,7 +63,7 @@ export function validateExtensions(
         validators,
         parseOptions,
     }: { validators: readonly ExtensionValidator[]; parseOptions: ParseOptions },
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
 ): void {
     if (validators.length === 0) return;
 
@@ -93,7 +93,7 @@ export function validateExtensions(
                 permutation,
             };
             for (const problem of problems) {
-                diagnostics.push(extensionDiagnostic(problem, extension));
+                diagnostics.found(extensionDiagnostic(problem, extension));
             }
         };
 

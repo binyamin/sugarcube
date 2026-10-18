@@ -5,11 +5,9 @@ import type {
     Place,
     Reference,
     Source,
-    Span,
     Token,
     TopLevel,
     Written,
-    WrittenReference,
 } from "../index.js";
 import { withoutRoot } from "../path.js";
 import { namedPath } from "../values/references.js";
@@ -47,6 +45,8 @@ const BUILDING = Symbol("building");
 
 const NO_TARGETS: readonly Aimed<Token>[] = [];
 
+const NONE_MADE: readonly Token[] = [];
+
 export function buildPermutation(
     { input, label, contexts, sources, merged, tokens }: NormalisedPermutation,
     resolveToken: (entry: NormalisedToken) => Outcome,
@@ -80,19 +80,14 @@ export function buildPermutation(
     const targetsOf = <Found extends Pending<Token>>(
         located: LocatedReference[],
         at: (path: string) => Found | undefined,
-    ): Aimed<Found>[] =>
-        located.map(({ occurrence }) => ({
-            occurrence,
-            ...targetOf(occurrence.reference, occurrence.steps, merged, at),
-        }));
+    ): Aimed<Found>[] => located.map(({ occurrence }) => aimAt(occurrence, merged, at));
 
     const targetAt = (path: string): Pending<Token> | undefined =>
         building.has(path) ? BUILDING : tokenAt(path);
 
-    const tokenAt = (path: string): Token | undefined => {
+    const tokenAt = (path: string, entry = tokens.get(path)): Token | undefined => {
         const done = builtTokens.get(path);
         if (done) return done;
-        const entry = tokens.get(path);
         if (!entry) return undefined;
         const outcome = resolveToken(entry);
         if (outcome === "untyped") return undefined;
@@ -118,11 +113,17 @@ export function buildPermutation(
         };
         const reached = targets.every(isAimed) ? targets : undefined;
         const token =
-            (reached &&
-                earlier.tokens.get(path)?.find((each) => sameToken(each, written, now, reached))) ||
+            (reached && sharedWith(written, now, reached)) ||
             newToken(written, now, located, reached);
         builtTokens.set(path, token);
         return token;
+    };
+
+    const sharedWith = (written: MergedToken, now: MadeFrom, reached: readonly Aimed<Token>[]) => {
+        for (const each of earlier.tokens.get(written.path) ?? NONE_MADE) {
+            if (sameToken(each, written, now, reached)) return each;
+        }
+        return undefined;
     };
 
     const newToken = (
@@ -134,9 +135,7 @@ export function buildPermutation(
         const token: Building<Token> = linkedToken(tokenFields(written, now));
         if (located.length > 0) {
             const link = (targets: readonly Aimed<Token>[]) => {
-                token.references = targets.map((target) =>
-                    referenceOf(token, target.occurrence, target),
-                );
+                token.references = targets.map((target) => referenceOf(token, target));
             };
             if (reached) link(reached);
             else finish.push(() => link(targetsOf(located, builtToken)));
@@ -156,7 +155,10 @@ export function buildPermutation(
         }
         return children;
     };
-    const childAt = (path: string) => (tokens.has(path) ? tokenAt(path) : groupAt(path));
+    const childAt = (path: string) => {
+        const entry = tokens.get(path);
+        return entry ? tokenAt(path, entry) : groupAt(path);
+    };
 
     const groupAt = (path: string): Group | undefined => {
         const done = builtGroups.get(path);
@@ -195,12 +197,8 @@ export function buildPermutation(
         if (extending) group.extends = extending;
         if (written.extends) {
             const { reference, steps, span, keyword } = written.extends;
-            const target = targetOf(reference, steps, merged, builtToken);
-            group.references = [
-                referenceOf(group, { reference, span, property: [] }, target, {
-                    pointerAlone: keyword === "$ref",
-                }),
-            ];
+            const target = aimAt({ reference, steps, span, property: [] }, merged, builtToken);
+            group.references = [referenceOf(group, target, { pointerAlone: keyword === "$ref" })];
         }
         remember(earlier.groups, written.path, group);
         return group;
@@ -217,8 +215,7 @@ export function buildPermutation(
 
 function referenceOf(
     from: Token | Group,
-    { reference, span, property }: { reference: WrittenReference; span: Span; property: JsonPath },
-    { path, token, targetProperty }: Target,
+    { occurrence: { reference, span, property }, path, token, targetProperty }: Aimed<Token>,
     { pointerAlone = false } = {},
 ): Reference {
     const facts = {
@@ -249,22 +246,30 @@ function tokensIn(children: readonly (Token | Group)[], found: Token[] = []): To
     return found;
 }
 
-function targetOf<Found extends Pending<Token>>(
-    reference: WrittenReference,
-    steps: string[] | undefined,
+function aimAt<Found extends Pending<Token>>(
+    occurrence: Occurrence,
     merged: Merged,
     at: (path: string) => Found | undefined,
-): Omit<Target, "token"> & { token?: Found | undefined } {
+): Aimed<Found> {
+    const { reference, steps } = occurrence;
+    let path: string | undefined;
+    let token: Found | undefined;
+    let targetProperty: JsonPath | undefined;
     if (reference.syntax === "curly-brace") {
-        return { path: reference.path, token: at(reference.path) };
+        path = reference.path;
+        token = at(path);
+    } else {
+        const reached = reach(steps, merged);
+        if (reached.kind === "nothing") path = namedPath(reference);
+        else {
+            path = reached.path;
+            if (reached.kind === "token") token = at(path);
+            else if (reached.kind === "part") {
+                targetProperty = stepInto(reached.token.authored, reached.inside)?.property;
+            }
+        }
     }
-    const reached = reach(steps, merged);
-    if (reached.kind === "nothing") return { path: namedPath(reference) };
-    if (reached.kind === "group") return { path: reached.path };
-    const { path } = reached;
-    if (reached.kind === "token") return { path, token: at(path) };
-    const targetProperty = stepInto(reached.token.authored, reached.inside)?.property;
-    return targetProperty ? { path, targetProperty } : { path };
+    return { occurrence, path, token, targetProperty };
 }
 
 function publicTopLevel(top: MergedTopLevel, writtenAt: Place[]): TopLevel {

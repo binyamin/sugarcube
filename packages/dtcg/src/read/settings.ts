@@ -3,11 +3,10 @@ import type { Properties } from "./walk.js";
 
 export type Settings = Properties & Pick<MergedTopLevel, "extensionsAt">;
 
-const remembered = new WeakMap<Merged, Map<MergedTopLevel, Settings>>();
-
 export function settingsOf(merged: Merged, group: MergedTopLevel | MergedGroup): Settings {
-    const known = remembered.get(merged) ?? new Map<MergedTopLevel, Settings>();
-    remembered.set(merged, known);
+    const known = merged.settings;
+    const kept = known.get(group);
+    if (kept) return kept;
     const visiting = new Set<MergedTopLevel>();
 
     const of = (each: MergedTopLevel | MergedGroup): Settings => {
