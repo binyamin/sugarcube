@@ -1,6 +1,6 @@
 import type { Group, JsonPath, Place, Resolver, Source, Token, TokenType } from "../index.js";
 import type { MergedGroup, MergedToken } from "./merge.js";
-import type { Properties } from "./walk.js";
+import { type Properties, usableType } from "./walk.js";
 import { sameJson } from "../values/same-value.js";
 
 export interface Target {
@@ -57,7 +57,7 @@ export function sameGroup(
 ): boolean {
     return (
         earlier.extends === extending &&
-        earlier.type === (applies.type === "unusable" ? undefined : applies.type) &&
+        earlier.type === usableType(applies.type) &&
         earlier.deprecated === applies.deprecated &&
         earlier.inherited?.from === written.inherited?.from &&
         sameList(earlier.writtenAt, writtenAt) &&
@@ -65,7 +65,7 @@ export function sameGroup(
     );
 }
 
-function sameList(a: readonly unknown[], b: readonly unknown[]): boolean {
+export function sameList(a: readonly unknown[], b: readonly unknown[]): boolean {
     return a.length === b.length && a.every((each, index) => each === b[index]);
 }
 

@@ -24,6 +24,10 @@ export interface Properties {
     extensions?: Record<string, unknown>;
 }
 
+export function usableType(type: TokenType | "unusable" | undefined): TokenType | undefined {
+    return type === "unusable" ? undefined : type;
+}
+
 export interface SourceToken extends Properties {
     path: string;
     json: JsonFile;

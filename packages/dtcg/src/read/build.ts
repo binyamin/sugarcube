@@ -31,7 +31,7 @@ import { linkedReference } from "./reference.js";
 import { reach, stepInto } from "./ref-meaning.js";
 import type { Outcome } from "./resolve.js";
 import { type MadeFrom, type Target, sameGroup, sameToken } from "./same-object.js";
-import type { Properties } from "./walk.js";
+import { type Properties, usableType } from "./walk.js";
 
 export interface Earlier {
     tokens: Map<string, Token[]>;
@@ -44,18 +44,14 @@ type Aimed<Found> = Omit<Target, "token"> & { token?: Found | undefined; occurre
 
 const BUILDING = Symbol("building");
 
-const NO_TARGETS: readonly Aimed<Token>[] = [];
-
 export function earlierIn(previous: DesignTokens | undefined): Earlier {
     const earlier: Earlier = { tokens: new Map(), groups: new Map() };
     for (const permutation of previous?.permutations ?? []) {
-        for (const token of permutation.tokens) rememberOnce(earlier.tokens, token.path, token);
-        for (const group of permutation.groups) rememberOnce(earlier.groups, group.path, group);
+        for (const token of permutation.tokens) remember(earlier.tokens, token.path, token);
+        for (const group of permutation.groups) remember(earlier.groups, group.path, group);
     }
     return earlier;
 }
-
-const NONE_MADE: readonly Token[] = [];
 
 export function buildPermutation(
     { input, label, contexts, sources, merged, tokens }: NormalisedPermutation,
@@ -64,7 +60,7 @@ export function buildPermutation(
     earlier: Earlier,
 ): Permutation {
     const sourceAt = (index: number) => sources[index] as Source;
-    const placed = (written: WrittenAt[]): Place[] => {
+    const placed = (written: WrittenAt[]): readonly Place[] => {
         const [first, ...rest] = written;
         if (!first) return NO_PLACES;
         if (rest.length === 0) return places.only(sourceAt(first.index), first.span);
@@ -106,12 +102,9 @@ export function buildPermutation(
         const outcome = resolveToken(entry);
         if (outcome === "untyped") return undefined;
         const located = outcome.references;
-        let targets: readonly Aimed<Pending<Token>>[] = NO_TARGETS;
-        if (located.length > 0) {
-            building.add(path);
-            targets = targetsOf(located, targetAt);
-            building.delete(path);
-        }
+        building.add(path);
+        const targets = targetsOf(located, targetAt);
+        building.delete(path);
         const { token: written } = entry;
         const { replaces, piece, span } = written;
         const { read } = outcome;
@@ -127,17 +120,11 @@ export function buildPermutation(
         };
         const reached = targets.every(isAimed) ? targets : undefined;
         const token =
-            (reached && sharedWith(written, now, reached)) ||
+            (reached &&
+                earlier.tokens.get(path)?.find((each) => sameToken(each, written, now, reached))) ??
             newToken(written, now, located, reached);
         builtTokens.set(path, token);
         return token;
-    };
-
-    const sharedWith = (written: MergedToken, now: MadeFrom, reached: readonly Aimed<Token>[]) => {
-        for (const each of earlier.tokens.get(written.path) ?? NONE_MADE) {
-            if (sameToken(each, written, now, reached)) return each;
-        }
-        return undefined;
     };
 
     const newToken = (
@@ -241,16 +228,10 @@ function referenceOf(
     return linkedReference(facts, from, token, { pointerAlone });
 }
 
-function rememberOnce<T>(earlier: Map<string, T[]>, path: string, each: T): void {
+function remember<T>(earlier: Map<string, T[]>, path: string, each: T): void {
     const list = earlier.get(path);
     if (!list) earlier.set(path, [each]);
     else if (!list.includes(each)) list.push(each);
-}
-
-function remember<T>(earlier: Map<string, T[]>, path: string, each: T): void {
-    const list = earlier.get(path);
-    if (list) list.push(each);
-    else earlier.set(path, [each]);
 }
 
 function isAimed(target: Aimed<Pending<Token>>): target is Aimed<Token> {
@@ -283,7 +264,7 @@ function aimAt<Found extends Pending<Token>>(
     return { occurrence, path, token, targetProperty };
 }
 
-function publicTopLevel(top: MergedTopLevel, writtenAt: Place[]): TopLevel {
+function publicTopLevel(top: MergedTopLevel, writtenAt: readonly Place[]): TopLevel {
     return { ...publicProperties(top), writtenAt };
 }
 
@@ -305,9 +286,15 @@ function groupFields(
     };
 }
 
-function publicProperties({ type, description, deprecated, extensions }: Properties): Written {
+function publicProperties({
+    type: written,
+    description,
+    deprecated,
+    extensions,
+}: Properties): Written {
+    const type = usableType(written);
     return {
-        ...(type !== undefined && type !== "unusable" && { type }),
+        ...(type !== undefined && { type }),
         ...(description !== undefined && { description }),
         ...(deprecated !== undefined && { deprecated }),
         ...(extensions && { extensions }),

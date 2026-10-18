@@ -25,6 +25,7 @@ import {
 import { diagnostic, type Problems } from "./diagnostics.js";
 import { type JsonFile, member, spanOf } from "./json.js";
 import { type Merged, type MergedToken, type Piece, everyGroup } from "./merge.js";
+import { usableType } from "./walk.js";
 
 interface Extension {
     value: unknown;
@@ -118,7 +119,7 @@ export function fillGenerated(
                 report(passed.problems);
                 continue;
             }
-            const type = settings.type === "unusable" ? undefined : settings.type;
+            const type = usableType(settings.type);
             const result = generator.generate(
                 { ...(groupPath !== undefined && { path: groupPath }), ...(type && { type }) },
                 passed.value,

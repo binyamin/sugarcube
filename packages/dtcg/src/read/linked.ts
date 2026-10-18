@@ -33,9 +33,10 @@ import { resolvedValuesIn } from "../lookup/resolved-values.js";
 import { writtenAtIn } from "../lookup/written-at.js";
 import type { Modifier } from "./input.js";
 import { spanOfReference } from "./reference.js";
+import { sameList } from "./same-object.js";
 
-export const NO_REFERENCES: Reference[] = Object.freeze([]) as unknown as Reference[];
-export const NO_PLACES: Place[] = Object.freeze([]) as unknown as Place[];
+export const NO_REFERENCES: readonly Reference[] = Object.freeze([]);
+export const NO_PLACES: readonly Place[] = Object.freeze([]);
 
 const NOT_YET = Symbol("not yet worked out");
 
@@ -488,6 +489,5 @@ function paths(items: readonly (Token | Group)[]): string[] {
 }
 
 function samePlace(a: JsonPath | undefined, b: JsonPath): boolean {
-    if (a === undefined) return b.length === 0;
-    return a.length === b.length && a.every((step, index) => step === b[index]);
+    return a === undefined ? b.length === 0 : sameList(a, b);
 }

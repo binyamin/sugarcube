@@ -28,6 +28,7 @@ import { movedReference, namedPath, referenceText } from "../values/references.j
 import { type Occurrence, wholeReference } from "./occurrence.js";
 import { type Resolving, UNRESOLVED, resolveValue } from "./resolve-value.js";
 import { type Places, placesIn } from "./linked.js";
+import { usableType } from "./walk.js";
 
 interface Resolved {
     type: TokenType;
@@ -229,8 +230,7 @@ function resolvePermutation(
     };
 
     const groupType = (token: MergedToken): TokenType | undefined => {
-        const type = inherited(token, merged, "type");
-        return type === "unusable" ? undefined : type;
+        return usableType(inherited(token, merged, "type"));
     };
 
     const unresolved = (entry: NormalisedToken, type: TokenType): Outcome => {
