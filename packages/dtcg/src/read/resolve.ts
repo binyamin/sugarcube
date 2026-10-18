@@ -40,7 +40,7 @@ interface Resolved {
 export type Outcome = Resolved | "untyped";
 
 type Whole =
-    | { kind: "token"; path: string; outcome: Outcome }
+    | { kind: "token"; path: string; outcome: Outcome | undefined }
     | { kind: "part" }
     | { kind: "unreachable" };
 
@@ -142,12 +142,9 @@ function resolvePermutation(
         else notReached(aim, from, span);
     };
 
-    const outcomeOf = (path: string, from: string, span: Span): Outcome | undefined =>
-        merged.tokens.has(path) ? outcomeAt(path, from, span) : undefined;
-
-    const outcomeAt = (path: string, from: string, span: Span): Outcome => {
+    const outcomeOf = (path: string, from: string, span: Span): Outcome | undefined => {
         const entry = tokens.get(path);
-        if (!entry) return "untyped";
+        if (!entry) return merged.tokens.has(path) ? "untyped" : undefined;
         stack.push({ path: from, span });
         const outcome = resolveToken(entry);
         stack.pop();
@@ -178,10 +175,18 @@ function resolvePermutation(
     };
 
     const followWhole = (token: MergedToken, whole: Occurrence): Whole => {
+        const { reference } = whole;
+        if (reference.syntax === "curly-brace") {
+            const { path } = reference;
+            const outcome = outcomeOf(path, token.path, whole.span);
+            return outcome === undefined
+                ? { kind: "unreachable" }
+                : { kind: "token", path, outcome };
+        }
         const reached = reachOf(whole, merged);
         if (reached.kind === "token") {
             const { path } = reached;
-            return { kind: "token", path, outcome: outcomeAt(path, token.path, whole.span) };
+            return { kind: "token", path, outcome: outcomeOf(path, token.path, whole.span) };
         }
         return reached.kind === "part" ? { kind: "part" } : { kind: "unreachable" };
     };
@@ -205,7 +210,7 @@ function resolvePermutation(
                 }
             } else {
                 const target = followed.outcome;
-                if (target === "untyped") return fallback(entry, type);
+                if (target === undefined || target === "untyped") return fallback(entry, type);
                 if (!("resolved" in target)) return unresolved(entry, type ?? target.type);
                 type ??= target.type;
             }

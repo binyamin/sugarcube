@@ -2,7 +2,7 @@ import type { JsonPath, Span } from "../index.js";
 import type { ReferenceRead } from "../values/read-syntax.js";
 import { deepestNode, spanOf } from "./json.js";
 import type { MergedToken } from "./merge.js";
-import { type Aim, aimOf } from "./ref-meaning.js";
+import { type Aim, stepsOf } from "./ref-meaning.js";
 
 export interface Occurrence extends Aim {
     property: JsonPath;
@@ -16,7 +16,7 @@ export function occurrence(
     const { json, value } = token;
     const node = deepestNode(value, jsonPath.slice(1));
     const span = spanOf(json, node);
-    return { ...aimOf(ref), property, span };
+    return { reference: ref, steps: stepsOf(ref), property, span };
 }
 
 export function wholeReference(token: MergedToken): Occurrence | undefined {

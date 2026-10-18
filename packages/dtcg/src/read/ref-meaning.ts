@@ -14,9 +14,8 @@ export interface Aim {
     steps: string[] | undefined;
 }
 
-export function aimOf(reference: WrittenReference): Aim {
-    const steps = reference.syntax === "json-pointer" ? refSteps(reference.pointer) : undefined;
-    return { reference, steps };
+export function stepsOf(reference: WrittenReference): string[] | undefined {
+    return reference.syntax === "json-pointer" ? refSteps(reference.pointer) : undefined;
 }
 
 export function reachOf({ reference, steps }: Aim, merged: Merged): Reached {

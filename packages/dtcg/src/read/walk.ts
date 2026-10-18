@@ -13,7 +13,7 @@ import { readReference } from "../values/references.js";
 import { isTokenType, tokenTypes } from "../values/token-types.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { type JsonFile, type Member, members, plainObject, plainValue, spanOf } from "./json.js";
-import { aimOf } from "./ref-meaning.js";
+import { stepsOf } from "./ref-meaning.js";
 import { similarName } from "./similar.js";
 import type { LoadedSource } from "./sources.js";
 
@@ -303,7 +303,7 @@ function readGroupReference(
     raw: unknown,
 ): Pick<GroupReference, "reference" | "steps"> | undefined {
     const reference = keyword === "$extends" ? readReference(raw) : pointerOf(raw);
-    return reference && aimOf(reference);
+    return reference && { reference, steps: stepsOf(reference) };
 }
 
 function pointerOf(raw: unknown): JsonPointerReference | undefined {

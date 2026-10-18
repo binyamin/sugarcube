@@ -242,6 +242,10 @@ function aimAt<Found extends Pending<Token>>(
     merged: Merged,
     at: (path: string) => Found | undefined,
 ): Aimed<Found> {
+    const { reference } = occurrence;
+    if (reference.syntax === "curly-brace") {
+        return { occurrence, path: reference.path, token: at(reference.path) };
+    }
     const reached = reachOf(occurrence, merged);
     if (reached.kind === "nothing") return { occurrence, path: namedPath(occurrence.reference) };
     const { path } = reached;

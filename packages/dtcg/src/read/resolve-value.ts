@@ -5,6 +5,7 @@ import type {
     JsonPath,
     Span,
     TokenType,
+    WrittenReference,
 } from "../index.js";
 import { isJsonObject } from "../values/json.js";
 import { referenceText } from "../values/references.js";
@@ -13,7 +14,7 @@ import type { Siblings } from "../values/syntax.js";
 import type { MergedToken, Merged } from "./merge.js";
 import { type Occurrence, occurrence } from "./occurrence.js";
 import type { LocatedReference, ValueReader } from "./parse-value.js";
-import { type Aim, aimOf, reachOf, stepInto } from "./ref-meaning.js";
+import { type Aim, reachOf, stepInto, stepsOf } from "./ref-meaning.js";
 
 export const UNRESOLVED = Symbol("unresolved");
 
@@ -97,7 +98,6 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
     const { token, seen, within } = following;
     const { ref, syntax, owner, element, jsonPath } = located.reference;
     const use = within ?? located.occurrence;
-    const aim = aimOf(ref);
     const expected = syntax.kind === "ofType" ? syntax.type : owner;
     const adjusted = (part: unknown) =>
         part !== UNRESOLVED && syntax.kind === "ofType" && syntax.adjust
@@ -105,7 +105,7 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
             : part;
 
     if (ref.syntax === "curly-brace") {
-        return adjusted(substitute(resolving, token, aim, ref.path, expected, use, element));
+        return adjusted(substitute(resolving, token, ref, ref.path, expected, use, element));
     }
 
     const { pointer: written } = ref;
@@ -113,6 +113,7 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
         report("circular-reference", { chain: [...seen, written] }, token.path, use.span);
         return UNRESOLVED;
     }
+    const aim = { reference: ref, steps: stepsOf(ref) };
     const reached = reachOf(aim, merged);
     const unreachable = () => {
         if (within) notReached(aim, token.path, use.span);
@@ -123,7 +124,7 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
 
     const whole = reached.kind === "token";
     if (whole && (syntax.kind === "ofType" || element)) {
-        return adjusted(substitute(resolving, token, aim, reached.path, expected, use, element));
+        return adjusted(substitute(resolving, token, ref, reached.path, expected, use, element));
     }
     const { authored } = reached.token;
     const stepped = whole ? { value: authored } : stepInto(authored, reached.inside);
@@ -141,17 +142,17 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
 function substitute(
     { outcomeOf, report, notReached }: Resolving,
     token: MergedToken,
-    aim: Aim,
+    reference: WrittenReference,
     path: string,
     expected: TokenType,
     use: Occurrence,
     element: boolean,
 ): unknown {
     const { span } = use;
-    const shown = referenceText(aim.reference);
+    const shown = referenceText(reference);
     const target = outcomeOf(path, token.path, span);
     if (target === undefined) {
-        notReached(aim, token.path, span);
+        notReached({ reference, steps: stepsOf(reference) }, token.path, span);
         return UNRESOLVED;
     }
     if (target === "untyped" || !("resolved" in target)) return UNRESOLVED;
