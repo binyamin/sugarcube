@@ -72,13 +72,13 @@ export function merge(
                 {
                     span: later,
                     path,
-                    input,
                     related: earlier.map((span) => ({
                         message: relatedMessages.declaredAs(earlierIs),
                         span,
                     })),
                 },
             ),
+            input,
         );
 
     for (const { contents, source } of pieces) {

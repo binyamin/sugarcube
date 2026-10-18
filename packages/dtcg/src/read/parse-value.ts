@@ -9,7 +9,7 @@ import type {
     UnresolvedValueByType,
     ValueError,
 } from "../index.js";
-import { type DiagnosticExtra, foundInPermutation, type Problems } from "./diagnostics.js";
+import { type DiagnosticExtra, type Problems } from "./diagnostics.js";
 import { ignoredDiagnostic, valueDiagnostic } from "./value-diagnostic.js";
 import {
     type Notes,
@@ -60,10 +60,10 @@ export function createValueReader(diagnostics: Problems, options: ParseOptions):
         const notes: Notes = { references: [], readAgain: [] };
         const result = readToken(type, token.authored, ["$value"], options, notes);
         const found = [
-            ...result.ignored.map((each) => ignoredToDiagnostic(token, each, input)),
-            ...(result.ok ? [] : result.errors.map((error) => toDiagnostic(token, error, input))),
+            ...result.ignored.map((each) => ignoredToDiagnostic(token, each)),
+            ...(result.ok ? [] : result.errors.map((error) => toDiagnostic(token, error))),
         ];
-        const kept = diagnostics.foundAll(found);
+        const kept = diagnostics.foundAll(found, input);
         const references = notes.references.map((reference) => ({
             reference,
             occurrence: occurrence(token, reference),
@@ -78,7 +78,7 @@ export function createValueReader(diagnostics: Problems, options: ParseOptions):
             caches[type] = cache;
             const cached = cache.get(token.value);
             if (cached) {
-                for (const each of cached.diagnostics) foundInPermutation(each, input);
+                for (const each of cached.diagnostics) diagnostics.also(each, input);
                 return cached;
             }
             const fresh = read(token, type, input);
@@ -90,7 +90,7 @@ export function createValueReader(diagnostics: Problems, options: ParseOptions):
             const result = readSlot(slot, raw, options, notes);
             if (!result.ok) {
                 for (const error of result.errors) {
-                    diagnostics.found(toDiagnostic(token, error, input));
+                    diagnostics.found(toDiagnostic(token, error), input);
                 }
             }
             return { result, notes };
@@ -98,20 +98,16 @@ export function createValueReader(diagnostics: Problems, options: ParseOptions):
     };
 }
 
-function ignoredToDiagnostic(
-    token: MergedToken,
-    ignored: IgnoredProperty,
-    input: Input,
-): Diagnostic {
+function ignoredToDiagnostic(token: MergedToken, ignored: IgnoredProperty): Diagnostic {
     const { json, value, path } = token;
     const within = { node: value, steps: ignored.jsonPath.slice(1), json };
-    return ignoredDiagnostic(ignored, ignored.jsonPath, within, { path, input });
+    return ignoredDiagnostic(ignored, ignored.jsonPath, within, { path });
 }
 
-function toDiagnostic(token: MergedToken, error: ValueError, input: Input): Diagnostic {
+function toDiagnostic(token: MergedToken, error: ValueError): Diagnostic {
     const { json, value, path } = token;
     const node = deepestNode(value, error.jsonPath.slice(1));
     const span = spanOf(json, node);
-    const extra: DiagnosticExtra = { span, path, input };
+    const extra: DiagnosticExtra = { span, path };
     return valueDiagnostic(error.detail, error.jsonPath, node, extra);
 }

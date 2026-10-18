@@ -94,9 +94,9 @@ export function validateExtensions(
                 json,
                 node,
                 ...(on.path !== undefined && { path: on.path }),
-                input,
             };
-            for (const each of problems) diagnostics.found(extensionDiagnostic(each, extension));
+            for (const each of problems)
+                diagnostics.found(extensionDiagnostic(each, extension), input);
         };
 
         for (const [path, group] of everyGroup(merged)) {

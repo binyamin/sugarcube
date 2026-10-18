@@ -103,11 +103,11 @@ export function fillGenerated(
                 json: extension.json,
                 node: extension.node,
                 ...(groupPath !== undefined && { path: groupPath }),
-                input,
             };
             const report = (problems: ExtensionProblem[], seen = reported) => {
                 if (!seen.first(generator, extension.node)) return;
-                for (const each of problems) diagnostics.found(extensionDiagnostic(each, checked));
+                for (const each of problems)
+                    diagnostics.found(extensionDiagnostic(each, checked), input);
             };
             const passed = checkSchema(generator.schema, extension.value, generator.extension[0]);
             if (!passed.ok) {
@@ -137,8 +137,8 @@ export function fillGenerated(
                         diagnostic("invalid-name", detail, {
                             span: spanOf(extension.json, extension.node),
                             ...(groupPath !== undefined && { path: groupPath }),
-                            input,
                         }),
+                        input,
                     );
                     continue;
                 }

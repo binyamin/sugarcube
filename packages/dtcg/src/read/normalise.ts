@@ -1,5 +1,5 @@
 import type { Diagnostic, Input, ResolverContext, Source, TokenType } from "../index.js";
-import { diagnostic, foundInPermutation, type Problems } from "./diagnostics.js";
+import { diagnostic, type Problems } from "./diagnostics.js";
 import { applyExtends } from "./extends.js";
 import { inherited } from "./inherit.js";
 import { type Merged, type MergedToken, merge } from "./merge.js";
@@ -43,7 +43,7 @@ export function normalisePermutations(
             found = { contents, problems: diagnostics.foundAll(problems) };
             walked.set(key, found);
         }
-        if (input) for (const each of found.problems) foundInPermutation(each, input);
+        if (input) for (const each of found.problems) diagnostics.also(each, input);
         return found.contents;
     };
     const published = new Map<ListedSource, Source>();
@@ -77,7 +77,7 @@ export function normalisePermutations(
             if (type === "unusable") continue;
             if (type === undefined) {
                 const { span, path } = token;
-                diagnostics.found(diagnostic("missing-type", {}, { span, path, input }));
+                diagnostics.found(diagnostic("missing-type", {}, { span, path }), input);
                 continue;
             }
             tokens.set(token.path, { token, type, read: readValue.read(token, type, input) });

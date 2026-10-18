@@ -15,15 +15,11 @@ export function applyExtends(merged: Merged, input: Input, diagnostics: Problems
         kind: K,
         detail: DiagnosticDetailByKind[K],
         group: Extending,
-        extra: Omit<DiagnosticExtra, "span" | "path" | "permutation"> = {},
+        extra: Omit<DiagnosticExtra, "span" | "path"> = {},
     ) =>
         diagnostics.found(
-            diagnostic(kind, detail, {
-                span: group.extends.span,
-                path: group.path,
-                input,
-                ...extra,
-            }),
+            diagnostic(kind, detail, { span: group.extends.span, path: group.path, ...extra }),
+            input,
         );
 
     const visit = (group: Extending, chain: Extending[]): void => {
@@ -147,8 +143,9 @@ function becomeToken(merged: Merged, group: Extending, input: Input, diagnostics
             diagnostic(
                 "token-and-group",
                 { reason: "ref", ref: referenceText(extending.reference) },
-                { span: extending.span, path, input },
+                { span: extending.span, path },
             ),
+            input,
         );
     }
     removeGroup(merged, path);

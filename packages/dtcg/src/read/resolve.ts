@@ -11,12 +11,7 @@ import type {
     WrittenReference,
 } from "../index.js";
 import { type Earlier, buildPermutation, earlierIn } from "./build.js";
-import {
-    type DiagnosticExtra,
-    diagnostic,
-    foundInPermutation,
-    type Problems,
-} from "./diagnostics.js";
+import { type DiagnosticExtra, diagnostic, type Problems } from "./diagnostics.js";
 import { inherited } from "./inherit.js";
 import type { MergedToken } from "./merge.js";
 import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
@@ -79,14 +74,13 @@ export function resolvePermutations(
             .map((span) => ({ message: relatedMessages.alsoUsedHere, span }));
         const detail = { ref, from, ...(similar !== undefined && { similar }) };
         const [input, ...others] = inputs;
-        const found = diagnostic("missing-reference", detail, {
+        const made = diagnostic("missing-reference", detail, {
             span: first.span,
             path: first.from,
-            input,
             ...(related.length > 0 && { related }),
         });
-        for (const each of others) foundInPermutation(found, each);
-        diagnostics.found(found);
+        const found = diagnostics.found(made, input);
+        for (const each of others) diagnostics.also(found, each);
     }
     return resolved;
 }
@@ -113,11 +107,8 @@ function resolvePermutation(
         detail: DiagnosticDetailByKind[K],
         path: string,
         span: Span,
-        extra: Omit<DiagnosticExtra, "span" | "path" | "permutation"> = {},
-    ) =>
-        diagnostics.found(
-            diagnostic(kind, detail, { span, path, input: permutation.input, ...extra }),
-        );
+        extra: Omit<DiagnosticExtra, "span" | "path"> = {},
+    ) => diagnostics.found(diagnostic(kind, detail, { span, path, ...extra }), permutation.input);
 
     const recordMissing = (reference: WrittenReference, from: string, span: Span) => {
         const ref = referenceText(reference);

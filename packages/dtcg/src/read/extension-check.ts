@@ -5,7 +5,6 @@ import type {
     ExtensionError,
     ExtensionMessages,
     IgnoredProperty,
-    Input,
     JsonPath,
     StandardSchemaV1,
     ValueError,
@@ -32,7 +31,6 @@ export interface CheckedExtension {
     json: JsonFile;
     node: Node;
     path?: string | undefined;
-    input: Input;
 }
 
 export function extensionAt(
@@ -93,21 +91,17 @@ function issuePath(path: StandardSchemaV1.Issue["path"]): JsonPath {
 
 export function extensionDiagnostic(
     problem: ExtensionProblem,
-    { within, messages, json, node, path, input }: CheckedExtension,
+    { within, messages, json, node, path }: CheckedExtension,
 ): Diagnostic {
     const jsonPath = ["$extensions", ...within, ...problem.jsonPath];
     if ("kind" in problem && problem.kind === "unknown-property") {
         const where = { node, steps: problem.jsonPath, json };
-        return ignoredDiagnostic(problem, jsonPath, where, {
-            ...(path !== undefined && { path }),
-            input,
-        });
+        return ignoredDiagnostic(problem, jsonPath, where, { ...(path !== undefined && { path }) });
     }
     const found = deepestNode(node, problem.jsonPath);
     const extra: DiagnosticExtra = {
         span: spanOf(json, found),
         ...(path !== undefined && { path }),
-        input,
     };
     if ("kind" in problem) return valueDiagnostic(problem.detail, jsonPath, found, extra);
 
