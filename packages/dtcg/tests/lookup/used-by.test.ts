@@ -59,24 +59,25 @@ describe("tokens.usedBy", () => {
     });
 });
 
-describe("token.usedBy", () => {
-    it("gives each token that refers to it in this permutation once, in referencedBy's order", () => {
+describe("permutation.usedBy", () => {
+    it("gives each token that refers to the path in this permutation once, in referencedBy's order", () => {
         for (const permutation of tokens.permutations) {
-            const target = permutation.token("color.red");
             for (const chained of [false, true]) {
-                const references = target?.referencedBy({ chained }) ?? [];
-                expect(target?.usedBy({ chained })).toStrictEqual([
+                const references = permutation.referencedBy("color.red", { chained });
+                expect(permutation.usedBy("color.red", { chained })).toStrictEqual([
                     ...new Set(references.map(({ from }) => from)),
                 ]);
             }
         }
-        const dark = tokens.permutation({ mode: "dark" }).token("color.red");
+        const dark = tokens.permutation({ mode: "dark" });
         expect(
             dark
-                ?.usedBy()
+                .usedBy("color.red")
                 .map(({ path }) => path)
                 .sort(),
         ).toStrictEqual(["color.brand", "color.muted", "fade"]);
-        expect(dark?.referencedBy().filter(({ from }) => from.path === "fade")).toHaveLength(2);
+        expect(
+            dark.referencedBy("color.red").filter(({ from }) => from.path === "fade"),
+        ).toHaveLength(2);
     });
 });

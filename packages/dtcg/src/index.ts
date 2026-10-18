@@ -282,7 +282,7 @@ export interface PathInPermutations {
     readonly permutations: Permutations;
 }
 
-/** How far {@link TokenBase.referencedBy} and the design tokens' reference questions look. */
+/** How far a permutation's and the design tokens' reference questions look. */
 export interface ReferenceOptions {
     /**
      * Follow chained references (Format 7.2.2): those through other tokens, however indirectly.
@@ -540,13 +540,6 @@ export interface TokenBase<T extends TokenType> {
      */
     readonly path: string;
     /**
-     * The group the token is in, its parent group (Format 6.7.3); for a `$root` token, the group
-     * it is the root token of (Format 6.2). `undefined` at the top level of the files.
-     */
-    readonly group?: Group;
-    /** The permutation that holds it: the same path in another permutation is another token. */
-    readonly permutation: Permutation;
-    /**
      * Its type: its own `$type`, else its group's (Format 6.7.3), else the type of the token its
      * whole value references.
      */
@@ -633,25 +626,6 @@ export interface TokenBase<T extends TokenType> {
      */
     referenceAt(property?: JsonPath): Reference | undefined;
     /**
-     * Every reference to the token in this permutation, each with the token that writes it in
-     * `from`; with `chained`, also every reference to each of those, however indirectly.
-     *
-     * @example
-     * red.referencedBy().map(({ from }) => from.path)  // ["color.brand"]
-     * red.referencedBy({ chained: true })              // everything a change would reach
-     */
-    referencedBy(options?: ReferenceOptions): Reference[];
-    /**
-     * Each token or group that refers to the token in this permutation, once, however many
-     * references it writes to it; with `chained`, also each one that refers to those, however
-     * indirectly. Wider than the spec's aliases (Format 3.8), tokens whose whole value is this one:
-     * a composite with one part referring to it, or a group's `$extends`, uses it too.
-     *
-     * @example
-     * red.usedBy().map(({ path }) => path) // ["color.brand", "border.danger"]
-     */
-    usedBy(options?: ReferenceOptions): (Token | Group)[];
-    /**
      * The token, then each token its whole value references in turn, ending at the one that holds a
      * value: a curly brace reference, or a JSON Pointer to a complete value. A property-level
      * reference isn't followed. Stops at a reference to no token and at a loop, without repeating.
@@ -686,15 +660,6 @@ export interface TokenBase<T extends TokenType> {
      * }
      */
     readonly parts: Part | undefined;
-    /**
-     * The problems about it in its permutation: its own, a missing reference it writes, a loop it
-     * is part of, a problem in a value it inherits. Those only another permutation has are left
-     * out.
-     *
-     * @example
-     * for (const problem of dark.token("color.brand")?.diagnostics ?? []) show(problem.message);
-     */
-    readonly diagnostics: readonly Diagnostic[];
 }
 
 /**
@@ -723,11 +688,6 @@ export interface Group {
     readonly kind: "group";
     /** Where the group sits in the tree, such as `"color.brand"`. */
     readonly path: string;
-    /**
-     * The group it is in, its parent group (Format 6.7.3), as a token's
-     * {@link TokenBase.group | group} is. `undefined` at the top level of the files.
-     */
-    readonly group?: Group;
     /**
      * The type its tokens take: its own, else the group it extends, else the group it is inside
      * (Format 6.7.3).
@@ -1094,6 +1054,35 @@ export interface Permutation {
      * dark.group("color")?.children
      */
     group(path: string): Group | undefined;
+    /**
+     * Every reference to `path` in this permutation, each with the token or group that writes it in
+     * `from`; with `chained`, also every reference to each of those, however indirectly. A group's
+     * path covers what is written to it, such as an `$extends`, and to everything inside it.
+     *
+     * @example
+     * dark.referencedBy("color.red").map(({ from }) => from.path) // ["color.brand"]
+     * dark.referencedBy("color.red", { chained: true })           // everything a change would reach
+     */
+    referencedBy(path: string, options?: ReferenceOptions): Reference[];
+    /**
+     * Each token or group that refers to `path` in this permutation, once, however many references
+     * it writes to it; with `chained`, also each one that refers to those, however indirectly. Wider
+     * than the spec's aliases (Format 3.8), tokens whose whole value is another: a composite with one
+     * part referring to it, or a group's `$extends`, uses it too.
+     *
+     * @example
+     * dark.usedBy("color.red").map(({ path }) => path) // ["color.brand", "border.danger"]
+     */
+    usedBy(path: string, options?: ReferenceOptions): (Token | Group)[];
+    /**
+     * The problems about the token or group at `path` in this permutation: its own, a missing
+     * reference it writes, a loop it is part of, a problem in a value it inherits. Those only
+     * another permutation has are left out.
+     *
+     * @example
+     * for (const problem of dark.diagnosticsFor("color.brand")) show(problem.message);
+     */
+    diagnosticsFor(path: string): Diagnostic[];
 }
 
 /**
@@ -1427,13 +1416,14 @@ export type DiagnosticOf<DetailByKind> = {
 
 /**
  * Design tokens as the DTCG specifications define them: every permutation, with every value in one
- * shape and every reference followed. The tokens and groups link to each other: a token's
- * {@link TokenBase.group | group} is the group itself, a group's {@link Group.children | children}
- * the tokens and groups themselves. `JSON.stringify` writes their plain form, with a path wherever
- * one links to another, and leaves out what the rest says: a token's or group's `group`, a token's
- * `permutation`, a group's `rootToken` and `extends`, `kind`, a reference's `from`, `token` and
- * `targetProperty`, and a JSON Pointer's `path`. Nothing changes them after {@link read} returns
- * them: everything in them is read-only and shared, so make a new value rather than changing one.
+ * shape and every reference followed. The tokens and groups link down and across, never up: a
+ * group's {@link Group.children | children} are the tokens and groups themselves, and a reference's
+ * `token` the token it reaches; what is around a token, its group and who refers to it, is asked of
+ * its permutation by path. `JSON.stringify` writes their plain form, with a path wherever one links
+ * to another, and leaves out what the rest says: a group's `rootToken` and `extends`, `kind`, a
+ * reference's `from`, `token` and `targetProperty`, and a JSON Pointer's `path`. Nothing changes
+ * them after {@link read} returns them: everything in them is read-only and shared, so make a new
+ * value rather than changing one.
  */
 export interface DesignTokens {
     /**

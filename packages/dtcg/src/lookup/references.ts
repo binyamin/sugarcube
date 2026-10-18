@@ -49,6 +49,14 @@ export function referencedIn(
     return [...found].sort((a, b) => (position.get(a) ?? 0) - (position.get(b) ?? 0));
 }
 
+export function usedIn(
+    permutation: Permutation,
+    path: string,
+    options?: ReferenceOptions,
+): (Token | Group)[] {
+    return [...new Set(referencedIn(permutation, path, options).map(({ from }) => from))];
+}
+
 export function referencedByIn(
     tokens: DesignTokens,
     path: string,
@@ -112,7 +120,7 @@ export function usedByIn(
 ): PathInPermutations[] {
     const users = new Map<string, Permutation[]>();
     for (const permutation of tokens.permutations) {
-        for (const { from } of referencedIn(permutation, path, options)) {
+        for (const from of usedIn(permutation, path, options)) {
             const found = users.get(from.path);
             if (found) found.push(permutation);
             else users.set(from.path, [permutation]);

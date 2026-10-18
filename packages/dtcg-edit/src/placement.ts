@@ -210,7 +210,9 @@ function contextPlace(
         return refused({ kind: "hidden-by-later-file", path, input, file: winner.span.file });
     }
 
-    const groupSpans = (written.group?.writtenAt ?? []).map(({ span }) => span);
+    const parent = parentOf(path);
+    const group = parent === undefined ? undefined : perm.group(parent);
+    const groupSpans = (group?.writtenAt ?? []).map(({ span }) => span);
     const into = chosenFile(path, unique(winning), groupSpans, place);
     if (typeof into !== "string") return into;
     return { token: written, into, alsoAffects: seenReading(tokens, into, chosen) };

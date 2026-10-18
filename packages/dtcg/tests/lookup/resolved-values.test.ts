@@ -68,7 +68,7 @@ describe("tokens.resolvedValues", () => {
 
     it("gives the token from the first permutation that gets each value", () => {
         for (const { token, permutations } of tokens.resolvedValues("accent")) {
-            expect(token.permutation).toBe(permutations[0]);
+            expect(token).toBe(permutations[0]?.token("accent"));
         }
     });
 

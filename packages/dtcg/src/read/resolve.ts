@@ -304,7 +304,7 @@ function resolvePermutation(
                 const writtenAt = replaces
                     ? [...placed(replaces), places.at(sourceAt(piece.source), span)]
                     : places.only(sourceAt(piece.source), span);
-                const token = toToken(entry.token, outcome, merged, parent, linked, writtenAt);
+                const token = toToken(entry.token, outcome, merged, writtenAt);
                 if (parent && withoutRoot(path) === parent.path) parent.rootToken = token;
                 built.set(path, token);
                 if (outcome.references.length > 0) written.push([token, outcome.references]);
@@ -313,7 +313,6 @@ function resolvePermutation(
             }
             const group = groups.get(path);
             if (!group) continue;
-            group.group = parent;
             group.children = childrenOf(path, group);
             children.push(group);
         }
@@ -436,16 +435,12 @@ function toToken<T extends TokenType>(
     token: MergedToken,
     outcome: Resolved & { type: T },
     merged: Merged,
-    group: Group | undefined,
-    permutation: Permutation,
     writtenAt: Place[],
 ): Token {
     const { read } = outcome;
     return linkedToken({
         path: token.path,
         type: outcome.type,
-        group,
-        permutation,
         references: NO_REFERENCES,
         writtenAt,
         value: read.ok ? (read.value as UnresolvedValue<T>) : undefined,

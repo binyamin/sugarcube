@@ -18,11 +18,17 @@ import type {
     Span,
     Token,
 } from "../index.js";
-import { diagnosticsAtIn, diagnosticsForIn, diagnosticsOf } from "../lookup/diagnostics.js";
+import { diagnosticsAtIn, diagnosticsForIn, diagnosticsIn } from "../lookup/diagnostics.js";
 import { diffIn } from "../lookup/diff.js";
 import { partsOf } from "../lookup/parts.js";
 import { modifierIn, permutationIn } from "../lookup/permutation.js";
-import { referencedByIn, referencedIn, referencesIn, usedByIn } from "../lookup/references.js";
+import {
+    referencedByIn,
+    referencedIn,
+    referencesIn,
+    usedByIn,
+    usedIn,
+} from "../lookup/references.js";
 import { resolvedValuesIn } from "../lookup/resolved-values.js";
 import { writtenAtIn } from "../lookup/written-at.js";
 import { type Kept, keep, keptBy } from "./kept.js";
@@ -34,7 +40,6 @@ const designTokensOf = new WeakMap<Permutation, DesignTokens>();
 
 const aliasChainOf = new WeakMap<Token, readonly Token[]>();
 const partsOfToken = new WeakMap<Token, Part | undefined>();
-const diagnosticsOfToken = new WeakMap<Token, readonly Diagnostic[]>();
 const childTokensOf = new WeakMap<Group, readonly Token[]>();
 const tokensOf = new WeakMap<Group, readonly Token[]>();
 
@@ -49,12 +54,6 @@ const tokenShared = {
     kind: "token",
     referenceAt(this: Token, property: JsonPath = []): Reference | undefined {
         return this.references.find((each) => samePlace(each.property, property));
-    },
-    referencedBy(this: Token, options?: ReferenceOptions): Reference[] {
-        return referencedIn(this.permutation, this.path, options);
-    },
-    usedBy(this: Token, options?: ReferenceOptions): (Token | Group)[] {
-        return [...new Set(this.referencedBy(options).map(({ from }) => from))];
     },
     get aliasChain(): readonly Token[] {
         const token = this as unknown as Token;
@@ -74,15 +73,6 @@ const tokenShared = {
     get parts(): Part | undefined {
         const token = this as unknown as Token;
         return cached(partsOfToken, token, () => partsOf(token));
-    },
-    get diagnostics(): readonly Diagnostic[] {
-        const token = this as unknown as Token;
-        return cached(diagnosticsOfToken, token, () =>
-            diagnosticsOf(designTokensOf.get(token.permutation) as DesignTokens, token),
-        );
-    },
-    toJSON(this: Token) {
-        return { ...this, group: undefined, permutation: undefined };
     },
 };
 
@@ -111,7 +101,6 @@ const groupShared = {
     toJSON(this: Group) {
         return {
             ...this,
-            group: undefined,
             extends: undefined,
             rootToken: undefined,
             children: paths(this.children),
@@ -135,6 +124,15 @@ const permutationShared = {
     },
     group(this: Permutation, path: string): Group | undefined {
         return indexes.get(this)?.groups.get(path);
+    },
+    referencedBy(this: Permutation, path: string, options?: ReferenceOptions): Reference[] {
+        return referencedIn(this, path, options);
+    },
+    usedBy(this: Permutation, path: string, options?: ReferenceOptions): (Token | Group)[] {
+        return usedIn(this, path, options);
+    },
+    diagnosticsFor(this: Permutation, path: string): Diagnostic[] {
+        return diagnosticsIn(designTokensOf.get(this) as DesignTokens, this, path);
     },
     toJSON(this: Permutation) {
         const sources = this.sources.map(positionOf);
@@ -222,8 +220,6 @@ type TokenFields = Omit<Token, keyof typeof tokenShared>;
 function TokenObject(this: Record<string, unknown>, fields: TokenFields): void {
     this.path = fields.path;
     this.type = fields.type;
-    this.group = fields.group;
-    this.permutation = fields.permutation;
     this.references = fields.references;
     this.writtenAt = fields.writtenAt;
     if (fields.value !== undefined) this.value = fields.value;

@@ -1,25 +1,36 @@
-import type { DesignTokens, Diagnostic, Span, Token } from "../index.js";
+import type { DesignTokens, Diagnostic, Permutation, Span, Token } from "../index.js";
 
 export function diagnosticsForIn(tokens: DesignTokens, path: string): Diagnostic[] {
-    const taking = tokens.permutations.flatMap((each) => each.token(path) ?? []);
-    return tokens.diagnostics.filter(
-        (found) => isAbout(found, path) || taking.some((token) => inValueFrom(found, token)),
-    );
-}
-
-export function diagnosticsOf(tokens: DesignTokens, token: Token): Diagnostic[] {
+    const taking = tokens.permutations.flatMap((each) => {
+        const token = each.token(path);
+        return token ? [{ permutation: each, token }] : [];
+    });
     return tokens.diagnostics.filter(
         (found) =>
-            (isAbout(found, token.path) || inValueFrom(found, token)) &&
-            found.permutations.includes(token.permutation),
+            isAbout(found, path) ||
+            taking.some(({ permutation, token }) => inValueFrom(found, permutation, token)),
     );
 }
 
-function inValueFrom({ span, path }: Diagnostic, token: Token): boolean {
+export function diagnosticsIn(
+    tokens: DesignTokens,
+    permutation: Permutation,
+    path: string,
+): Diagnostic[] {
+    const token = permutation.token(path);
+    return tokens.diagnostics.filter(
+        (found) =>
+            (isAbout(found, path) ||
+                (token !== undefined && inValueFrom(found, permutation, token))) &&
+            found.permutations.includes(permutation),
+    );
+}
+
+function inValueFrom({ span, path }: Diagnostic, permutation: Permutation, token: Token): boolean {
     if (span === undefined || path === undefined || path === token.path) return false;
     const from = token.valueFrom.span;
     return (
-        token.permutation.token(path)?.valueFrom.span === from &&
+        permutation.token(path)?.valueFrom.span === from &&
         span.file === from.file &&
         from.offset <= span.offset &&
         span.offset + span.length <= from.offset + from.length

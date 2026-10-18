@@ -1,13 +1,15 @@
 // Works out what a size is for, such as a font size or a border width, so an editor can show the
 // right preview next to it. A setting on the token or on any group above it can say so, and so
 // can being used as the font size of a typography token or the width of a border.
-import { type DesignTokens, type Group, type Token } from "@sugarcube-sh/dtcg";
+import { type DesignTokens, parentOf } from "@sugarcube-sh/dtcg";
 
 declare const tokens: DesignTokens;
 
 function declared(path: string): string | undefined {
-    for (let at: Token | Group | undefined = tokens.permutation().token(path); at; at = at.group) {
-        const setting = at.extensions?.["com.example"] as { measures?: string } | undefined;
+    const permutation = tokens.permutation();
+    for (let at: string | undefined = path; at !== undefined; at = parentOf(at)) {
+        const found = permutation.token(at) ?? permutation.group(at);
+        const setting = found?.extensions?.["com.example"] as { measures?: string } | undefined;
         if (setting?.measures) return setting.measures;
     }
     return undefined;

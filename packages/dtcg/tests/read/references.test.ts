@@ -143,18 +143,7 @@ describe("a token's references", () => {
         const line = invalid.permutation().token("line");
         expect(line?.invalid).toBe(true);
         expect(line?.references.map(({ path }) => path)).toStrictEqual(["color.ink"]);
-        expect(invalid.permutation().token("color.ink")?.referencedBy()[0]?.from).toBe(line);
-    });
-});
-
-describe("a token's permutation", () => {
-    it("is the permutation that holds it", () => {
-        expect(inLight("color.red")?.permutation).toBe(light);
-        expect(inDark("color.red")?.permutation).toBe(dark);
-    });
-
-    it("is left out of the plain form", () => {
-        expect(JSON.parse(JSON.stringify(inLight("color.red")))).not.toHaveProperty("permutation");
+        expect(invalid.permutation().referencedBy("color.ink")[0]?.from).toBe(line);
     });
 });
 
@@ -196,16 +185,16 @@ describe("referenceAt", () => {
     });
 });
 
-describe("a token's referencedBy", () => {
-    it("is every reference to it, each with the token that writes it", () => {
+describe("permutation.referencedBy", () => {
+    it("is every reference to the path, each with the token that writes it", () => {
         const red = inLight("color.red");
-        const reaching = red?.referencedBy() ?? [];
+        const reaching = light.referencedBy("color.red");
         expect(reaching.map(({ from }) => from.path)).toStrictEqual(["color.brand", "color.tint"]);
         expect(reaching.every(({ path }) => path === red?.path)).toBe(true);
     });
 
     it("follows chained references when asked (Format 7.2.2), each once, in written order", () => {
-        const chained = inLight("color.red")?.referencedBy({ chained: true }) ?? [];
+        const chained = light.referencedBy("color.red", { chained: true });
         expect(chained.map(({ from, path }) => `${from.path} > ${path}`)).toStrictEqual([
             "color.brand > color.red",
             "color.text > color.brand",
@@ -214,8 +203,8 @@ describe("a token's referencedBy", () => {
         ]);
     });
 
-    it("is its own permutation's: in mode: dark, color.red's only user is the tint", () => {
-        const reaching = inDark("color.red")?.referencedBy() ?? [];
+    it("is the permutation's own: in mode: dark, color.red's only user is the tint", () => {
+        const reaching = dark.referencedBy("color.red");
         expect(reaching.map(({ from }) => from.path)).toStrictEqual(["color.tint"]);
     });
 
@@ -224,12 +213,12 @@ describe("a token's referencedBy", () => {
             a: { $type: "number", $value: "{b}" },
             b: { $type: "number", $value: "{a}" },
         });
-        const chained = loop.permutation().token("a")?.referencedBy({ chained: true }) ?? [];
+        const chained = loop.permutation().referencedBy("a", { chained: true });
         expect(chained.map(({ from }) => from.path)).toStrictEqual(["a", "b"]);
     });
 
     it("is empty when nothing references it", () => {
-        expect(inLight("color.text")?.referencedBy()).toStrictEqual([]);
+        expect(light.referencedBy("color.text")).toStrictEqual([]);
     });
 });
 

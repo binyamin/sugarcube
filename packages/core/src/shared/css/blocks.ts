@@ -1,4 +1,4 @@
-import type { Group, Token } from "@sugarcube-sh/dtcg";
+import type { Group, Permutation, Token } from "@sugarcube-sh/dtcg";
 import { stacksOn } from "../pipeline/stacks-on.js";
 import type { Declaration } from "./declarations.js";
 import type { Entry } from "./declare.js";
@@ -24,7 +24,9 @@ export function blocks(
         }
         const all = entry.declared.declarations;
         const changed = all.filter((line) => changedFrom(inEffect.get(line.name), line));
-        const written = redeclare ? [...changed, ...dependents(all, changed)] : changed;
+        const written = redeclare
+            ? [...changed, ...dependents(entry.permutation, all, changed)]
+            : changed;
         const writtenNames = new Set(written.map(({ name }) => name));
         const supported = all.filter(
             (line): line is Supported =>
@@ -59,11 +61,15 @@ function sameSupports(
     return earlier?.supports?.condition === condition && earlier.supports.value === value;
 }
 
-function dependents(declared: Declaration[], changed: Declaration[]): Declaration[] {
+function dependents(
+    permutation: Permutation,
+    declared: Declaration[],
+    changed: Declaration[],
+): Declaration[] {
     const written = new Set(changed.map(({ name }) => name));
     const referring = new Set<Token | Group>();
-    for (const source of new Set(changed.map(({ token }) => token))) {
-        for (const user of source.usedBy({ chained: true })) referring.add(user);
+    for (const source of new Set(changed.map(({ token }) => token.path))) {
+        for (const user of permutation.usedBy(source, { chained: true })) referring.add(user);
     }
     return declared.filter(({ name, token }) => referring.has(token) && !written.has(name));
 }
