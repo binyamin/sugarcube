@@ -35,6 +35,7 @@ export interface SourceToken extends Properties {
     authored: unknown;
     reference: WrittenReference | undefined;
     span: Span;
+    extensionsAt?: ExtensionsAt;
 }
 
 export interface GroupReference {
@@ -145,7 +146,7 @@ export function walkSource(
         return properties;
     };
 
-    const readGroupProperties = (path: string | undefined, entries: readonly Member[]) => {
+    const readPropertiesAt = (path: string | undefined, entries: readonly Member[]) => {
         const properties = readProperties(path, entries);
         const extensions = entries.find(({ key }) => key === "$extensions")?.value;
         return {
@@ -194,7 +195,7 @@ export function walkSource(
                 authored,
                 reference: readReference(authored),
                 span: spanOf(json, node),
-                ...readProperties(path, entries),
+                ...readPropertiesAt(path, entries),
             },
         });
     };
@@ -206,7 +207,7 @@ export function walkSource(
             group: {
                 path,
                 span: spanOf(json, node),
-                ...readGroupProperties(path, entries),
+                ...readPropertiesAt(path, entries),
                 ...(extending && { extends: extending }),
             },
         });
@@ -288,7 +289,7 @@ export function walkSource(
         members(tree).filter(({ key }) => !overridden.has(key)),
         true,
     );
-    contents.root = { span: spanOf(json, tree), ...readGroupProperties(undefined, rootEntries) };
+    contents.root = { span: spanOf(json, tree), ...readPropertiesAt(undefined, rootEntries) };
     visitMembers([], rootEntries);
     return contents;
 }

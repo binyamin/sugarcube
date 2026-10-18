@@ -13,17 +13,18 @@ import type {
     StandardSchemaV1,
     ValueError,
 } from "../index.js";
-import { isJsonObject } from "../values/json.js";
 import { readReference } from "../values/references.js";
 import {
     type CheckedExtension,
     type ExtensionProblem,
     type SchemaOutput,
+    Reported,
     checkSchema,
+    extensionAt,
     extensionDiagnostic,
 } from "./extension-check.js";
 import { diagnostic, type Problems } from "./diagnostics.js";
-import { type JsonFile, member, spanOf } from "./json.js";
+import { type JsonFile, spanOf } from "./json.js";
 import { type Merged, type MergedToken, type Piece, everyGroup } from "./merge.js";
 import { usableType } from "./walk.js";
 
@@ -89,8 +90,8 @@ export function fillGenerated(
 ): void {
     const added: MergedToken[] = [];
     const addedPaths = new Set<string>();
-    const reported = new Map<Generator, Set<Node>>();
-    const reportedIgnored = new Map<Generator, Set<Node>>();
+    const reported = new Reported();
+    const reportedIgnored = new Reported();
 
     for (const [groupPath, group] of everyGroup(merged)) {
         const settings = applying(merged, group);
@@ -106,13 +107,8 @@ export function fillGenerated(
                 permutation,
             };
             const report = (problems: ExtensionProblem[], seen = reported) => {
-                const done = seen.get(generator) ?? new Set<Node>();
-                seen.set(generator, done);
-                if (done.has(extension.node)) return;
-                done.add(extension.node);
-                for (const problem of problems) {
-                    diagnostics.found(extensionDiagnostic(problem, checked));
-                }
+                if (!seen.first(generator, extension.node)) return;
+                for (const each of problems) diagnostics.found(extensionDiagnostic(each, checked));
             };
             const passed = checkSchema(generator.schema, extension.value, generator.extension[0]);
             if (!passed.ok) {
@@ -162,21 +158,10 @@ export function fillGenerated(
     }
 }
 
-function extensionOf(
-    group: Settings,
-    [key, ...inside]: Generator["extension"],
-): Extension | undefined {
-    const written = group.extensionsAt?.[key];
-    if (!written) return undefined;
-    let value = group.extensions?.[key];
-    let node: Node | undefined = member(written.node, key);
-    for (const step of inside) {
-        if (!isJsonObject(value) || !node) return undefined;
-        value = value[step];
-        node = member(node, step);
-    }
-    if (value === undefined || !node) return undefined;
-    return { value, json: written.json, node, piece: written.piece };
+function extensionOf(group: Settings, extension: Generator["extension"]): Extension | undefined {
+    const written = group.extensionsAt?.[extension[0]];
+    const found = extensionAt(group.extensions, written, extension);
+    return written && found && { ...found, json: written.json, piece: written.piece };
 }
 
 function addedToken(

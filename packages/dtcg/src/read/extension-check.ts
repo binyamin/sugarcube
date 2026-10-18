@@ -10,9 +10,11 @@ import type {
     StandardSchemaV1,
     ValueError,
 } from "../index.js";
+import { isJsonObject } from "../values/json.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
-import { type JsonFile, deepestNode, spanOf } from "./json.js";
+import { type JsonFile, deepestNode, member, spanOf } from "./json.js";
 import { ignoredDiagnostic, valueDiagnostic } from "./value-diagnostic.js";
+import type { ExtensionsAt } from "./walk.js";
 
 export type SchemaOutput<S> = S extends StandardSchemaV1
     ? StandardSchemaV1.InferOutput<S>
@@ -31,6 +33,34 @@ export interface CheckedExtension {
     node: Node;
     path?: string | undefined;
     permutation: Input;
+}
+
+export function extensionAt(
+    extensions: Readonly<Record<string, unknown>> | undefined,
+    at: ExtensionsAt | undefined,
+    [key, ...inside]: readonly [string, ...string[]],
+): { value: unknown; node: Node } | undefined {
+    if (!at) return undefined;
+    let value = extensions?.[key];
+    let node = member(at.node, key);
+    for (const step of inside) {
+        if (!isJsonObject(value) || !node) return undefined;
+        value = value[step];
+        node = member(node, step);
+    }
+    return value === undefined || !node ? undefined : { value, node };
+}
+
+export class Reported {
+    readonly #seen = new Map<object, Set<Node>>();
+
+    first(by: object, node: Node): boolean {
+        const seen = this.#seen.get(by) ?? new Set<Node>();
+        this.#seen.set(by, seen);
+        if (seen.has(node)) return false;
+        seen.add(node);
+        return true;
+    }
 }
 
 export function checkSchema(
