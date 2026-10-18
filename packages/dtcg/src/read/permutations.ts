@@ -145,10 +145,10 @@ function listedSources(
     const readBy = whoReadsEachSource(items, sources, contextOf);
     const listed = new Map<SourceEntry, Map<ResolverContext | undefined, ListedSource>>();
     return (entry, context) => {
-        const pieces = entry.pieces.flatMap((piece) => sources.get(piece) ?? []);
         const [first] = entry.pieces;
-        const [loaded] = pieces;
+        const loaded = openedAs(entry, sources);
         if (!first || !loaded) return undefined;
+        const pieces = entry.pieces.flatMap((piece) => sources.get(piece) ?? []);
         const byContext = listed.get(entry) ?? new Map<ResolverContext | undefined, ListedSource>();
         listed.set(entry, byContext);
         const found = byContext.get(context);
@@ -195,8 +195,8 @@ function whoReadsEachSource(
     contextOf: ContextOf,
 ): Map<string, Source["readBy"]> {
     const readBy = new Map<string, "everyone" | ResolverContext[]>();
-    const read = ({ pieces: [first] }: SourceEntry, context?: ResolverContext) => {
-        const loaded = first && sources.get(first);
+    const read = (entry: SourceEntry, context?: ResolverContext) => {
+        const loaded = openedAs(entry, sources);
         if (!loaded) return;
         const key = sourceKey(loaded);
         const existing = readBy.get(key);
@@ -219,6 +219,13 @@ function whoReadsEachSource(
         }
     }
     return readBy;
+}
+
+function openedAs(
+    { pieces: [first] }: SourceEntry,
+    sources: Map<SourcePiece, LoadedSource>,
+): LoadedSource | undefined {
+    return first && sources.get(first);
 }
 
 function sourceKey({ file, pointer }: LoadedSource): string {

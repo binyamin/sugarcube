@@ -118,24 +118,24 @@ export function openSources(
     return new Map(pieces.map((piece) => [piece, openSource(files, resolver, piece)]));
 }
 
-function openSource(files: Files, resolver: CheckedResolver, entry: SourcePiece): LoadedSource {
-    const overridden = entry.overriddenKeys && { overriddenKeys: entry.overriddenKeys };
-    if (entry.kind === "inline") {
+function openSource(files: Files, resolver: CheckedResolver, piece: SourcePiece): LoadedSource {
+    const overridden = piece.overriddenKeys && { overriddenKeys: piece.overriddenKeys };
+    if (piece.kind === "inline") {
         return {
             file: resolver.file.path,
-            pointer: encodePointer(entry.jsonPath),
+            pointer: encodePointer(piece.jsonPath),
             json: resolver.file,
-            tree: entry.node,
+            tree: piece.node,
             ...overridden,
         };
     }
 
-    const { path } = entry;
-    const pointer = fragmentPointer(entry.fragment);
-    const refText = entry.ref.value;
-    const jsonPath = [...entry.jsonPath, "$ref"];
+    const { path } = piece;
+    const pointer = fragmentPointer(piece.fragment);
+    const refText = piece.ref.value;
+    const jsonPath = [...piece.jsonPath, "$ref"];
     const report = (problem: Parameters<typeof resolverProblem>[1]) =>
-        files.diagnostics.found(resolverProblem(resolver.file, problem, entry.ref));
+        files.diagnostics.found(resolverProblem(resolver.file, problem, piece.ref));
 
     const root = parseFile(files, path)?.root;
     if (isResolver(path, root)) {
@@ -146,11 +146,11 @@ function openSource(files: Files, resolver: CheckedResolver, entry: SourcePiece)
 
     const json = openFile(files, path, "tokens", {
         file: resolver.file.path,
-        span: spanOf(resolver.file, entry.ref),
+        span: spanOf(resolver.file, piece.ref),
     });
     if (!json) return { file: path, ...pointer };
 
-    const followed = follow(json.root, entry.fragment);
+    const followed = follow(json.root, piece.fragment);
     if (!followed.ok) {
         report({ rule: "invalid-pointer", name: refText, jsonPath });
         return { file: path, ...pointer };
