@@ -1419,11 +1419,13 @@ export type DiagnosticOf<DetailByKind> = {
  * shape and every reference followed. The tokens and groups link down and across, never up: a
  * group's {@link Group.children | children} are the tokens and groups themselves, and a reference's
  * `token` the token it reaches; what is around a token, its group and who refers to it, is asked of
- * its permutation by path. `JSON.stringify` writes their plain form, with a path wherever one links
- * to another, and leaves out what the rest says: a group's `rootToken` and `extends`, `kind`, a
- * reference's `from`, `token` and `targetProperty`, and a JSON Pointer's `path`. Nothing changes
- * them after {@link read} returns them: everything in them is read-only and shared, so make a new
- * value rather than changing one.
+ * its permutation by path. A token or group that is the same in two permutations, written in the
+ * same places, taking the same settings from its groups and reaching the same tokens, is one object
+ * in both, so `===` tells whether it differs between them. `JSON.stringify` writes their plain
+ * form, with a path wherever one links to another, and leaves out what the rest says: a group's
+ * `rootToken` and `extends`, `kind`, a reference's `from`, `token` and `targetProperty`, and a JSON
+ * Pointer's `path`. Nothing changes them after {@link read} returns them: everything in them is
+ * read-only and shared, so make a new value rather than changing one.
  */
 export interface DesignTokens {
     /**
