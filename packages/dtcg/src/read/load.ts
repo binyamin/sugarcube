@@ -17,7 +17,7 @@ import {
 import { checkResolver, isResolver } from "./resolver.js";
 import { resolverPart } from "./resolver-part.js";
 import { Problems } from "./diagnostics.js";
-import { entriesOf, expandSources, filesNamedBy, openSources } from "./sources.js";
+import { expandSources, filesNamedBy, openSources, piecesOf } from "./sources.js";
 import { sameResolver } from "./same-object.js";
 
 export interface Loaded {
@@ -55,9 +55,9 @@ export function* load(
 
     const resolver = checkResolver(file, diagnostics);
     const { items, setsUsed } = expandSources(resolver, diagnostics);
-    const entries = entriesOf(items);
-    yield* fetchFiles(files, filesNamedBy(entries));
-    const sources = openSources(files, resolver, entries);
+    const pieces = piecesOf(items);
+    yield* fetchFiles(files, filesNamedBy(pieces));
+    const sources = openSources(files, resolver, pieces);
     const made = resolverPart(resolver, setsUsed, diagnostics);
     const part = previous && sameResolver(previous, made) ? previous : made;
     return loaded({

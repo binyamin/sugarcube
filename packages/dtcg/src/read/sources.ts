@@ -25,14 +25,13 @@ export interface RouteStep {
     extensions?: Node;
 }
 
-export type SourceEntry =
+export type SourcePiece =
     | {
           kind: "inline";
           node: Node;
           jsonPath: JsonPath;
           route: RouteStep[];
           overriddenKeys?: string[];
-          pieces?: SourceEntry[];
       }
     | {
           kind: "file";
@@ -42,8 +41,11 @@ export type SourceEntry =
           jsonPath: JsonPath;
           route: RouteStep[];
           overriddenKeys?: string[];
-          pieces?: SourceEntry[];
       };
+
+export interface SourceEntry {
+    pieces: readonly SourcePiece[];
+}
 
 export type ExpandedItem =
     | { kind: "set"; set: SetDefinition; entries: SourceEntry[] }
@@ -55,7 +57,6 @@ export interface LoadedSource {
     json?: JsonFile;
     tree?: Node;
     overriddenKeys?: string[];
-    pieces?: LoadedSource[];
 }
 
 export interface SetsUsed {
@@ -95,29 +96,29 @@ export function expandSources(
     return { items, setsUsed };
 }
 
-export function entriesOf(items: ExpandedItem[]): SourceEntry[] {
+function entriesOf(items: ExpandedItem[]): SourceEntry[] {
     return items.flatMap((item) =>
         item.kind === "set" ? item.entries : [...item.contexts.values()].flat(),
     );
 }
 
-export function filesNamedBy(entries: SourceEntry[]): string[] {
-    return entries.flatMap((entry) => (entry.kind === "file" ? [entry.path] : []));
+export function piecesOf(items: ExpandedItem[]): SourcePiece[] {
+    return entriesOf(items).flatMap(({ pieces }) => pieces);
+}
+
+export function filesNamedBy(pieces: SourcePiece[]): string[] {
+    return pieces.flatMap((piece) => (piece.kind === "file" ? [piece.path] : []));
 }
 
 export function openSources(
     files: Files,
     resolver: CheckedResolver,
-    entries: SourceEntry[],
-): Map<SourceEntry, LoadedSource> {
-    const opened = new Map(entries.map((entry) => [entry, openSource(files, resolver, entry)]));
-    for (const [entry, loaded] of opened) {
-        if (entry.pieces) loaded.pieces = entry.pieces.flatMap((each) => opened.get(each) ?? []);
-    }
-    return opened;
+    pieces: SourcePiece[],
+): Map<SourcePiece, LoadedSource> {
+    return new Map(pieces.map((piece) => [piece, openSource(files, resolver, piece)]));
 }
 
-function openSource(files: Files, resolver: CheckedResolver, entry: SourceEntry): LoadedSource {
+function openSource(files: Files, resolver: CheckedResolver, entry: SourcePiece): LoadedSource {
     const overridden = entry.overriddenKeys && { overriddenKeys: entry.overriddenKeys };
     if (entry.kind === "inline") {
         return {
@@ -206,7 +207,11 @@ function followSource(
 ): SourceEntry[] {
     const { reader, root, folder, sets, setsUsed } = expander;
     const refNode = member(source.node, "$ref");
-    if (!refNode) return [{ kind: "inline", node: source.node, jsonPath: source.jsonPath, route }];
+    if (!refNode) {
+        return [
+            { pieces: [{ kind: "inline", node: source.node, jsonPath: source.jsonPath, route }] },
+        ];
+    }
 
     const jsonPath = [...source.jsonPath, "$ref"];
     if (!reader.expect(refNode, "string", "$ref", jsonPath)) return [];
@@ -227,7 +232,7 @@ function followSource(
         return [];
     }
     if (read.kind === "file") {
-        const entry: SourceEntry = {
+        const piece: SourcePiece = {
             kind: "file",
             path: read.path,
             fragment: read.steps,
@@ -235,7 +240,7 @@ function followSource(
             jsonPath: source.jsonPath,
             route,
         };
-        return withOverrides([entry], overriding, route);
+        return withOverrides([{ pieces: [piece] }], overriding, route);
     }
 
     const { steps } = read;
@@ -336,21 +341,20 @@ function withOverride(
 ): SourceEntry[] {
     const overridden = keysBeside(source);
     if (overridden.length === 0) return entries;
-    const pieces: SourceEntry[] = [
-        ...entries.map((entry) => ({
-            ...entry,
-            overriddenKeys: [...(entry.overriddenKeys ?? []), ...overridden],
+    const overriddenPieces = entries.flatMap(({ pieces }) =>
+        pieces.map((piece) => ({
+            ...piece,
+            overriddenKeys: [...(piece.overriddenKeys ?? []), ...overridden],
         })),
-        {
-            kind: "inline",
-            node: source.node,
-            jsonPath: source.jsonPath,
-            route,
-            overriddenKeys: ["$ref"],
-        },
-    ];
-    for (const piece of pieces) piece.pieces = pieces;
-    return pieces;
+    );
+    const beside: SourcePiece = {
+        kind: "inline",
+        node: source.node,
+        jsonPath: source.jsonPath,
+        route,
+        overriddenKeys: ["$ref"],
+    };
+    return [{ pieces: [...overriddenPieces, beside] }];
 }
 
 function pointable([first]: string[]): boolean {
