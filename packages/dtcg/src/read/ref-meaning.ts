@@ -1,12 +1,31 @@
-import type { JsonPath } from "../index.js";
+import type { JsonPath, WrittenReference } from "../index.js";
 import { isJsonObject } from "../values/json.js";
 import type { Merged, MergedToken } from "./merge.js";
+import { refSteps } from "./pointer.js";
 
 export type Reached =
     | { kind: "group"; path: string }
     | { kind: "token"; path: string; token: MergedToken }
     | { kind: "part"; path: string; token: MergedToken; inside: string[] }
     | { kind: "nothing" };
+
+export interface Aim {
+    reference: WrittenReference;
+    steps: string[] | undefined;
+}
+
+export function aimOf(reference: WrittenReference): Aim {
+    const steps = reference.syntax === "json-pointer" ? refSteps(reference.pointer) : undefined;
+    return { reference, steps };
+}
+
+export function reachOf({ reference, steps }: Aim, merged: Merged): Reached {
+    if (reference.syntax === "json-pointer") return reach(steps, merged);
+    const { path } = reference;
+    const token = merged.tokens.get(path);
+    if (token) return { kind: "token", path, token };
+    return merged.groups.has(path) ? { kind: "group", path } : { kind: "nothing" };
+}
 
 export function reach(steps: string[] | undefined, merged: Merged): Reached {
     if (!steps) return { kind: "nothing" };

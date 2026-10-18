@@ -5,7 +5,7 @@ import { type DiagnosticExtra, diagnostic, type Problems } from "./diagnostics.j
 import { malformation } from "./malformed-pointer.js";
 import { type Merged, type MergedGroup, removeGroup } from "./merge.js";
 import { pathBelow, atOrWithin } from "../path.js";
-import { reach, refObjectMeaning } from "./ref-meaning.js";
+import { reachOf, refObjectMeaning } from "./ref-meaning.js";
 
 type Extending = MergedGroup & { extends: NonNullable<MergedGroup["extends"]> };
 
@@ -63,7 +63,7 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Pr
         if (direct !== undefined) extendInside(direct, chain);
         if (state.get(group.path) === "in-a-loop") return;
 
-        const reached = reach(steps, merged);
+        const reached = reachOf(group.extends, merged);
         const malformed = reached.kind === "nothing" && malformation(written, merged);
         if (malformed) {
             report("malformed-pointer", malformed, group);

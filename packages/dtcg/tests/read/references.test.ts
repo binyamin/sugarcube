@@ -263,6 +263,29 @@ describe("a group's $extends", () => {
     });
 });
 
+describe("a curly brace reference's path", () => {
+    const named = readFromMemory({
+        files: {
+            "tokens.json": JSON.stringify({
+                base: { $type: "color", red: color(1) },
+                extending: { $extends: "{base.red.$value}" },
+                aliasing: { $type: "color", $value: "{base.red.$value}" },
+            }),
+        },
+    });
+    const found = (path: string) =>
+        named.diagnosticsFor(path).map(({ kind, detail }) => ({ kind, detail }));
+
+    it("names a token or group, so $value in it is a name, not a step into a value (Format 7.1.1)", () => {
+        const missing = {
+            kind: "missing-reference",
+            detail: expect.objectContaining({ ref: "base.red.$value" }),
+        };
+        expect(found("aliasing")).toStrictEqual([missing]);
+        expect(found("extending")).toStrictEqual([missing]);
+    });
+});
+
 describe("moved", () => {
     const moves = (from: string, to: string) => [{ from, to }];
 

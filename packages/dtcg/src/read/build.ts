@@ -1,7 +1,6 @@
 import type {
     DesignTokens,
     Group,
-    JsonPath,
     Permutation,
     Place,
     Reference,
@@ -28,7 +27,7 @@ import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
 import type { Occurrence } from "./occurrence.js";
 import type { LocatedReference } from "./parse-value.js";
 import { linkedReference } from "./reference.js";
-import { reach, stepInto } from "./ref-meaning.js";
+import { reachOf, stepInto } from "./ref-meaning.js";
 import type { Outcome } from "./resolve.js";
 import { type MadeFrom, type Target, sameGroup, sameToken } from "./same-object.js";
 import { type Properties, usableType } from "./walk.js";
@@ -243,25 +242,13 @@ function aimAt<Found extends Pending<Token>>(
     merged: Merged,
     at: (path: string) => Found | undefined,
 ): Aimed<Found> {
-    const { reference, steps } = occurrence;
-    let path: string | undefined;
-    let token: Found | undefined;
-    let targetProperty: JsonPath | undefined;
-    if (reference.syntax === "curly-brace") {
-        path = reference.path;
-        token = at(path);
-    } else {
-        const reached = reach(steps, merged);
-        if (reached.kind === "nothing") path = namedPath(reference);
-        else {
-            path = reached.path;
-            if (reached.kind === "token") token = at(path);
-            else if (reached.kind === "part") {
-                targetProperty = stepInto(reached.token.authored, reached.inside)?.property;
-            }
-        }
-    }
-    return { occurrence, path, token, targetProperty };
+    const reached = reachOf(occurrence, merged);
+    if (reached.kind === "nothing") return { occurrence, path: namedPath(occurrence.reference) };
+    const { path } = reached;
+    if (reached.kind === "token") return { occurrence, path, token: at(path) };
+    if (reached.kind === "group") return { occurrence, path };
+    const targetProperty = stepInto(reached.token.authored, reached.inside)?.property;
+    return { occurrence, path, targetProperty };
 }
 
 function publicTopLevel(top: MergedTopLevel, writtenAt: readonly Place[]): TopLevel {

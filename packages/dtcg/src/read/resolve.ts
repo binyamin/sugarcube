@@ -22,7 +22,7 @@ import type { MergedToken } from "./merge.js";
 import type { NormalisedPermutation, NormalisedToken } from "./normalise.js";
 import type { LocatedReference, ValueReader } from "./parse-value.js";
 import { malformation } from "./malformed-pointer.js";
-import { reach } from "./ref-meaning.js";
+import { type Aim, reachOf } from "./ref-meaning.js";
 import { similarName } from "./similar.js";
 import { movedReference, namedPath, referenceText } from "../values/references.js";
 import { type Occurrence, wholeReference } from "./occurrence.js";
@@ -40,7 +40,7 @@ interface Resolved {
 export type Outcome = Resolved | "untyped";
 
 type Whole =
-    | { kind: "token"; path: string; outcome: Outcome | undefined }
+    | { kind: "token"; path: string; outcome: Outcome }
     | { kind: "part" }
     | { kind: "unreachable" };
 
@@ -127,25 +127,27 @@ function resolvePermutation(
         missing.set(ref, entry);
     };
 
-    const reportUnreachable = (use: Occurrence, from: string) => {
-        const { reference } = use;
-        const malformed =
-            reference.syntax === "json-pointer" && malformation(reference.pointer, merged);
-        if (malformed) {
-            report("malformed-pointer", malformed, from, use.span);
-            return;
-        }
-        const isGroup =
-            reference.syntax === "curly-brace"
-                ? merged.groups.has(reference.path)
-                : reach(use.steps, merged).kind === "group";
-        if (isGroup) report("not-a-token", { ref: referenceText(reference) }, from, use.span);
-        else recordMissing(reference, from, use.span);
+    const notReached = (aim: Aim, from: string, span: Span) => {
+        const { reference } = aim;
+        if (reachOf(aim, merged).kind === "group") {
+            report("not-a-token", { ref: referenceText(reference) }, from, span);
+        } else recordMissing(reference, from, span);
     };
 
-    const outcomeOf = (path: string, from: string, span: Span): Outcome | undefined => {
+    const reportUnreachable = (aim: Aim, from: string, span: Span) => {
+        const { reference } = aim;
+        const malformed =
+            reference.syntax === "json-pointer" && malformation(reference.pointer, merged);
+        if (malformed) report("malformed-pointer", malformed, from, span);
+        else notReached(aim, from, span);
+    };
+
+    const outcomeOf = (path: string, from: string, span: Span): Outcome | undefined =>
+        merged.tokens.has(path) ? outcomeAt(path, from, span) : undefined;
+
+    const outcomeAt = (path: string, from: string, span: Span): Outcome => {
         const entry = tokens.get(path);
-        if (!entry) return merged.tokens.has(path) ? "untyped" : undefined;
+        if (!entry) return "untyped";
         stack.push({ path: from, span });
         const outcome = resolveToken(entry);
         stack.pop();
@@ -176,14 +178,10 @@ function resolvePermutation(
     };
 
     const followWhole = (token: MergedToken, whole: Occurrence): Whole => {
-        if (whole.reference.syntax === "curly-brace") {
-            const { path } = whole.reference;
-            return { kind: "token", path, outcome: outcomeOf(path, token.path, whole.span) };
-        }
-        const reached = reach(whole.steps, merged);
+        const reached = reachOf(whole, merged);
         if (reached.kind === "token") {
             const { path } = reached;
-            return { kind: "token", path, outcome: outcomeOf(path, token.path, whole.span) };
+            return { kind: "token", path, outcome: outcomeAt(path, token.path, whole.span) };
         }
         return reached.kind === "part" ? { kind: "part" } : { kind: "unreachable" };
     };
@@ -196,7 +194,7 @@ function resolvePermutation(
         if (whole) {
             const followed = followWhole(token, whole);
             if (followed.kind === "unreachable") {
-                reportUnreachable(whole, token.path);
+                reportUnreachable(whole, token.path, whole.span);
                 return fallback(entry, type);
             }
             if (followed.kind === "part") {
@@ -207,8 +205,7 @@ function resolvePermutation(
                 }
             } else {
                 const target = followed.outcome;
-                if (target === undefined) reportUnreachable(whole, token.path);
-                if (target === undefined || target === "untyped") return fallback(entry, type);
+                if (target === "untyped") return fallback(entry, type);
                 if (!("resolved" in target)) return unresolved(entry, type ?? target.type);
                 type ??= target.type;
             }
@@ -247,7 +244,7 @@ function resolvePermutation(
         permutation: permutation.input,
         outcomeOf,
         report,
-        recordMissing,
+        notReached,
         reportUnreachable,
     };
 
