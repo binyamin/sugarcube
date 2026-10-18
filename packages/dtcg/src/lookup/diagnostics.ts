@@ -8,7 +8,7 @@ export function diagnosticsForIn(tokens: DesignTokens, path: string): Diagnostic
     return tokens.diagnostics.filter(
         (found) =>
             isAbout(found, path) ||
-            taking.some(({ permutation, token }) => inValueFrom(found, permutation, token)),
+            taking.some(({ permutation, token }) => inValueFrom(tokens, found, permutation, token)),
     );
 }
 
@@ -21,16 +21,23 @@ export function diagnosticsIn(
     return tokens.diagnostics.filter(
         (found) =>
             (isAbout(found, path) ||
-                (token !== undefined && inValueFrom(found, permutation, token))) &&
+                (token !== undefined && inValueFrom(tokens, found, permutation, token))) &&
             found.permutations.includes(permutation),
     );
 }
 
-function inValueFrom({ span, path }: Diagnostic, permutation: Permutation, token: Token): boolean {
+function inValueFrom(
+    tokens: DesignTokens,
+    { span, path }: Diagnostic,
+    permutation: Permutation,
+    token: Token,
+): boolean {
     if (span === undefined || path === undefined || path === token.path) return false;
-    const from = token.valueFrom.span;
+    const from = tokens.spanOf(token.valueFrom);
+    const other = permutation.token(path);
     return (
-        permutation.token(path)?.valueFrom.span === from &&
+        other !== undefined &&
+        tokens.spanOf(other.valueFrom) === from &&
         span.file === from.file &&
         from.offset <= span.offset &&
         span.offset + span.length <= from.offset + from.length

@@ -32,12 +32,14 @@ describe("a token's writtenAt, across sources", () => {
         const light = tokens.permutation().token("bg");
         const dark = tokens.permutation({ mode: "dark" }).token("bg");
 
-        expect(light?.writtenAt.map(({ span }) => span.file)).toStrictEqual([
+        expect(light?.writtenAt.map((place) => tokens.spanOf(place).file)).toStrictEqual([
             "base.json",
             "brand.json",
         ]);
-        expect(light?.writtenAt[0] && written(light.writtenAt[0].span)).toBe(color("#ffffff"));
-        expect(dark?.writtenAt.map(({ span }) => span.file)).toStrictEqual([
+        expect(light?.writtenAt[0] && written(tokens.spanOf(light.writtenAt[0]))).toBe(
+            color("#ffffff"),
+        );
+        expect(dark?.writtenAt.map((place) => tokens.spanOf(place).file)).toStrictEqual([
             "base.json",
             "brand.json",
             "dark.json",
@@ -56,7 +58,10 @@ describe("a token's writtenAt, across sources", () => {
         const places = twice.permutation().group("brand")?.writtenAt ?? [];
 
         expect(places.map(({ source }) => source.file)).toStrictEqual(["base.json", "brand.json"]);
-        expect(places.map(({ span }) => span.file)).toStrictEqual(["base.json", "brand.json"]);
+        expect(places.map((place) => twice.spanOf(place).file)).toStrictEqual([
+            "base.json",
+            "brand.json",
+        ]);
     });
 
     it("says which of the permutation's sources writes each place", () => {
@@ -100,7 +105,7 @@ describe("a token's writtenAt, across sources", () => {
             extended
                 .permutation()
                 .token("danger.bg")
-                ?.writtenAt.map(({ span }) => span.file),
+                ?.writtenAt.map((place) => extended.spanOf(place).file),
         ).toStrictEqual(["b.json"]);
     });
 

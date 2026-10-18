@@ -66,7 +66,7 @@ describe("a token's references", () => {
         expect(reference?.from).toBe(inLight("color.brand"));
         expect(reference?.token).toBe(inLight("color.red"));
         expect(reference?.property).toBeUndefined();
-        expect(reference && written(reference.span)).toBe('"{color.red}"');
+        expect(reference && written(tokens.spanOf(reference))).toBe('"{color.red}"');
     });
 
     it("include a JSON Pointer, by the token path it names (Format 7.1.2)", () => {
@@ -78,7 +78,9 @@ describe("a token's references", () => {
         expect(reference?.path).toBe("color.brand");
         expect(reference?.token).toBe(inLight("color.brand"));
         expect(reference?.property).toStrictEqual(["color"]);
-        expect(reference && written(reference.span)).toBe('{"$ref":"#/color/brand/$value"}');
+        expect(reference && written(tokens.spanOf(reference))).toBe(
+            '{"$ref":"#/color/brand/$value"}',
+        );
     });
 
     it("reference no token when a pointer names a property within a value, and say which (Format 7.3)", () => {
@@ -236,7 +238,7 @@ describe("a group's $extends", () => {
         expect(reference?.path).toBe("button");
         expect(reference?.from).toBe(tokens.permutation().group("primary"));
         expect(reference?.token).toBeUndefined();
-        expect(reference && written(reference.span)).toBe('"{button}"');
+        expect(reference && written(tokens.spanOf(reference))).toBe('"{button}"');
     });
 
     it("is a JSON Pointer when written as one, $extends or a group's $ref", () => {
@@ -296,7 +298,9 @@ describe("moved", () => {
         const [referring] = pointed.permutation().group("secondary")?.references ?? [];
         expect(extending?.moved(moves("button", "control"))).toBe("{control}");
         expect(referring?.moved(moves("button", "control"))).toBe("#/control");
-        expect(referring && written(referring.span, { "tokens.json": text })).toBe('"#/button"');
+        expect(referring && written(pointed.spanOf(referring), { "tokens.json": text })).toBe(
+            '"#/button"',
+        );
     });
 });
 
@@ -383,19 +387,14 @@ describe("on the design tokens", () => {
 describe("the plain form", () => {
     const plain = (value: unknown) => JSON.parse(JSON.stringify(value));
 
-    it("writes each reference on the token that writes it, without its from or token", () => {
+    it("writes each reference on the token that writes it, without its from, token or position", () => {
         const [curly] = plain(inLight("color.brand")).references;
-        expect(Object.keys(curly).sort()).toStrictEqual(["path", "span", "syntax"]);
+        expect(Object.keys(curly).sort()).toStrictEqual(["path", "syntax"]);
     });
 
     it("writes a JSON Pointer without the path and target property it works out from the pointer", () => {
         const [pointer] = plain(inLight("color.tint")).references;
-        expect(Object.keys(pointer).sort()).toStrictEqual([
-            "pointer",
-            "property",
-            "span",
-            "syntax",
-        ]);
+        expect(Object.keys(pointer).sort()).toStrictEqual(["pointer", "property", "syntax"]);
     });
 
     it("writes a group's $extends among its references, and no extends link", () => {

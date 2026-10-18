@@ -240,8 +240,6 @@ export interface ReferenceBase {
      * reference.targetProperty // ["components", 0]
      */
     readonly targetProperty?: JsonPath;
-    /** Where it is written. */
-    readonly span: Span;
     /**
      * The property of {@link TokenBase.value | value} it is written as, which can differ from the
      * file: a shadow written as one object is a list of one, so a reference in its `color` is at
@@ -250,9 +248,9 @@ export interface ReferenceBase {
      */
     readonly property?: JsonPath;
     /**
-     * What to write at {@link ReferenceBase.span | span} after a list of {@link Move}s, made in
-     * order, in the syntax it is written in: a JSON Pointer keeps its steps into the value. As it
-     * is written when no move reaches it.
+     * What to write where it is written ({@link DesignTokens.spanOf}) after a list of
+     * {@link Move}s, made in order, in the syntax it is written in: a JSON Pointer keeps its steps
+     * into the value. As it is written when no move reaches it.
      *
      * @example
      * reference.moved([{ from: "color.brand", to: "color.house" }]) // "{color.house}"
@@ -262,11 +260,13 @@ export interface ReferenceBase {
 
 /**
  * A reference, as {@link DesignTokens.references} and {@link DesignTokens.referencedBy} give it:
- * written once, holding in each of `permutations`. `from` is the path that writes it, since in each
- * permutation that is a different token.
+ * written once at `span`, holding in each of `permutations`. `from` is the path that writes it,
+ * since it can be a different token in each permutation.
  */
 export type ReferenceInPermutations = Omit<ReferenceBase, "from" | "token" | "moved"> &
     (CurlyBraceReference | (JsonPointerReference & { path?: string })) & {
+        /** Where it is written, in this read's text. */
+        readonly span: Span;
         readonly from: string;
         readonly permutations: Permutations;
         moved(moves: readonly Move[]): JsonValue;
@@ -775,8 +775,10 @@ export interface TopLevel {
 }
 
 /**
- * A place a token or group is written: the source that writes it and where. The same place is the
- * same object in every permutation that reads its source.
+ * A place a token or group is written: the source that writes it and what it writes there. The
+ * same place is the same object in every permutation that reads its source. Where in the file it
+ * is, which moves when the text above it changes, is asked of the read:
+ * {@link DesignTokens.spanOf}.
  */
 export interface Place {
     /**
@@ -784,12 +786,9 @@ export interface Place {
      * through.
      */
     readonly source: Source;
-    /** Where in the file it is written. */
-    readonly span: Span;
     /**
-     * The JSON the file writes at {@link Place.span | span}, exactly as written: for a token, its
-     * whole object, `$value`, `$type` and the rest, before any reference is followed or anything is
-     * taken from a group.
+     * The JSON the file writes there, exactly as written: for a token, its whole object, `$value`,
+     * `$type` and the rest, before any reference is followed or anything is taken from a group.
      */
     readonly written: JsonValue;
 }
@@ -1423,9 +1422,10 @@ export type DiagnosticOf<DetailByKind> = {
  * same places, taking the same settings from its groups and reaching the same tokens, is one object
  * in both, so `===` tells whether it differs between them. `JSON.stringify` writes their plain
  * form, with a path wherever one links to another, and leaves out what the rest says: a group's
- * `rootToken` and `extends`, `kind`, a reference's `from`, `token` and `targetProperty`, and a JSON
- * Pointer's `path`. Nothing changes them after {@link read} returns them: everything in them is
- * read-only and shared, so make a new value rather than changing one.
+ * `rootToken` and `extends`, `kind`, a reference's `from`, `token` and `targetProperty`, a JSON
+ * Pointer's `path`, and where places and references are, which {@link DesignTokens.spanOf} gives.
+ * Nothing changes them after {@link read} returns them: everything in them is read-only and
+ * shared, so make a new value rather than changing one.
  */
 export interface DesignTokens {
     /**
@@ -1634,6 +1634,16 @@ export interface DesignTokens {
      * const here = tokens.diagnosticsAt({ file: "tokens.json", offset: cursor, length: 0 });
      */
     diagnosticsAt(place: Pick<Span, "file" | "offset" | "length">): Diagnostic[];
+    /**
+     * Where a place or a reference these design tokens hold is written, in this read's text. A
+     * place and a reference hold no position of their own, so one a later read keeps, where its
+     * text did not change, is found at its new position by asking that read.
+     *
+     * @example
+     * const { file, offset } = tokens.spanOf(token.valueFrom);
+     * goTo(file, tokens.spanOf(token.references[0]).offset);
+     */
+    spanOf(of: Place | Reference): Span;
 }
 
 /**

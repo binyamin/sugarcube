@@ -139,18 +139,19 @@ function across(
     const merged = new Map<Span, { reference: Reference; permutations: Permutation[] }[]>();
     for (const permutation of tokens.permutations) {
         for (const reference of inPermutation(permutation)) {
-            let atSpan = merged.get(reference.span);
-            if (!atSpan) merged.set(reference.span, (atSpan = []));
+            const span = tokens.spanOf(reference);
+            let atSpan = merged.get(span);
+            if (!atSpan) merged.set(span, (atSpan = []));
             const found = atSpan.find((each) => sameReference(each.reference, reference));
             if (found) found.permutations.push(permutation);
             else atSpan.push({ reference, permutations: [permutation] });
         }
     }
-    return [...merged.values()]
-        .flat()
-        .map(({ reference, permutations }) =>
-            acrossPermutations(reference, permutationsOf(permutations, tokens.permutations)),
-        );
+    return [...merged].flatMap(([span, here]) =>
+        here.map(({ reference, permutations }) =>
+            acrossPermutations(reference, permutationsOf(permutations, tokens.permutations), span),
+        ),
+    );
 }
 
 function sameReference(a: Reference, b: Reference): boolean {

@@ -2,6 +2,7 @@ import { readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { fillDefaults } from "../src/node/config/normalize.js";
 import { readOptions } from "../src/shared/read-options.js";
+import { located } from "../src/shared/diagnostics.js";
 import { utilityRules } from "../src/shared/utilities/rules.js";
 import { declare } from "../src/shared/css/declare.js";
 import { utilityTokens } from "../src/shared/utilities/tokens.js";
@@ -42,7 +43,8 @@ function ruledFrom(
         Object.entries(files).map(([path, json]) => [path, JSON.stringify(json)]),
     );
     const tokens = readFromMemory({ files: texts }, readOptions(config));
-    return utilityRules(utilityTokens(declare(tokens, config)), classes);
+    const made = utilityRules(utilityTokens(declare(tokens, config)), classes);
+    return { ...made, diagnostics: [...located(tokens, made.aboutTokens), ...made.diagnostics] };
 }
 
 function ruled(tokens: unknown, classes: UtilityClassesConfig, variables: Variables = {}) {

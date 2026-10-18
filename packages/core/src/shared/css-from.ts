@@ -6,6 +6,7 @@ import { type Declarations, declare } from "./css/declare.js";
 import { emitCSS } from "./css/emit.js";
 import { type UtilityRule, type UtilityStart, utilityRules } from "./utilities/rules.js";
 import { utilityTokens } from "./utilities/tokens.js";
+import { located } from "./diagnostics.js";
 
 export interface UtilityCSS {
     rules: UtilityRule[];
@@ -50,6 +51,7 @@ export function cssFrom(
         diagnostics: [
             ...declared.diagnostics,
             ...emitted.diagnostics,
+            ...located(tokens, ruled?.aboutTokens ?? []),
             ...(ruled?.diagnostics ?? []),
         ],
     };

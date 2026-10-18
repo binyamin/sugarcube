@@ -32,6 +32,7 @@ import {
 import { resolvedValuesIn } from "../lookup/resolved-values.js";
 import { writtenAtIn } from "../lookup/written-at.js";
 import { type Kept, keep, keptBy } from "./kept.js";
+import { spanOfReference } from "./reference.js";
 
 export const NO_REFERENCES: Reference[] = Object.freeze([]) as unknown as Reference[];
 export const NO_PLACES: Place[] = Object.freeze([]) as unknown as Place[];
@@ -238,6 +239,9 @@ const designTokensShared = {
     toMemory(this: DesignTokens) {
         return { entry: this.entry, files: { ...keptBy(this).texts } };
     },
+    spanOf(this: DesignTokens, of: Place | Reference): Span {
+        return "source" in of ? PlaceObject.spanOf(of as PlaceObject) : spanOfReference(of);
+    },
     has(this: DesignTokens, path: string) {
         return this.permutations.some(
             (each) => (each.token(path) ?? each.group(path)) !== undefined,
@@ -288,23 +292,27 @@ function positionOf(source: Source): number | undefined {
 
 class PlaceObject {
     readonly source: Source;
-    readonly span: Span;
+    readonly #span: Span;
     #alone: Place[] | undefined;
     #texts: Readonly<Record<string, string>>;
     #written: JsonValue | undefined;
 
     constructor(source: Source, span: Span, texts: Readonly<Record<string, string>>) {
         this.source = source;
-        this.span = span;
+        this.#span = span;
         this.#texts = texts;
     }
 
     get written(): JsonValue {
-        const { file, offset, length } = this.span;
+        const { file, offset, length } = this.#span;
         this.#written ??= parse(
             this.#texts[file]?.slice(offset, offset + length) ?? "null",
         ) as JsonValue;
         return this.#written;
+    }
+
+    static spanOf(place: PlaceObject): Span {
+        return place.#span;
     }
 
     static alone(place: PlaceObject): Place[] {
@@ -313,7 +321,7 @@ class PlaceObject {
     }
 
     toJSON() {
-        return { source: positionOf(this.source), span: this.span };
+        return { source: positionOf(this.source) };
     }
 }
 

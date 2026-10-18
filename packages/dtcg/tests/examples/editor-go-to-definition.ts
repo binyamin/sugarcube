@@ -7,7 +7,7 @@ declare const tokens: DesignTokens;
 const hit = atOffset(tokens, "tokens.json", 214);
 if (hit.kind === "reference") {
     const target = tokens.permutation(hit.permutation).token(hit.to);
-    if (target) goTo(target.valueFrom.span);
+    if (target) goTo(tokens.spanOf(target.valueFrom));
 }
 
 const here = atOffset(tokens, "tokens.json", 380);
