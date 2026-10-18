@@ -4,12 +4,10 @@ import type {
     DiagnosticDetailByKind,
     DiagnosticKind,
     Input,
-    Permutation,
     Permutations,
 } from "../index.js";
 import { sameJson } from "../values/same-value.js";
 import type { Building } from "./building.js";
-import { permutationsOf } from "./permutations-of.js";
 
 const FOUND_IN = Symbol("found in");
 
@@ -72,10 +70,7 @@ export class Problems {
         for (const found of this.#all) {
             const inputs = found[FOUND_IN] ?? [];
             delete found[FOUND_IN];
-            found.permutations = narrowedTo(
-                permutations.filter(({ input }) => inputs.includes(input)),
-                permutations,
-            );
+            found.permutations = permutations.where(({ input }) => inputs.includes(input));
         }
         return this.#all;
     }
@@ -107,14 +102,7 @@ function permutationsWith(
 ): Permutations {
     const file = found.span?.file;
     if (file === undefined || file === entry) return permutations;
-    return narrowedTo(
-        permutations.filter(({ sources }) => sources.some((each) => each.file === file)),
-        permutations,
-    );
-}
-
-function narrowedTo(held: Permutation[], permutations: Permutations): Permutations {
-    return held.length === permutations.length ? permutations : permutationsOf(held, permutations);
+    return permutations.where(({ sources }) => sources.some((each) => each.file === file));
 }
 
 export function foundInPermutation(found: Diagnostic, permutation: Input): void {

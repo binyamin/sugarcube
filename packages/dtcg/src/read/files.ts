@@ -16,8 +16,8 @@ export interface Files {
     diagnostics: Problems;
 }
 
-export function createFiles(used: string[], diagnostics: Problems): Files {
-    return { texts: new Map(), parsed: new Map(), opened: new Map(), used, diagnostics };
+export function createFiles(diagnostics: Problems): Files {
+    return { texts: new Map(), parsed: new Map(), opened: new Map(), used: [], diagnostics };
 }
 
 export function* fetchFiles(files: Files, paths: string[]): Generator<Request, void, Answer> {

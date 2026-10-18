@@ -34,7 +34,7 @@ export function permutationsOf(
     const held = new Set(given);
     const list = all.filter((each) => held.has(each));
     const inputs = () => list.map(({ input }) => input);
-    return Object.defineProperties(list, {
+    const permutations = Object.defineProperties(list, {
         inputs: { get: inputs },
         scope: { get: () => wordedFor(held, list, all).scope },
         label: {
@@ -46,8 +46,11 @@ export function permutationsOf(
         },
         toJSON: { value: inputs },
         where: {
-            value: (test: (permutation: Permutation) => boolean) =>
-                permutationsOf(list.filter(test), all),
+            value: (test: (permutation: Permutation) => boolean) => {
+                const kept = list.filter(test);
+                return kept.length === list.length ? permutations : permutationsOf(kept, all);
+            },
         },
     }) as unknown as Permutations;
+    return permutations;
 }

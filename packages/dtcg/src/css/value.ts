@@ -93,9 +93,14 @@ function variable(part: PartBase<unknown>, options: CSSValueOptions): string | u
     return answer && "variable" in answer ? answer.variable : undefined;
 }
 
-function write(part: Exclude<Part, TypographyPart>, options: CSSValueOptions): string {
+function replacedCSS(part: PartBase<unknown>, options: CSSValueOptions): string | undefined {
     const answer = replaced(part, options);
-    if (answer) return "variable" in answer ? `var(${answer.variable})` : answer.css;
+    return answer && ("variable" in answer ? `var(${answer.variable})` : answer.css);
+}
+
+function write(part: Exclude<Part, TypographyPart>, options: CSSValueOptions): string {
+    const css = replacedCSS(part, options);
+    if (css !== undefined) return css;
     const each = (inner: Exclude<Part, TypographyPart>) => write(inner, options);
     switch (part.type) {
         case "color":
@@ -124,8 +129,8 @@ function write(part: Exclude<Part, TypographyPart>, options: CSSValueOptions): s
 }
 
 function layer(part: ShadowLayerPart, options: CSSValueOptions): string {
-    const answer = replaced(part, options);
-    if (answer) return "variable" in answer ? `var(${answer.variable})` : answer.css;
+    const css = replacedCSS(part, options);
+    if (css !== undefined) return css;
     const lengths = [part.offsetX, part.offsetY, part.blur, part.spread, part.color];
     const written = lengths.map((one) => write(one, options));
     return `${part.resolved.inset ? "inset " : ""}${written.join(" ")}`;
@@ -236,9 +241,6 @@ function fixed(component: ColorComponent, digits: number): string {
 function round(value: number, digits: number): number {
     const factor = 10 ** digits;
     const scaled = Math.abs(value) * factor;
-    // Computers store most decimals slightly off, so 40.12345 * 10000 comes out as
-    // 401234.49999999994 and would round down to 40.1234. Adding a tiny amount first
-    // makes it round up to 40.1235, as written.
     return (Math.sign(value) * Math.round(scaled * (1 + 4 * Number.EPSILON))) / factor;
 }
 

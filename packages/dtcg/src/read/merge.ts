@@ -14,18 +14,13 @@ import type {
     SourceTopLevel,
 } from "./walk.js";
 
-export interface Piece {
-    order: number;
-    source: number;
-}
-
 export interface WrittenAt {
-    index: number;
+    source: number;
     span: Span;
 }
 
 export interface MergedToken extends SourceToken {
-    piece: Piece;
+    source: number;
     replaces?: WrittenAt[];
     inherited?: { from: string };
     generated?: { from?: string; extension: readonly [string, ...string[]] };
@@ -34,12 +29,12 @@ export interface MergedToken extends SourceToken {
 
 export interface MergedTopLevel extends Properties {
     declaredIn: WrittenAt[];
-    extensionsAt?: Record<string, ExtensionsAt & { piece: Piece }>;
+    extensionsAt?: Record<string, ExtensionsAt & { source: number }>;
 }
 
 export interface MergedGroup extends MergedTopLevel {
     path: string;
-    extends?: GroupReference & { piece: Piece };
+    extends?: GroupReference & { source: number };
     extendsGroup?: string;
     takesFrom?: string;
     inherited?: { from: string };
@@ -86,10 +81,9 @@ export function merge(
             ),
         );
 
-    for (const [order, { contents, source }] of pieces.entries()) {
+    for (const { contents, source } of pieces) {
         if (!contents) continue;
-        const piece = { order, source };
-        mergeInto(merged.root, contents.root, piece);
+        mergeInto(merged.root, contents.root, source);
         for (const member of contents.members) {
             if ("group" in member) {
                 const { group } = member;
@@ -99,7 +93,7 @@ export function merge(
                     conflict(group.path, group.span, [token.span], "token");
                     merged.tokens.delete(group.path);
                 }
-                mergeGroup(merged.groups, group, piece);
+                mergeGroup(merged.groups, group, source);
                 continue;
             }
             const { token } = member;
@@ -117,28 +111,28 @@ export function merge(
             const earlier = merged.tokens.get(token.path);
             const replaces = earlier && [
                 ...(earlier.replaces ?? []),
-                { index: earlier.piece.source, span: earlier.span },
+                { source: earlier.source, span: earlier.span },
             ];
-            merged.tokens.set(token.path, { ...token, piece, ...(replaces && { replaces }) });
+            merged.tokens.set(token.path, { ...token, source, ...(replaces && { replaces }) });
         }
     }
     return merged;
 }
 
-function mergeGroup(groups: Map<string, MergedGroup>, group: SourceGroup, piece: Piece): void {
+function mergeGroup(groups: Map<string, MergedGroup>, group: SourceGroup, source: number): void {
     const { path, extends: extending, ...rest } = group;
     const existing = groups.get(path) ?? { path, declaredIn: [] };
-    mergeInto(existing, rest, piece);
-    if (extending) existing.extends = { ...extending, piece };
+    mergeInto(existing, rest, source);
+    if (extending) existing.extends = { ...extending, source };
     groups.set(path, existing);
 }
 
-function mergeInto(existing: MergedTopLevel, source: SourceTopLevel, piece: Piece): void {
-    const { span, extensionsAt, ...properties } = source;
+function mergeInto(existing: MergedTopLevel, written: SourceTopLevel, source: number): void {
+    const { span, extensionsAt, ...properties } = written;
     mergeProperties(existing, properties);
-    existing.declaredIn.push({ index: piece.source, span });
+    existing.declaredIn.push({ source, span });
     if (extensionsAt && properties.extensions) {
-        const declared = { ...extensionsAt, piece };
+        const declared = { ...extensionsAt, source };
         const keys = Object.keys(properties.extensions).map((key) => [key, declared]);
         existing.extensionsAt = { ...existing.extensionsAt, ...Object.fromEntries(keys) };
     }

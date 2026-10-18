@@ -1,6 +1,7 @@
 import type { JsonPath, WrittenReference } from "../index.js";
 import { isJsonObject } from "../values/json.js";
 import type { Merged, MergedToken } from "./merge.js";
+import { arrayIndex } from "./json.js";
 import { refSteps } from "./pointer.js";
 
 export type Reached =
@@ -62,7 +63,7 @@ export function stepInto(
     let current = raw;
     const property: (string | number)[] = [];
     for (const step of steps) {
-        if (Array.isArray(current) && /^(?:0|[1-9]\d*)$/.test(step)) {
+        if (Array.isArray(current) && arrayIndex.test(step)) {
             current = current[Number(step)];
             property.push(Number(step));
         } else if (isJsonObject(current) && Object.hasOwn(current, step)) {

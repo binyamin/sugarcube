@@ -26,7 +26,7 @@ export interface PermutationOptions {
     limit: number;
 }
 
-export function fromTokenFiles(files: { path: string; json?: JsonFile }[]): Built {
+export function fromTokenFile(path: string, json: JsonFile | undefined): Built {
     return {
         modifiers: [],
         permutations: [
@@ -34,10 +34,12 @@ export function fromTokenFiles(files: { path: string; json?: JsonFile }[]): Buil
                 input: {},
                 label: "",
                 contexts: [],
-                sources: files.map(({ path, json }) => ({
-                    source: { file: path, sets: [], readBy: "everyone" },
-                    pieces: [{ file: path, ...(json && { json, tree: json.root }) }],
-                })),
+                sources: [
+                    {
+                        source: { file: path, sets: [], readBy: "everyone" },
+                        pieces: [{ file: path, ...(json && { json, tree: json.root }) }],
+                    },
+                ],
             },
         ],
     };

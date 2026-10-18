@@ -164,7 +164,7 @@ function becomeToken(
         authored: { $ref: referenceText(extending.reference) },
         reference: extending.reference,
         span: extending.groupSpan,
-        piece: extending.piece,
+        source: extending.source,
         ...(type !== undefined && { type }),
         ...(description !== undefined && { description }),
         ...(deprecated !== undefined && { deprecated }),

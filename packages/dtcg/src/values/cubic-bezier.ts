@@ -1,10 +1,5 @@
 import { literal, no, ok, oneOf, tuple, wrongShape } from "./syntax.js";
-
-const y = literal((raw) =>
-    typeof raw === "number" && Number.isFinite(raw)
-        ? ok(raw)
-        : no({ reason: "not-a-number", value: raw }),
-);
+import { number } from "./number.js";
 
 function x(coordinate: "x1" | "x2") {
     return literal((raw) => {
@@ -18,7 +13,7 @@ function x(coordinate: "x1" | "x2") {
 }
 
 export const cubicBezier = oneOf({
-    array: tuple([x("x1"), y, x("x2"), y], (raw) => ({
+    array: tuple([x("x1"), number, x("x2"), number], (raw) => ({
         reason: "not-four-numbers",
         count: raw.length,
     })),

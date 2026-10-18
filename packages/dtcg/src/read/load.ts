@@ -13,7 +13,7 @@ import {
     type PermutationOptions,
     type LoadedPermutation,
     fromResolver,
-    fromTokenFiles,
+    fromTokenFile,
 } from "./permutations.js";
 import { checkResolver, isResolver } from "./resolver.js";
 import { resolverPart } from "./resolver-part.js";
@@ -36,21 +36,20 @@ export function* load(
     options: PermutationOptions,
     previous: Resolver | undefined,
 ): Generator<Request, Loaded, Answer> {
-    const used: string[] = [];
     const diagnostics = new Problems();
-    const files = createFiles(used, diagnostics);
+    const files = createFiles(diagnostics);
     yield* fetchFiles(files, [entry]);
 
     const root = parseFile(files, entry)?.root;
     const loaded = (built: Pick<Loaded, "resolver" | "modifiers" | "permutations">): Loaded => ({
-        files: used,
-        texts: textsOf(files.texts, used),
+        files: files.used,
+        texts: textsOf(files.texts, files.used),
         entry,
         diagnostics: [...diagnostics.list],
         ...built,
     });
     if (!isResolver(entry, root)) {
-        return loaded(fromTokenFiles([{ path: entry, json: openFile(files, entry, "tokens") }]));
+        return loaded(fromTokenFile(entry, openFile(files, entry, "tokens")));
     }
 
     const file = openFile(files, entry, "resolver");

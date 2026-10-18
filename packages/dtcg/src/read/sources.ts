@@ -326,18 +326,15 @@ function withOverrides(
     overriding: ResolverNode[],
     route: RouteStep[],
 ): SourceEntry[] {
-    return overriding.reduce(
-        (inner, source) => withOverride(inner, source, route, keysBeside(source)),
-        entries,
-    );
+    return overriding.reduce((inner, source) => withOverride(inner, source, route), entries);
 }
 
 function withOverride(
     entries: SourceEntry[],
     source: ResolverNode,
     route: RouteStep[],
-    overridden: string[],
 ): SourceEntry[] {
+    const overridden = keysBeside(source);
     if (overridden.length === 0) return entries;
     const pieces: SourceEntry[] = [
         ...entries.map((entry) => ({

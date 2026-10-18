@@ -88,3 +88,7 @@ function sameReaders(was: Source["readBy"], now: Source["readBy"]): boolean {
     if (was === "everyone" || now === "everyone") return was === now;
     return sameList(was, now);
 }
+
+export function samePlace(a: JsonPath | undefined, b: JsonPath): boolean {
+    return a === undefined ? b.length === 0 : sameList(a, b);
+}

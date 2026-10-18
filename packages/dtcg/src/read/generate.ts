@@ -25,14 +25,14 @@ import {
 } from "./extension-check.js";
 import { diagnostic, type Problems } from "./diagnostics.js";
 import { type JsonFile, spanOf } from "./json.js";
-import { type Merged, type MergedToken, type Piece, everyGroup } from "./merge.js";
+import { type Merged, type MergedToken, everyGroup } from "./merge.js";
 import { usableType } from "./walk.js";
 
 interface Extension {
     value: unknown;
     json: JsonFile;
     node: Node;
-    piece: Piece;
+    source: number;
 }
 
 /**
@@ -88,8 +88,7 @@ export function fillGenerated(
     { permutation, parseOptions }: { permutation: Input; parseOptions: ParseOptions },
     diagnostics: Problems,
 ): void {
-    const added: MergedToken[] = [];
-    const addedPaths = new Set<string>();
+    const added = new Map<string, MergedToken>();
     const reported = new Reported();
     const reportedIgnored = new Reported();
 
@@ -146,13 +145,12 @@ export function fillGenerated(
                 const path = childPath(groupPath, made.name);
                 const written = merged.tokens.get(path);
                 if (written) merged.tokens.set(path, { ...written, generated: from });
-                if (written || merged.groups.has(path) || addedPaths.has(path)) continue;
-                addedPaths.add(path);
-                added.push(addedToken(path, made, from, extension));
+                if (written || merged.groups.has(path) || added.has(path)) continue;
+                added.set(path, addedToken(path, made, from, extension));
             }
         }
     }
-    for (const token of added) {
+    for (const token of added.values()) {
         merged.tokens.set(token.path, token);
         merged.order.add(token.path);
     }
@@ -161,14 +159,14 @@ export function fillGenerated(
 function extensionOf(group: Settings, extension: Generator["extension"]): Extension | undefined {
     const written = group.extensionsAt?.[extension[0]];
     const found = extensionAt(group.extensions, written, extension);
-    return written && found && { ...found, json: written.json, piece: written.piece };
+    return written && found && { ...found, json: written.json, source: written.source };
 }
 
 function addedToken(
     path: string,
     { $type, $value, $description, $extensions }: GeneratedToken,
     generated: { from?: string; extension: Generator["extension"] },
-    { json, node, piece }: Extension,
+    { json, node, source }: Extension,
 ): MergedToken {
     return {
         path,
@@ -177,7 +175,7 @@ function addedToken(
         authored: $value,
         reference: readReference($value),
         span: spanOf(json, node),
-        piece,
+        source,
         generated,
         added: true,
         ...($type !== undefined && { type: $type }),

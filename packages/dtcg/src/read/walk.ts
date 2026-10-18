@@ -106,7 +106,7 @@ export function walkSource(
     const { json, tree } = source;
     if (!json || !tree) return undefined;
 
-    const contents: SourceContents = { root: { span: spanOf(json, tree) }, members: [] };
+    const written: SourceMember[] = [];
     const overridden = new Set(source.overriddenKeys);
     const report = <K extends DiagnosticKind>(
         kind: K,
@@ -187,7 +187,7 @@ export function walkSource(
         const child = entries.find(({ key }) => !key.startsWith("$"));
         if (child) report("token-and-group", { reason: "child", child: child.key }, child.keyNode);
         const authored = plainValue(value);
-        contents.members.push({
+        written.push({
             token: {
                 path,
                 json,
@@ -203,7 +203,7 @@ export function walkSource(
     const visitGroup = (node: Node, segments: string[], entries: readonly Member[]) => {
         const path = segments.join(".");
         const extending = readExtends(node, entries);
-        contents.members.push({
+        written.push({
             group: {
                 path,
                 span: spanOf(json, node),
@@ -289,9 +289,9 @@ export function walkSource(
         members(tree).filter(({ key }) => !overridden.has(key)),
         true,
     );
-    contents.root = { span: spanOf(json, tree), ...readPropertiesAt(undefined, rootEntries) };
+    const root = { span: spanOf(json, tree), ...readPropertiesAt(undefined, rootEntries) };
     visitMembers([], rootEntries);
-    return contents;
+    return { root, members: written };
 }
 
 function nonObjectKind(node: Node): NonObjectKind | undefined {

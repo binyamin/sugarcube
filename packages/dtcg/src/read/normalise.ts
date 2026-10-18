@@ -26,8 +26,6 @@ export interface NormalisedPermutation {
     tokens: Map<string, NormalisedToken>;
 }
 
-// Walks each piece of each source once, then merges a permutation's pieces in resolution order
-// into its tokens and groups.
 export function normalisePermutations(
     permutations: LoadedPermutation[],
     readValue: ValueReader,

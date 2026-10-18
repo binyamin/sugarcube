@@ -18,8 +18,8 @@ export function applying(merged: Merged, group: MergedTopLevel | MergedGroup): S
     if (!("path" in group)) return settings;
     return {
         ...settings,
-        type: settings.type ?? closest(group.path, merged, "type"),
-        deprecated: settings.deprecated ?? closest(group.path, merged, "deprecated"),
+        type: atGroup(merged, "type", group.path),
+        deprecated: atGroup(merged, "deprecated", group.path),
     };
 }
 

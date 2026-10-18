@@ -62,8 +62,8 @@ export function buildPermutation(
     const placed = (written: WrittenAt[]): readonly Place[] => {
         const [first, ...rest] = written;
         if (!first) return NO_PLACES;
-        if (rest.length === 0) return places.only(sourceAt(first.index), first.span);
-        return written.map(({ index, span }) => places.at(sourceAt(index), span));
+        if (rest.length === 0) return places.only(sourceAt(first.source), first.span);
+        return written.map(({ source, span }) => places.at(sourceAt(source), span));
     };
     const builtTokens = new Map<string, Token>();
     const builtGroups = new Map<string, Group>();
@@ -105,7 +105,7 @@ export function buildPermutation(
         const targets = targetsOf(located, targetAt);
         building.delete(path);
         const { token: written } = entry;
-        const { replaces, piece, span } = written;
+        const { replaces, source, span } = written;
         const { read } = outcome;
         const now: MadeFrom = {
             type: outcome.type,
@@ -114,8 +114,8 @@ export function buildPermutation(
             invalid: read.ok ? undefined : true,
             deprecated: inherited(written, merged, "deprecated"),
             writtenAt: replaces
-                ? [...placed(replaces), places.at(sourceAt(piece.source), span)]
-                : places.only(sourceAt(piece.source), span),
+                ? [...placed(replaces), places.at(sourceAt(source), span)]
+                : places.only(sourceAt(source), span),
         };
         const reached = targets.every(isAimed) ? targets : undefined;
         const token =

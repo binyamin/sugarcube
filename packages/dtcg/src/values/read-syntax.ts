@@ -19,6 +19,7 @@ import {
     type Siblings,
     type Syntax,
     choiceOf,
+    ofType,
     syntaxOf,
     wrongShape,
 } from "./syntax.js";
@@ -74,7 +75,7 @@ export function readToken<T extends TokenType>(
     options: ParseOptions = {},
     notes?: Notes,
 ): ParseResult<UnresolvedValueByType[T]> {
-    const syntax = { kind: "ofType", type, hasParts: true } as const;
+    const syntax = ofType(type);
     const result = readSlot({ syntax, jsonPath, owner: type, element: false }, raw, options, notes);
     return result.ok ? { ...result, value: result.value as UnresolvedValueByType[T] } : result;
 }

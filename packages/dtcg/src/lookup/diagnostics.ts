@@ -1,15 +1,7 @@
 import type { DesignTokens, Diagnostic, Permutation, Span, Token } from "../index.js";
 
 export function diagnosticsForIn(tokens: DesignTokens, path: string): Diagnostic[] {
-    const taking = tokens.permutations.flatMap((each) => {
-        const token = each.token(path);
-        return token ? [{ permutation: each, token }] : [];
-    });
-    return tokens.diagnostics.filter(
-        (found) =>
-            isAbout(found, path) ||
-            taking.some(({ permutation, token }) => inValueFrom(tokens, found, permutation, token)),
-    );
+    return tokens.diagnostics.filter(concerning(tokens, path, tokens.permutations));
 }
 
 export function diagnosticsIn(
@@ -17,13 +9,24 @@ export function diagnosticsIn(
     permutation: Permutation,
     path: string,
 ): Diagnostic[] {
-    const token = permutation.token(path);
+    const about = concerning(tokens, path, [permutation]);
     return tokens.diagnostics.filter(
-        (found) =>
-            (isAbout(found, path) ||
-                (token !== undefined && inValueFrom(tokens, found, permutation, token))) &&
-            found.permutations.includes(permutation),
+        (found) => found.permutations.includes(permutation) && about(found),
     );
+}
+
+function concerning(
+    tokens: DesignTokens,
+    path: string,
+    permutations: readonly Permutation[],
+): (found: Diagnostic) => boolean {
+    const taking = permutations.flatMap((each) => {
+        const token = each.token(path);
+        return token ? [{ permutation: each, token }] : [];
+    });
+    return (found) =>
+        isAbout(found, path) ||
+        taking.some(({ permutation, token }) => inValueFrom(tokens, found, permutation, token));
 }
 
 function inValueFrom(

@@ -25,10 +25,10 @@ export function readCurlyBrace(raw: unknown): CurlyBraceReference | undefined {
 }
 
 export function readJsonPointer(raw: unknown): JsonPointerReference | undefined {
-    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return undefined;
+    if (!isJsonObject(raw)) return undefined;
 
     const keys = Object.keys(raw);
-    const ref = (raw as { $ref?: unknown }).$ref;
+    const ref = raw.$ref;
     if (keys.length !== 1 || typeof ref !== "string") return undefined;
     return { syntax: "json-pointer", pointer: ref };
 }

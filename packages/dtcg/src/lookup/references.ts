@@ -12,7 +12,7 @@ import type {
 import { atOrWithin } from "../path.js";
 import { permutationsOf } from "../read/permutations-of.js";
 import { acrossPermutations } from "../read/reference.js";
-import { sameJson } from "../values/same-value.js";
+import { samePlace } from "../read/same-object.js";
 
 interface WrittenIn {
     position: Map<Reference, number>;
@@ -155,5 +155,5 @@ function across(
 }
 
 function sameReference(a: Reference, b: Reference): boolean {
-    return a.from.path === b.from.path && sameJson(a.property ?? [], b.property ?? []);
+    return a.from.path === b.from.path && samePlace(a.property, b.property ?? []);
 }
