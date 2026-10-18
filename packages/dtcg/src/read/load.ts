@@ -59,7 +59,7 @@ export function* load(
     const resolver = checkResolver(file, diagnostics);
     const { items, setsUsed } = expandSources(resolver, diagnostics);
     const entries = entriesOf(items);
-    yield* fetchFiles(files, filesNamedBy(resolver, entries));
+    yield* fetchFiles(files, filesNamedBy(entries));
     const sources = openSources(files, resolver, entries);
     const made = resolverPart(resolver, setsUsed, diagnostics);
     const part = previous && sameResolver(previous, made) ? previous : made;
