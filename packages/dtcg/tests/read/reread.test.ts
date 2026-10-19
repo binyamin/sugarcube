@@ -213,3 +213,32 @@ describe("a reread", () => {
         expect(renamed.permutation().input).toStrictEqual({ mode: "dark" });
     });
 });
+
+describe("a reread of every file", () => {
+    it("gives back the same design tokens when no file's text differs", () => {
+        expect(before.rereadAll({ ...files })).toBe(before);
+    });
+
+    it("reads a changed file as a reread of that file does", () => {
+        const colors = JSON.stringify({
+            color: { $type: "color", red: { $value: rgb(0.5) }, blue: { $value: rgb(0) } },
+        });
+        const all = before.rereadAll({ ...files, "colors.json": colors });
+
+        expect(all).not.toBe(before);
+        expect(all.permutation().token("space.sm")).toBe(before.permutation().token("space.sm"));
+        expect(all.permutation().token("color.red")?.resolved).toStrictEqual(
+            after.permutation().token("color.red")?.resolved,
+        );
+    });
+
+    it("reads a file left out as deleted", () => {
+        const { "dark.json": _dark, ...withoutDark } = files;
+        const all = before.rereadAll(withoutDark);
+
+        expect(all.text("dark.json")).toBeUndefined();
+        expect(all.diagnostics.map(({ kind }) => kind)).toStrictEqual(
+            before.reread({ "dark.json": null }).diagnostics.map(({ kind }) => kind),
+        );
+    });
+});

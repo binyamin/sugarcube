@@ -73,8 +73,8 @@ export function createStudio(first: StudioMessage): Studio {
                 session.rebase(read(next));
                 return;
             }
-            const changed = changedFiles(session.opened, next.files);
-            if (Object.keys(changed).length > 0) session.rebase(session.opened.reread(changed));
+            const fresh = session.opened.rereadAll(next.files);
+            if (fresh !== session.opened) session.rebase(fresh);
             else if (!sameJson(next.problems, previous.problems))
                 publish(built(state.showing.input));
         },
@@ -83,18 +83,4 @@ export function createStudio(first: StudioMessage): Studio {
 
 function read({ files, entry, config }: StudioMessage): DesignTokens {
     return readFromMemory({ files, entry }, readOptions(config));
-}
-
-function changedFiles(
-    tokens: DesignTokens,
-    files: StudioMessage["files"],
-): Record<string, string | null> {
-    const changed: Record<string, string | null> = {};
-    for (const [file, text] of Object.entries(files)) {
-        if (tokens.text(file) !== text) changed[file] = text;
-    }
-    for (const file of tokens.files) {
-        if (!(file in files)) changed[file] = null;
-    }
-    return changed;
 }
