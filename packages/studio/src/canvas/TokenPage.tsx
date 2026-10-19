@@ -2,7 +2,7 @@ import type { Token } from "@sugarcube-sh/dtcg";
 import { overridable } from "@sugarcube-sh/dtcg-edit";
 import { useState } from "react";
 import { placeRows } from "../controllers/token-page";
-import { tokenRow } from "../controllers/views";
+import { problemRows, tokenRow } from "../controllers/views";
 import { useStudioState } from "../providers/studio-context";
 import { EditRow } from "./EditRow";
 import { Showing } from "./Showing";
@@ -15,6 +15,7 @@ export function TokenPage({ token }: { token: Token }) {
     const [adding, setAdding] = useState<readonly string[]>([]);
     const row = tokenRow(token, token.path, value);
     const offered = overridable(tokens, token.path);
+    const problems = problemRows(tokens.diagnosticsFor(token.path));
 
     return (
         <article>
@@ -44,6 +45,23 @@ export function TokenPage({ token }: { token: Token }) {
                             where={{ input }}
                         />
                     ))}
+                {problems.length > 0 && (
+                    <>
+                        <dt>Problems</dt>
+                        <dd>
+                            <ul>
+                                {problems.map((problem) => (
+                                    <li
+                                        key={`${problem.kind} ${problem.message} ${problem.inPermutations}`}
+                                    >
+                                        {problem.message}
+                                        {problem.inPermutations && ` (${problem.inPermutations})`}
+                                    </li>
+                                ))}
+                            </ul>
+                        </dd>
+                    </>
+                )}
                 <dt>CSS</dt>
                 <dd>
                     <AsCSS type={row.type} css={row.css} />
@@ -60,7 +78,7 @@ export function TokenPage({ token }: { token: Token }) {
                         Override for {label}
                     </button>
                 ))}
-            <TokenActions key={token.path} path={token.path} />
+            <TokenActions path={token.path} />
         </article>
     );
 }

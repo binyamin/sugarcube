@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { NavLink } from "react-router";
+import { hrefFor } from "../app/token-path";
 import { problemRows } from "../controllers/views";
 import { useStudioState } from "../providers/studio-context";
 
@@ -14,8 +16,18 @@ export function Problems() {
                 {rows.map((row) => (
                     <li key={`${row.place} ${row.kind} ${row.message} ${row.inPermutations}`}>
                         {row.place && <code>{row.place}</code>} {row.severity}: {row.message}
-                        {row.inPermutations && ` (in ${row.inPermutations})`}{" "}
-                        <small>{row.kind}</small>
+                        {row.inPermutations && ` (${row.inPermutations})`} <small>{row.kind}</small>
+                        {row.paths && (
+                            <p>
+                                In:{" "}
+                                {row.paths.map((path, index) => (
+                                    <span key={path}>
+                                        {index > 0 && ", "}
+                                        <NavLink to={hrefFor(path)}>{path}</NavLink>
+                                    </span>
+                                ))}
+                            </p>
+                        )}
                     </li>
                 ))}
             </ul>

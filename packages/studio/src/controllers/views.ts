@@ -1,4 +1,11 @@
-import type { DesignTokens, Group, Token, TokenType } from "@sugarcube-sh/dtcg";
+import type {
+    Change,
+    DesignTokens,
+    Group,
+    Permutations,
+    Token,
+    TokenType,
+} from "@sugarcube-sh/dtcg";
 import type { TypographyCSS } from "@sugarcube-sh/dtcg/css";
 import type { BuildProblem, BuildOutput } from "./adapter";
 
@@ -35,6 +42,14 @@ export interface ProblemRow {
     readonly message: string;
     readonly inPermutations?: string;
     readonly kind: string;
+    readonly paths?: readonly string[];
+}
+
+export interface ChangeLine {
+    readonly kind: Change["kind"];
+    readonly path?: string;
+    readonly from?: string;
+    readonly inPermutations?: string;
 }
 
 export interface GroupView {
@@ -116,16 +131,41 @@ export function tokenRow(token: Token, name: string, value: BuildOutput["value"]
 }
 
 export function problemRows(problems: readonly BuildProblem[]): ProblemRow[] {
-    return problems.map(({ span, severity, message, permutations, kind }) => {
-        const label = permutations?.label;
+    return problems.map(({ span, severity, message, permutations, kind, path, related }) => {
+        const label = partialLabel(permutations);
+        const paths = [
+            ...new Set([path, ...(related ?? []).map((each) => each.path)].filter(isPath)),
+        ];
         return {
-            ...(span ? { place: `${span.file}:${span.start.line}:${span.start.column}` } : {}),
+            ...(span && paths.length === 0
+                ? { place: `${span.file}:${span.start.line}:${span.start.column}` }
+                : {}),
             severity,
             message,
-            ...(label && label !== "everywhere" && label !== "nowhere"
-                ? { inPermutations: label }
-                : {}),
+            ...(label ? { inPermutations: label } : {}),
             kind,
+            ...(paths.length > 0 ? { paths } : {}),
         };
     });
+}
+
+export function changeLines(changes: readonly Change[]): ChangeLine[] {
+    return changes.map((change) => {
+        const label = partialLabel(change.permutations);
+        return {
+            kind: change.kind,
+            ...("from" in change ? { from: change.from } : {}),
+            ...("path" in change ? { path: change.path } : {}),
+            ...(label ? { inPermutations: label } : {}),
+        };
+    });
+}
+
+function partialLabel(permutations: Permutations | undefined): string | undefined {
+    const label = permutations?.label;
+    return label === "everywhere" || label === "nowhere" ? undefined : label;
+}
+
+function isPath(path: string | undefined): path is string {
+    return path !== undefined;
 }

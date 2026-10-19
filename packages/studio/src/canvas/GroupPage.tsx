@@ -74,7 +74,7 @@ export function GroupPage({ group }: { group: Group }) {
                     </tbody>
                 </table>
             )}
-            <NewToken key={group.path} group={group} />
+            <NewToken group={group} />
         </article>
     );
 }

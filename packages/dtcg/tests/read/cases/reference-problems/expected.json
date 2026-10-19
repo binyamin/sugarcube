@@ -185,7 +185,8 @@
             "file": "tokens.json",
             "text": "\"{color.brnad}\"",
             "occurrence": 2
-          }
+          },
+          "path": "color.warning"
         }
       ]
     },

@@ -1,9 +1,10 @@
 import type { Group, TokenType } from "@sugarcube-sh/dtcg";
 import { create } from "@sugarcube-sh/dtcg-edit";
 import { tokenTypes } from "@sugarcube-sh/dtcg/values";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { newToken, parsedJson } from "../controllers/token-page";
 import { useStudio } from "../providers/studio-context";
+import { JsonInput } from "./JsonInput";
 import { useEdit } from "./use-edit";
 
 export function NewToken({ group }: { group: Group }) {
@@ -13,6 +14,7 @@ export function NewToken({ group }: { group: Group }) {
     const [type, setType] = useState<TokenType>(group.type ?? "color");
     const [value, setValue] = useState("");
     const parsed = parsedJson(value);
+    const valueId = useId();
 
     return (
         <form
@@ -51,13 +53,11 @@ export function NewToken({ group }: { group: Group }) {
                     ))}
                 </select>
             </label>{" "}
-            <label>
-                Value <input value={value} onChange={(event) => setValue(event.target.value)} />
-            </label>{" "}
+            <label htmlFor={valueId}>Value</label>{" "}
+            <JsonInput id={valueId} text={value} onText={setValue} />{" "}
             <button type="submit" disabled={name === "" || !parsed}>
                 Add
             </button>
-            {value !== "" && !parsed && <p>Not valid JSON</p>}
             {edit.view}
         </form>
     );

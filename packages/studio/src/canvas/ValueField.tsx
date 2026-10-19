@@ -1,6 +1,7 @@
-import type { JsonValue } from "@sugarcube-sh/dtcg";
 import { useState } from "react";
 import { parsedJson } from "../controllers/token-page";
+import type { JsonValue } from "@sugarcube-sh/dtcg";
+import { JsonInput } from "./JsonInput";
 
 export function ValueField({
     shown,
@@ -12,24 +13,21 @@ export function ValueField({
     onWrite(value: JsonValue): void;
 }) {
     const [text, setText] = useState(shown);
-    const parsed = parsedJson(text);
 
     const write = () => {
+        const parsed = parsedJson(text);
         if (parsed && JSON.stringify(parsed.value) !== shown) onWrite(parsed.value);
     };
 
     return (
-        <>
-            <input
-                aria-label={label}
-                value={text}
-                onChange={(event) => setText(event.target.value)}
-                onBlur={write}
-                onKeyDown={(event) => {
-                    if (event.key === "Enter") write();
-                }}
-            />
-            {text !== "" && !parsed && <p>Not valid JSON</p>}
-        </>
+        <JsonInput
+            aria-label={label}
+            text={text}
+            onText={setText}
+            onBlur={write}
+            onKeyDown={(event) => {
+                if (event.key === "Enter") write();
+            }}
+        />
     );
 }

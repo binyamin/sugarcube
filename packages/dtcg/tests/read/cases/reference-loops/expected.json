@@ -70,14 +70,16 @@
           "span": {
             "file": "tokens.json",
             "text": "\"{c}\""
-          }
+          },
+          "path": "b"
         },
         {
           "message": "part of the same loop",
           "span": {
             "file": "tokens.json",
             "text": "\"{a}\""
-          }
+          },
+          "path": "c"
         }
       ]
     }

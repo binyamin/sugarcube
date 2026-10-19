@@ -19,9 +19,9 @@ export function NodeRoute() {
 
     if (path === undefined) return <Home />;
     const group = showing.group(path);
-    if (group) return <GroupPage group={group} />;
+    if (group) return <GroupPage key={path} group={group} />;
     const token = showing.token(path);
-    if (token) return <TokenPage token={token} />;
+    if (token) return <TokenPage key={path} token={token} />;
     if (tokens.has(path)) return <p>Not in {showing.label}.</p>;
     return <p>Nothing at this address.</p>;
 }

@@ -1403,8 +1403,19 @@ export type DiagnosticOf<DetailByKind> = {
          * show(label === "everywhere" ? diagnostic.message : `${diagnostic.message} in ${label}`);
          */
         readonly permutations?: Permutations;
-        /** Other places involved, such as every token that uses a missing one. */
-        readonly related?: readonly { readonly message: string; readonly span: Span }[];
+        /**
+         * Other places involved, such as every token that uses a missing one: each with its own
+         * message, and the token or group written there, when one is. With {@link path}, every
+         * token a tool could take someone to, whatever the kind.
+         *
+         * @example
+         * const tokens = [diagnostic.path, ...(diagnostic.related ?? []).map((each) => each.path)];
+         */
+        readonly related?: readonly {
+            readonly message: string;
+            readonly span: Span;
+            readonly path?: string;
+        }[];
         /** How an editor may show it: struck through for a deprecated reference. */
         readonly tags?: readonly ("deprecated" | "unnecessary")[];
         /** A page explaining this kind of diagnostic. */

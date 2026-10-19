@@ -1,6 +1,7 @@
-import { setValue } from "@sugarcube-sh/dtcg-edit";
+import { remove, setValue } from "@sugarcube-sh/dtcg-edit";
 import { describe, expect, it } from "vitest";
 import { newToken, parsedJson, placeRows } from "../../src/controllers/token-page";
+import { problemRows } from "../../src/controllers/views";
 import { studioOn } from "./demo-message";
 
 describe("placeRows", () => {
@@ -84,5 +85,19 @@ describe("newToken", () => {
             $type: "number",
             $value: 1,
         });
+    });
+});
+
+describe("a token's own problems", () => {
+    it("include a missing reference the token writes, so each token that uses it shows it", () => {
+        const studio = studioOn();
+        studio.do(remove(studio.state.tokens, "color.brand.500"));
+
+        for (const path of ["color.border.brand", "border.focus"]) {
+            expect(
+                problemRows(studio.state.tokens.diagnosticsFor(path)).map(({ kind }) => kind),
+            ).toEqual(["missing-reference"]);
+        }
+        expect(studio.state.tokens.diagnosticsFor("color.text.default")).toEqual([]);
     });
 });
