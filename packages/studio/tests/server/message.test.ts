@@ -3,7 +3,7 @@ import { readFromMemory } from "@sugarcube-sh/dtcg";
 import { read } from "@sugarcube-sh/dtcg/node";
 import { afterEach, describe, expect, it } from "vitest";
 import { studioMessage } from "../../src/server/message";
-import { configProblem } from "../controllers/demo-message";
+import { configProblem, sugarcubeSettings } from "../controllers/demo-message";
 import { demoCopy } from "./demo-copy";
 
 let remove = () => {};
@@ -31,9 +31,18 @@ describe("studioMessage", () => {
         const { config, tokens } = await demo();
 
         const message = studioMessage({ config, tokens, configProblems: [] });
-        const there = readFromMemory(message, readOptions(message.config));
+        const there = readFromMemory(message, readOptions(sugarcubeSettings(message)));
 
         expect(there.tokenPaths()).toEqual(tokens.tokenPaths());
+    });
+
+    it("sends sugarcube's adapter, with the config as its settings", async () => {
+        const { config, tokens } = await demo();
+
+        const { adapter } = studioMessage({ config, tokens, configProblems: [] });
+
+        expect(adapter.name).toBe("sugarcube");
+        expect(adapter.settings).toEqual(JSON.parse(JSON.stringify(config)));
     });
 
     it("sends the config as plain data, leaving out a naming function", async () => {
@@ -45,15 +54,15 @@ describe("studioMessage", () => {
 
         const message = studioMessage({ config: named, tokens, configProblems: [] });
 
-        expect(message.config.variables.variableName).toBeUndefined();
+        expect(sugarcubeSettings(message).variables.variableName).toBeUndefined();
         expect(JSON.parse(JSON.stringify(message))).toEqual(message);
     });
 
-    it("sends the config's problems it is given", async () => {
+    it("sends the config's problems it is given, with the adapter", async () => {
         const { config, tokens } = await demo();
 
         expect(
-            studioMessage({ config, tokens, configProblems: [configProblem] }).configProblems,
+            studioMessage({ config, tokens, configProblems: [configProblem] }).adapter.problems,
         ).toEqual([configProblem]);
     });
 });

@@ -12,11 +12,11 @@ import type {
 
 /** A typography value written as CSS: one value for each CSS property it sets, in this order. */
 export interface TypographyCSS {
-    "font-family": string;
-    "font-size": string;
-    "font-weight": string;
-    "letter-spacing": string;
-    "line-height": string;
+    readonly "font-family": string;
+    readonly "font-size": string;
+    readonly "font-weight": string;
+    readonly "letter-spacing": string;
+    readonly "line-height": string;
 }
 
 /** What to write in place of a reference: a CSS variable, given by its name, or CSS of your own. */

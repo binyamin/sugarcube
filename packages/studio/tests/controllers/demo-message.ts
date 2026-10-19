@@ -2,7 +2,11 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { type InternalConfig, fillDefaults } from "@sugarcube-sh/core";
 import type { Reported } from "@sugarcube-sh/core/client";
+import { adapterFor } from "../../src/adapters";
+import type { PlainSettings } from "../../src/adapters/plain";
+import { createStudio } from "../../src/controllers/studio";
 import type { StudioMessage } from "../../src/protocol";
+import { PLAIN_ENTRY, plainFiles } from "../adapters/plain-demo";
 
 const DEMO = join(__dirname, "../../demo");
 
@@ -22,12 +26,36 @@ export function asSent(
     return JSON.parse(JSON.stringify(fillDefaults(config)));
 }
 
+export function sugarcubeSent({
+    config = asSent(),
+    problems = [],
+}: { config?: InternalConfig; problems?: readonly Reported[] } = {}): StudioMessage["adapter"] {
+    return { name: "sugarcube", settings: config, problems };
+}
+
 export function demoMessage(change: Partial<StudioMessage> = {}): StudioMessage {
-    return { config: asSent(), entry: ENTRY, files: demoFiles(), configProblems: [], ...change };
+    return { adapter: sugarcubeSent(), entry: ENTRY, files: demoFiles(), ...change };
+}
+
+export function plainMessage(settings: PlainSettings = {}): StudioMessage {
+    return {
+        adapter: { name: "plain", settings, problems: [] },
+        entry: PLAIN_ENTRY,
+        files: plainFiles(),
+    };
 }
 
 export function withFile(file: string, text: string, message = demoMessage()): StudioMessage {
     return { ...message, files: { ...message.files, [file]: text } };
+}
+
+export function sugarcubeSettings({ adapter }: StudioMessage): InternalConfig {
+    if (adapter.name !== "sugarcube") throw new Error(`sent ${adapter.name}'s adapter`);
+    return adapter.settings;
+}
+
+export function studioOn(message: StudioMessage = demoMessage()) {
+    return createStudio(message, adapterFor);
 }
 
 export const configProblem: Reported = {

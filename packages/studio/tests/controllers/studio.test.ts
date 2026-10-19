@@ -1,10 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStudio } from "../../src/controllers/studio";
-import { asSent, configProblem, demoMessage, withFile } from "./demo-message";
+import {
+    asSent,
+    configProblem,
+    demoMessage,
+    studioOn,
+    sugarcubeSent,
+    withFile,
+} from "./demo-message";
 
 describe("createStudio", () => {
     it("opens the files the host sent, showing the default permutation", () => {
-        const studio = createStudio(demoMessage());
+        const studio = studioOn(demoMessage());
 
         expect(studio.state.tokens.has("color.text.onBrand")).toBe(true);
         expect(studio.state.showing.label).toBe("default");
@@ -13,7 +19,7 @@ describe("createStudio", () => {
     });
 
     it("shows another permutation when asked, and tells its listeners", () => {
-        const studio = createStudio(demoMessage());
+        const studio = studioOn(demoMessage());
         const before = studio.state;
         const listener = vi.fn();
         studio.subscribe(listener);
@@ -27,11 +33,13 @@ describe("createStudio", () => {
     });
 
     it("writes the page's CSS from the tokens, outside any cascade layer", () => {
-        const studio = createStudio(
+        const studio = studioOn(
             demoMessage({
-                config: asSent({
-                    resolver: "tokens.resolver.json",
-                    variables: { layer: "tokens" },
+                adapter: sugarcubeSent({
+                    config: asSent({
+                        resolver: "tokens.resolver.json",
+                        variables: { layer: "tokens" },
+                    }),
                 }),
             }),
         );
@@ -44,9 +52,9 @@ describe("createStudio", () => {
         const broken = withFile(
             "dark.json",
             '{ "color": { "text": ',
-            demoMessage({ configProblems: [configProblem] }),
+            demoMessage({ adapter: sugarcubeSent({ problems: [configProblem] }) }),
         );
-        const studio = createStudio(broken);
+        const studio = studioOn(broken);
 
         const kinds = studio.state.problems.map((problem) => problem.kind);
         expect(kinds[0]).toBe("invalid-config");
@@ -54,11 +62,11 @@ describe("createStudio", () => {
     });
 
     it("has no problems for the demo as it is", () => {
-        expect(createStudio(demoMessage()).state.problems).toEqual([]);
+        expect(studioOn(demoMessage()).state.problems).toEqual([]);
     });
 
     it("takes in a changed file, keeping the permutation shown and every token it didn't touch", () => {
-        const studio = createStudio(demoMessage());
+        const studio = studioOn(demoMessage());
         studio.show({ mode: "dark" });
         const before = studio.state.tokens;
         const dark = demoMessage().files["dark.json"] ?? "";
@@ -83,7 +91,7 @@ describe("createStudio", () => {
     });
 
     it("changes nothing when the host sends the same files again", () => {
-        const studio = createStudio(demoMessage());
+        const studio = studioOn(demoMessage());
         const before = studio.state;
         const listener = vi.fn();
         studio.subscribe(listener);
@@ -95,11 +103,16 @@ describe("createStudio", () => {
     });
 
     it("reads again with a changed config", () => {
-        const studio = createStudio(demoMessage());
+        const studio = studioOn(demoMessage());
 
         studio.receive(
             demoMessage({
-                config: asSent({ resolver: "tokens.resolver.json", variables: { prefix: "ds" } }),
+                adapter: sugarcubeSent({
+                    config: asSent({
+                        resolver: "tokens.resolver.json",
+                        variables: { prefix: "ds" },
+                    }),
+                }),
             }),
         );
 
@@ -107,7 +120,7 @@ describe("createStudio", () => {
     });
 
     it("keeps the permutation shown when the resolver gains a modifier", () => {
-        const studio = createStudio(demoMessage());
+        const studio = studioOn(demoMessage());
         studio.show({ mode: "dark" });
         const resolver = JSON.parse(demoMessage().files["tokens.resolver.json"] ?? "{}");
         resolver.resolutionOrder.push({
@@ -123,7 +136,7 @@ describe("createStudio", () => {
     });
 
     it("shows the default when the permutation shown is no longer read", () => {
-        const studio = createStudio(demoMessage());
+        const studio = studioOn(demoMessage());
         studio.show({ mode: "dark" });
         const resolver = JSON.parse(demoMessage().files["tokens.resolver.json"] ?? "{}");
         resolver.resolutionOrder[1].contexts = { light: [] };
@@ -133,8 +146,30 @@ describe("createStudio", () => {
         expect(studio.state.showing.label).toBe("default");
     });
 
+    it("asks the adapter for a token's value, so a fluid size is the clamp() the page gets", () => {
+        const studio = studioOn();
+        const gutter = studio.state.showing.token("size.fluid.gutter");
+
+        expect(gutter && studio.state.value(gutter)).toBe(
+            "clamp(1rem, 0.6364rem + 1.8182vw, 2rem)",
+        );
+        expect(studio.state.css).toContain(
+            "--size-fluid-gutter: clamp(1rem, 0.6364rem + 1.8182vw, 2rem);",
+        );
+    });
+
+    it("reads again with the adapter the host sends next", () => {
+        const studio = studioOn();
+
+        studio.receive(demoMessage({ adapter: { name: "plain", settings: {}, problems: [] } }));
+
+        const gutter = studio.state.showing.token("size.fluid.gutter");
+        expect(gutter && studio.state.value(gutter)).toBe("2rem");
+        expect(studio.state.css).not.toContain("[data-mode");
+    });
+
     it("stops telling listeners once destroyed", () => {
-        const studio = createStudio(demoMessage());
+        const studio = studioOn(demoMessage());
         const listener = vi.fn();
         studio.subscribe(listener);
 

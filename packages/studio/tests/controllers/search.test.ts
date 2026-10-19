@@ -1,12 +1,10 @@
-import { cssValue } from "@sugarcube-sh/dtcg/css";
 import { describe, expect, it, vi } from "vitest";
 import { createSearch } from "../../src/controllers/search";
-import { createStudio } from "../../src/controllers/studio";
-import { demoMessage } from "./demo-message";
+import { demoMessage, studioOn } from "./demo-message";
 
 describe("createSearch", () => {
     it("finds nothing until something is typed", () => {
-        const search = createSearch(createStudio(demoMessage()));
+        const search = createSearch(studioOn(demoMessage()));
 
         expect(search.state.hits).toEqual([]);
         search.setQuery("   ");
@@ -14,7 +12,7 @@ describe("createSearch", () => {
     });
 
     it("finds tokens whose path holds the query, ignoring case", () => {
-        const search = createSearch(createStudio(demoMessage()));
+        const search = createSearch(studioOn(demoMessage()));
 
         search.setQuery("onbrand");
 
@@ -23,7 +21,7 @@ describe("createSearch", () => {
     });
 
     it("gives a colour a swatch of its literal value in the permutation shown", () => {
-        const studio = createStudio(demoMessage());
+        const studio = studioOn(demoMessage());
         const search = createSearch(studio);
         search.setQuery("onbrand");
         const light = search.state.hits[0]?.swatch;
@@ -31,13 +29,13 @@ describe("createSearch", () => {
         studio.show({ mode: "dark" });
 
         const dark = search.state.hits[0]?.swatch;
-        expect(dark).toBe(cssValue(studio.state.showing.token("color.brand.900")!));
+        expect(dark).toBe(studio.state.value(studio.state.showing.token("color.brand.900")!));
         expect(dark).not.toBe(light);
         expect(dark).not.toContain("var(");
     });
 
     it("gives other tokens their value and no swatch", () => {
-        const search = createSearch(createStudio(demoMessage()));
+        const search = createSearch(studioOn(demoMessage()));
 
         search.setQuery("space.");
 
@@ -46,8 +44,16 @@ describe("createSearch", () => {
         expect(hit?.value).toMatch(/\d/);
     });
 
+    it("gives a token the value the adapter writes, so a fluid size is its clamp()", () => {
+        const search = createSearch(studioOn());
+
+        search.setQuery("gutter");
+
+        expect(search.state.hits[0]?.value).toBe("clamp(1rem, 0.6364rem + 1.8182vw, 2rem)");
+    });
+
     it("stops at forty hits and says there are more", () => {
-        const search = createSearch(createStudio(demoMessage()));
+        const search = createSearch(studioOn(demoMessage()));
 
         search.setQuery(".");
 
@@ -56,7 +62,7 @@ describe("createSearch", () => {
     });
 
     it("tells its listeners when the query or the tokens change, until destroyed", () => {
-        const studio = createStudio(demoMessage());
+        const studio = studioOn(demoMessage());
         const search = createSearch(studio);
         const listener = vi.fn();
         search.subscribe(listener);

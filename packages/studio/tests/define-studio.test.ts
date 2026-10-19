@@ -9,7 +9,7 @@ import { STUDIO_RPC, type StudioMessage } from "../src/protocol";
 import { STUDIO_ROUTE, STUDIO_SURFACE, defineStudio } from "../src/server/define-studio";
 import type { FilesNow, StudioFiles } from "../src/server/files";
 import type { StudioHostBridge, StudioSharedState } from "../src/server/types";
-import { configProblem } from "./controllers/demo-message";
+import { configProblem, sugarcubeSettings } from "./controllers/demo-message";
 import { demoCopy } from "./server/demo-copy";
 
 type FakeState<T extends object> = StudioSharedState<T> & { value(): T };
@@ -113,8 +113,8 @@ describe("defineStudio", () => {
 
         expect(s.message().entry).toBe("tokens.resolver.json");
         expect(s.message().files["dark.json"]).toBe(readFileSync(join(s.dir, "dark.json"), "utf8"));
-        expect(s.message().config.resolver).toBe(s.config.resolver);
-        expect(s.message().configProblems).toEqual([configProblem]);
+        expect(sugarcubeSettings(s.message()).resolver).toBe(s.config.resolver);
+        expect(s.message().adapter.problems).toEqual([configProblem]);
     });
 
     it("shares the files again when the host reads them again", async () => {
@@ -142,13 +142,15 @@ describe("defineStudio", () => {
 
         expect(s.warnings).toHaveLength(1);
         expect(s.warnings[0]).toContain("names variables with a function");
-        expect(s.message().config.variables.variableName).toBeUndefined();
+        expect(sugarcubeSettings(s.message()).variables.variableName).toBeUndefined();
     });
 
     it("saves edits sent from the browser to the files on disk", async () => {
         const s = await setup();
         await defineStudio(s.files, s.host);
-        const session = createSession(readFromMemory(s.message(), readOptions(s.message().config)));
+        const session = createSession(
+            readFromMemory(s.message(), readOptions(sugarcubeSettings(s.message()))),
+        );
         session.do(
             setValue(session.tokens, "color.brand.500", {
                 colorSpace: "oklch",

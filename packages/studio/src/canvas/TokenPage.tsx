@@ -1,10 +1,12 @@
 import type { Token } from "@sugarcube-sh/dtcg";
 import { tokenRow } from "../controllers/views";
+import { useStudioState } from "../providers/studio-context";
 import { Showing } from "./Showing";
 import { AsCSS, Written } from "./Value";
 
 export function TokenPage({ token }: { token: Token }) {
-    const row = tokenRow(token, token.path);
+    const value = useStudioState((state) => state.value);
+    const row = tokenRow(token, token.path, value);
     return (
         <article>
             <h1>{token.path}</h1>

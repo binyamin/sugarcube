@@ -2,11 +2,13 @@ import { NavLink } from "react-router";
 import { hrefFor } from "../app/token-path";
 import type { Group } from "@sugarcube-sh/dtcg";
 import { groupView } from "../controllers/views";
+import { useStudioState } from "../providers/studio-context";
 import { Showing } from "./Showing";
 import { AsCSS, Written } from "./Value";
 
 export function GroupPage({ group }: { group: Group }) {
-    const view = groupView(group);
+    const value = useStudioState((state) => state.value);
+    const view = groupView(group, value);
 
     return (
         <article>

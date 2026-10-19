@@ -1,4 +1,6 @@
-import type { InternalConfig, Reported } from "@sugarcube-sh/core/client";
+import type { InternalConfig } from "@sugarcube-sh/core/client";
+import type { PlainSettings } from "./adapters/plain";
+import type { BuildProblem } from "./controllers/adapter";
 
 export const STUDIO_RPC = {
     SAVE: "sugarcube:studio:save",
@@ -14,8 +16,19 @@ export type StudioConnectionConfig = {
 };
 
 export type StudioMessage = {
-    readonly config: InternalConfig;
+    readonly adapter: SentAdapter;
     readonly entry: string;
     readonly files: Readonly<Record<string, string>>;
-    readonly configProblems: readonly Reported[];
 };
+
+export type SentAdapter =
+    | {
+          readonly name: "sugarcube";
+          readonly settings: InternalConfig;
+          readonly problems: readonly BuildProblem[];
+      }
+    | {
+          readonly name: "plain";
+          readonly settings: PlainSettings;
+          readonly problems: readonly BuildProblem[];
+      };
