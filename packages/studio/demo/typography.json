@@ -1,19 +1,19 @@
 {
   "typography": {
-    "$description": "Everything to do with setting text. Nested deliberately, so the sidebar has one group with real depth in it.",
+    "$description": "An example description",
     "font": {
       "$type": "fontFamily",
-      "$description": "Two families: one for reading, one for code.",
+      "$description": "An example description",
       "body": { "$value": ["Inter", "system-ui", "sans-serif"] },
       "mono": { "$value": ["JetBrains Mono", "ui-monospace", "monospace"] },
       "system": {
-        "$description": "The single-string form the spec also allows, which holds one name. Which form was authored has to survive an edit, so both are here.",
+        "$description": "An example description",
         "$value": "system-ui"
       }
     },
     "text": {
       "$type": "dimension",
-      "$description": "Type sizes, bound to the sizing scale so they move with it rather than drifting from it.",
+      "$description": "An example description",
       "$extensions": { "sh.sugarcube": { "measures": "font-size" } },
       "sm": { "$value": "{size.step.-1}" },
       "base": { "$value": "{size.step.0}" },
@@ -24,14 +24,14 @@
     },
     "leading": {
       "$type": "number",
-      "$description": "Line height. Tighter as type gets larger.",
+      "$description": "An example description",
       "tight": { "$value": 1.15 },
       "normal": { "$value": 1.5 },
       "relaxed": { "$value": 1.7 }
     },
     "weight": {
       "$type": "fontWeight",
-      "$description": "Weights in both forms the spec allows — a number and a keyword — because which one was authored has to survive an edit.",
+      "$description": "An example description",
       "regular": { "$value": 400 },
       "medium": { "$value": 500 },
       "semibold": { "$value": "semi-bold" },
@@ -39,9 +39,9 @@
     },
     "style": {
       "$type": "typography",
-      "$description": "The composite. Every sub-field is itself a typed value, and all five are required — so this is the shape a single text box cannot hold.",
+      "$description": "An example description",
       "body": {
-        "$description": "All five sub-fields, each one a reference.",
+        "$description": "An example description",
         "$value": {
           "fontFamily": "{typography.font.body}",
           "fontSize": "{typography.text.base}",
@@ -51,7 +51,7 @@
         }
       },
       "heading": {
-        "$description": "Family, size, weight and line height as references, letter spacing written out: both authoring styles in one value.",
+        "$description": "An example description",
         "$value": {
           "fontFamily": "{typography.font.body}",
           "fontSize": "{typography.text.3xl}",
@@ -61,7 +61,7 @@
         }
       },
       "code": {
-        "$description": "Literal sub-values rather than references, so both authoring styles are present.",
+        "$description": "An example description",
         "$value": {
           "fontFamily": ["JetBrains Mono", "ui-monospace", "monospace"],
           "fontSize": { "value": 0.875, "unit": "rem" },

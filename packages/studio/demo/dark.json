@@ -1,7 +1,7 @@
 {
   "color": {
     "$type": "color",
-    "$description": "Dark context. Only roles move — the ramps are the same material, read from the other end.",
+    "$description": "An example description",
     "text": {
       "default": { "$value": "{color.neutral.50}" },
       "muted": { "$value": "{color.neutral.400}" },
@@ -23,7 +23,7 @@
   },
   "shadow": {
     "$type": "shadow",
-    "$description": "Dark needs deeper, more opaque elevation. Overriding a composite replaces the whole object, which is what makes it worth having one here.",
+    "$description": "An example description",
     "raised": {
       "$value": [
         {

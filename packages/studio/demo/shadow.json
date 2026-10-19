@@ -1,7 +1,7 @@
 {
   "shadow": {
     "$type": "shadow",
-    "$description": "Elevation. The only type whose value can be either one object or a list of them, so it is the test case for editing a variable-length value.",
+    "$description": "An example description",
     "sm": {
       "$value": {
         "color": "#26262f1a",
@@ -12,7 +12,7 @@
       }
     },
     "raised": {
-      "$description": "Two layers: a tight contact shadow under a broader ambient one.",
+      "$description": "An example description",
       "$value": [
         {
           "color": "#26262f1f",
@@ -31,7 +31,7 @@
       ]
     },
     "inner": {
-      "$description": "Inset, and with a referenced colour rather than a literal one.",
+      "$description": "An example description",
       "$value": {
         "color": "{color.neutral.900}",
         "offsetX": { "value": 0, "unit": "px" },

@@ -1,7 +1,7 @@
 {
   "space": {
     "$type": "dimension",
-    "$description": "The spacing rhythm. A recipe: every step is the base multiplied, so changing the base moves the whole scale together.",
+    "$description": "An example description",
     "$extensions": {
       "sh.sugarcube": {
         "measures": "gap",

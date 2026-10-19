@@ -1,9 +1,9 @@
 {
   "color": {
     "$type": "color",
-    "$description": "Two ramps, and the semantic roles bound to them. Roles are what the product uses; ramps are the material they are chosen from.",
+    "$description": "An example description",
     "brand": {
-      "$description": "The house colour. Fixed across contexts — only the roles that point at it move.",
+      "$description": "An example description",
       "50": {
         "$value": { "colorSpace": "oklch", "components": [0.971, 0.013, 258], "hex": "#f0f6fe" }
       },
@@ -20,7 +20,7 @@
         "$value": { "colorSpace": "oklch", "components": [0.706, 0.145, 258], "hex": "#65a1f9" }
       },
       "500": {
-        "$description": "The anchor stop. Every other step in this ramp is derived from it, so this is the one a rebrand changes.",
+        "$description": "An example description",
         "$value": { "colorSpace": "oklch", "components": [0.624, 0.181, 258], "hex": "#3884f2" }
       },
       "600": {
@@ -37,7 +37,7 @@
       }
     },
     "neutral": {
-      "$description": "Greys carrying a trace of the brand hue, so they sit with it rather than against it.",
+      "$description": "An example description",
       "50": {
         "$value": { "colorSpace": "oklch", "components": [0.986, 0.002, 258], "hex": "#fafafc" }
       },
@@ -70,10 +70,10 @@
       }
     },
     "text": {
-      "$description": "Foreground roles. Each points at a stop that clears its contrast threshold against the surface it is used on.",
+      "$description": "An example description",
       "default": { "$value": "{color.neutral.900}" },
       "muted": {
-        "$description": "Secondary copy — captions, timestamps, helper text. Clears 4.5:1 on surface.default; do not use it on surface.sunken.",
+        "$description": "An example description",
         "$value": "{color.neutral.600}"
       },
       "subtle": { "$value": "{color.neutral.500}" },
@@ -81,14 +81,14 @@
       "onBrand": { "$value": "{color.brand.50}" }
     },
     "surface": {
-      "$description": "Background roles, from the page itself up to raised panels.",
+      "$description": "An example description",
       "default": { "$value": "{color.neutral.50}" },
       "raised": { "$value": "{color.neutral.100}" },
       "sunken": { "$value": "{color.neutral.200}" },
       "brand": { "$value": "{color.brand.600}" }
     },
     "border": {
-      "$description": "Separators. Strong is for anything that has to survive a busy background.",
+      "$description": "An example description",
       "default": { "$value": "{color.neutral.300}" },
       "strong": { "$value": "{color.neutral.400}" },
       "brand": { "$value": "{color.brand.500}" }

@@ -1,14 +1,14 @@
 {
   "border": {
-    "$description": "Strokes. Carries both composite types that describe an edge: strokeStyle on its own, and border, which folds a colour and a width around one.",
+    "$description": "An example description",
     "style": {
       "$type": "strokeStyle",
-      "$description": "Just the dash pattern. Keyword forms cover the common cases; the custom form is a dash array and a line cap.",
+      "$description": "An example description",
       "solid": { "$value": "solid" },
       "dashed": { "$value": "dashed" },
       "dotted": { "$value": "dotted" },
       "custom": {
-        "$description": "A long-short dash, for anything that needs to read as provisional.",
+        "$description": "An example description",
         "$value": {
           "dashArray": [
             { "value": 6, "unit": "px" },
@@ -20,7 +20,7 @@
     },
     "hairline": {
       "$type": "border",
-      "$description": "The default separator, written out in full so a composite with literal sub-values exists somewhere.",
+      "$description": "An example description",
       "$value": {
         "color": "#d1d1d8",
         "width": { "value": 1, "unit": "px" },
@@ -29,7 +29,7 @@
     },
     "strong": {
       "$type": "border",
-      "$description": "The same composite with references in its sub-fields, which is how these are usually authored.",
+      "$description": "An example description",
       "$value": {
         "color": "{color.border.strong}",
         "width": { "value": 2, "unit": "px" },
@@ -38,7 +38,7 @@
     },
     "focus": {
       "$type": "border",
-      "$description": "A composite whose style is itself the custom strokeStyle object rather than a keyword.",
+      "$description": "An example description",
       "$value": {
         "color": "{color.brand.500}",
         "width": { "value": 2, "unit": "px" },

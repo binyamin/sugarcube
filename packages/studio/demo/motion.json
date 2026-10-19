@@ -1,6 +1,6 @@
 {
   "motion": {
-    "$description": "Timing. Present mostly so the renderer has to handle a type that is neither a colour nor a dimension.",
+    "$description": "An example description",
     "duration": {
       "$type": "duration",
       "fast": { "$value": { "value": 100, "unit": "ms" } },
@@ -14,7 +14,7 @@
     },
     "transition": {
       "$type": "transition",
-      "$description": "A composite folding a duration, an optional delay and a curve into one token.",
+      "$description": "An example description",
       "default": {
         "$value": {
           "duration": "{motion.duration.normal}",
@@ -23,7 +23,7 @@
         }
       },
       "slow": {
-        "$description": "Literal sub-values rather than references. All three sub-values are required by the spec, delay included.",
+        "$description": "An example description",
         "$value": {
           "duration": { "value": 400, "unit": "ms" },
           "delay": { "value": 50, "unit": "ms" },
