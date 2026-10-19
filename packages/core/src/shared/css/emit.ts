@@ -2,9 +2,8 @@ import type { InternalConfig } from "../../types/config.js";
 import type { Reported } from "../../types/diagnostics.js";
 import type { CSSFileOutput } from "../../types/generate.js";
 import { diagnostic } from "../diagnostics.js";
-import { blocks } from "./blocks.js";
-import type { Declarations } from "./declare.js";
-import { files } from "./text.js";
+import { cssBlocks, cssText } from "@sugarcube-sh/dtcg/css";
+import type { Declarations, Entry } from "./declare.js";
 
 /**
  * Writes the design tokens' CSS variables, named from the config's `prefix` or `variableName`,
@@ -29,7 +28,26 @@ export function emitCSS(
     config: InternalConfig,
 ): { files: CSSFileOutput; diagnostics: Reported[] } {
     const { redeclare, renamed } = redeclaring(config);
-    return { files: files(blocks(declared.entries, { redeclare })), diagnostics: renamed };
+    const byFile = new Map<string, Entry[]>();
+    for (const entry of declared.entries) {
+        const inFile = byFile.get(entry.path);
+        if (inFile) inFile.push(entry);
+        else byFile.set(entry.path, [entry]);
+    }
+    const files = [...byFile].flatMap(([path, entries]) => {
+        const css = cssText(
+            cssBlocks(
+                entries.map(({ declared: { declarations }, selector, atRule }) => ({
+                    declarations,
+                    selector,
+                    ...(atRule && { atRules: [atRule] }),
+                    redeclare,
+                })),
+            ),
+        );
+        return css ? [{ path, css }] : [];
+    });
+    return { files, diagnostics: renamed };
 }
 
 function redeclaring(config: InternalConfig): { redeclare: boolean; renamed: Reported[] } {

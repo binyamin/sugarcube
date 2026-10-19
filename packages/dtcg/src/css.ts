@@ -16,3 +16,5 @@ export {
     type CSSWritten,
     cssWriter,
 } from "./css/writer.js";
+export { type CSSBlock, type CSSBlockInput, cssBlocks } from "./css/blocks.js";
+export { cssText } from "./css/text.js";

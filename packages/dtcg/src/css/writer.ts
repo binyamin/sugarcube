@@ -13,7 +13,10 @@ export interface CSSWritten {
  * Writes CSS that refers to tokens: each token placed in it is written as `var()`, or as its value
  * when the writer writes references as values or skips that token, and is recorded in `refersTo`.
  * A {@link CSSWritten} placed in it keeps its own `refersTo`. Typography, one value per CSS
- * property, cannot be placed whole.
+ * property, cannot be placed whole. A token the same in two permutations is one object and is
+ * written once, so place tokens reached from the token being written, such as its references,
+ * which are right in every permutation it is in; a token looked up in one permutation is that
+ * permutation's, which matters when references are written as values.
  *
  * @example
  * write`color-mix(in oklch, ${written} 80%, ${white})`
