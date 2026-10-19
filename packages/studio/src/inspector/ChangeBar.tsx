@@ -2,7 +2,7 @@ import { Icon } from "../components/ui/icon/Icons";
 import { useStudioState } from "../providers/studio-context";
 
 export function ChangeBar() {
-    const count = useStudioState((state) => state.changes);
+    const count = useStudioState((state) => state.changes.length);
 
     return (
         <div className="change-bar">

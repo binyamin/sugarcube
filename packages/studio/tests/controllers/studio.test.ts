@@ -15,7 +15,7 @@ describe("createStudio", () => {
         expect(studio.state.tokens.has("color.text.onBrand")).toBe(true);
         expect(studio.state.showing.label).toBe("default");
         expect(studio.state.showing.isDefault).toBe(true);
-        expect(studio.state.changes).toBe(0);
+        expect(studio.state.changes).toEqual([]);
     });
 
     it("shows another permutation when asked, and tells its listeners", () => {

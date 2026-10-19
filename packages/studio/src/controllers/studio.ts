@@ -1,11 +1,12 @@
 import {
+    type Change,
     type DesignTokens,
     type Input,
     type Permutation,
     readFromMemory,
     sameJson,
 } from "@sugarcube-sh/dtcg";
-import { createSession } from "@sugarcube-sh/dtcg-edit";
+import { type Committed, type OpResult, createSession } from "@sugarcube-sh/dtcg-edit";
 import type { SentAdapter, StudioMessage } from "../protocol";
 import type { BuildAdapter, BuildProblem, BuildOutput } from "./adapter";
 
@@ -15,7 +16,7 @@ export interface StudioState {
     readonly value: BuildOutput["value"];
     readonly css: string;
     readonly problems: readonly BuildProblem[];
-    readonly changes: number;
+    readonly changes: readonly Change[];
 }
 
 export interface Studio {
@@ -24,6 +25,8 @@ export interface Studio {
     destroy(): void;
     show(input: Input): void;
     receive(message: StudioMessage): void;
+    do(result: OpResult): Committed;
+    discard(): void;
 }
 
 export function createStudio(
@@ -45,7 +48,7 @@ export function createStudio(
             value: written.value,
             css: written.css,
             problems: [...message.adapter.problems, ...written.problems],
-            changes: session.changes().length,
+            changes: session.changes(),
         };
     }
 
@@ -70,6 +73,12 @@ export function createStudio(
         },
         show(input) {
             publish({ ...state, showing: state.tokens.permutation(input) });
+        },
+        do(result) {
+            return session.do(result);
+        },
+        discard() {
+            session.discard();
         },
         receive(next) {
             const previous = message;
