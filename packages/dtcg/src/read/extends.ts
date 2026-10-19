@@ -32,6 +32,7 @@ export function applyExtends(merged: Merged, input: Input, diagnostics: Problems
                 related: loop.slice(1).map((each) => ({
                     message: relatedMessages.partOfTheLoop,
                     span: each.extends.span,
+                    path: each.path,
                 })),
             });
             for (const each of loop) state.set(each.path, "in-a-loop");

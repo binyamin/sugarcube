@@ -1,2 +1,2 @@
 export type { StudioMessage } from "./protocol";
-export type { Saved } from "./server/save";
+export type { SaveOutcome } from "./protocol";

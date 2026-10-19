@@ -3,7 +3,7 @@ import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { type TokensOnDisk, fileOnDisk, read } from "@sugarcube-sh/dtcg/node";
 import { changedFiles } from "./apply.js";
-import type { FileOp } from "./index.js";
+import type { Edits } from "./index.js";
 
 /**
  * Applies edits to the files of design tokens on disk, given by their resolver or token file and
@@ -19,7 +19,7 @@ import type { FileOp } from "./index.js";
  *
  * @example
  * const onDisk = { entry: "tokens/tokens.resolver.json", options };
- * const saved = await applyToDisk(onDisk, session.unsaved.ops);
+ * const saved = await applyToDisk(onDisk, session.unsaved);
  * if (saved.tokens) {
  *     session.markSaved();
  *     session.rebase(saved.tokens);
@@ -27,9 +27,9 @@ import type { FileOp } from "./index.js";
  */
 export async function applyToDisk(
     { entry, options }: TokensOnDisk,
-    ops: readonly FileOp[],
+    edits: Edits,
 ): Promise<ReturnType<typeof changedFiles>> {
-    const changes = changedFiles(await read(entry, options), ops);
+    const changes = changedFiles(await read(entry, options), edits);
     if (changes.conflicts) return changes;
 
     const { written, deleted } = changes;

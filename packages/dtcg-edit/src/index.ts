@@ -54,13 +54,14 @@ export { fixesFor } from "./fixes.js";
  * unless what it would write is already there. `renameKey` records `was`, the value at the key,
  * only to tell when the rename is already done: the key is renamed whatever its value now.
  */
-export type FileOp =
+export type FileOp = Readonly<
     | { kind: "set"; file: string; jsonPath: JsonPath; value: JsonValue; was: JsonValue }
     | { kind: "add"; file: string; jsonPath: JsonPath; value: JsonValue }
     | { kind: "remove"; file: string; jsonPath: JsonPath; was: JsonValue }
     | { kind: "renameKey"; file: string; jsonPath: JsonPath; name: string; was: JsonValue }
     | { kind: "createFile"; file: string; value: JsonValue }
-    | { kind: "deleteFile"; file: string; was: string };
+    | { kind: "deleteFile"; file: string; was: string }
+>;
 
 /**
  * A question an operation can't answer from the files alone. Ask the person, then call `answer`
@@ -138,6 +139,9 @@ export type OpResult =
  * - `no-shared-value`: no file every permutation reads writes the token; only contexts do.
  * - `not-written-there`: `at` is not a place the token at `path` is written in these design
  *   tokens, such as a place from an older read.
+ * - `gone-elsewhere`: a {@link Clash} can't be settled by keeping yours: what your step changes,
+ *   the token or group at `path` in `file`, was removed or renamed since. In a file, a rename
+ *   and a removal look the same, so yours isn't written over something else.
  */
 export type Refusal = { reason: string } & (
     | { kind: "not-found"; path: string }
@@ -158,6 +162,7 @@ export type Refusal = { reason: string } & (
     | { kind: "hidden-by-later-file"; path: string; input: Input; file: string }
     | { kind: "no-shared-value"; path: string }
     | { kind: "not-written-there"; path: string; at: Pick<Span, "file" | "offset" | "length"> }
+    | { kind: "gone-elsewhere"; path?: string; file: string }
 );
 
 /** Where an edit goes. */
@@ -187,6 +192,16 @@ export interface NewToken {
 export { rename } from "./rename.js";
 
 export { setDescription, setValue } from "./set-value.js";
+
+/** A context a token can be given its own value for, as {@link overridable} lists it. */
+export interface Overridable {
+    /** The input {@link setValue} writes the override with, such as `{ mode: "dark" }`. */
+    input: Input;
+    /** The context as a permutation's label words it, such as `"mode: dark"`. */
+    label: string;
+}
+
+export { overridable } from "./overridable.js";
 
 /**
  * How a value change is made: for a context or at a place the token is written, and which part of
@@ -445,30 +460,53 @@ export type Committed =
     | { refused: Refusal; tokens?: undefined; question?: undefined; conflicts?: undefined }
     | { conflicts: Conflict[]; tokens?: undefined; question?: undefined; refused?: undefined };
 
-/** Edits, with the moves they made, as they are kept for undo and saved for later. */
+/**
+ * One thing done in a session: the edits of one operation, with the moves it made, kept or dropped
+ * together. A rename that changes several files is one step, so it is never half kept.
+ */
+export interface EditStep {
+    readonly ops: readonly FileOp[];
+    readonly moved: readonly Move[];
+}
+
+/**
+ * Edits as a session keeps them: one {@link EditStep} for each operation done, in order. What a
+ * save writes, all or nothing, and what a reload puts back, each step whole or not at all.
+ */
 export interface Edits {
-    ops: readonly FileOp[];
-    moved: readonly Move[];
+    readonly steps: readonly EditStep[];
 }
 
 export { isEdits } from "./is-edits.js";
 
 /**
- * An unsaved edit that no longer fits the files, one per part of a file they change, such as a
- * token, a group or the resolver's list of sources: someone else changed or removed what it
- * changes, or its file is gone.
+ * An unsaved {@link EditStep} that no longer fits the files, left out whole: someone else changed
+ * or removed what it changes, or its file is gone. One per step, however many files it changes.
  */
 export interface Clash {
+    /** The step left out, as it was done: its edits, and the moves it made. */
+    readonly step: EditStep;
+    /** Each part of a file the step changes, such as a token, a group or the resolver's list of sources. */
+    readonly parts: readonly ClashPart[];
+    /**
+     * Whether {@link keepYours} can write yours over theirs: every part the step changes is still
+     * there in the files. Not when one was removed or renamed since, or its file is gone.
+     */
+    readonly keepable: boolean;
+}
+
+/** One part of a file an unsaved step changes, with your side and theirs. */
+export interface ClashPart {
     /** The file the edits change. */
-    file: string;
+    readonly file: string;
     /** Where in the file: its route through the file's JSON; `[]` for the whole file. */
-    jsonPath: JsonPath;
+    readonly jsonPath: JsonPath;
     /** The token or group at `jsonPath`, when one is there. */
-    path?: string;
+    readonly path?: string;
     /** What the edits write for it there, put on top of the file as it is now; absent when they remove it. */
-    yours?: JsonValue;
+    readonly yours?: JsonValue;
     /** What the file has for it now; absent when it isn't there, or the file is gone. */
-    theirs?: JsonValue;
+    readonly theirs?: JsonValue;
 }
 
 /**
@@ -520,14 +558,16 @@ export interface Session {
     /**
      * Puts back unsaved edits kept from before a reload, such as in session storage, on top
      * of the current version, where they are unsaved again; {@link Session.discard} still goes
-     * back to {@link Session.opened}. Each edit that still fits is put back; the rest come back as
-     * one {@link Clash} per part of a file.
+     * back to {@link Session.opened}. Each {@link EditStep} whose edits all still fit is put back
+     * whole; a step with one that doesn't is left out whole, so a rename is never half kept, and
+     * comes back as one {@link Clash}, holding each part of a file it changes.
      */
     restore(unsaved: Edits): Clash[];
     /**
      * Takes in files that changed underneath the session, such as after a `git pull`: `fresh`
-     * becomes {@link Session.opened}, and each unsaved edit that still fits is put back on top of
-     * it; the rest come back as one {@link Clash} per part of a file, and the files show theirs. A
+     * becomes {@link Session.opened}, and each unsaved {@link EditStep} whose edits all still fit is
+     * put back on top of it, whole; a step with one that doesn't is left out whole, and comes back as
+     * one {@link Clash}, holding each part of a file it changes, the files showing theirs. A
      * token still there keeps its id, one gone loses it, and a new one gets a new id. The undo
      * history starts again.
      */
@@ -552,3 +592,5 @@ export interface Session {
 }
 
 export { createSession } from "./session.js";
+
+export { keepYours } from "./keep-yours.js";

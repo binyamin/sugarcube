@@ -11,6 +11,6 @@ export { STUDIO_ICON } from "./server/icon";
 export type { FilesNow, StudioFiles } from "./server/files";
 export { nodeFiles, projectFiles, refuseEmpty } from "./server/node-files";
 export { studioMessage } from "./server/message";
-export type { Saved } from "./server/save";
+export type { SaveOutcome } from "./protocol";
 export type { StudioConnectionConfig, StudioMessage } from "./protocol";
 export { ErrorMessages, STUDIO_NAME } from "./error-messages";

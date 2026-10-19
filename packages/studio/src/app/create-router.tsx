@@ -1,4 +1,4 @@
-import { type RouteObject, createMemoryRouter } from "react-router";
+import { type RouteObject, createHashRouter } from "react-router";
 import { IndexRoute, NodeRoute } from "../canvas/NodeRoute";
 import { App } from "./App";
 
@@ -16,5 +16,5 @@ const routes: RouteObject[] = [
 ];
 
 export function createStudioRouter() {
-    return createMemoryRouter(routes);
+    return createHashRouter(routes);
 }

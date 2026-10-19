@@ -104,14 +104,14 @@ export function describedPlace(
         writtenIn(tokens, member.span.file, [...member.jsonPath, "$description"]) !== undefined;
     const describing = places.find(describes);
     if (describing)
-        return { at: describing, alsoAffects: seenReading(tokens, describing.span.file) };
+        return { at: describing, alsoAffects: seenReading(tokens, [describing.span.file]) };
     const most = Math.max(...places.map(({ readers }) => readers));
     const widest = places.filter(({ readers }) => readers === most);
     const file = chosenFile(path, unique(widest.map(({ span }) => span)), [], place);
     if (typeof file !== "string") return file;
     const at = widest.find(({ span }) => span.file === file);
     if (!at) return refused({ kind: "not-found", path });
-    return { at, alsoAffects: seenReading(tokens, file) };
+    return { at, alsoAffects: seenReading(tokens, [file]) };
 }
 
 function lookUp(
@@ -178,10 +178,10 @@ function newSharedPlace(tokens: DesignTokens, path: string, place: string | unde
     const parentSpans = parent === undefined ? [] : written(parent).map(({ span }) => span);
     const into = chosenFile(path, files, parentSpans, place);
     if (typeof into !== "string") return into;
-    return { into, alsoAffects: seenReading(tokens, into) };
+    return { into, alsoAffects: seenReading(tokens, [into]) };
 }
 
-function contextPlace(
+export function contextPlace(
     tokens: DesignTokens,
     path: string,
     chosen: Chosen,
@@ -216,7 +216,7 @@ function contextPlace(
     const groupSpans = (group?.writtenAt ?? []).map((each) => tokens.spanOf(each));
     const into = chosenFile(path, unique(winning), groupSpans, place);
     if (typeof into !== "string") return into;
-    return { token: written, into, alsoAffects: seenReading(tokens, into, chosen) };
+    return { token: written, into, alsoAffects: seenReading(tokens, [into], chosen) };
 }
 
 function newContextPlace(
@@ -245,10 +245,10 @@ function newContextPlace(
     const groupSpans = groupPlaces.map((each) => tokens.spanOf(each));
     const into = chosenFile(path, files, groupSpans, place);
     if (typeof into !== "string") return into;
-    return { into, alsoAffects: seenReading(tokens, into, chosen) };
+    return { into, alsoAffects: seenReading(tokens, [into], chosen) };
 }
 
-function chosenContext(
+export function chosenContext(
     tokens: DesignTokens,
     input: Input,
 ): Chosen | { refused: Refusal } | undefined {
@@ -314,9 +314,15 @@ function refusalFor(found: Token | Group): { refused: Refusal } | undefined {
     return undefined;
 }
 
-function seenReading(tokens: DesignTokens, file: string, chosen?: Chosen): Permutations {
+export function seenReading(
+    tokens: DesignTokens,
+    files: readonly string[],
+    chosen?: Chosen,
+): Permutations {
     return alsoIn(
-        tokens.permutations.where((perm) => perm.sources.some((source) => source.file === file)),
+        tokens.permutations.where((perm) =>
+            perm.sources.some((source) => files.includes(source.file)),
+        ),
         chosen,
     );
 }

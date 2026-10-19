@@ -69,7 +69,8 @@
           "span": {
             "file": "base.json",
             "valueAfter": "\"scale\":"
-          }
+          },
+          "path": "space.scale"
         }
       ],
       "permutations": [
@@ -95,7 +96,8 @@
           "span": {
             "file": "base.json",
             "valueAfter": "\"radius\":"
-          }
+          },
+          "path": "radius"
         }
       ],
       "permutations": [

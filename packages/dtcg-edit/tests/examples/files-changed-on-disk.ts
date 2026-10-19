@@ -14,7 +14,7 @@ const live = liveTokens(
 );
 live.watch(watcher);
 live.onRead((tokens) => {
-    for (const { path, file, yours, theirs } of session.rebase(tokens)) {
-        showClash(path ?? file, yours, theirs);
+    for (const { parts } of session.rebase(tokens)) {
+        for (const { path, file, yours, theirs } of parts) showClash(path ?? file, yours, theirs);
     }
 });

@@ -56,6 +56,8 @@ const refusalReasons: {
         `no file every permutation reads writes \`${path}\`, only contexts do; change it for one context`,
     "not-written-there": ({ path, at }) =>
         `\`${path}\` isn't written at that place in \`${at.file}\`; take the place from \`writtenAt\``,
+    "gone-elsewhere": ({ path, file }) =>
+        `${path === undefined ? "what your edit changes" : `\`${path}\``} in \`${file}\` was removed or renamed since, so yours can't be written over it`,
 };
 
 const permutationGaps: Record<PermutationErrorDetail["reason"], string> = {

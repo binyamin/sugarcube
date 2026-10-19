@@ -1,11 +1,18 @@
 import { connectDevframe } from "devframe/client";
 import type { SharedMessage } from "../host/open-studio";
-import { STUDIO_RPC, type StudioConnectionConfig, type StudioMessage } from "../protocol";
+import type { Edits } from "@sugarcube-sh/dtcg-edit";
+import {
+    STUDIO_RPC,
+    type SaveOutcome,
+    type StudioConnectionConfig,
+    type StudioMessage,
+} from "../protocol";
 
 export type StudioConnection = {
     transport: Awaited<ReturnType<typeof connectDevframe>>["transport"];
     config: StudioConnectionConfig;
     message: SharedMessage;
+    save?: (edits: Edits) => Promise<SaveOutcome>;
 };
 
 /**
@@ -31,7 +38,9 @@ export async function connectStudio(signal: AbortSignal): Promise<StudioConnecti
     signal.addEventListener("abort", () => client.close?.(), { once: true });
 
     const shared = await client.sharedState.get<StudioMessage>(STUDIO_RPC.MESSAGE);
+    const live = client.connectionMeta.backend !== "static";
     return {
+        ...(live && { save: (edits: Edits) => client.call(STUDIO_RPC.SAVE, edits) }),
         transport: client.transport,
         config: client.connectionMeta.configs?.[STUDIO_RPC.CONFIG] ?? {},
         message: {

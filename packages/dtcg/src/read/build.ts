@@ -323,6 +323,7 @@ function workingOut(
         const related = rest.map((frame) => ({
             message: relatedMessages.partOfTheLoop,
             span: frame.span,
+            path: frame.path,
         }));
         report("circular-reference", { chain }, first.path, first.span, { related });
     };

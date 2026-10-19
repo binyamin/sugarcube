@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type FileOp, changedFiles, rename, setValue } from "../src/index.js";
-import { committed, demo, opsOf } from "./helpers.js";
+import { asEdits, committed, demo, opsOf } from "./helpers.js";
 
 const half = { value: 0.5, unit: "rem" };
 const gradientSource = { $ref: "./gradient.json" };
@@ -16,7 +16,7 @@ const unnamed: FileOp = {
 
 describe("changedFiles", () => {
     it("gives the new text of each file the edits change, and no other", () => {
-        const result = changedFiles(demo, opsOf(setValue(demo, "radius.md", half)));
+        const result = changedFiles(demo, asEdits(opsOf(setValue(demo, "radius.md", half))));
         if (result.conflicts) throw new Error("conflicts");
 
         expect(Object.keys(result.written)).toStrictEqual(["radius.json"]);
@@ -28,7 +28,7 @@ describe("changedFiles", () => {
         const away = rename(demo, "radius.md", "medium");
         const renamed = committed(demo, away);
         const back = opsOf(rename(renamed, "radius.medium", "md"));
-        const result = changedFiles(demo, [...opsOf(away), ...back]);
+        const result = changedFiles(demo, asEdits([...opsOf(away), ...back]));
         if (result.conflicts) throw new Error("conflicts");
 
         expect(result.written).toStrictEqual({});
@@ -41,7 +41,7 @@ describe("changedFiles", () => {
             file: "gradient.json",
             was: demo.text("gradient.json") ?? "",
         };
-        const result = changedFiles(demo, [unnamed, deleting]);
+        const result = changedFiles(demo, asEdits([unnamed, deleting]));
         if (result.conflicts) throw new Error("conflicts");
 
         expect(result.deleted).toStrictEqual(["gradient.json"]);
@@ -49,9 +49,10 @@ describe("changedFiles", () => {
     });
 
     it("deletes no file the design tokens aren't read from", () => {
-        const result = changedFiles(demo, [
-            { kind: "deleteFile", file: "package.json", was: "anything" },
-        ]);
+        const result = changedFiles(
+            demo,
+            asEdits([{ kind: "deleteFile", file: "package.json", was: "anything" }]),
+        );
         if (result.conflicts) throw new Error("conflicts");
 
         expect(result.deleted).toStrictEqual([]);
@@ -59,7 +60,7 @@ describe("changedFiles", () => {
     });
 
     it("keeps a file the resolver stops naming", () => {
-        const result = changedFiles(demo, [unnamed]);
+        const result = changedFiles(demo, asEdits([unnamed]));
         if (result.conflicts) throw new Error("conflicts");
 
         expect(result.deleted).toStrictEqual([]);
@@ -68,16 +69,19 @@ describe("changedFiles", () => {
     });
 
     it("writes a new file", () => {
-        const result = changedFiles(demo, [
-            { kind: "createFile", file: "extra.json", value: {} },
-            {
-                kind: "set",
-                file: "tokens.resolver.json",
-                jsonPath: sources,
-                value: [...listed, { $ref: "./extra.json" }],
-                was: listed,
-            },
-        ]);
+        const result = changedFiles(
+            demo,
+            asEdits([
+                { kind: "createFile", file: "extra.json", value: {} },
+                {
+                    kind: "set",
+                    file: "tokens.resolver.json",
+                    jsonPath: sources,
+                    value: [...listed, { $ref: "./extra.json" }],
+                    was: listed,
+                },
+            ]),
+        );
         if (result.conflicts) throw new Error("conflicts");
 
         expect(Object.keys(result.written).sort()).toStrictEqual([
@@ -95,6 +99,8 @@ describe("changedFiles", () => {
             value: half,
             was: "not what is there",
         };
-        expect(changedFiles(demo, [stale])).toMatchObject({ conflicts: [{ kind: "changed" }] });
+        expect(changedFiles(demo, asEdits([stale]))).toMatchObject({
+            conflicts: [{ kind: "changed" }],
+        });
     });
 });

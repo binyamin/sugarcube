@@ -75,6 +75,7 @@ export function merge(
                     related: earlier.map((span) => ({
                         message: relatedMessages.declaredAs(earlierIs),
                         span,
+                        path,
                     })),
                 },
             ),

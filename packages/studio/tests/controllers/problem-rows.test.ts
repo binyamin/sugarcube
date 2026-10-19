@@ -1,3 +1,4 @@
+import { remove, setValue } from "@sugarcube-sh/dtcg-edit";
 import { describe, expect, it } from "vitest";
 import { problemRows } from "../../src/controllers/views";
 import { configProblem, demoMessage, studioOn, sugarcubeSent, withFile } from "./demo-message";
@@ -33,5 +34,39 @@ describe("problemRows", () => {
 
     it("gives no rows when there are no problems", () => {
         expect(problemRows(studioOn().state.problems)).toEqual([]);
+    });
+
+    it("names every token a problem is in, in place of a file and line", () => {
+        const studio = studioOn();
+        studio.do(remove(studio.state.tokens, "color.brand.500"));
+
+        const missing = problemRows(studio.state.problems).find(
+            ({ kind }) => kind === "missing-reference",
+        );
+
+        expect(missing?.paths).toEqual(["color.border.brand", "border.focus"]);
+        expect(missing?.place).toBeUndefined();
+    });
+
+    it("names every token in a loop the same way, with no rule for each kind", () => {
+        const studio = studioOn();
+        studio.do(setValue(studio.state.tokens, "color.text.muted", "{color.text.subtle}"));
+        studio.do(setValue(studio.state.tokens, "color.text.subtle", "{color.text.muted}"));
+
+        const loop = problemRows(studio.state.problems).find(
+            ({ kind }) => kind === "circular-reference",
+        );
+
+        expect([...(loop?.paths ?? [])].sort()).toEqual(["color.text.muted", "color.text.subtle"]);
+        expect(loop?.place).toBeUndefined();
+    });
+
+    it("gives a problem in no token its file, line and column, and no tokens", () => {
+        const studio = studioOn(withFile("dark.json", '{ "color": { "text": '));
+
+        const [row] = problemRows(studio.state.problems);
+
+        expect(row?.place).toBeDefined();
+        expect(row?.paths).toBeUndefined();
     });
 });

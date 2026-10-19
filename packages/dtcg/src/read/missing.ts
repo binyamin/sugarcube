@@ -4,19 +4,22 @@ import { movedReference, namedPath, referenceText } from "../values/references.j
 import { diagnostic, type Problems } from "./diagnostics.js";
 import { similarName } from "./similar.js";
 
+interface Use {
+    from: string;
+    span: Span;
+}
+
 interface Missing {
     reference: WrittenReference;
-    first: { from: string; span: Span };
-    from: string[];
-    uses: Span[];
+    first: Use;
+    uses: Use[];
 }
 
 interface MissingAcross {
     ref: string;
     similar: string | undefined;
-    first: { from: string; span: Span };
-    from: string[];
-    uses: Span[];
+    first: Use;
+    uses: Use[];
     inputs: [Input, ...Input[]];
 }
 
@@ -41,37 +44,42 @@ export function missingReferences(diagnostics: Problems): MissingReferences {
                     const entry = missing.get(ref) ?? {
                         reference,
                         first: { from, span },
-                        from: [],
                         uses: [],
                     };
-                    if (!entry.from.includes(from)) entry.from.push(from);
-                    entry.uses.push(span);
+                    entry.uses.push({ from, span });
                     missing.set(ref, entry);
                 },
                 close: () => {
-                    for (const [ref, { reference, first, from, uses }] of missing) {
-                        const similar = similarReference(reference, paths, from);
+                    for (const [ref, { reference, first, uses }] of missing) {
+                        const similar = similarReference(reference, paths, fromOf(uses));
                         const key = JSON.stringify([ref, similar]);
                         let entry = across.get(key);
                         if (entry) entry.inputs.push(input);
                         else {
-                            entry = { ref, similar, first, from: [], uses: [], inputs: [input] };
+                            entry = { ref, similar, first, uses: [], inputs: [input] };
                             across.set(key, entry);
                         }
-                        for (const each of from)
-                            if (!entry.from.includes(each)) entry.from.push(each);
-                        for (const span of uses)
-                            if (!entry.uses.includes(span)) entry.uses.push(span);
+                        for (const use of uses)
+                            if (!entry.uses.some(({ span }) => span === use.span))
+                                entry.uses.push(use);
                     }
                 },
             };
         },
         report: () => {
-            for (const { ref, similar, first, from, uses, inputs } of across.values()) {
+            for (const { ref, similar, first, uses, inputs } of across.values()) {
                 const related = uses
-                    .filter((span) => span !== first.span)
-                    .map((span) => ({ message: relatedMessages.alsoUsedHere, span }));
-                const detail = { ref, from, ...(similar !== undefined && { similar }) };
+                    .filter(({ span }) => span !== first.span)
+                    .map((use) => ({
+                        message: relatedMessages.alsoUsedHere,
+                        span: use.span,
+                        path: use.from,
+                    }));
+                const detail = {
+                    ref,
+                    from: fromOf(uses),
+                    ...(similar !== undefined && { similar }),
+                };
                 const [input, ...others] = inputs;
                 const made = diagnostic("missing-reference", detail, {
                     span: first.span,
@@ -83,6 +91,10 @@ export function missingReferences(diagnostics: Problems): MissingReferences {
             }
         },
     };
+}
+
+function fromOf(uses: readonly Use[]): string[] {
+    return [...new Set(uses.map(({ from }) => from))];
 }
 
 function similarReference(

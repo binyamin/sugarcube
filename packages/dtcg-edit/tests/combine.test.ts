@@ -9,7 +9,7 @@ import {
     rename,
     setValue,
 } from "../src/index.js";
-import { committed, demo, opened, plainly, resolver } from "./helpers.js";
+import { committed, demo, opened, opsIn, plainly, resolver } from "./helpers.js";
 
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 const blue = { colorSpace: "srgb", components: [0, 0, 1] };
@@ -163,7 +163,7 @@ describe("combine", () => {
         ]);
         session.do(edit);
 
-        expect(session.unsaved.ops).toEqual(edit.ops);
+        expect(opsIn(session.unsaved)).toEqual(edit.ops);
         expect(session.tokens.toMemory().files).toEqual(committed(demo, edit).toMemory().files);
     });
 });

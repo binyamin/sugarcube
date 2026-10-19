@@ -1,12 +1,20 @@
 import {
+    type Change,
     type DesignTokens,
     type Input,
     type Permutation,
     readFromMemory,
     sameJson,
 } from "@sugarcube-sh/dtcg";
-import { createSession } from "@sugarcube-sh/dtcg-edit";
-import type { SentAdapter, StudioMessage } from "../protocol";
+import {
+    type Clash,
+    type Committed,
+    type Edits,
+    type OpResult,
+    createSession,
+    keepYours,
+} from "@sugarcube-sh/dtcg-edit";
+import type { SaveOutcome, SentAdapter, StudioMessage } from "../protocol";
 import type { BuildAdapter, BuildProblem, BuildOutput } from "./adapter";
 
 export interface StudioState {
@@ -15,25 +23,36 @@ export interface StudioState {
     readonly value: BuildOutput["value"];
     readonly css: string;
     readonly problems: readonly BuildProblem[];
-    readonly changes: number;
+    readonly changes: readonly Change[];
+    readonly clashes: readonly Clash[];
 }
 
 export interface Studio {
     readonly state: StudioState;
+    readonly unsaved: Edits;
     subscribe(listener: () => void): () => void;
     destroy(): void;
     show(input: Input): void;
     receive(message: StudioMessage): void;
+    do(result: OpResult): Committed;
+    discard(): void;
+    restore(edits: Edits): void;
+    keep(clash: Clash, side: "yours" | "theirs"): Committed | undefined;
+    idOf(path: string): string | undefined;
+    pathOf(id: string): string | undefined;
+    save?(): Promise<SaveOutcome>;
 }
 
 export function createStudio(
     first: StudioMessage,
     adapterFor: (sent: SentAdapter) => BuildAdapter,
+    saveEdits?: (edits: Edits) => Promise<SaveOutcome>,
 ): Studio {
     let message = first;
     let adapter = adapterFor(first.adapter);
     const session = createSession(read(first, adapter));
     const listeners = new Set<() => void>();
+    let clashes: readonly Clash[] = [];
     let state = built(session.tokens.permutation().input);
 
     function built(showing: Input): StudioState {
@@ -45,7 +64,8 @@ export function createStudio(
             value: written.value,
             css: written.css,
             problems: [...message.adapter.problems, ...written.problems],
-            changes: session.changes().length,
+            changes: session.changes(),
+            clashes,
         };
     }
 
@@ -56,9 +76,27 @@ export function createStudio(
 
     const stopSession = session.subscribe(() => publish(built(state.showing.input)));
 
+    function settled(found: readonly Clash[]) {
+        clashes = found;
+        publish(built(state.showing.input));
+    }
+
+    const save = saveEdits
+        ? async () => {
+              const sent = session.unsaved;
+              const saved = await saveEdits(sent);
+              if (!saved.conflicts && session.unsaved === sent) session.markSaved();
+              return saved;
+          }
+        : undefined;
+
     return {
+        ...(save && { save }),
         get state() {
             return state;
+        },
+        get unsaved() {
+            return session.unsaved;
         },
         subscribe(listener) {
             listeners.add(listener);
@@ -71,6 +109,29 @@ export function createStudio(
         show(input) {
             publish({ ...state, showing: state.tokens.permutation(input) });
         },
+        do(result) {
+            return session.do(result);
+        },
+        discard() {
+            clashes = [];
+            session.discard();
+        },
+        restore(edits) {
+            settled(session.restore(edits));
+        },
+        keep(clash, side) {
+            const done =
+                side === "yours" ? session.do(keepYours(session.tokens, clash)) : undefined;
+            if (done && !done.tokens) return done;
+            settled(clashes.filter((each) => each !== clash));
+            return done;
+        },
+        idOf(path) {
+            return session.idOf(path);
+        },
+        pathOf(id) {
+            return session.pathOf(id);
+        },
         receive(next) {
             const previous = message;
             message = next;
@@ -80,11 +141,11 @@ export function createStudio(
                 !sameJson(next.adapter.settings, previous.adapter.settings)
             ) {
                 adapter = adapterFor(next.adapter);
-                session.rebase(read(next, adapter));
+                settled(session.rebase(read(next, adapter)));
                 return;
             }
             const fresh = session.opened.rereadAll(next.files);
-            if (fresh !== session.opened) session.rebase(fresh);
+            if (fresh !== session.opened) settled(session.rebase(fresh));
             else if (!sameJson(next.adapter.problems, previous.adapter.problems))
                 publish(built(state.showing.input));
         },

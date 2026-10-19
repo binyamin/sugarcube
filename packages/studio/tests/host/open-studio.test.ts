@@ -69,7 +69,7 @@ describe("openStudio", () => {
     });
 
     it("says the host sent nothing when no message arrives in time", async () => {
-        const opening = openStudio(shared(), new AbortController().signal, 10);
+        const opening = openStudio(shared(), new AbortController().signal, { waitMs: 10 });
 
         await expect(opening).rejects.toThrow(/^\[sugarcube studio\] The host sent no token files/);
     });

@@ -1,38 +1,56 @@
 import { type DesignTokens, type JsonPath, forbiddenInName } from "@sugarcube-sh/dtcg";
 import { editedText } from "./apply.js";
 import { memberAt, writtenIn } from "./file-text.js";
-import type { Clash, FileOp } from "./index.js";
+import type { Clash, ClashPart, EditStep, FileOp } from "./index.js";
 import { valueAt } from "./text-edits.js";
 
 export function clashesOf(
-    skipped: readonly FileOp[],
+    skipped: readonly EditStep[],
     theirs: DesignTokens,
     mine: DesignTokens,
     madeOn: readonly DesignTokens[] = [],
 ): Clash[] {
+    if (skipped.length === 0) return [];
+    const files = new Set(skipped.flatMap((step) => step.ops.map((op) => op.file)));
+    const named = pathsByMember([mine, theirs, ...madeOn], files);
+    return skipped.map((step) => {
+        const parts = partsOf(step, theirs, mine, named);
+        return { step, parts, keepable: !parts.some(isGone) };
+    });
+}
+
+function partsOf(
+    step: EditStep,
+    theirs: DesignTokens,
+    mine: DesignTokens,
+    named: ReadonlyMap<string, string>,
+): ClashPart[] {
     const byMember = new Map<string, { file: string; jsonPath: JsonPath; ops: FileOp[] }>();
-    for (const op of skipped) {
+    for (const op of step.ops) {
         const jsonPath = editedMember(op);
         const key = memberKey(op.file, jsonPath);
         const found = byMember.get(key) ?? { file: op.file, jsonPath, ops: [] };
         found.ops.push(op);
         byMember.set(key, found);
     }
-    if (byMember.size === 0) return [];
-    const files = new Set([...byMember.values()].map(({ file }) => file));
-    const named = pathsByMember([mine, theirs, ...madeOn], files);
     return [...byMember].map(([key, { file, jsonPath, ops }]) => {
         const forced = ops.reduce(force, mine.text(file) ?? "{}");
-        const clash: Clash = { file, jsonPath };
+        const part: Writable<ClashPart> = { file, jsonPath };
         const path = named.get(key);
-        if (path !== undefined) clash.path = path;
+        if (path !== undefined) part.path = path;
         const yours = forced === undefined ? undefined : valueAt(forced, jsonPath);
         const now = writtenIn(theirs, file, jsonPath);
-        if (yours !== undefined) clash.yours = yours;
-        if (now !== undefined) clash.theirs = now;
-        return clash;
+        if (yours !== undefined) part.yours = yours;
+        if (now !== undefined) part.theirs = now;
+        return part;
     });
 }
+
+export function isGone(part: ClashPart): boolean {
+    return part.theirs === undefined;
+}
+
+type Writable<T> = { -readonly [K in keyof T]: T[K] };
 
 function editedMember(op: FileOp): JsonPath {
     if (!("jsonPath" in op)) return [];

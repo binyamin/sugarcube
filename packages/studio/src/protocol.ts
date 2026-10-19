@@ -1,4 +1,5 @@
 import type { InternalConfig } from "@sugarcube-sh/core/client";
+import type { Conflict } from "@sugarcube-sh/dtcg-edit";
 import type { PlainSettings } from "./adapters/plain";
 import type { BuildProblem } from "./controllers/adapter";
 
@@ -14,6 +15,10 @@ export type StudioConnectionConfig = {
     /** Where saves go when there's no server to write files, e.g. a service that opens a PR. */
     saveUrl?: string;
 };
+
+export type SaveOutcome =
+    | { written: string[]; deleted: string[]; conflicts?: undefined }
+    | { conflicts: Conflict[]; written?: undefined; deleted?: undefined };
 
 export type StudioMessage = {
     readonly adapter: SentAdapter;

@@ -101,7 +101,8 @@
           "span": {
             "file": "tokens.json",
             "text": "\"{groupA}\""
-          }
+          },
+          "path": "groupB"
         }
       ]
     },
@@ -121,14 +122,16 @@
           "span": {
             "file": "tokens.json",
             "text": "\"{c3}\""
-          }
+          },
+          "path": "c2"
         },
         {
           "message": "part of the same loop",
           "span": {
             "file": "tokens.json",
             "text": "\"{c1}\""
-          }
+          },
+          "path": "c3"
         }
       ]
     }

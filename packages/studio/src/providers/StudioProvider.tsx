@@ -26,8 +26,8 @@ export function StudioProvider({ children }: Props) {
 
         async function init() {
             try {
-                const { message } = await connectStudio(controller.signal);
-                const studio = await openStudio(message, controller.signal);
+                const { message, save } = await connectStudio(controller.signal);
+                const studio = await openStudio(message, controller.signal, { save });
                 if (!controller.signal.aborted) setState({ kind: "ready", studio });
             } catch (err) {
                 if (controller.signal.aborted) return;
