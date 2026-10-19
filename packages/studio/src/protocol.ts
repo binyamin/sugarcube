@@ -14,8 +14,8 @@ export type StudioConnectionConfig = {
 };
 
 export type StudioMessage = {
-    config: InternalConfig;
-    entry: string;
-    files: Readonly<Record<string, string>>;
-    problems: readonly Reported[];
+    readonly config: InternalConfig;
+    readonly entry: string;
+    readonly files: Readonly<Record<string, string>>;
+    readonly configProblems: readonly Reported[];
 };

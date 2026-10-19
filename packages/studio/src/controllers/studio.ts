@@ -39,7 +39,7 @@ export function createStudio(first: StudioMessage): Studio {
             showing:
                 tokens.permutations.find((p) => sameJson(p.input, showing)) ?? tokens.permutation(),
             css: made.variables.map((file) => file.css).join("\n"),
-            problems: [...message.problems, ...made.diagnostics],
+            problems: [...message.configProblems, ...made.diagnostics],
             changes: session.changes().length,
         };
     }
@@ -75,7 +75,7 @@ export function createStudio(first: StudioMessage): Studio {
             }
             const fresh = session.opened.rereadAll(next.files);
             if (fresh !== session.opened) session.rebase(fresh);
-            else if (!sameJson(next.problems, previous.problems))
+            else if (!sameJson(next.configProblems, previous.configProblems))
                 publish(built(state.showing.input));
         },
     };

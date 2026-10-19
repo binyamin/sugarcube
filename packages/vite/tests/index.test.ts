@@ -179,6 +179,7 @@ describe("sugarcube's Vite plugin", () => {
         );
         expect(logged.join("\n")).toMatch(/\n1 error\.$/m);
         expect(overlays).toEqual([]);
+        expect(context.configProblems).toEqual([]);
     });
 
     it("serves the CSS again once the errors are fixed", async () => {
@@ -192,7 +193,6 @@ describe("sugarcube's Vite plugin", () => {
         await tokens({ color: { ink: color("#333333") } });
         await reload;
 
-        expect(context.problems).toEqual([]);
         expect(await css("text-ink")).toContain("--color-ink: #333333");
     });
 
@@ -242,6 +242,8 @@ describe("sugarcube's Vite plugin", () => {
         await until(() => configProblems().length > 0, "the config's problem");
 
         expect(logged.join("\n")).toMatch(/^sugarcube\.config\.ts {2}error {2}/m);
+        expect(context.configProblems.length).toBeGreaterThan(0);
+        expect(context.configProblems.every(({ kind }) => kind === "invalid-config")).toBe(true);
 
         let reload = reloaded(context);
         await tokens({ color: { ink: color("#777777") } });
@@ -253,7 +255,7 @@ describe("sugarcube's Vite plugin", () => {
         reload = reloaded(context);
         await config("");
         await reload;
-        expect(context.problems).toEqual([]);
+        expect(context.configProblems).toEqual([]);
         expect(await css("text-ink")).toContain("--color-ink: #777777");
     });
 
@@ -332,7 +334,7 @@ describe("sugarcube's Vite plugin", () => {
         }, "Vite watching the config");
         await until(() => context.config.variables.prefix === "ds", "the save's last write");
 
-        expect(context.problems).toEqual([]);
+        expect(context.configProblems).toEqual([]);
     });
 
     it("reads two quick config saves one at a time, the newer winning", async () => {
@@ -358,14 +360,14 @@ export default {
         expect(await css("text-ink")).toContain(".text-ink{color:var(--new-color-ink);}");
     });
 
-    it("hands the config, the design tokens with their files' text, and their problems to other plugins", async () => {
+    it("hands the config, its problems, and the design tokens with their files' text to other plugins", async () => {
         await project();
         const { context } = await serve();
 
         expect(context.config.resolver).toContain("tokens.resolver.json");
         expect(context.tokens.files).toEqual(["tokens.resolver.json", "base.json"]);
         expect(context.tokens.text("base.json")).toContain("#111111");
-        expect(context.problems).toEqual([]);
+        expect(context.configProblems).toEqual([]);
     });
 
     it("hands other plugins the files' text a save wrote, with the design tokens read from it", async () => {

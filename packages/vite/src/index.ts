@@ -2,7 +2,6 @@ import { dirname, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import {
     ConfigError,
-    type InternalConfig,
     type LoadedConfig,
     type Reported,
     type UtilityCSS,
@@ -60,14 +59,15 @@ interface SugarcubePluginOptions {
 export const SUGARCUBE_API_PLUGIN_NAME = "sugarcube:api";
 
 /**
- * What other plugins, such as Studio's, can read from sugarcube's: the config in use, the design
- * tokens as last read (their files' text with them) and their problems, the config's first (even
- * when they keep the last good CSS in use), and a signal after every read.
+ * What other plugins, such as Studio's, can read from sugarcube's: the config in use, the problems
+ * loading the config last found (the last good config stays in use meanwhile), the design tokens
+ * as last read (their files' text with them), and a signal after every read. The tokens' own
+ * problems are not here: a plugin editing them finds those from its own version.
  */
 export interface SugarcubePluginContext {
-    config: InternalConfig;
+    config: LoadedConfig["config"];
+    configProblems: readonly Reported[];
     tokens: DesignTokens;
-    problems: Reported[];
     onReload: (fn: () => void) => () => void;
 }
 
@@ -151,11 +151,11 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
         get config() {
             return loaded.config;
         },
+        get configProblems() {
+            return fromConfig;
+        },
         get tokens() {
             return tokens;
-        },
-        get problems() {
-            return problems();
         },
         onReload(fn) {
             listeners.add(fn);

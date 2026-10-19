@@ -17,3 +17,8 @@ export type { FileText } from "./server/write-ops-to-disk";
 export { studioDevframe } from "./server/definition";
 export { STUDIO_ICON } from "./server/icon";
 export type { StudioDevframeOptions } from "./server/definition";
+export { studioFiles } from "./server/files";
+export type { FilesNow, StudioFiles } from "./server/files";
+export { nodeFiles } from "./server/node-files";
+export type { Saved } from "./server/save";
+export type { StudioMessage } from "./protocol";

@@ -1,20 +1,6 @@
-import type { Reported } from "@sugarcube-sh/core/client";
 import { describe, expect, it, vi } from "vitest";
 import { createStudio } from "../../src/controllers/studio";
-import { asSent, demoMessage, withFile } from "./demo-message";
-
-const configProblem: Reported = {
-    kind: "invalid-config",
-    severity: "error",
-    message: "`variables.prefix` must be a string",
-    docs: "https://sugarcube.sh/errors/invalid-config",
-    detail: {
-        reason: "wrong-type",
-        setting: "variables.prefix",
-        expected: ["string"],
-        received: "number",
-    },
-};
+import { asSent, configProblem, demoMessage, withFile } from "./demo-message";
 
 describe("createStudio", () => {
     it("opens the files the host sent, showing the default permutation", () => {
@@ -58,7 +44,7 @@ describe("createStudio", () => {
         const broken = withFile(
             "dark.json",
             '{ "color": { "text": ',
-            demoMessage({ problems: [configProblem] }),
+            demoMessage({ configProblems: [configProblem] }),
         );
         const studio = createStudio(broken);
 
