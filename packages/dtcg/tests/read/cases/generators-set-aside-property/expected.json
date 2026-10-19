@@ -8,7 +8,7 @@
       "kind": "unknown-property",
       "detail": {
         "property": "fluid",
-        "owner": "dimension",
+        "type": "dimension",
         "jsonPath": ["$extensions", "com.example", "sized", "size", "fluid"]
       },
       "span": { "file": "tokens.json", "text": "\"fluid\"" },

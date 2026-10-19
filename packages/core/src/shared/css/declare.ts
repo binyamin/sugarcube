@@ -6,8 +6,8 @@ import {
 } from "@sugarcube-sh/dtcg";
 import type { Permutation as ConfigPermutation, InternalConfig } from "../../types/config.js";
 import type { Reported } from "../../types/diagnostics.js";
-import { diagnostic } from "../diagnostics.js";
-import { type Declared, declarationOptions, declarations } from "./declarations.js";
+import { type AboutToken, aboutToken, diagnostic, located } from "../diagnostics.js";
+import { type Declared, declarationOptions, declarations, renderer } from "./declarations.js";
 import { textZoomWarnings } from "./text-zoom.js";
 
 export interface Entry {
@@ -51,9 +51,10 @@ export function declare(tokens: DesignTokens, config: InternalConfig): Declarati
         return { entries: [], diagnostics: [...tokens.diagnostics, required, ...deprecated] };
 
     const options = declarationOptions(tokens, config);
+    const rendering = renderer(options);
     const declaredIn = new Map<Permutation, Declared>();
     const declaredFor = (permutation: Permutation) => {
-        const found = declaredIn.get(permutation) ?? declarations(permutation, options);
+        const found = declaredIn.get(permutation) ?? declarations(permutation, options, rendering);
         declaredIn.set(permutation, found);
         return found;
     };
@@ -66,9 +67,11 @@ export function declare(tokens: DesignTokens, config: InternalConfig): Declarati
             ...tokens.diagnostics,
             ...deprecated,
             ...defaultsNotFirst(toWrite),
-            ...textZoomWarnings([...declaredIn.keys()], options.fluid, options.parseOptions),
-            ...missingHex(once),
-            ...sameNames(once),
+            ...located(tokens, [
+                ...textZoomWarnings([...declaredIn.keys()], options.fluid, options.parseOptions),
+                ...missingHex(once),
+                ...sameNames(once),
+            ]),
         ],
     };
 }
@@ -146,17 +149,17 @@ function defaultRequired(tokens: DesignTokens): Reported | undefined {
     };
 }
 
-function missingHex(declared: Declared[]): Reported[] {
-    const found = new Map<string, Reported>();
+function missingHex(declared: Declared[]): AboutToken[] {
+    const found = new Map<string, AboutToken>();
     for (const { token, colorSpace } of declared.flatMap(({ missing }) => missing)) {
         const key = `${token.path}\u0000${colorSpace}`;
-        if (!found.has(key)) found.set(key, diagnostic("fallback-missing", { colorSpace }, token));
+        if (!found.has(key)) found.set(key, aboutToken(token, "fallback-missing", { colorSpace }));
     }
     return [...found.values()];
 }
 
-function sameNames(declared: Declared[]): Reported[] {
-    const found = new Map<string, Reported>();
+function sameNames(declared: Declared[]): AboutToken[] {
+    const found = new Map<string, AboutToken>();
     for (const { declarations: lines } of declared) {
         const first = new Map<string, string>();
         for (const { name, token } of lines) {
@@ -168,7 +171,7 @@ function sameNames(declared: Declared[]): Reported[] {
             const key = `${earlier}\u0000${token.path}`;
             if (earlier === token.path || found.has(key)) continue;
             const paths: [string, string] = [earlier, token.path];
-            found.set(key, diagnostic("same-variable-name", { name, paths }, token));
+            found.set(key, aboutToken(token, "same-variable-name", { name, paths }));
         }
     }
     return [...found.values()];

@@ -195,9 +195,10 @@ function contextPlace(
     if (refusal) return refusal;
 
     const winner = written.valueFrom;
+    const winnerSpan = tokens.spanOf(winner);
     if (winner.source.context === chosen.context) {
-        const there = tokens.writtenAt(path).find(({ span }) => span === winner.span);
-        const at = memberAt(tokens, winner.span);
+        const there = tokens.writtenAt(path).find(({ span }) => span === winnerSpan);
+        const at = memberAt(tokens, winnerSpan);
         if (!there || !at) return refused({ kind: "not-found", path });
         return { at, alsoAffects: alsoIn(there.winsIn, chosen) };
     }
@@ -207,10 +208,12 @@ function contextPlace(
     const winnerIndex = perm.sources.indexOf(winner.source);
     const winning = own.filter(({ index }) => index > winnerIndex);
     if (winning.length === 0) {
-        return refused({ kind: "hidden-by-later-file", path, input, file: winner.span.file });
+        return refused({ kind: "hidden-by-later-file", path, input, file: winnerSpan.file });
     }
 
-    const groupSpans = (written.group?.writtenAt ?? []).map(({ span }) => span);
+    const parent = parentOf(path);
+    const group = parent === undefined ? undefined : perm.group(parent);
+    const groupSpans = (group?.writtenAt ?? []).map((each) => tokens.spanOf(each));
     const into = chosenFile(path, unique(winning), groupSpans, place);
     if (typeof into !== "string") return into;
     return { token: written, into, alsoAffects: seenReading(tokens, into, chosen) };
@@ -239,7 +242,7 @@ function newContextPlace(
     if (files.length === 0) {
         return refused({ kind: "no-file-for-context", path, input: inputOf(chosen) });
     }
-    const groupSpans = groupPlaces.map(({ span }) => span);
+    const groupSpans = groupPlaces.map((each) => tokens.spanOf(each));
     const into = chosenFile(path, files, groupSpans, place);
     if (typeof into !== "string") return into;
     return { into, alsoAffects: seenReading(tokens, into, chosen) };

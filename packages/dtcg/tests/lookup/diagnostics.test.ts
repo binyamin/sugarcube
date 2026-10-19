@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFromMemory } from "../../src/index.js";
+import { type Permutation, readFromMemory } from "../../src/index.js";
 
 const resolver = {
     version: "2025.10",
@@ -78,37 +78,24 @@ describe("tokens.diagnosticsFor", () => {
     });
 });
 
-describe("token.diagnostics", () => {
-    it("gives the problems about the token in its own permutation", () => {
-        expect(darkMode.token("color.ok")?.diagnostics.map(({ kind }) => kind)).toStrictEqual([
-            "invalid-value",
-        ]);
-        expect(light.token("color.ok")?.diagnostics).toStrictEqual([]);
+describe("permutation.diagnosticsFor", () => {
+    const inPermutation = (permutation: Permutation, path: string) =>
+        permutation.diagnosticsFor(path).map(({ kind }) => kind);
+
+    it("gives the problems about the path in this permutation", () => {
+        expect(inPermutation(darkMode, "color.ok")).toStrictEqual(["invalid-value"]);
+        expect(light.diagnosticsFor("color.ok")).toStrictEqual([]);
     });
 
     it("gives a problem in a value every permutation reads to each of them", () => {
         expect(tokens.diagnosticsFor("color.bad")[0]?.permutations.label).toBe("everywhere");
-        expect(darkMode.token("color.bad")?.diagnostics.map(({ kind }) => kind)).toStrictEqual([
-            "invalid-value",
-        ]);
-        expect(light.token("color.bad")?.diagnostics.map(({ kind }) => kind)).toStrictEqual([
-            "invalid-value",
-        ]);
+        expect(inPermutation(darkMode, "color.bad")).toStrictEqual(["invalid-value"]);
+        expect(inPermutation(light, "color.bad")).toStrictEqual(["invalid-value"]);
     });
 
     it("gives the problems every permutation shares too", () => {
-        expect(light.token("color.a")?.diagnostics.map(({ kind }) => kind)).toStrictEqual([
-            "missing-reference",
-        ]);
-        expect(darkMode.token("loop.x")?.diagnostics.map(({ kind }) => kind)).toStrictEqual([
-            "circular-reference",
-        ]);
-    });
-
-    it("is not written in the plain form", () => {
-        expect(JSON.parse(JSON.stringify(light.token("color.a")))).not.toHaveProperty(
-            "diagnostics",
-        );
+        expect(inPermutation(light, "color.a")).toStrictEqual(["missing-reference"]);
+        expect(inPermutation(darkMode, "loop.x")).toStrictEqual(["circular-reference"]);
     });
 });
 
@@ -129,7 +116,7 @@ describe("a problem in a file only some permutations read", () => {
     });
 
     it("is not given to the token in a permutation that does not read it", () => {
-        expect(walked.permutation().token("gap")?.diagnostics).toStrictEqual([]);
+        expect(walked.permutation().diagnosticsFor("gap")).toStrictEqual([]);
     });
 
     it("names every permutation for a problem in the resolver, which every permutation is built from", () => {
@@ -183,7 +170,7 @@ describe("a problem in a value a token inherits", () => {
 
     it("is given to the token that inherits the value too", () => {
         const [problem] = extended.diagnostics;
-        expect(extended.permutation().token("button.primary.pad")?.diagnostics).toStrictEqual([
+        expect(extended.permutation().diagnosticsFor("button.primary.pad")).toStrictEqual([
             problem,
         ]);
         expect(extended.diagnosticsFor("button.primary.pad")).toStrictEqual([problem]);

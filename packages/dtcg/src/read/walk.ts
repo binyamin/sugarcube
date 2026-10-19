@@ -13,7 +13,7 @@ import { readReference } from "../values/references.js";
 import { isTokenType, tokenTypes } from "../values/token-types.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
 import { type JsonFile, type Member, members, plainObject, plainValue, spanOf } from "./json.js";
-import { refSteps } from "./pointer.js";
+import { stepsOf } from "./ref-meaning.js";
 import { similarName } from "./similar.js";
 import type { LoadedSource } from "./sources.js";
 
@@ -24,6 +24,10 @@ export interface Properties {
     extensions?: Record<string, unknown>;
 }
 
+export function usableType(type: TokenType | "unusable" | undefined): TokenType | undefined {
+    return type === "unusable" ? undefined : type;
+}
+
 export interface SourceToken extends Properties {
     path: string;
     json: JsonFile;
@@ -31,6 +35,7 @@ export interface SourceToken extends Properties {
     authored: unknown;
     reference: WrittenReference | undefined;
     span: Span;
+    extensionsAt?: ExtensionsAt;
 }
 
 export interface GroupReference {
@@ -101,7 +106,7 @@ export function walkSource(
     const { json, tree } = source;
     if (!json || !tree) return undefined;
 
-    const contents: SourceContents = { root: { span: spanOf(json, tree) }, members: [] };
+    const written: SourceMember[] = [];
     const overridden = new Set(source.overriddenKeys);
     const report = <K extends DiagnosticKind>(
         kind: K,
@@ -141,7 +146,7 @@ export function walkSource(
         return properties;
     };
 
-    const readGroupProperties = (path: string | undefined, entries: readonly Member[]) => {
+    const readPropertiesAt = (path: string | undefined, entries: readonly Member[]) => {
         const properties = readProperties(path, entries);
         const extensions = entries.find(({ key }) => key === "$extensions")?.value;
         return {
@@ -182,7 +187,7 @@ export function walkSource(
         const child = entries.find(({ key }) => !key.startsWith("$"));
         if (child) report("token-and-group", { reason: "child", child: child.key }, child.keyNode);
         const authored = plainValue(value);
-        contents.members.push({
+        written.push({
             token: {
                 path,
                 json,
@@ -190,7 +195,7 @@ export function walkSource(
                 authored,
                 reference: readReference(authored),
                 span: spanOf(json, node),
-                ...readProperties(path, entries),
+                ...readPropertiesAt(path, entries),
             },
         });
     };
@@ -198,11 +203,11 @@ export function walkSource(
     const visitGroup = (node: Node, segments: string[], entries: readonly Member[]) => {
         const path = segments.join(".");
         const extending = readExtends(node, entries);
-        contents.members.push({
+        written.push({
             group: {
                 path,
                 span: spanOf(json, node),
-                ...readGroupProperties(path, entries),
+                ...readPropertiesAt(path, entries),
                 ...(extending && { extends: extending }),
             },
         });
@@ -284,9 +289,9 @@ export function walkSource(
         members(tree).filter(({ key }) => !overridden.has(key)),
         true,
     );
-    contents.root = { span: spanOf(json, tree), ...readGroupProperties(undefined, rootEntries) };
+    const root = { span: spanOf(json, tree), ...readPropertiesAt(undefined, rootEntries) };
     visitMembers([], rootEntries);
-    return contents;
+    return { root, members: written };
 }
 
 function nonObjectKind(node: Node): NonObjectKind | undefined {
@@ -299,9 +304,7 @@ function readGroupReference(
     raw: unknown,
 ): Pick<GroupReference, "reference" | "steps"> | undefined {
     const reference = keyword === "$extends" ? readReference(raw) : pointerOf(raw);
-    if (!reference) return undefined;
-    if (reference.syntax === "curly-brace") return { reference, steps: reference.path.split(".") };
-    return { reference, steps: refSteps(reference.pointer) };
+    return reference && { reference, steps: stepsOf(reference) };
 }
 
 function pointerOf(raw: unknown): JsonPointerReference | undefined {

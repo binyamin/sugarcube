@@ -1,5 +1,4 @@
 import type { Diagnostic, Resolver } from "../index.js";
-import type { Modifier } from "./input.js";
 import {
     type Answer,
     type FileText,
@@ -13,19 +12,19 @@ import {
     type PermutationOptions,
     type LoadedPermutation,
     fromResolver,
-    fromTokenFiles,
+    fromTokenFile,
 } from "./permutations.js";
 import { checkResolver, isResolver } from "./resolver.js";
 import { resolverPart } from "./resolver-part.js";
-import { onceEach } from "./diagnostics.js";
-import { entriesOf, expandSources, filesNamedBy, openSources } from "./sources.js";
+import { Problems } from "./diagnostics.js";
+import { expandSources, filesNamedBy, openSources, piecesOf } from "./sources.js";
+import { sameResolver } from "./same-object.js";
 
 export interface Loaded {
     files: string[];
     texts: Record<string, string>;
     entry: string;
     resolver?: Resolver;
-    modifiers: Modifier[];
     permutations: LoadedPermutation[];
     diagnostics: Diagnostic[];
 }
@@ -33,33 +32,34 @@ export interface Loaded {
 export function* load(
     entry: string,
     options: PermutationOptions,
+    previous: Resolver | undefined,
 ): Generator<Request, Loaded, Answer> {
-    const used: string[] = [];
-    const diagnostics: Diagnostic[] = [];
-    const files = createFiles(used, diagnostics);
+    const diagnostics = new Problems();
+    const files = createFiles(diagnostics);
     yield* fetchFiles(files, [entry]);
 
     const root = parseFile(files, entry)?.root;
-    const loaded = (built: Pick<Loaded, "resolver" | "modifiers" | "permutations">): Loaded => ({
-        files: used,
-        texts: textsOf(files.texts, used),
+    const loaded = (built: Pick<Loaded, "resolver" | "permutations">): Loaded => ({
+        files: files.used,
+        texts: textsOf(files.texts, files.used),
         entry,
-        diagnostics: onceEach(diagnostics),
+        diagnostics: [...diagnostics.list],
         ...built,
     });
     if (!isResolver(entry, root)) {
-        return loaded(fromTokenFiles([{ path: entry, json: openFile(files, entry, "tokens") }]));
+        return loaded(fromTokenFile(entry, openFile(files, entry, "tokens")));
     }
 
     const file = openFile(files, entry, "resolver");
-    if (!file) return loaded({ modifiers: [], permutations: [] });
+    if (!file) return loaded({ permutations: [] });
 
     const resolver = checkResolver(file, diagnostics);
     const { items, setsUsed } = expandSources(resolver, diagnostics);
-    const entries = entriesOf(items);
-    yield* fetchFiles(files, filesNamedBy(resolver, entries));
-    const sources = openSources(files, resolver, entries);
-    const part = resolverPart(resolver, setsUsed, diagnostics);
+    const pieces = piecesOf(items);
+    yield* fetchFiles(files, filesNamedBy(pieces));
+    const sources = openSources(files, resolver, pieces);
+    const made = resolverPart(resolver, setsUsed, diagnostics);
+    const part = previous && sameResolver(previous, made) ? previous : made;
     return loaded({
         resolver: part,
         ...fromResolver(part, items, sources, options, diagnostics),

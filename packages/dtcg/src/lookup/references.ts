@@ -12,7 +12,7 @@ import type {
 import { atOrWithin } from "../path.js";
 import { permutationsOf } from "../read/permutations-of.js";
 import { acrossPermutations } from "../read/reference.js";
-import { sameJson } from "../values/same-value.js";
+import { samePlace } from "../read/same-object.js";
 
 interface WrittenIn {
     position: Map<Reference, number>;
@@ -47,6 +47,14 @@ export function referencedIn(
         }
     }
     return [...found].sort((a, b) => (position.get(a) ?? 0) - (position.get(b) ?? 0));
+}
+
+export function usedIn(
+    permutation: Permutation,
+    path: string,
+    options?: ReferenceOptions,
+): (Token | Group)[] {
+    return [...new Set(referencedIn(permutation, path, options).map(({ from }) => from))];
 }
 
 export function referencedByIn(
@@ -112,7 +120,7 @@ export function usedByIn(
 ): PathInPermutations[] {
     const users = new Map<string, Permutation[]>();
     for (const permutation of tokens.permutations) {
-        for (const { from } of referencedIn(permutation, path, options)) {
+        for (const from of usedIn(permutation, path, options)) {
             const found = users.get(from.path);
             if (found) found.push(permutation);
             else users.set(from.path, [permutation]);
@@ -131,20 +139,21 @@ function across(
     const merged = new Map<Span, { reference: Reference; permutations: Permutation[] }[]>();
     for (const permutation of tokens.permutations) {
         for (const reference of inPermutation(permutation)) {
-            let atSpan = merged.get(reference.span);
-            if (!atSpan) merged.set(reference.span, (atSpan = []));
+            const span = tokens.spanOf(reference);
+            let atSpan = merged.get(span);
+            if (!atSpan) merged.set(span, (atSpan = []));
             const found = atSpan.find((each) => sameReference(each.reference, reference));
             if (found) found.permutations.push(permutation);
             else atSpan.push({ reference, permutations: [permutation] });
         }
     }
-    return [...merged.values()]
-        .flat()
-        .map(({ reference, permutations }) =>
-            acrossPermutations(reference, permutationsOf(permutations, tokens.permutations)),
-        );
+    return [...merged].flatMap(([span, here]) =>
+        here.map(({ reference, permutations }) =>
+            acrossPermutations(reference, permutationsOf(permutations, tokens.permutations), span),
+        ),
+    );
 }
 
 function sameReference(a: Reference, b: Reference): boolean {
-    return a.from.path === b.from.path && sameJson(a.property ?? [], b.property ?? []);
+    return a.from.path === b.from.path && samePlace(a.property, b.property ?? []);
 }

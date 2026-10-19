@@ -66,7 +66,7 @@ describe("a token's references", () => {
         expect(reference?.from).toBe(inLight("color.brand"));
         expect(reference?.token).toBe(inLight("color.red"));
         expect(reference?.property).toBeUndefined();
-        expect(reference && written(reference.span)).toBe('"{color.red}"');
+        expect(reference && written(tokens.spanOf(reference))).toBe('"{color.red}"');
     });
 
     it("include a JSON Pointer, by the token path it names (Format 7.1.2)", () => {
@@ -78,7 +78,9 @@ describe("a token's references", () => {
         expect(reference?.path).toBe("color.brand");
         expect(reference?.token).toBe(inLight("color.brand"));
         expect(reference?.property).toStrictEqual(["color"]);
-        expect(reference && written(reference.span)).toBe('{"$ref":"#/color/brand/$value"}');
+        expect(reference && written(tokens.spanOf(reference))).toBe(
+            '{"$ref":"#/color/brand/$value"}',
+        );
     });
 
     it("reference no token when a pointer names a property within a value, and say which (Format 7.3)", () => {
@@ -143,18 +145,7 @@ describe("a token's references", () => {
         const line = invalid.permutation().token("line");
         expect(line?.invalid).toBe(true);
         expect(line?.references.map(({ path }) => path)).toStrictEqual(["color.ink"]);
-        expect(invalid.permutation().token("color.ink")?.referencedBy()[0]?.from).toBe(line);
-    });
-});
-
-describe("a token's permutation", () => {
-    it("is the permutation that holds it", () => {
-        expect(inLight("color.red")?.permutation).toBe(light);
-        expect(inDark("color.red")?.permutation).toBe(dark);
-    });
-
-    it("is left out of the plain form", () => {
-        expect(JSON.parse(JSON.stringify(inLight("color.red")))).not.toHaveProperty("permutation");
+        expect(invalid.permutation().referencedBy("color.ink")[0]?.from).toBe(line);
     });
 });
 
@@ -196,16 +187,16 @@ describe("referenceAt", () => {
     });
 });
 
-describe("a token's referencedBy", () => {
-    it("is every reference to it, each with the token that writes it", () => {
+describe("permutation.referencedBy", () => {
+    it("is every reference to the path, each with the token that writes it", () => {
         const red = inLight("color.red");
-        const reaching = red?.referencedBy() ?? [];
+        const reaching = light.referencedBy("color.red");
         expect(reaching.map(({ from }) => from.path)).toStrictEqual(["color.brand", "color.tint"]);
         expect(reaching.every(({ path }) => path === red?.path)).toBe(true);
     });
 
     it("follows chained references when asked (Format 7.2.2), each once, in written order", () => {
-        const chained = inLight("color.red")?.referencedBy({ chained: true }) ?? [];
+        const chained = light.referencedBy("color.red", { chained: true });
         expect(chained.map(({ from, path }) => `${from.path} > ${path}`)).toStrictEqual([
             "color.brand > color.red",
             "color.text > color.brand",
@@ -214,8 +205,8 @@ describe("a token's referencedBy", () => {
         ]);
     });
 
-    it("is its own permutation's: in mode: dark, color.red's only user is the tint", () => {
-        const reaching = inDark("color.red")?.referencedBy() ?? [];
+    it("is the permutation's own: in mode: dark, color.red's only user is the tint", () => {
+        const reaching = dark.referencedBy("color.red");
         expect(reaching.map(({ from }) => from.path)).toStrictEqual(["color.tint"]);
     });
 
@@ -224,12 +215,12 @@ describe("a token's referencedBy", () => {
             a: { $type: "number", $value: "{b}" },
             b: { $type: "number", $value: "{a}" },
         });
-        const chained = loop.permutation().token("a")?.referencedBy({ chained: true }) ?? [];
+        const chained = loop.permutation().referencedBy("a", { chained: true });
         expect(chained.map(({ from }) => from.path)).toStrictEqual(["a", "b"]);
     });
 
     it("is empty when nothing references it", () => {
-        expect(inLight("color.text")?.referencedBy()).toStrictEqual([]);
+        expect(light.referencedBy("color.text")).toStrictEqual([]);
     });
 });
 
@@ -247,7 +238,7 @@ describe("a group's $extends", () => {
         expect(reference?.path).toBe("button");
         expect(reference?.from).toBe(tokens.permutation().group("primary"));
         expect(reference?.token).toBeUndefined();
-        expect(reference && written(reference.span)).toBe('"{button}"');
+        expect(reference && written(tokens.spanOf(reference))).toBe('"{button}"');
     });
 
     it("is a JSON Pointer when written as one, $extends or a group's $ref", () => {
@@ -269,6 +260,29 @@ describe("a group's $extends", () => {
     it("leaves a group that extends nothing without references", () => {
         expect(tokens.permutation().group("button")?.references).toStrictEqual([]);
         expect(tokens.permutation().group("button")?.extends).toBeUndefined();
+    });
+});
+
+describe("a curly brace reference's path", () => {
+    const named = readFromMemory({
+        files: {
+            "tokens.json": JSON.stringify({
+                base: { $type: "color", red: color(1) },
+                extending: { $extends: "{base.red.$value}" },
+                aliasing: { $type: "color", $value: "{base.red.$value}" },
+            }),
+        },
+    });
+    const found = (path: string) =>
+        named.diagnosticsFor(path).map(({ kind, detail }) => ({ kind, detail }));
+
+    it("names a token or group, so $value in it is a name, not a step into a value (Format 7.1.1)", () => {
+        const missing = {
+            kind: "missing-reference",
+            detail: expect.objectContaining({ ref: "base.red.$value" }),
+        };
+        expect(found("aliasing")).toStrictEqual([missing]);
+        expect(found("extending")).toStrictEqual([missing]);
     });
 });
 
@@ -307,7 +321,9 @@ describe("moved", () => {
         const [referring] = pointed.permutation().group("secondary")?.references ?? [];
         expect(extending?.moved(moves("button", "control"))).toBe("{control}");
         expect(referring?.moved(moves("button", "control"))).toBe("#/control");
-        expect(referring && written(referring.span, { "tokens.json": text })).toBe('"#/button"');
+        expect(referring && written(pointed.spanOf(referring), { "tokens.json": text })).toBe(
+            '"#/button"',
+        );
     });
 });
 
@@ -394,19 +410,14 @@ describe("on the design tokens", () => {
 describe("the plain form", () => {
     const plain = (value: unknown) => JSON.parse(JSON.stringify(value));
 
-    it("writes each reference on the token that writes it, without its from or token", () => {
+    it("writes each reference on the token that writes it, without its from, token or position", () => {
         const [curly] = plain(inLight("color.brand")).references;
-        expect(Object.keys(curly).sort()).toStrictEqual(["path", "span", "syntax"]);
+        expect(Object.keys(curly).sort()).toStrictEqual(["path", "syntax"]);
     });
 
     it("writes a JSON Pointer without the path and target property it works out from the pointer", () => {
         const [pointer] = plain(inLight("color.tint")).references;
-        expect(Object.keys(pointer).sort()).toStrictEqual([
-            "pointer",
-            "property",
-            "span",
-            "syntax",
-        ]);
+        expect(Object.keys(pointer).sort()).toStrictEqual(["pointer", "property", "syntax"]);
     });
 
     it("writes a group's $extends among its references, and no extends link", () => {

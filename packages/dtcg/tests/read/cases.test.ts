@@ -27,6 +27,10 @@ const cases = readdirSync(casesFolder, { withFileTypes: true })
 
 function observed(found: DesignTokens, expected: Expected) {
     const tokens: DesignTokens = JSON.parse(JSON.stringify(found));
+    found.permutations.forEach((permutation, index) => {
+        const written = tokens.permutations[index];
+        if (written) placedIn(found, permutation, written);
+    });
     return {
         entry: expected.entry,
         spec: expected.spec,
@@ -51,6 +55,25 @@ function observed(found: DesignTokens, expected: Expected) {
             }),
         ),
     };
+}
+
+type Positioned = { writtenAt: { span?: unknown }[]; references: { span?: unknown }[] };
+
+function placedIn(found: DesignTokens, permutation: Permutation, written: Permutation): void {
+    const live = [...permutation.tokens, ...permutation.groups];
+    const plain = [...written.tokens, ...written.groups] as unknown as Positioned[];
+    live.forEach((each, index) => {
+        const into = plain[index];
+        if (!into) return;
+        each.writtenAt.forEach((place, at) => {
+            const json = into.writtenAt[at];
+            if (json) json.span = found.spanOf(place);
+        });
+        each.references.forEach((reference, at) => {
+            const json = into.references[at];
+            if (json) json.span = found.spanOf(reference);
+        });
+    });
 }
 
 function observedPermutation(
@@ -139,7 +162,8 @@ describe.each(cases)("%s", (name) => {
             if (!inValue(problem) || path === undefined || span === undefined) return [];
             if (!tokens.permutations.some((each) => each.token(path))) return [];
             const takes = (permutation: Permutation) => {
-                const from = permutation.token(path)?.valueFrom.span;
+                const winner = permutation.token(path)?.valueFrom;
+                const from = winner && tokens.spanOf(winner);
                 return (
                     from !== undefined &&
                     from.file === span.file &&

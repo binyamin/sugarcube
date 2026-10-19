@@ -1,23 +1,24 @@
 import type { Node } from "jsonc-parser";
-import type { Diagnostic, Resolver, ResolverModifier, ResolverSet, SourceRef } from "../index.js";
-import { diagnostic } from "./diagnostics.js";
+import type { Resolver, ResolverModifier, ResolverSet, SourceRef } from "../index.js";
+import { diagnostic, type Problems } from "./diagnostics.js";
 import { member, plainObject, spanOf } from "./json.js";
-import { folderOf, join } from "./paths.js";
-import { encodePointer, readPointerText } from "./pointer.js";
-import type {
-    CheckedResolver,
-    ModifierDefinition,
-    SetDefinition,
-    ResolverNode,
+import { folderOf } from "./paths.js";
+import { encodePointer } from "./pointer.js";
+import {
+    type CheckedResolver,
+    type ModifierDefinition,
+    type SetDefinition,
+    type ResolverNode,
+    isStringNode,
 } from "./resolver.js";
-import { type SetsUsed, fileRef, setNamed } from "./sources.js";
+import { type SetsUsed, fragmentPointer, readSourceRef, setNamed } from "./sources.js";
 import type { Building } from "./building.js";
 import { linkedContext, linkedModifier } from "./linked.js";
 
 export function resolverPart(
     resolver: CheckedResolver,
     setsUsed: SetsUsed,
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
 ): Resolver {
     const named = resolver.order.flatMap((item) => (item.kind === "set" ? [item.set] : []));
     const sets = new Map(named.map((set) => [set.name, set]));
@@ -38,7 +39,7 @@ export function resolverPart(
             if (used.has(name)) continue;
             const span = spanOf(resolver.file, node);
             const detail = { item, name };
-            diagnostics.push(
+            diagnostics.found(
                 diagnostic("not-in-resolution-order", detail, { span, tags: ["unnecessary"] }),
             );
         }
@@ -101,17 +102,10 @@ function sourceAsWritten(resolver: CheckedResolver, source: ResolverNode): Sourc
     const { file } = resolver;
     const ref = member(source.node, "$ref");
     if (!ref) return { file: file.path, pointer: encodePointer(source.jsonPath) };
-    if (ref.type !== "string") return undefined;
-    const written = ref.value as string;
-    if (!written.startsWith("#")) {
-        const { file: named, read } = fileRef(written);
-        if (read && !read.ok) return undefined;
-        const steps = read?.steps ?? [];
-        const pointer = steps.length > 0 ? { pointer: encodePointer(steps) } : {};
-        return { file: join(folderOf(file.path), named), ...pointer };
-    }
-    const read = readPointerText(written);
-    if (!read.ok) return undefined;
+    if (!isStringNode(ref)) return undefined;
+    const read = readSourceRef(folderOf(file.path), ref.value);
+    if (read.kind === "malformed") return undefined;
+    if (read.kind === "file") return { file: read.path, ...fragmentPointer(read.steps) };
     const set = setNamed(read.steps);
     if (set !== undefined) return resolver.sets.has(set) ? { set } : undefined;
     return { file: file.path, pointer: encodePointer(read.steps) };

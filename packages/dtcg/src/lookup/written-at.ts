@@ -16,7 +16,8 @@ export function writtenAtIn(tokens: DesignTokens, path: string): PlaceInPermutat
             ...(permutation.group(path)?.writtenAt ?? []),
         ];
         for (const place of places) {
-            const { source, span } = place;
+            const { source } = place;
+            const span = tokens.spanOf(place);
             const known = found.get(span);
             if (!known) {
                 found.set(span, { sources: [source], readIn: [permutation], first: place });
@@ -34,7 +35,10 @@ export function writtenAtIn(tokens: DesignTokens, path: string): PlaceInPermutat
         sources,
         readIn: permutationsOf(readIn, tokens.permutations),
         winsIn: permutationsOf(
-            readIn.filter((permutation) => permutation.token(path)?.valueFrom.span === span),
+            readIn.filter((permutation) => {
+                const winner = permutation.token(path)?.valueFrom;
+                return winner !== undefined && tokens.spanOf(winner) === span;
+            }),
             tokens.permutations,
         ),
     }));

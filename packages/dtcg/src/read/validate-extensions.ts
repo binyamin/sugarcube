@@ -1,6 +1,6 @@
+import type { Problems } from "./diagnostics.js";
 import type { Node } from "jsonc-parser";
 import type {
-    Diagnostic,
     ExtensionError,
     ExtensionMessages,
     ExtensionValidator,
@@ -10,8 +10,15 @@ import type {
     ParseOptions,
     ValueError,
 } from "../index.js";
-import { type SchemaOutput, checkSchema, extensionDiagnostic } from "./extension-check.js";
-import { type JsonFile, member } from "./json.js";
+import {
+    type CheckedExtension,
+    type SchemaOutput,
+    Reported,
+    checkSchema,
+    extensionAt,
+    extensionDiagnostic,
+} from "./extension-check.js";
+import type { JsonFile } from "./json.js";
 import { everyGroup } from "./merge.js";
 import { settingsOf } from "./settings.js";
 import type { NormalisedPermutation } from "./normalise.js";
@@ -63,12 +70,12 @@ export function validateExtensions(
         validators,
         parseOptions,
     }: { validators: readonly ExtensionValidator[]; parseOptions: ParseOptions },
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
 ): void {
     if (validators.length === 0) return;
 
-    normalised.forEach(({ merged, input: permutation }, index) => {
-        const checked = new Map<ExtensionValidator, Set<Node>>();
+    normalised.forEach(({ merged, input }, index) => {
+        const reported = new Reported();
         const check = (
             validator: ExtensionValidator,
             on: Checked,
@@ -76,52 +83,44 @@ export function validateExtensions(
             json: JsonFile,
             node: Node,
         ) => {
-            const done = checked.get(validator) ?? new Set<Node>();
-            checked.set(validator, done);
-            if (done.has(node)) return;
-            done.add(node);
+            if (!reported.first(validator, node)) return;
             const passed = checkSchema(validator.schema, value, validator.key);
             const problems = passed.ok
                 ? (validator.validate?.(on, passed.value, parseOptions) ?? [])
                 : passed.problems;
-            const extension = {
-                within: [validator.key] as [string],
+            const extension: CheckedExtension = {
+                within: [validator.key],
                 messages: validator.messages,
                 json,
                 node,
                 ...(on.path !== undefined && { path: on.path }),
-                permutation,
             };
-            for (const problem of problems) {
-                diagnostics.push(extensionDiagnostic(problem, extension));
-            }
+            for (const each of problems)
+                diagnostics.found(extensionDiagnostic(each, extension), input);
         };
 
         for (const [path, group] of everyGroup(merged)) {
             const settings = settingsOf(merged, group);
             for (const validator of validators) {
-                const written = settings.extensionsAt?.[validator.key];
-                if (!written || !validator.appliesTo.includes("group")) continue;
-                const node = member(written.node, validator.key);
-                if (!node) continue;
-                const value = settings.extensions?.[validator.key];
+                if (!validator.appliesTo.includes("group")) continue;
+                const at = settings.extensionsAt?.[validator.key];
+                const found = extensionAt(settings.extensions, at, [validator.key]);
+                if (!at || !found) continue;
                 const on: Checked = { ...(path !== undefined && { path }), type: "group" };
-                check(validator, on, value, written.json, node);
+                check(validator, on, found.value, at.json, found.node);
             }
         }
 
         const types = new Map(permutations[index]?.tokens.map(({ path, type }) => [path, type]));
         for (const token of merged.tokens.values()) {
             const type = types.get(token.path);
-            const object = token.value.parent?.parent;
-            if (token.added || !type || !object || !token.extensions) continue;
-            const extensions = member(object, "$extensions");
-            if (!extensions) continue;
+            const at = token.extensionsAt;
+            if (!type || !at) continue;
             for (const validator of validators) {
-                const node = member(extensions, validator.key);
-                if (!node || !validator.appliesTo.includes(type)) continue;
-                const value = token.extensions[validator.key];
-                check(validator, { path: token.path, type }, value, token.json, node);
+                if (!validator.appliesTo.includes(type)) continue;
+                const found = extensionAt(token.extensions, at, [validator.key]);
+                if (found)
+                    check(validator, { path: token.path, type }, found.value, at.json, found.node);
             }
         }
     });

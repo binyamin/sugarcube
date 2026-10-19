@@ -49,7 +49,7 @@ function ignored(place: ReturnType<typeof spanAt>): Reported {
         span: place,
         docs: "",
         permutations: themes("everywhere"),
-        detail: { property: "paragraphSpacing", owner: "typography", jsonPath: [] },
+        detail: { property: "paragraphSpacing", type: "typography", jsonPath: [] },
     };
 }
 

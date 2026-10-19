@@ -12,7 +12,6 @@ const permutation = readFromMemory({
                 red: { $value: red },
                 brand: { $value: "{color.red}" },
                 text: { $value: "{color.brand}" },
-                broken: { $value: "{color.missing}" },
             },
             lift: {
                 $type: "shadow",
@@ -31,18 +30,44 @@ const permutation = readFromMemory({
 describe("what a token works out from itself", () => {
     it("is the same each time it is read, as the read gives everything else", () => {
         const text = permutation.token("color.text");
-        const broken = permutation.token("color.broken");
         const lift = permutation.token("lift");
 
         expect(text?.aliasChain).toBe(text?.aliasChain);
-        expect(broken?.diagnostics).toBe(broken?.diagnostics);
         expect(lift?.parts).toBe(lift?.parts);
         expect(text?.aliasChain.map(({ path }) => path)).toStrictEqual([
             "color.text",
             "color.brand",
             "color.red",
         ]);
-        expect(broken?.diagnostics.map(({ kind }) => kind)).toStrictEqual(["missing-reference"]);
         expect(lift?.parts).toBeDefined();
+    });
+});
+
+describe("what a group works out from itself", () => {
+    it("is the same each time it is read", () => {
+        const color = permutation.group("color");
+        expect(color?.childTokens).toBe(color?.childTokens);
+        expect(color?.tokens).toBe(color?.tokens);
+        expect(color?.tokens.map(({ path }) => path)).toStrictEqual([
+            "color.red",
+            "color.brand",
+            "color.text",
+        ]);
+    });
+});
+
+describe("working it out", () => {
+    it("leaves nothing on the token or group that a tool sees", () => {
+        const text = permutation.token("color.text");
+        const lift = permutation.token("lift");
+        const color = permutation.group("color");
+        const before = [text, lift, color].map((each) => Object.keys(each ?? {}));
+        void text?.aliasChain;
+        void lift?.parts;
+        void color?.childTokens;
+        void color?.tokens;
+        expect([text, lift, color].map((each) => Object.keys(each ?? {}))).toStrictEqual(before);
+        expect(JSON.stringify(text)).not.toContain("aliasChain");
+        expect(JSON.stringify(color)).not.toContain("childTokens");
     });
 });

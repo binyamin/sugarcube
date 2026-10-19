@@ -5,6 +5,7 @@ import { cssFrom } from "../src/shared/css-from.js";
 import { declare } from "../src/shared/css/declare.js";
 import { emitCSS } from "../src/shared/css/emit.js";
 import { readOptions } from "../src/shared/read-options.js";
+import { located } from "../src/shared/diagnostics.js";
 import { utilityRules } from "../src/shared/utilities/rules.js";
 import { utilityTokens } from "../src/shared/utilities/tokens.js";
 import type { UtilityClassesConfig } from "../src/types/config.js";
@@ -67,6 +68,7 @@ describe("cssFrom", () => {
         expect(made.diagnostics).toStrictEqual([
             ...declared.diagnostics,
             ...emitted.diagnostics,
+            ...located(tokens, ruled.aboutTokens),
             ...ruled.diagnostics,
         ]);
         expect(made.diagnostics.map(({ kind }) => kind)).toStrictEqual([

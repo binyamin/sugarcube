@@ -118,7 +118,7 @@ export function member(node: Node, key: string): Node | undefined {
     return members(node).find((each) => each.key === key)?.value;
 }
 
-const arrayIndex = /^(?:0|[1-9]\d*)$/;
+export const arrayIndex = /^(?:0|[1-9]\d*)$/;
 
 export function child(node: Node, step: string | number): Node | undefined {
     if (node.type !== "array") return member(node, String(step));

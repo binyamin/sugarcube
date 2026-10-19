@@ -31,7 +31,12 @@ export function sameValue(...values: [TokenType, unknown, unknown] | [Token, Tok
     return a.type === b.type && saysTheSame(a, b);
 }
 
-export function saysTheSame(a: Token, b: Token): boolean {
+export interface Said {
+    value?: unknown;
+    authored?: { value: unknown } | undefined;
+}
+
+export function saysTheSame(a: Said, b: Said): boolean {
     if (a.value === undefined || b.value === undefined) {
         return a.value === b.value && sameJson(a.authored?.value, b.authored?.value);
     }

@@ -1,23 +1,23 @@
 import { describe, expect, it } from "vitest";
 import type { ParseOptions } from "../../src/index.js";
-import { parseTransition } from "../../src/values.js";
+import { parseValue } from "../../src/values.js";
 
 const lenient: ParseOptions = { ignoreUnknownProperties: true };
 
 function read(raw: unknown, options?: ParseOptions) {
-    const result = parseTransition(raw, ["$value"], options);
+    const result = parseValue("transition", raw, ["$value"], options);
     if (!result.ok) throw new Error(`expected a value, got ${JSON.stringify(result.errors)}`);
     return result.value;
 }
 
 function details(raw: unknown, options?: ParseOptions) {
-    const result = parseTransition(raw, ["$value"], options);
+    const result = parseValue("transition", raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
     return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
-    const result = parseTransition(raw, ["$value"], options);
+    const result = parseValue("transition", raw, ["$value"], options);
     return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
@@ -27,7 +27,7 @@ const emphasis = {
     timingFunction: [0.5, 0, 1, 1],
 };
 
-describe("parseTransition", () => {
+describe("parseValue, transition", () => {
     describe("reads", () => {
         it("the emphasis transition from spec example 53", () => {
             expect(read(emphasis)).toStrictEqual(emphasis);

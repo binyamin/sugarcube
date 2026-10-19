@@ -1,25 +1,46 @@
-import type { DesignTokens, Diagnostic, Span, Token } from "../index.js";
+import type { DesignTokens, Diagnostic, Permutation, Span, Token } from "../index.js";
 
 export function diagnosticsForIn(tokens: DesignTokens, path: string): Diagnostic[] {
-    const taking = tokens.permutations.flatMap((each) => each.token(path) ?? []);
+    return tokens.diagnostics.filter(concerning(tokens, path, tokens.permutations));
+}
+
+export function diagnosticsIn(
+    tokens: DesignTokens,
+    permutation: Permutation,
+    path: string,
+): Diagnostic[] {
+    const about = concerning(tokens, path, [permutation]);
     return tokens.diagnostics.filter(
-        (found) => isAbout(found, path) || taking.some((token) => inValueFrom(found, token)),
+        (found) => found.permutations.includes(permutation) && about(found),
     );
 }
 
-export function diagnosticsOf(tokens: DesignTokens, token: Token): Diagnostic[] {
-    return tokens.diagnostics.filter(
-        (found) =>
-            (isAbout(found, token.path) || inValueFrom(found, token)) &&
-            found.permutations.includes(token.permutation),
-    );
+function concerning(
+    tokens: DesignTokens,
+    path: string,
+    permutations: readonly Permutation[],
+): (found: Diagnostic) => boolean {
+    const taking = permutations.flatMap((each) => {
+        const token = each.token(path);
+        return token ? [{ permutation: each, token }] : [];
+    });
+    return (found) =>
+        isAbout(found, path) ||
+        taking.some(({ permutation, token }) => inValueFrom(tokens, found, permutation, token));
 }
 
-function inValueFrom({ span, path }: Diagnostic, token: Token): boolean {
+function inValueFrom(
+    tokens: DesignTokens,
+    { span, path }: Diagnostic,
+    permutation: Permutation,
+    token: Token,
+): boolean {
     if (span === undefined || path === undefined || path === token.path) return false;
-    const from = token.valueFrom.span;
+    const from = tokens.spanOf(token.valueFrom);
+    const other = permutation.token(path);
     return (
-        token.permutation.token(path)?.valueFrom.span === from &&
+        other !== undefined &&
+        tokens.spanOf(other.valueFrom) === from &&
         span.file === from.file &&
         from.offset <= span.offset &&
         span.offset + span.length <= from.offset + from.length

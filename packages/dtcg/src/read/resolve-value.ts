@@ -14,8 +14,7 @@ import type { Siblings } from "../values/syntax.js";
 import type { MergedToken, Merged } from "./merge.js";
 import { type Occurrence, occurrence } from "./occurrence.js";
 import type { LocatedReference, ValueReader } from "./parse-value.js";
-import { refSteps } from "./pointer.js";
-import { reach, stepInto } from "./ref-meaning.js";
+import { type Aim, reachOf, stepInto, stepsOf } from "./ref-meaning.js";
 
 export const UNRESOLVED = Symbol("unresolved");
 
@@ -24,16 +23,16 @@ export type Target = "untyped" | { type: TokenType; resolved?: unknown };
 export interface Resolving {
     readValue: ValueReader;
     merged: Merged;
-    permutation: Input;
-    outcomeOf(path: string, from: string, span: Span): Target | undefined;
+    input: Input;
+    valueAt(path: string, from: string, span: Span): Target | undefined;
     report<K extends DiagnosticKind>(
         kind: K,
         detail: DiagnosticDetailByKind[K],
         path: string,
         span: Span,
     ): void;
-    recordMissing(reference: WrittenReference, from: string, span: Span): void;
-    reportUnreachable(use: Occurrence, from: string): void;
+    notReached(aim: Aim, from: string, span: Span): void;
+    reportUnreachable(aim: Aim, from: string, span: Span): void;
 }
 
 interface Following {
@@ -75,13 +74,13 @@ function resolveIn(
     }
     if (failed) return UNRESOLVED;
 
-    const { readValue, permutation } = resolving;
+    const { readValue, input } = resolving;
     const { token, within } = following;
     for (const again of readAgain) {
         const { jsonPath, owner, raw } = again;
         const syntax = again.from(siblingsOf(again, followed));
         const slot = { syntax, jsonPath, owner, element: false };
-        const { result, notes } = readValue.readTarget(token, slot, raw, permutation);
+        const { result, notes } = readValue.readTarget(token, slot, raw, input);
         if (!result.ok) return UNRESOLVED;
         const inner = notes.references.map((reference) => ({
             reference,
@@ -95,7 +94,7 @@ function resolveIn(
 }
 
 function follow(resolving: Resolving, following: Following, located: LocatedReference): unknown {
-    const { merged, readValue, permutation, report, recordMissing, reportUnreachable } = resolving;
+    const { merged, readValue, input, report, notReached, reportUnreachable } = resolving;
     const { token, seen, within } = following;
     const { ref, syntax, owner, element, jsonPath } = located.reference;
     const use = within ?? located.occurrence;
@@ -106,8 +105,7 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
             : part;
 
     if (ref.syntax === "curly-brace") {
-        const target = { path: ref.path, reference: ref };
-        return adjusted(substitute(resolving, token, target, expected, use, element));
+        return adjusted(substitute(resolving, token, ref, ref.path, expected, use, element));
     }
 
     const { pointer: written } = ref;
@@ -115,20 +113,18 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
         report("circular-reference", { chain: [...seen, written] }, token.path, use.span);
         return UNRESOLVED;
     }
-    const reached = reach(refSteps(written), merged);
+    const aim = { reference: ref, steps: stepsOf(ref) };
+    const reached = reachOf(aim, merged);
     const unreachable = () => {
-        if (!within) reportUnreachable(located.occurrence, token.path);
-        else if (reached.kind === "group") {
-            report("not-a-token", { ref: written }, token.path, use.span);
-        } else recordMissing(ref, token.path, use.span);
+        if (within) notReached(aim, token.path, use.span);
+        else reportUnreachable(aim, token.path, use.span);
         return UNRESOLVED;
     };
     if (reached.kind === "group" || reached.kind === "nothing") return unreachable();
 
     const whole = reached.kind === "token";
     if (whole && (syntax.kind === "ofType" || element)) {
-        const target = { path: reached.path, reference: ref };
-        return adjusted(substitute(resolving, token, target, expected, use, element));
+        return adjusted(substitute(resolving, token, ref, reached.path, expected, use, element));
     }
     const { authored } = reached.token;
     const stepped = whole ? { value: authored } : stepInto(authored, reached.inside);
@@ -136,7 +132,7 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
     const raw = stepped.value;
 
     const slot = { syntax, jsonPath, owner, element };
-    const { result, notes } = readValue.readTarget(token, slot, raw, permutation);
+    const { result, notes } = readValue.readTarget(token, slot, raw, input);
     if (!result.ok) return UNRESOLVED;
     const inner = notes.references.map((reference) => ({ reference, occurrence: use }));
     const deeper = { token, seen: [...seen, written], within: use };
@@ -144,19 +140,19 @@ function follow(resolving: Resolving, following: Following, located: LocatedRefe
 }
 
 function substitute(
-    { outcomeOf, merged, report, recordMissing }: Resolving,
+    { valueAt, report, notReached }: Resolving,
     token: MergedToken,
-    { path, reference }: { path: string; reference: WrittenReference },
+    reference: WrittenReference,
+    path: string,
     expected: TokenType,
     use: Occurrence,
     element: boolean,
 ): unknown {
     const { span } = use;
     const shown = referenceText(reference);
-    const target = outcomeOf(path, token.path, span);
+    const target = valueAt(path, token.path, span);
     if (target === undefined) {
-        if (merged.groups.has(path)) report("not-a-token", { ref: shown }, token.path, span);
-        else recordMissing(reference, token.path, span);
+        notReached({ reference, steps: stepsOf(reference) }, token.path, span);
         return UNRESOLVED;
     }
     if (target === "untyped" || !("resolved" in target)) return UNRESOLVED;

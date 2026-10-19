@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { parseFontFamily } from "../../src/values.js";
+import { parseValue } from "../../src/values.js";
 
 function read(raw: unknown) {
-    const result = parseFontFamily(raw, ["$value"]);
+    const result = parseValue("fontFamily", raw, ["$value"]);
     if (!result.ok) throw new Error(`expected a value, got ${JSON.stringify(result.errors)}`);
     return result.value;
 }
 
 function details(raw: unknown) {
-    const result = parseFontFamily(raw, ["$value"]);
+    const result = parseValue("fontFamily", raw, ["$value"]);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
     return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
-describe("parseFontFamily", () => {
+describe("parseValue, fontFamily", () => {
     describe("reads", () => {
         it("one name as a list of one", () => {
             expect(read("Comic Sans MS")).toStrictEqual(["Comic Sans MS"]);

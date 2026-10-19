@@ -10,11 +10,26 @@ import { type Notes, readToken } from "./read-syntax.js";
 import { valueError } from "./value-errors.js";
 
 /**
- * Reads one value of a type given at run time, with that type's parser. A reference is read as
- * a `WrittenReference`, as the parsers read it.
+ * Reads one value of a type into its shape, or explains why it cannot. `jsonPath` is where the
+ * value sits, and each problem's `jsonPath` starts with it. A reference to a whole token, written
+ * `"{color.brand}"`, is read as a `CurlyBraceReference`; a JSON Pointer is read as a
+ * `JsonPointerReference`, and may stand in place of the whole value or any part of it.
  *
  * @example
- * parseValue(token.type, input, [])
+ * parseValue("color", { colorSpace: "srgb", components: [1, 0, 1] }, [])
+ * // { ok: true, value: { colorSpace: "srgb", components: [1, 0, 1], alpha: 1 }, ignored: [] }
+ *
+ * @example
+ * parseValue("color", "{color.brand}", [])
+ * // { ok: true, value: { syntax: "curly-brace", path: "color.brand" }, ignored: [] }
+ *
+ * @example
+ * parseValue("color", { colorSpace: "srgb", components: [1, 0, 1], name: "magenta" }, [], {
+ *   ignoreUnknownProperties: true,
+ * })
+ * // read without `name`, which is in `ignored`:
+ * // [{ kind: "unknown-property", jsonPath: ["name"],
+ * //    detail: { type: "color", property: "name" }, … }]
  */
 export function parseValue<T extends TokenType>(
     type: T,

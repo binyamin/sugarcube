@@ -43,7 +43,8 @@ describe("every answer's permutations, with two modifiers and files that overlap
             ...new Set(
                 tokens.permutations.flatMap(
                     (permutation) =>
-                        permutation.token("gap")?.writtenAt.map(({ span }) => span) ?? [],
+                        permutation.token("gap")?.writtenAt.map((place) => tokens.spanOf(place)) ??
+                        [],
                 ),
             ),
         ];

@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { fontWeightKeywords, parseFontWeight } from "../../src/values.js";
+import { fontWeightKeywords, parseValue } from "../../src/values.js";
 
 function read(raw: unknown) {
-    const result = parseFontWeight(raw, ["$value"]);
+    const result = parseValue("fontWeight", raw, ["$value"]);
     if (!result.ok) throw new Error(`expected a value, got ${JSON.stringify(result.errors)}`);
     return result.value;
 }
 
 function details(raw: unknown) {
-    const result = parseFontWeight(raw, ["$value"]);
+    const result = parseValue("fontWeight", raw, ["$value"]);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
     return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
-describe("parseFontWeight", () => {
+describe("parseValue, fontWeight", () => {
     describe("reads", () => {
         it.for([1, 350, 400, 1000, 450.5])("the number %s", (weight) => {
             expect(read(weight)).toBe(weight);

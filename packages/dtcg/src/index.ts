@@ -240,8 +240,6 @@ export interface ReferenceBase {
      * reference.targetProperty // ["components", 0]
      */
     readonly targetProperty?: JsonPath;
-    /** Where it is written. */
-    readonly span: Span;
     /**
      * The property of {@link TokenBase.value | value} it is written as, which can differ from the
      * file: a shadow written as one object is a list of one, so a reference in its `color` is at
@@ -250,9 +248,9 @@ export interface ReferenceBase {
      */
     readonly property?: JsonPath;
     /**
-     * What to write at {@link ReferenceBase.span | span} after a list of {@link Move}s, made in
-     * order, in the syntax it is written in: a JSON Pointer keeps its steps into the value. As it
-     * is written when no move reaches it.
+     * What to write where it is written ({@link DesignTokens.spanOf}) after a list of
+     * {@link Move}s, made in order, in the syntax it is written in: a JSON Pointer keeps its steps
+     * into the value. As it is written when no move reaches it.
      *
      * @example
      * reference.moved([{ from: "color.brand", to: "color.house" }]) // "{color.house}"
@@ -262,11 +260,13 @@ export interface ReferenceBase {
 
 /**
  * A reference, as {@link DesignTokens.references} and {@link DesignTokens.referencedBy} give it:
- * written once, holding in each of `permutations`. `from` is the path that writes it, since in each
- * permutation that is a different token.
+ * written once at `span`, holding in each of `permutations`. `from` is the path that writes it,
+ * since it can be a different token in each permutation.
  */
 export type ReferenceInPermutations = Omit<ReferenceBase, "from" | "token" | "moved"> &
-    (CurlyBraceReference | (JsonPointerReference & { path?: string })) & {
+    (CurlyBraceReference | (JsonPointerReference & { readonly path?: string })) & {
+        /** Where it is written, in this read's text. */
+        readonly span: Span;
         readonly from: string;
         readonly permutations: Permutations;
         moved(moves: readonly Move[]): JsonValue;
@@ -282,7 +282,7 @@ export interface PathInPermutations {
     readonly permutations: Permutations;
 }
 
-/** How far {@link TokenBase.referencedBy} and the design tokens' reference questions look. */
+/** How far a permutation's and the design tokens' reference questions look. */
 export interface ReferenceOptions {
     /**
      * Follow chained references (Format 7.2.2): those through other tokens, however indirectly.
@@ -540,13 +540,6 @@ export interface TokenBase<T extends TokenType> {
      */
     readonly path: string;
     /**
-     * The group the token is in, its parent group (Format 6.7.3); for a `$root` token, the group
-     * it is the root token of (Format 6.2). `undefined` at the top level of the files.
-     */
-    readonly group?: Group;
-    /** The permutation that holds it: the same path in another permutation is another token. */
-    readonly permutation: Permutation;
-    /**
      * Its type: its own `$type`, else its group's (Format 6.7.3), else the type of the token its
      * whole value references.
      */
@@ -633,25 +626,6 @@ export interface TokenBase<T extends TokenType> {
      */
     referenceAt(property?: JsonPath): Reference | undefined;
     /**
-     * Every reference to the token in this permutation, each with the token that writes it in
-     * `from`; with `chained`, also every reference to each of those, however indirectly.
-     *
-     * @example
-     * red.referencedBy().map(({ from }) => from.path)  // ["color.brand"]
-     * red.referencedBy({ chained: true })              // everything a change would reach
-     */
-    referencedBy(options?: ReferenceOptions): Reference[];
-    /**
-     * Each token or group that refers to the token in this permutation, once, however many
-     * references it writes to it; with `chained`, also each one that refers to those, however
-     * indirectly. Wider than the spec's aliases (Format 3.8), tokens whose whole value is this one:
-     * a composite with one part referring to it, or a group's `$extends`, uses it too.
-     *
-     * @example
-     * red.usedBy().map(({ path }) => path) // ["color.brand", "border.danger"]
-     */
-    usedBy(options?: ReferenceOptions): (Token | Group)[];
-    /**
      * The token, then each token its whole value references in turn, ending at the one that holds a
      * value: a curly brace reference, or a JSON Pointer to a complete value. A property-level
      * reference isn't followed. Stops at a reference to no token and at a loop, without repeating.
@@ -686,15 +660,6 @@ export interface TokenBase<T extends TokenType> {
      * }
      */
     readonly parts: Part | undefined;
-    /**
-     * The problems about it in its permutation: its own, a missing reference it writes, a loop it
-     * is part of, a problem in a value it inherits. Those only another permutation has are left
-     * out.
-     *
-     * @example
-     * for (const problem of dark.token("color.brand")?.diagnostics ?? []) show(problem.message);
-     */
-    readonly diagnostics: readonly Diagnostic[];
 }
 
 /**
@@ -723,11 +688,6 @@ export interface Group {
     readonly kind: "group";
     /** Where the group sits in the tree, such as `"color.brand"`. */
     readonly path: string;
-    /**
-     * The group it is in, its parent group (Format 6.7.3), as a token's
-     * {@link TokenBase.group | group} is. `undefined` at the top level of the files.
-     */
-    readonly group?: Group;
     /**
      * The type its tokens take: its own, else the group it extends, else the group it is inside
      * (Format 6.7.3).
@@ -815,8 +775,10 @@ export interface TopLevel {
 }
 
 /**
- * A place a token or group is written: the source that writes it and where. The same place is the
- * same object in every permutation that reads its source.
+ * A place a token or group is written: the source that writes it and what it writes there. The
+ * same place is the same object in every permutation that reads its source. Where in the file it
+ * is, which moves when the text above it changes, is asked of the read:
+ * {@link DesignTokens.spanOf}.
  */
 export interface Place {
     /**
@@ -824,12 +786,9 @@ export interface Place {
      * through.
      */
     readonly source: Source;
-    /** Where in the file it is written. */
-    readonly span: Span;
     /**
-     * The JSON the file writes at {@link Place.span | span}, exactly as written: for a token, its
-     * whole object, `$value`, `$type` and the rest, before any reference is followed or anything is
-     * taken from a group.
+     * The JSON the file writes there, exactly as written: for a token, its whole object, `$value`,
+     * `$type` and the rest, before any reference is followed or anything is taken from a group.
      */
     readonly written: JsonValue;
 }
@@ -1094,6 +1053,35 @@ export interface Permutation {
      * dark.group("color")?.children
      */
     group(path: string): Group | undefined;
+    /**
+     * Every reference to `path` in this permutation, each with the token or group that writes it in
+     * `from`; with `chained`, also every reference to each of those, however indirectly. A group's
+     * path covers what is written to it, such as an `$extends`, and to everything inside it.
+     *
+     * @example
+     * dark.referencedBy("color.red").map(({ from }) => from.path) // ["color.brand"]
+     * dark.referencedBy("color.red", { chained: true })           // everything a change would reach
+     */
+    referencedBy(path: string, options?: ReferenceOptions): readonly Reference[];
+    /**
+     * Each token or group that refers to `path` in this permutation, once, however many references
+     * it writes to it; with `chained`, also each one that refers to those, however indirectly. Wider
+     * than the spec's aliases (Format 3.8), tokens whose whole value is another: a composite with one
+     * part referring to it, or a group's `$extends`, uses it too.
+     *
+     * @example
+     * dark.usedBy("color.red").map(({ path }) => path) // ["color.brand", "border.danger"]
+     */
+    usedBy(path: string, options?: ReferenceOptions): readonly (Token | Group)[];
+    /**
+     * The problems about the token or group at `path` in this permutation: its own, a missing
+     * reference it writes, a loop it is part of, a problem in a value it inherits. Those only
+     * another permutation has are left out.
+     *
+     * @example
+     * for (const problem of dark.diagnosticsFor("color.brand")) show(problem.message);
+     */
+    diagnosticsFor(path: string): readonly Diagnostic[];
 }
 
 /**
@@ -1261,7 +1249,7 @@ export interface DiagnosticDetailByKind {
               /**
                * The type of the value it is in, which for a part of a composite is the part's type.
                */
-              readonly owner: TokenType;
+              readonly type: TokenType;
               /** Where in the token or group, such as `["$value", "paragraphSpacing"]`. */
               readonly jsonPath: JsonPath;
           };
@@ -1427,13 +1415,17 @@ export type DiagnosticOf<DetailByKind> = {
 
 /**
  * Design tokens as the DTCG specifications define them: every permutation, with every value in one
- * shape and every reference followed. The tokens and groups link to each other: a token's
- * {@link TokenBase.group | group} is the group itself, a group's {@link Group.children | children}
- * the tokens and groups themselves. `JSON.stringify` writes their plain form, with a path wherever
- * one links to another, and leaves out what the rest says: a token's or group's `group`, a token's
- * `permutation`, a group's `rootToken` and `extends`, `kind`, a reference's `from`, `token` and
- * `targetProperty`, and a JSON Pointer's `path`. Nothing changes them after {@link read} returns
- * them: everything in them is read-only and shared, so make a new value rather than changing one.
+ * shape and every reference followed. The tokens and groups link down and across, never up: a
+ * group's {@link Group.children | children} are the tokens and groups themselves, and a reference's
+ * `token` the token it reaches; what is around a token, its group and who refers to it, is asked of
+ * its permutation by path. A token or group that is the same in two permutations, written in the
+ * same places, taking the same settings from its groups and reaching the same tokens, is one object
+ * in both, so `===` tells whether it differs between them. `JSON.stringify` writes their plain
+ * form, with a path wherever one links to another, and leaves out what the rest says: a group's
+ * `rootToken` and `extends`, `kind`, a reference's `from`, `token` and `targetProperty`, a JSON
+ * Pointer's `path`, and where places and references are, which {@link DesignTokens.spanOf} gives.
+ * Nothing changes them after {@link read} returns them: everything in them is read-only and
+ * shared, so make a new value rather than changing one.
  */
 export interface DesignTokens {
     /**
@@ -1485,7 +1477,7 @@ export interface DesignTokens {
      * @example
      * tokens.references("color.text", { chained: true }).map(({ path }) => path)
      */
-    references(path: string, options?: ReferenceOptions): ReferenceInPermutations[];
+    references(path: string, options?: ReferenceOptions): readonly ReferenceInPermutations[];
     /**
      * Every reference to `path`, in every permutation, each once with the permutations it holds
      * in; with `chained`, also every reference to each token that writes one. A group's path
@@ -1494,7 +1486,7 @@ export interface DesignTokens {
      * @example
      * for (const { from, span } of tokens.referencedBy("color.brand")) show(from, span);
      */
-    referencedBy(path: string, options?: ReferenceOptions): ReferenceInPermutations[];
+    referencedBy(path: string, options?: ReferenceOptions): readonly ReferenceInPermutations[];
     /**
      * Each token or group that refers to `path`, in any permutation, once, however many references
      * it writes, with the permutations where it does; with `chained`, also each that refers to those.
@@ -1504,7 +1496,7 @@ export interface DesignTokens {
      * @example
      * for (const { path, permutations } of tokens.usedBy("color.red")) row(path, permutations.label);
      */
-    usedBy(path: string, options?: ReferenceOptions): PathInPermutations[];
+    usedBy(path: string, options?: ReferenceOptions): readonly PathInPermutations[];
     /**
      * Every place the token or group at `path` is written, in any permutation, each span once with
      * the sources and permutations that read it and the permutations whose value comes from it, in
@@ -1514,7 +1506,7 @@ export interface DesignTokens {
      * for (const { span } of tokens.writtenAt("color.brand")) rename(span);
      * for (const { span, winsIn } of tokens.writtenAt("color.brand")) row(span.file, winsIn.label);
      */
-    writtenAt(path: string): PlaceInPermutations[];
+    writtenAt(path: string): readonly PlaceInPermutations[];
     /**
      * Each value the token at `path` resolves to, in the order first met, with the permutations
      * where it does: what it looks like, where {@link DesignTokens.writtenAt} gives where it is
@@ -1527,7 +1519,7 @@ export interface DesignTokens {
      *   row(swatch(token.resolved), permutations.label);   // "#0b5fff  everywhere" when it never changes
      * }
      */
-    resolvedValues(path: string): ResolvedInPermutations[];
+    resolvedValues(path: string): readonly ResolvedInPermutations[];
     /**
      * The permutation for an input: modifiers left out take their default (Resolver 4.1.5.3), and
      * names match whatever their case (Resolver 5.1). With no input, the default permutation.
@@ -1555,11 +1547,11 @@ export interface DesignTokens {
      * @example
      * for (const path of tokens.tokenPaths()) row(path, dark.token(path)?.resolved);
      */
-    tokenPaths(): string[];
+    tokenPaths(): readonly string[];
     /**
      * Every group's path in any permutation, each once, in the order the permutations list them.
      */
-    groupPaths(): string[];
+    groupPaths(): readonly string[];
     /**
      * Whether a token or group is at `path` in any permutation.
      *
@@ -1598,7 +1590,7 @@ export interface DesignTokens {
      * send(tokens.toMemory());
      * const same = readFromMemory(received, options);
      */
-    toMemory(): TokensInMemory & { entry: string };
+    toMemory(): TokensInMemory & { readonly entry: string };
     /**
      * What changed since `before`, an earlier read, and in which permutations: tokens and groups
      * added, removed, renamed, or with different properties. A token is compared by what it says,
@@ -1621,7 +1613,7 @@ export interface DesignTokens {
      * @example
      * for (const change of tokens.diff(before, { moved })) row(change.kind, change.path);
      */
-    diff(before: DesignTokens, options?: { moved?: readonly Move[] }): Change[];
+    diff(before: DesignTokens, options?: { moved?: readonly Move[] }): readonly Change[];
     /**
      * The problems about the token or group at `path`, in every permutation, each with the
      * permutations it is in: its own, a missing reference it writes (reported once however many
@@ -1633,7 +1625,7 @@ export interface DesignTokens {
      *   show(message, permutations?.label);
      * }
      */
-    diagnosticsFor(path: string): Diagnostic[];
+    diagnosticsFor(path: string): readonly Diagnostic[];
     /**
      * The problems written at a place in a file, or overlapping it: a place of length 0 is a point,
      * such as an editor's cursor.
@@ -1641,7 +1633,17 @@ export interface DesignTokens {
      * @example
      * const here = tokens.diagnosticsAt({ file: "tokens.json", offset: cursor, length: 0 });
      */
-    diagnosticsAt(place: Pick<Span, "file" | "offset" | "length">): Diagnostic[];
+    diagnosticsAt(place: Pick<Span, "file" | "offset" | "length">): readonly Diagnostic[];
+    /**
+     * Where a place or a reference these design tokens hold is written, in this read's text. A
+     * place and a reference hold no position of their own, so one a later read keeps, where its
+     * text did not change, is found at its new position by asking that read.
+     *
+     * @example
+     * const { file, offset } = tokens.spanOf(token.valueFrom);
+     * goTo(file, tokens.spanOf(token.references[0]).offset);
+     */
+    spanOf(of: Place | Reference): Span;
 }
 
 /**
@@ -1769,12 +1771,6 @@ export interface IgnoredProperty {
 export type ParseResult<V> =
     | { ok: true; value: V; ignored: IgnoredProperty[] }
     | { ok: false; errors: ValueError[]; ignored: IgnoredProperty[] };
-
-/**
- * Reads one raw value into its shape, or explains why it cannot. `jsonPath` is where the value
- * sits, and each problem's `jsonPath` starts with it.
- */
-export type Parse<V> = (raw: unknown, jsonPath: JsonPath, options?: ParseOptions) => ParseResult<V>;
 
 /** How values are read, for {@link read} and the parsers alike. */
 export interface ParseOptions {
@@ -2025,12 +2021,12 @@ export { read, readFromMemory } from "./read/read.js";
  * {@link readFromMemory} takes them and {@link DesignTokens.toMemory} gives them.
  */
 export interface TokensInMemory {
-    files: Record<string, string>;
+    readonly files: Readonly<Record<string, string>>;
     /**
      * The file to start from.
      * @default the one resolver among the files, or else the only file
      */
-    entry?: string | undefined;
+    readonly entry?: string | undefined;
 }
 export { filePath } from "./read/paths.js";
 
@@ -2074,7 +2070,7 @@ export type TopLevelProperty = "type" | "description" | "deprecated" | "extensio
  * itself.
  */
 export interface WrittenToken extends Written {
-    value?: unknown;
+    readonly value?: unknown;
 }
 
 /**
@@ -2082,7 +2078,7 @@ export interface WrittenToken extends Written {
  * names.
  */
 export interface WrittenGroup extends Written {
-    extends?: string;
+    readonly extends?: string;
 }
 
 /**
@@ -2100,64 +2096,80 @@ export interface WrittenGroup extends Written {
  * }
  */
 export type Change =
-    | ({ kind: "added"; path: string; after: WrittenToken } & TokenChange)
-    | ({ kind: "removed"; path: string; before: WrittenToken } & TokenChange)
     | ({
-          kind: "changed";
-          path: string;
-          properties: TokenProperty[];
-          before: WrittenToken;
-          after: WrittenToken;
+          readonly kind: "added";
+          readonly path: string;
+          readonly after: WrittenToken;
       } & TokenChange)
     | ({
-          kind: "renamed";
-          from: string;
-          path: string;
-          properties: TokenProperty[];
-          before: WrittenToken;
-          after: WrittenToken;
+          readonly kind: "removed";
+          readonly path: string;
+          readonly before: WrittenToken;
       } & TokenChange)
-    | ({ kind: "group-added"; path: string; after: WrittenGroup } & GroupChange)
-    | ({ kind: "group-removed"; path: string; before: WrittenGroup } & GroupChange)
     | ({
-          kind: "group-changed";
-          path: string;
-          properties: GroupProperty[];
-          before: WrittenGroup;
-          after: WrittenGroup;
+          readonly kind: "changed";
+          readonly path: string;
+          readonly properties: readonly TokenProperty[];
+          readonly before: WrittenToken;
+          readonly after: WrittenToken;
+      } & TokenChange)
+    | ({
+          readonly kind: "renamed";
+          readonly from: string;
+          readonly path: string;
+          readonly properties: readonly TokenProperty[];
+          readonly before: WrittenToken;
+          readonly after: WrittenToken;
+      } & TokenChange)
+    | ({
+          readonly kind: "group-added";
+          readonly path: string;
+          readonly after: WrittenGroup;
       } & GroupChange)
     | ({
-          kind: "group-renamed";
-          from: string;
-          path: string;
-          properties: GroupProperty[];
-          before: WrittenGroup;
-          after: WrittenGroup;
+          readonly kind: "group-removed";
+          readonly path: string;
+          readonly before: WrittenGroup;
+      } & GroupChange)
+    | ({
+          readonly kind: "group-changed";
+          readonly path: string;
+          readonly properties: readonly GroupProperty[];
+          readonly before: WrittenGroup;
+          readonly after: WrittenGroup;
+      } & GroupChange)
+    | ({
+          readonly kind: "group-renamed";
+          readonly from: string;
+          readonly path: string;
+          readonly properties: readonly GroupProperty[];
+          readonly before: WrittenGroup;
+          readonly after: WrittenGroup;
       } & GroupChange)
     | {
-          kind: "top-level-changed";
+          readonly kind: "top-level-changed";
           /** The top level has no path. */
-          path?: undefined;
-          permutations: Permutations;
-          properties: TopLevelProperty[];
-          before: Written;
-          after: Written;
+          readonly path?: undefined;
+          readonly permutations: Permutations;
+          readonly properties: readonly TopLevelProperty[];
+          readonly before: Written;
+          readonly after: Written;
       };
 
 /** What every change to a token carries beside its sides. */
 export interface TokenChange {
-    permutations: Permutations;
+    readonly permutations: Permutations;
     /** Set when a {@link Generator} makes the token, as {@link TokenBase.generated}. */
-    generated?: Token["generated"];
+    readonly generated?: Token["generated"];
     /** Set when the token is here only through `$extends`, as {@link TokenBase.inherited}. */
-    inherited?: Token["inherited"];
+    readonly inherited?: Token["inherited"];
 }
 
 /** What every change to a group carries beside its sides. */
 export interface GroupChange {
-    permutations: Permutations;
+    readonly permutations: Permutations;
     /** Set when the group is here only through `$extends`, as {@link Group.inherited}. */
-    inherited?: Group["inherited"];
+    readonly inherited?: Group["inherited"];
 }
 
 export { sameJson, sameValue } from "./values/same-value.js";
@@ -2166,7 +2178,7 @@ export { sameJson, sameValue } from "./values/same-value.js";
 export type AtOffset =
     | { kind: "token"; path: string; expects?: TokenType }
     | { kind: "group"; path: string }
-    | { kind: "reference"; from: string; to: string; permutation: Input; expects?: TokenType }
+    | { kind: "reference"; from: string; to: string; input: Input; expects?: TokenType }
     | { kind: "nothing" };
 
 /**

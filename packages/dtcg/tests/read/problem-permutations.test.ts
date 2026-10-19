@@ -114,3 +114,40 @@ describe("a problem in a generator's setting in a source only some permutations 
         ).toStrictEqual([["too many steps", "mode: dark"]]);
     });
 });
+
+describe("a problem every permutation finds again for itself", () => {
+    const both = read(
+        { base: [{ $ref: "base.json" }, { $ref: "sizes.json" }], dark: [{ $ref: "dark.json" }] },
+        {
+            "base.json": {
+                size: { $type: "number", sm: { $value: 1 } },
+                color: { $type: "color", text: { $value: "{color.brnd}" } },
+            },
+            "sizes.json": { size: { sm: { md: { $value: 2 } } } },
+            "dark.json": {
+                color: { brand: { $value: { colorSpace: "srgb", components: [1, 0, 0] } } },
+            },
+        },
+    );
+
+    it("is one problem at its spot, naming every permutation", () => {
+        const conflicts = both.diagnostics.filter(({ kind }) => kind === "token-and-group");
+        expect(conflicts).toHaveLength(1);
+        expect(conflicts[0]?.permutations.label).toBe("everywhere");
+    });
+
+    it("is two problems at one spot when the permutations say different things there", () => {
+        const missing = both.diagnostics.filter(({ kind }) => kind === "missing-reference");
+        expect(missing.map(({ permutations }) => permutations.label).sort()).toStrictEqual([
+            "default",
+            "mode: dark",
+        ]);
+        expect(missing[0]?.span).toStrictEqual(missing[1]?.span);
+    });
+
+    it("keeps nothing of how the read built it", () => {
+        for (const found of both.diagnostics) {
+            expect(Object.getOwnPropertySymbols(found)).toStrictEqual([]);
+        }
+    });
+});

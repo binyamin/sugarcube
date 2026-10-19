@@ -4,9 +4,10 @@ import { setValue, commit } from "@sugarcube-sh/dtcg-edit";
 
 declare let tokens: DesignTokens;
 
-const t = tokens.permutation().token("color.brand");
+const permutation = tokens.permutation();
+const t = permutation.token("color.brand");
 if (t?.invalid) {
-    showBroken(t.authored?.value, t.diagnostics);
+    showBroken(t.authored?.value, permutation.diagnosticsFor(t.path));
     const done = commit(tokens, setValue(tokens, t.path, "#e11d48"));
     if (done.tokens) tokens = done.tokens;
 }

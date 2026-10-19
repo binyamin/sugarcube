@@ -1,23 +1,23 @@
 import { describe, expect, it } from "vitest";
 import type { ParseOptions } from "../../src/index.js";
-import { parseColor } from "../../src/values.js";
+import { parseValue } from "../../src/values.js";
 
 const lenient: ParseOptions = { ignoreUnknownProperties: true };
 
 function read(raw: unknown, options?: ParseOptions) {
-    const result = parseColor(raw, ["$value"], options);
+    const result = parseValue("color", raw, ["$value"], options);
     if (!result.ok) throw new Error(`expected a value, got ${JSON.stringify(result.errors)}`);
     return result.value;
 }
 
 function details(raw: unknown, options?: ParseOptions) {
-    const result = parseColor(raw, ["$value"], options);
+    const result = parseValue("color", raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
     return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
-    const result = parseColor(raw, ["$value"], options);
+    const result = parseValue("color", raw, ["$value"], options);
     return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
@@ -29,7 +29,7 @@ const asObjects: Record<string, unknown> = {
     "#ffff": { colorSpace: "srgb", components: [1, 1, 1], alpha: 1, hex: "#ffffff" },
 };
 
-describe("parseColor", () => {
+describe("parseValue, color", () => {
     describe("reads", () => {
         it.for([
             { colorSpace: "srgb", components: [1, 0, 1] },
@@ -81,13 +81,13 @@ describe("parseColor", () => {
             { name: "the lowest", components: [0, 0, 0] },
             { name: "the highest", components: [359.99, 100, 100] },
         ])("$name values in range", ({ components }) => {
-            expect(parseColor({ colorSpace: "hsl", components }, []).ok).toBe(true);
+            expect(parseValue("color", { colorSpace: "hsl", components }, []).ok).toBe(true);
         });
 
         it("reads unbounded channels at any size", () => {
-            expect(parseColor({ colorSpace: "lab", components: [50, -500, 500] }, []).ok).toBe(
-                true,
-            );
+            expect(
+                parseValue("color", { colorSpace: "lab", components: [50, -500, 500] }, []).ok,
+            ).toBe(true);
         });
 
         it.for([0, 1])("reads alpha %s, at the end of its range", (alpha) => {
@@ -223,7 +223,7 @@ describe("parseColor", () => {
             ["#E11D48", [0.8824, 0.1137, 0.2824], 1, "#E11D48"],
             ["#00000080", [0, 0, 0], 0.502, "#000000"],
         ] as const)("reads %s as the sRGB color it names", ([raw, components, alpha, hex]) => {
-            expect(parseColor(raw, ["$value"], options)).toStrictEqual({
+            expect(parseValue("color", raw, ["$value"], options)).toStrictEqual({
                 ok: true,
                 value: { colorSpace: "srgb", components, alpha, hex },
                 ignored: [],
@@ -237,7 +237,7 @@ describe("parseColor", () => {
         ])(
             "refuses %s, which has too few digits, giving the %s it stands for",
             ([raw, expanded]) => {
-                const result = parseColor(raw, ["$value"], options);
+                const result = parseValue("color", raw, ["$value"], options);
                 expect(result.ok ? [] : result.errors.map(({ detail }) => detail)).toStrictEqual([
                     { type: "color", reason: "short-hex-string", value: raw, expanded },
                 ]);

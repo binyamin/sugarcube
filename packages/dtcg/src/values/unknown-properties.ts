@@ -7,14 +7,14 @@ export function unknownProperties(
     type: TokenType,
     jsonPath: JsonPath,
     errors: ValueError[],
-    options: ParseOptions | undefined,
+    options: ParseOptions,
 ): IgnoredProperty[] {
     const ignored: IgnoredProperty[] = [];
     for (const name of Object.keys(raw)) {
         if (defines(name)) continue;
         const path = [...jsonPath, name];
         if (name === "$ref") errors.push(valueError(path, { type, reason: "pointer-not-alone" }));
-        else if (options?.ignoreUnknownProperties) ignored.push(ignoredProperty(path, type, name));
+        else if (options.ignoreUnknownProperties) ignored.push(ignoredProperty(path, type, name));
         else errors.push(valueError(path, { type, reason: "unknown-property", property: name }));
     }
     return ignored;

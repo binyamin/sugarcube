@@ -267,7 +267,7 @@ export const diagnosticMessages: { [K in DiagnosticKind]: Entry<K> } = {
         severity: "warning",
         message: (detail) =>
             "jsonPath" in detail
-                ? ignoredMessage(detail.owner, detail.property)
+                ? ignoredMessage(detail.type, detail.property)
                 : `\`${detail.property}\` is not a property of ${ownerWords[detail.owner]}, so it is ignored${didYouMean(detail.similar)}`,
     },
     "misspelt-property": {

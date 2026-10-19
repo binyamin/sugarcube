@@ -1,29 +1,25 @@
-import type { Diagnostic, DiagnosticDetailByKind, DiagnosticKind, Input } from "../index.js";
+import type { DiagnosticDetailByKind, DiagnosticKind, Input } from "../index.js";
 import { namedPath, referenceText } from "../values/references.js";
 import { relatedMessages } from "../error-messages.js";
-import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
+import { type DiagnosticExtra, diagnostic, type Problems } from "./diagnostics.js";
 import { malformation } from "./malformed-pointer.js";
 import { type Merged, type MergedGroup, removeGroup } from "./merge.js";
 import { pathBelow, atOrWithin } from "../path.js";
-import { reach, refObjectMeaning } from "./ref-meaning.js";
+import { reachOf, refObjectMeaning } from "./ref-meaning.js";
 
 type Extending = MergedGroup & { extends: NonNullable<MergedGroup["extends"]> };
 
-export function applyExtends(merged: Merged, permutation: Input, diagnostics: Diagnostic[]): void {
+export function applyExtends(merged: Merged, input: Input, diagnostics: Problems): void {
     const state = new Map<string, "extending" | "done" | "in-a-loop">();
     const report = <K extends DiagnosticKind>(
         kind: K,
         detail: DiagnosticDetailByKind[K],
         group: Extending,
-        extra: Omit<DiagnosticExtra, "span" | "path" | "permutation"> = {},
+        extra: Omit<DiagnosticExtra, "span" | "path"> = {},
     ) =>
-        diagnostics.push(
-            diagnostic(kind, detail, {
-                span: group.extends.span,
-                path: group.path,
-                permutation,
-                ...extra,
-            }),
+        diagnostics.found(
+            diagnostic(kind, detail, { span: group.extends.span, path: group.path, ...extra }),
+            input,
         );
 
     const visit = (group: Extending, chain: Extending[]): void => {
@@ -63,7 +59,7 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
         if (direct !== undefined) extendInside(direct, chain);
         if (state.get(group.path) === "in-a-loop") return;
 
-        const reached = reach(steps, merged);
+        const reached = reachOf(group.extends, merged);
         const malformed = reached.kind === "nothing" && malformation(written, merged);
         if (malformed) {
             report("malformed-pointer", malformed, group);
@@ -73,7 +69,7 @@ export function applyExtends(merged: Merged, permutation: Input, diagnostics: Di
             group.extendsGroup = reached.path;
             inherit(merged, group, reached.path);
         } else if (keyword === "$ref" && refObjectMeaning(reached) === "token") {
-            becomeToken(merged, group, permutation, diagnostics);
+            becomeToken(merged, group, input, diagnostics);
         } else {
             report("not-a-group", { ref: written }, group);
         }
@@ -139,21 +135,17 @@ function inherit(merged: Merged, group: MergedGroup, from: string): void {
     }
 }
 
-function becomeToken(
-    merged: Merged,
-    group: Extending,
-    permutation: Input,
-    diagnostics: Diagnostic[],
-): void {
+function becomeToken(merged: Merged, group: Extending, input: Input, diagnostics: Problems): void {
     const { path, extends: extending, type, description, deprecated, extensions } = group;
     const inside = (each: string) => pathBelow(each, path) !== undefined;
     if ([...merged.tokens.keys(), ...merged.groups.keys()].some(inside)) {
-        diagnostics.push(
+        diagnostics.found(
             diagnostic(
                 "token-and-group",
                 { reason: "ref", ref: referenceText(extending.reference) },
-                { span: extending.span, path, permutation },
+                { span: extending.span, path },
             ),
+            input,
         );
     }
     removeGroup(merged, path);
@@ -164,7 +156,7 @@ function becomeToken(
         authored: { $ref: referenceText(extending.reference) },
         reference: extending.reference,
         span: extending.groupSpan,
-        piece: extending.piece,
+        source: extending.source,
         ...(type !== undefined && { type }),
         ...(description !== undefined && { description }),
         ...(deprecated !== undefined && { deprecated }),

@@ -1,7 +1,7 @@
 // A text box for a token's value that saves in the file's own spelling: a keyword weight like
 // "bold" stays a keyword, and a single font name stays a single string.
 import { toDTCGValue, type JsonValue } from "@sugarcube-sh/dtcg";
-import { parseFontFamily, parseFontWeight } from "@sugarcube-sh/dtcg/values";
+import { parseValue } from "@sugarcube-sh/dtcg/values";
 import { setValue, type Session } from "@sugarcube-sh/dtcg-edit";
 
 declare const session: Session;
@@ -12,12 +12,16 @@ function written(path: string, typed: string): JsonValue | undefined {
 
     switch (t?.type) {
         case "fontWeight": {
-            const parsed = parseFontWeight(/^\d+$/.test(typed) ? Number(typed) : typed, []);
+            const parsed = parseValue(
+                "fontWeight",
+                /^\d+$/.test(typed) ? Number(typed) : typed,
+                [],
+            );
             return parsed.ok ? toDTCGValue("fontWeight", parsed.value, { like }) : undefined;
         }
         case "fontFamily": {
             const names = typed.split(",").map((name) => name.trim());
-            const parsed = parseFontFamily(names.filter(Boolean), []);
+            const parsed = parseValue("fontFamily", names.filter(Boolean), []);
             return parsed.ok ? toDTCGValue("fontFamily", parsed.value, { like }) : undefined;
         }
         default:

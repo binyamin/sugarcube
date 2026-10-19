@@ -109,8 +109,8 @@ describe("a token's writtenAt", () => {
         const [place, ...rest] = light.token("color.text")?.writtenAt ?? [];
         expect(rest).toStrictEqual([]);
         expect(place?.source).toBe(tokens.sources[0]);
-        expect(place && written(place.span)).toContain('"colorSpace"');
-        expect(place?.span.file).toBe("base.json");
+        expect(place && written(tokens.spanOf(place))).toContain('"colorSpace"');
+        expect(place && tokens.spanOf(place).file).toBe("base.json");
     });
 
     it("is every place a permutation's sources write it, the one that wins last", () => {

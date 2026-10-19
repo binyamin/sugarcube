@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { parseCubicBezier } from "../../src/values.js";
+import { parseValue } from "../../src/values.js";
 
 function read(raw: unknown) {
-    const result = parseCubicBezier(raw, ["$value"]);
+    const result = parseValue("cubicBezier", raw, ["$value"]);
     if (!result.ok) throw new Error(`expected a value, got ${JSON.stringify(result.errors)}`);
     return result.value;
 }
 
 function details(raw: unknown) {
-    const result = parseCubicBezier(raw, ["$value"]);
+    const result = parseValue("cubicBezier", raw, ["$value"]);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
     return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
-describe("parseCubicBezier", () => {
+describe("parseValue, cubicBezier", () => {
     describe("reads", () => {
         it.for([
             { name: "accelerate, spec example 43", curve: [0.5, 0, 1, 1] },

@@ -47,7 +47,9 @@ describe("generated tokens across permutations", () => {
 
     it("has the same span in every permutation", () => {
         const [light, dark] = tokens.permutations;
-        expect(light?.token("g.a")?.valueFrom.span).toBe(dark?.token("g.a")?.valueFrom.span);
+        const [inLight, inDark] = [light?.token("g.a"), dark?.token("g.a")];
+        if (!inLight || !inDark) throw new Error("g.a is not generated in both");
+        expect(tokens.spanOf(inLight.valueFrom)).toBe(tokens.spanOf(inDark.valueFrom));
     });
 
     it("are each a reference when a generator makes several from one setting", () => {

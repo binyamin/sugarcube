@@ -13,6 +13,7 @@ export type PointerReading =
           ok: false;
           problem: DiagnosticDetailByKind["malformed-pointer"]["reason"];
           corrected: string;
+          correctedSteps: string[];
       };
 
 export function readPointerText(text: string): PointerReading {
@@ -28,10 +29,14 @@ export function readPointerText(text: string): PointerReading {
           : undefined;
     if (problem) {
         const escaped = written.map((step) => step.replaceAll(badEscapes, "~0"));
-        return { ok: false, problem, corrected: `#/${escaped.join("/")}` };
+        const corrected = `#/${escaped.join("/")}`;
+        return { ok: false, problem, corrected, correctedSteps: escaped.map(unescaped) };
     }
-    const steps = written.map((step) => step.replaceAll("~1", "/").replaceAll("~0", "~"));
-    return { ok: true, steps };
+    return { ok: true, steps: written.map(unescaped) };
+}
+
+function unescaped(step: string): string {
+    return step.replaceAll("~1", "/").replaceAll("~0", "~");
 }
 
 export function parsePointer(text: string): string[] | undefined {

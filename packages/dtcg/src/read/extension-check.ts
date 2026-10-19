@@ -5,14 +5,15 @@ import type {
     ExtensionError,
     ExtensionMessages,
     IgnoredProperty,
-    Input,
     JsonPath,
     StandardSchemaV1,
     ValueError,
 } from "../index.js";
+import { isJsonObject } from "../values/json.js";
 import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
-import { type JsonFile, deepestNode, spanOf } from "./json.js";
+import { type JsonFile, deepestNode, member, spanOf } from "./json.js";
 import { ignoredDiagnostic, valueDiagnostic } from "./value-diagnostic.js";
+import type { ExtensionsAt } from "./walk.js";
 
 export type SchemaOutput<S> = S extends StandardSchemaV1
     ? StandardSchemaV1.InferOutput<S>
@@ -30,7 +31,34 @@ export interface CheckedExtension {
     json: JsonFile;
     node: Node;
     path?: string | undefined;
-    permutation: Input;
+}
+
+export function extensionAt(
+    extensions: Readonly<Record<string, unknown>> | undefined,
+    at: ExtensionsAt | undefined,
+    [key, ...inside]: readonly [string, ...string[]],
+): { value: unknown; node: Node } | undefined {
+    if (!at) return undefined;
+    let value = extensions?.[key];
+    let node = member(at.node, key);
+    for (const step of inside) {
+        if (!isJsonObject(value) || !node) return undefined;
+        value = value[step];
+        node = member(node, step);
+    }
+    return value === undefined || !node ? undefined : { value, node };
+}
+
+export class Reported {
+    readonly #seen = new Map<object, Set<Node>>();
+
+    first(by: object, node: Node): boolean {
+        const seen = this.#seen.get(by) ?? new Set<Node>();
+        this.#seen.set(by, seen);
+        if (seen.has(node)) return false;
+        seen.add(node);
+        return true;
+    }
 }
 
 export function checkSchema(
@@ -63,21 +91,17 @@ function issuePath(path: StandardSchemaV1.Issue["path"]): JsonPath {
 
 export function extensionDiagnostic(
     problem: ExtensionProblem,
-    { within, messages, json, node, path, permutation }: CheckedExtension,
+    { within, messages, json, node, path }: CheckedExtension,
 ): Diagnostic {
     const jsonPath = ["$extensions", ...within, ...problem.jsonPath];
     if ("kind" in problem && problem.kind === "unknown-property") {
         const where = { node, steps: problem.jsonPath, json };
-        return ignoredDiagnostic(problem, jsonPath, where, {
-            ...(path !== undefined && { path }),
-            permutation,
-        });
+        return ignoredDiagnostic(problem, jsonPath, where, { ...(path !== undefined && { path }) });
     }
     const found = deepestNode(node, problem.jsonPath);
     const extra: DiagnosticExtra = {
         span: spanOf(json, found),
         ...(path !== undefined && { path }),
-        permutation,
     };
     if ("kind" in problem) return valueDiagnostic(problem.detail, jsonPath, found, extra);
 

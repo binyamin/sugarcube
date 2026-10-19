@@ -6,10 +6,10 @@ import type {
     JsonPath,
     ResolverProblem,
 } from "../index.js";
-import { type DiagnosticExtra, diagnostic } from "./diagnostics.js";
+import { type DiagnosticExtra, diagnostic, type Problems } from "./diagnostics.js";
 import { type JsonFile, member, members, spanOf } from "./json.js";
 import { malformedPointer } from "./malformed-pointer.js";
-import { parsePointer, readPointerText } from "./pointer.js";
+import { readPointerText } from "./pointer.js";
 import { similarName } from "./similar.js";
 
 const ROOT_KEYS = [
@@ -69,6 +69,14 @@ export interface CheckedResolver {
 
 type JsonType = "string" | "object" | "array";
 
+export type StringNode = Omit<Node, "value"> & { type: "string"; value: string };
+
+type NodeOf<T extends JsonType> = T extends "string" ? StringNode : Node;
+
+export function isStringNode(node: Node | undefined): node is StringNode {
+    return node?.type === "string";
+}
+
 export interface Reader {
     report(problem: ResolverProblem, node: Node, extra?: Omit<DiagnosticExtra, "span">): void;
     diagnose<K extends DiagnosticKind>(
@@ -77,7 +85,12 @@ export interface Reader {
         node: Node,
         extra?: Omit<DiagnosticExtra, "span">,
     ): void;
-    expect(node: Node | undefined, type: JsonType, name: string, jsonPath: JsonPath): node is Node;
+    expect<T extends JsonType>(
+        node: Node | undefined,
+        type: T,
+        name: string,
+        jsonPath: JsonPath,
+    ): node is NodeOf<T>;
     checkKeys(
         owner: ResolverNode,
         kind: Exclude<DiagnosticDetailByKind["unknown-property"], { jsonPath: JsonPath }>["owner"],
@@ -96,12 +109,12 @@ export function isResolverName(file: string): boolean {
     return file.endsWith(".resolver.json");
 }
 
-export function checkResolver(file: JsonFile, diagnostics: Diagnostic[]): CheckedResolver {
+export function checkResolver(file: JsonFile, diagnostics: Problems): CheckedResolver {
     const reader = createReader(file, diagnostics);
     const root: ResolverNode = { node: file.root, jsonPath: [] };
 
     const version = member(root.node, "version");
-    if (version?.type !== "string" || version.value !== "2025.10") {
+    if (!isStringNode(version) || version.value !== "2025.10") {
         reader.report(
             { rule: "version", name: "version", jsonPath: ["version"] },
             version ?? root.node,
@@ -116,9 +129,9 @@ export function checkResolver(file: JsonFile, diagnostics: Diagnostic[]): Checke
     const order = readOrder(reader, root, sets, modifiers);
     return {
         file,
-        ...(version?.type === "string" && { version: version.value as string }),
-        ...(name && { name: name.value as string }),
-        ...(description && { description: description.value as string }),
+        ...(isStringNode(version) && { version: version.value }),
+        ...(name && { name: name.value }),
+        ...(description && { description: description.value }),
         sets,
         modifiers,
         order,
@@ -137,15 +150,20 @@ export function resolverProblem(
     });
 }
 
-export function createReader(file: JsonFile, diagnostics: Diagnostic[]): Reader {
+export function createReader(file: JsonFile, diagnostics: Problems): Reader {
     const reader: Reader = {
         report: (problem, node, extra) =>
-            diagnostics.push(resolverProblem(file, problem, node, extra)),
+            diagnostics.found(resolverProblem(file, problem, node, extra)),
         diagnose: (kind, detail, node, extra = {}) => {
             const span = spanOf(file, node);
-            diagnostics.push(diagnostic(kind, detail, { ...extra, span }));
+            diagnostics.found(diagnostic(kind, detail, { ...extra, span }));
         },
-        expect: (node, type, name, jsonPath): node is Node => {
+        expect: <T extends JsonType>(
+            node: Node | undefined,
+            type: T,
+            name: string,
+            jsonPath: JsonPath,
+        ): node is NodeOf<T> => {
             if (!node) return false;
             if (node.type === type) return true;
             reader.report({ rule: "wrong-type", name, jsonPath, expected: type }, node);
@@ -161,7 +179,7 @@ export function createReader(file: JsonFile, diagnostics: Diagnostic[]): Reader 
                     owner: kind,
                     ...(similar !== undefined && { similar }),
                 };
-                diagnostics.push(diagnostic("unknown-property", detail, { span }));
+                diagnostics.found(diagnostic("unknown-property", detail, { span }));
             }
         },
     };
@@ -178,22 +196,22 @@ function present(reader: Reader, owner: ResolverNode, key: string): Node | undef
     return found;
 }
 
-function required(
+function required<T extends JsonType>(
     reader: Reader,
     owner: ResolverNode,
     key: string,
-    type: JsonType,
-): Node | undefined {
+    type: T,
+): NodeOf<T> | undefined {
     const found = present(reader, owner, key);
     return reader.expect(found, type, key, [...owner.jsonPath, key]) ? found : undefined;
 }
 
-function optional(
+function optional<T extends JsonType>(
     reader: Reader,
     owner: ResolverNode,
     key: string,
-    type: JsonType,
-): Node | undefined {
+    type: T,
+): NodeOf<T> | undefined {
     const found = member(owner.node, key);
     return reader.expect(found, type, key, [...owner.jsonPath, key]) ? found : undefined;
 }
@@ -229,7 +247,7 @@ export function readSetParts(reader: Reader, owner: ResolverNode): Partial<SetDe
     const extensions = optional(reader, owner, "$extensions", "object");
     const list = optional(reader, owner, "sources", "array");
     return {
-        ...(description && { description: description.value as string }),
+        ...(description && { description: description.value }),
         ...(list && {
             sources: readSources(
                 reader,
@@ -280,9 +298,9 @@ function readModifierParts(
         );
     }
     return {
-        ...(description && { description: description.value as string }),
+        ...(description && { description: description.value }),
         ...(contexts && { contexts }),
-        ...(fallback && { default: fallback.value as string }),
+        ...(fallback && { default: fallback.value }),
         ...(extensions && { extensions }),
     };
 }
@@ -365,14 +383,14 @@ function readOrderRef(
     const ref = member(owner.node, "$ref");
     if (!reader.expect(ref, "string", "$ref", jsonPath)) return undefined;
 
-    const pointer = ref.value as string;
+    const pointer = ref.value;
     if (!pointer.startsWith("#")) {
         reader.report({ rule: "file-in-resolution-order", name: pointer, jsonPath }, ref);
         return undefined;
     }
     const read = readPointerText(pointer);
     if (!read.ok) {
-        const [collection, name, ...rest] = parsePointer(read.corrected) ?? [];
+        const [collection, name, ...rest] = read.correctedSteps;
         const reaches =
             rest.length === 0 &&
             name !== undefined &&
@@ -418,7 +436,7 @@ function readInline(
 ): ResolverItem | undefined {
     const type = required(reader, owner, "type", "string");
     const nameNode = required(reader, owner, "name", "string");
-    const kind = type?.value as string | undefined;
+    const kind = type?.value;
     if (type && kind !== undefined && kind !== "set" && kind !== "modifier") {
         reader.report(
             { rule: "unknown-item-type", name: kind, jsonPath: [...owner.jsonPath, "type"] },
@@ -427,7 +445,7 @@ function readInline(
     }
     if (!nameNode) return undefined;
 
-    const name = nameNode.value as string;
+    const name = nameNode.value;
     if (names.has(name)) {
         reader.report(
             { rule: "duplicate-name", name, jsonPath: [...owner.jsonPath, "name"] },

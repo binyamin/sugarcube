@@ -1,10 +1,10 @@
-import type { Diagnostic, Input, Resolver, ResolverContext, SetOnRoute, Source } from "../index.js";
+import type { Input, Resolver, ResolverContext, SetOnRoute, Source } from "../index.js";
 import { ownLabel } from "../lookup/permutation-label.js";
-import { diagnostic } from "./diagnostics.js";
-import { type Modifier, checkedInput, withDefaults } from "./input.js";
+import { diagnostic, type Problems } from "./diagnostics.js";
+import { type Modifier, checkedInput, modifiersIn, withDefaults } from "./input.js";
 import { type JsonFile, plainObject } from "./json.js";
 import type { Loaded } from "./load.js";
-import type { ExpandedItem, LoadedSource, SourceEntry } from "./sources.js";
+import type { ExpandedItem, LoadedSource, SourceEntry, SourcePiece } from "./sources.js";
 
 export interface ListedSource {
     source: Omit<Source, "extensions">;
@@ -18,7 +18,7 @@ export interface LoadedPermutation {
     sources: ListedSource[];
 }
 
-type Built = Pick<Loaded, "modifiers" | "permutations">;
+type Built = Pick<Loaded, "permutations">;
 
 export interface PermutationOptions {
     inputs?: readonly Readonly<Record<string, unknown>>[];
@@ -26,18 +26,19 @@ export interface PermutationOptions {
     limit: number;
 }
 
-export function fromTokenFiles(files: { path: string; json?: JsonFile }[]): Built {
+export function fromTokenFile(path: string, json: JsonFile | undefined): Built {
     return {
-        modifiers: [],
         permutations: [
             {
                 input: {},
                 label: "",
                 contexts: [],
-                sources: files.map(({ path, json }) => ({
-                    source: { file: path, sets: [], readBy: "everyone" },
-                    pieces: [{ file: path, ...(json && { json, tree: json.root }) }],
-                })),
+                sources: [
+                    {
+                        source: { file: path, sets: [], readBy: "everyone" },
+                        pieces: [{ file: path, ...(json && { json, tree: json.root }) }],
+                    },
+                ],
             },
         ],
     };
@@ -46,11 +47,11 @@ export function fromTokenFiles(files: { path: string; json?: JsonFile }[]): Buil
 export function fromResolver(
     part: Resolver,
     items: ExpandedItem[],
-    sources: Map<SourceEntry, LoadedSource>,
+    sources: Map<SourcePiece, LoadedSource>,
     options: PermutationOptions,
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
 ): Built {
-    const modifiers = modifiersOf(items);
+    const modifiers = modifiersIn(part);
     const inputs = chooseInputs(modifiers, options, diagnostics);
     const contextOf = (modifier: string, name: string | undefined) =>
         part.modifiers
@@ -58,7 +59,6 @@ export function fromResolver(
             ?.contexts.find((each) => each.name === name);
     const listed = listedSources(items, sources, contextOf);
     return {
-        modifiers,
         permutations: inputs.map((input) => {
             const contexts = modifiers.flatMap(({ name }) => contextOf(name, input[name]) ?? []);
             return {
@@ -73,24 +73,10 @@ export function fromResolver(
 
 type ContextOf = (modifier: string, name: string | undefined) => ResolverContext | undefined;
 
-function modifiersOf(items: ExpandedItem[]): Modifier[] {
-    return items.flatMap((item) =>
-        item.kind === "modifier"
-            ? [
-                  {
-                      name: item.modifier.name,
-                      contexts: [...item.contexts.keys()],
-                      default: item.modifier.default,
-                  },
-              ]
-            : [],
-    );
-}
-
 function chooseInputs(
     modifiers: Modifier[],
     { inputs, permutations, limit }: PermutationOptions,
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
 ): Input[] {
     if (modifiers.length === 0) return [{}];
     if (inputs) {
@@ -98,7 +84,7 @@ function chooseInputs(
             const found = checkedInput(modifiers, raw);
             if (found.ok) return [found.input];
             for (const problem of found.problems) {
-                diagnostics.push(diagnostic("input-invalid", { input: index, ...problem }));
+                diagnostics.found(diagnostic("input-invalid", { input: index, ...problem }));
             }
             return [];
         });
@@ -119,11 +105,11 @@ function distinct(modifiers: Modifier[], inputs: Input[]): Input[] {
     });
 }
 
-function allWithinLimit(modifiers: Modifier[], limit: number, diagnostics: Diagnostic[]): Input[] {
+function allWithinLimit(modifiers: Modifier[], limit: number, diagnostics: Problems): Input[] {
     const count = modifiers.reduce((product, { contexts }) => product * contexts.length, 1);
     if (count <= limit) return combinations(modifiers);
     const built = eachContext(modifiers);
-    diagnostics.push(diagnostic("permutation-limit", { count, limit, built: built.length }));
+    diagnostics.found(diagnostic("permutation-limit", { count, limit, built: built.length }));
     return built;
 }
 
@@ -153,16 +139,16 @@ type Listed = (entry: SourceEntry, context?: ResolverContext) => ListedSource | 
 
 function listedSources(
     items: ExpandedItem[],
-    sources: Map<SourceEntry, LoadedSource>,
+    sources: Map<SourcePiece, LoadedSource>,
     contextOf: ContextOf,
 ): Listed {
     const readBy = whoReadsEachSource(items, sources, contextOf);
     const listed = new Map<SourceEntry, Map<ResolverContext | undefined, ListedSource>>();
     return (entry, context) => {
-        const loaded = sources.get(entry);
-        if (!loaded) return undefined;
-        const pieces = loaded.pieces ?? [loaded];
-        if (pieces[0] !== loaded) return undefined;
+        const [first] = entry.pieces;
+        const loaded = openedAs(entry, sources);
+        if (!first || !loaded) return undefined;
+        const pieces = entry.pieces.flatMap((piece) => sources.get(piece) ?? []);
         const byContext = listed.get(entry) ?? new Map<ResolverContext | undefined, ListedSource>();
         listed.set(entry, byContext);
         const found = byContext.get(context);
@@ -171,7 +157,7 @@ function listedSources(
             file: loaded.file,
             ...(loaded.pointer && { pointer: loaded.pointer }),
             ...(context && { context }),
-            sets: route(entry),
+            sets: route(first),
             readBy: readBy.get(sourceKey(loaded)) ?? "everyone",
         };
         const made = { source, pieces };
@@ -196,7 +182,7 @@ function sourcesFor(
     });
 }
 
-function route({ route: steps }: SourceEntry): SetOnRoute[] {
+function route({ route: steps }: SourcePiece): SetOnRoute[] {
     return steps.map(({ name, extensions }) => ({
         name,
         ...(extensions && { extensions: plainObject(extensions) }),
@@ -205,12 +191,12 @@ function route({ route: steps }: SourceEntry): SetOnRoute[] {
 
 function whoReadsEachSource(
     items: ExpandedItem[],
-    sources: Map<SourceEntry, LoadedSource>,
+    sources: Map<SourcePiece, LoadedSource>,
     contextOf: ContextOf,
 ): Map<string, Source["readBy"]> {
     const readBy = new Map<string, "everyone" | ResolverContext[]>();
     const read = (entry: SourceEntry, context?: ResolverContext) => {
-        const loaded = sources.get(entry);
+        const loaded = openedAs(entry, sources);
         if (!loaded) return;
         const key = sourceKey(loaded);
         const existing = readBy.get(key);
@@ -233,6 +219,13 @@ function whoReadsEachSource(
         }
     }
     return readBy;
+}
+
+function openedAs(
+    { pieces: [first] }: SourceEntry,
+    sources: Map<SourcePiece, LoadedSource>,
+): LoadedSource | undefined {
+    return first && sources.get(first);
 }
 
 function sourceKey({ file, pointer }: LoadedSource): string {

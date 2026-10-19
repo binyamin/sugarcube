@@ -1,16 +1,18 @@
+import type { Problems } from "./diagnostics.js";
 import type { Node } from "jsonc-parser";
-import type { Diagnostic, JsonPath } from "../index.js";
+import type { JsonPath } from "../index.js";
 import { type Files, openFile, parseFile } from "./files.js";
 import { type JsonFile, member, members, spanOf } from "./json.js";
 import { malformedPointer } from "./malformed-pointer.js";
 import { folderOf, join } from "./paths.js";
-import { encodePointer, follow, parsePointer, readPointerText } from "./pointer.js";
+import { type PointerReading, encodePointer, follow, readPointerText } from "./pointer.js";
 import {
     type ModifierDefinition,
     type Reader,
     type CheckedResolver,
     type SetDefinition,
     type ResolverNode,
+    type StringNode,
     createReader,
     isResolver,
     SET_KEYS,
@@ -23,25 +25,27 @@ export interface RouteStep {
     extensions?: Node;
 }
 
-export type SourceEntry =
+export type SourcePiece =
     | {
           kind: "inline";
           node: Node;
           jsonPath: JsonPath;
           route: RouteStep[];
           overriddenKeys?: string[];
-          pieces?: SourceEntry[];
       }
     | {
           kind: "file";
-          file: string;
+          path: string;
           fragment: string[];
-          ref: Node;
+          ref: StringNode;
           jsonPath: JsonPath;
           route: RouteStep[];
           overriddenKeys?: string[];
-          pieces?: SourceEntry[];
       };
+
+export interface SourceEntry {
+    pieces: readonly SourcePiece[];
+}
 
 export type ExpandedItem =
     | { kind: "set"; set: SetDefinition; entries: SourceEntry[] }
@@ -53,7 +57,6 @@ export interface LoadedSource {
     json?: JsonFile;
     tree?: Node;
     overriddenKeys?: string[];
-    pieces?: LoadedSource[];
 }
 
 export interface SetsUsed {
@@ -63,12 +66,13 @@ export interface SetsUsed {
 
 export function expandSources(
     resolver: CheckedResolver,
-    diagnostics: Diagnostic[],
+    diagnostics: Problems,
 ): { items: ExpandedItem[]; setsUsed: SetsUsed } {
     const setsUsed: SetsUsed = { reached: new Set(), pointedInto: new Set() };
     const expander: Expander = {
         reader: createReader(resolver.file, diagnostics),
         root: resolver.file.root,
+        folder: folderOf(resolver.file.path),
         sets: resolver.sets,
         expanded: new Map(),
         setsUsed,
@@ -92,47 +96,46 @@ export function expandSources(
     return { items, setsUsed };
 }
 
-export function entriesOf(items: ExpandedItem[]): SourceEntry[] {
+function entriesOf(items: ExpandedItem[]): SourceEntry[] {
     return items.flatMap((item) =>
         item.kind === "set" ? item.entries : [...item.contexts.values()].flat(),
     );
 }
 
-export function filesNamedBy(resolver: CheckedResolver, entries: SourceEntry[]): string[] {
-    const folder = folderOf(resolver.file.path);
-    return entries.flatMap((entry) => (entry.kind === "file" ? [join(folder, entry.file)] : []));
+export function piecesOf(items: ExpandedItem[]): SourcePiece[] {
+    return entriesOf(items).flatMap(({ pieces }) => pieces);
+}
+
+export function filesNamedBy(pieces: SourcePiece[]): string[] {
+    return pieces.flatMap((piece) => (piece.kind === "file" ? [piece.path] : []));
 }
 
 export function openSources(
     files: Files,
     resolver: CheckedResolver,
-    entries: SourceEntry[],
-): Map<SourceEntry, LoadedSource> {
-    const opened = new Map(entries.map((entry) => [entry, openSource(files, resolver, entry)]));
-    for (const [entry, loaded] of opened) {
-        if (entry.pieces) loaded.pieces = entry.pieces.flatMap((each) => opened.get(each) ?? []);
-    }
-    return opened;
+    pieces: SourcePiece[],
+): Map<SourcePiece, LoadedSource> {
+    return new Map(pieces.map((piece) => [piece, openSource(files, resolver, piece)]));
 }
 
-function openSource(files: Files, resolver: CheckedResolver, entry: SourceEntry): LoadedSource {
-    const overridden = entry.overriddenKeys && { overriddenKeys: entry.overriddenKeys };
-    if (entry.kind === "inline") {
+function openSource(files: Files, resolver: CheckedResolver, piece: SourcePiece): LoadedSource {
+    const overridden = piece.overriddenKeys && { overriddenKeys: piece.overriddenKeys };
+    if (piece.kind === "inline") {
         return {
             file: resolver.file.path,
-            pointer: encodePointer(entry.jsonPath),
+            pointer: encodePointer(piece.jsonPath),
             json: resolver.file,
-            tree: entry.node,
+            tree: piece.node,
             ...overridden,
         };
     }
 
-    const path = join(folderOf(resolver.file.path), entry.file);
-    const pointer = entry.fragment.length > 0 ? { pointer: encodePointer(entry.fragment) } : {};
-    const refText = entry.ref.value as string;
-    const jsonPath = [...entry.jsonPath, "$ref"];
+    const { path } = piece;
+    const pointer = fragmentPointer(piece.fragment);
+    const refText = piece.ref.value;
+    const jsonPath = [...piece.jsonPath, "$ref"];
     const report = (problem: Parameters<typeof resolverProblem>[1]) =>
-        files.diagnostics.push(resolverProblem(resolver.file, problem, entry.ref));
+        files.diagnostics.found(resolverProblem(resolver.file, problem, piece.ref));
 
     const root = parseFile(files, path)?.root;
     if (isResolver(path, root)) {
@@ -143,11 +146,11 @@ function openSource(files: Files, resolver: CheckedResolver, entry: SourceEntry)
 
     const json = openFile(files, path, "tokens", {
         file: resolver.file.path,
-        span: spanOf(resolver.file, entry.ref),
+        span: spanOf(resolver.file, piece.ref),
     });
     if (!json) return { file: path, ...pointer };
 
-    const followed = follow(json.root, entry.fragment);
+    const followed = follow(json.root, piece.fragment);
     if (!followed.ok) {
         report({ rule: "invalid-pointer", name: refText, jsonPath });
         return { file: path, ...pointer };
@@ -162,6 +165,7 @@ function openSource(files: Files, resolver: CheckedResolver, entry: SourceEntry)
 interface Expander {
     reader: Reader;
     root: Node;
+    folder: string;
     sets: Map<string, SetDefinition>;
     expanded: Map<Node, Map<string, SourceEntry[]>>;
     setsUsed: SetsUsed;
@@ -201,44 +205,45 @@ function followSource(
     seen: string[],
     pointedFrom: ResolverNode[] = [],
 ): SourceEntry[] {
-    const { reader, root, sets, setsUsed } = expander;
+    const { reader, root, folder, sets, setsUsed } = expander;
     const refNode = member(source.node, "$ref");
-    if (!refNode) return [{ kind: "inline", node: source.node, jsonPath: source.jsonPath, route }];
+    if (!refNode) {
+        return [
+            { pieces: [{ kind: "inline", node: source.node, jsonPath: source.jsonPath, route }] },
+        ];
+    }
 
     const jsonPath = [...source.jsonPath, "$ref"];
     if (!reader.expect(refNode, "string", "$ref", jsonPath)) return [];
-    const ref = refNode.value as string;
+    const ref = refNode.value;
     const overriding = [source, ...pointedFrom];
 
-    if (!ref.startsWith("#")) {
-        const { file, read } = fileRef(ref);
-        if (read && !read.ok) {
-            const corrected = `${file}${read.corrected}`;
-            const detail = malformedPointer(ref, { ...read, corrected }, true);
-            reader.diagnose("malformed-pointer", detail, refNode);
-            return [];
-        }
-        const steps = read?.steps ?? [];
-        const entry: SourceEntry = {
+    const read = readSourceRef(folder, ref);
+    if (read.kind === "malformed") {
+        const { failed, file } = read;
+        const steps = failed.correctedSteps;
+        const reaches = file !== undefined || (pointable(steps) && follow(root, steps).ok);
+        const corrected = `${file ?? ""}${failed.corrected}`;
+        reader.diagnose(
+            "malformed-pointer",
+            malformedPointer(ref, { ...failed, corrected }, reaches),
+            refNode,
+        );
+        return [];
+    }
+    if (read.kind === "file") {
+        const piece: SourcePiece = {
             kind: "file",
-            file,
-            fragment: steps,
+            path: read.path,
+            fragment: read.steps,
             ref: refNode,
             jsonPath: source.jsonPath,
             route,
         };
-        return withOverrides([entry], overriding, route);
+        return withOverrides([{ pieces: [piece] }], overriding, route);
     }
 
-    const read = readPointerText(ref);
-    if (!read.ok) {
-        const corrected = parsePointer(read.corrected);
-        const reaches =
-            corrected !== undefined && pointable(corrected) && follow(root, corrected).ok;
-        reader.diagnose("malformed-pointer", malformedPointer(ref, read, reaches), refNode);
-        return [];
-    }
-    const steps = read.steps;
+    const { steps } = read;
     if (!pointable(steps)) {
         reader.report({ rule: "invalid-pointer", name: ref, jsonPath }, refNode);
         return [];
@@ -288,12 +293,31 @@ export function setNamed(steps: string[]): string | undefined {
     return collection === "sets" && name !== undefined && rest.length === 0 ? name : undefined;
 }
 
-export function fileRef(ref: string): { file: string; read?: ReturnType<typeof readPointerText> } {
+export type RefRead =
+    | { kind: "file"; path: string; steps: string[] }
+    | { kind: "pointer"; steps: string[] }
+    | { kind: "malformed"; failed: Extract<PointerReading, { ok: false }>; file?: string };
+
+export function readSourceRef(folder: string, ref: string): RefRead {
+    if (ref.startsWith("#")) {
+        const read = readPointerText(ref);
+        return read.ok
+            ? { kind: "pointer", steps: read.steps }
+            : { kind: "malformed", failed: read };
+    }
     const hash = ref.indexOf("#");
-    if (hash === -1) return { file: ref };
-    const fragment = ref.slice(hash + 1);
-    const file = ref.slice(0, hash);
-    return fragment === "" ? { file } : { file, read: readPointerText(`#${fragment}`) };
+    const file = hash === -1 ? ref : ref.slice(0, hash);
+    const path = join(folder, file);
+    const fragment = hash === -1 ? "" : ref.slice(hash + 1);
+    if (fragment === "") return { kind: "file", path, steps: [] };
+    const read = readPointerText(`#${fragment}`);
+    return read.ok
+        ? { kind: "file", path, steps: read.steps }
+        : { kind: "malformed", failed: read, file };
+}
+
+export function fragmentPointer(steps: string[]): { pointer?: string } {
+    return steps.length > 0 ? { pointer: encodePointer(steps) } : {};
 }
 
 function keysBeside(source: ResolverNode): string[] {
@@ -307,34 +331,30 @@ function withOverrides(
     overriding: ResolverNode[],
     route: RouteStep[],
 ): SourceEntry[] {
-    return overriding.reduce(
-        (inner, source) => withOverride(inner, source, route, keysBeside(source)),
-        entries,
-    );
+    return overriding.reduce((inner, source) => withOverride(inner, source, route), entries);
 }
 
 function withOverride(
     entries: SourceEntry[],
     source: ResolverNode,
     route: RouteStep[],
-    overridden: string[],
 ): SourceEntry[] {
+    const overridden = keysBeside(source);
     if (overridden.length === 0) return entries;
-    const pieces: SourceEntry[] = [
-        ...entries.map((entry) => ({
-            ...entry,
-            overriddenKeys: [...(entry.overriddenKeys ?? []), ...overridden],
+    const overriddenPieces = entries.flatMap(({ pieces }) =>
+        pieces.map((piece) => ({
+            ...piece,
+            overriddenKeys: [...(piece.overriddenKeys ?? []), ...overridden],
         })),
-        {
-            kind: "inline",
-            node: source.node,
-            jsonPath: source.jsonPath,
-            route,
-            overriddenKeys: ["$ref"],
-        },
-    ];
-    for (const piece of pieces) piece.pieces = pieces;
-    return pieces;
+    );
+    const beside: SourcePiece = {
+        kind: "inline",
+        node: source.node,
+        jsonPath: source.jsonPath,
+        route,
+        overriddenKeys: ["$ref"],
+    };
+    return [{ pieces: [...overriddenPieces, beside] }];
 }
 
 function pointable([first]: string[]): boolean {

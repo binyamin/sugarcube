@@ -157,7 +157,7 @@ describe("scale generator", () => {
                 severity: "warning",
                 detail: {
                     property: "fluid",
-                    owner: "dimension",
+                    type: "dimension",
                     jsonPath: ["$extensions", "sh.sugarcube", "scale", "base", "min", "fluid"],
                 },
             },

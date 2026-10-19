@@ -6,7 +6,7 @@ import type {
     UtilityEntry,
     UtilityWithoutClassesReason,
 } from "../../types/diagnostics.js";
-import { diagnostic } from "../diagnostics.js";
+import { type AboutToken, aboutToken, diagnostic } from "../diagnostics.js";
 import type { PropertyUtilityConfig } from "../../types/utilities.js";
 import type { UtilityToken } from "./tokens.js";
 
@@ -111,6 +111,7 @@ export function utilityRules(
     starts: UtilityStart[];
     safelist: string[];
     customProperties: string[];
+    aboutTokens: AboutToken[];
     diagnostics: Reported[];
 } {
     const byStart = new Map<string, Use[]>();
@@ -158,8 +159,8 @@ export function utilityRules(
         starts,
         safelist: [...safelist],
         customProperties: customPropertiesOf(answered),
+        aboutTokens: sameClasses(answered),
         diagnostics: [
-            ...sameClasses(answered),
             ...(tokens.length === 0 ? [] : entries.flatMap((entry) => withoutClasses(entry, lost))),
             ...unmatched,
         ],
@@ -210,15 +211,15 @@ function answers(byStart: Map<string, Use[]>): Map<string, [Answer, ...Answer[]]
     return answered;
 }
 
-function sameClasses(answered: Map<string, [Answer, ...Answer[]]>): Reported[] {
-    const found = new Map<string, Reported>();
+function sameClasses(answered: Map<string, [Answer, ...Answer[]]>): AboutToken[] {
+    const found = new Map<string, AboutToken>();
     for (const [className, [first, ...others]] of answered) {
         for (const each of others) {
             const [used, other] = [first.named, each.named];
             const key = [used.token.path, other.token.path].sort().join("\u0000");
             if (sameVariable(first, each) || found.has(key)) continue;
             const paths: [string, string] = [used.token.path, other.token.path];
-            found.set(key, diagnostic("same-utility-class", { className, paths }, other.token));
+            found.set(key, aboutToken(other.token, "same-utility-class", { className, paths }));
         }
     }
     return [...found.values()];

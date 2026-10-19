@@ -1,20 +1,13 @@
-import type { Diagnostic, Input, ResolverContext, Source, TokenType } from "../index.js";
-import { diagnostic, foundInPermutation } from "./diagnostics.js";
+import type { Diagnostic, Input, ResolverContext, Source } from "../index.js";
+import type { Problems } from "./diagnostics.js";
 import { applyExtends } from "./extends.js";
-import { inherited } from "./inherit.js";
-import { type Merged, type MergedToken, merge } from "./merge.js";
+import { type Merged, merge } from "./merge.js";
 import { inWrittenOrder } from "./order.js";
-import type { ValueRead, ValueReader } from "./parse-value.js";
 import type { ListedSource, LoadedPermutation } from "./permutations.js";
 import type { LoadedSource } from "./sources.js";
 import { type SourceContents, walkSource } from "./walk.js";
 import { withPosition } from "./linked.js";
-
-export interface NormalisedToken {
-    token: MergedToken;
-    type?: TokenType;
-    read?: ValueRead;
-}
+import { sameSource } from "./same-object.js";
 
 export interface NormalisedPermutation {
     input: Input;
@@ -22,28 +15,25 @@ export interface NormalisedPermutation {
     contexts: ResolverContext[];
     sources: Source[];
     merged: Merged;
-    tokens: Map<string, NormalisedToken>;
 }
 
-// Walks each piece of each source once, then merges a permutation's pieces in resolution order
-// into its tokens and groups.
 export function normalisePermutations(
     permutations: LoadedPermutation[],
-    readValue: ValueReader,
-    diagnostics: Diagnostic[],
-    generate: (merged: Merged, permutation: Input) => void,
+    diagnostics: Problems,
+    generate: (merged: Merged, input: Input) => void,
+    previous: readonly Source[] | undefined,
 ): { permutations: NormalisedPermutation[]; sources: Source[] } {
     const walked = new Map<string, { contents?: SourceContents; problems: Diagnostic[] }>();
-    const walk = (loaded: LoadedSource, permutation?: Input) => {
+    const walk = (loaded: LoadedSource, input?: Input) => {
         const key = JSON.stringify([loaded.file, loaded.pointer, loaded.overriddenKeys]);
         let found = walked.get(key);
         if (!found) {
             const problems: Diagnostic[] = [];
-            found = { contents: walkSource(loaded, problems), problems };
-            diagnostics.push(...problems);
+            const contents = walkSource(loaded, problems);
+            found = { contents, problems: diagnostics.foundAll(problems) };
             walked.set(key, found);
         }
-        if (permutation) for (const each of found.problems) foundInPermutation(each, permutation);
+        if (input) for (const each of found.problems) diagnostics.also(each, input);
         return found.contents;
     };
     const published = new Map<ListedSource, Source>();
@@ -52,9 +42,11 @@ export function normalisePermutations(
         if (found) return found;
         const { source, pieces } = listed;
         const extensions = pieces.map((each) => walk(each)?.root.extensions).find(Boolean);
-        const made = withPosition({ ...source, ...(extensions && { extensions }) }, published.size);
-        published.set(listed, made);
-        return made;
+        const made = { ...source, ...(extensions && { extensions }) };
+        const was = previous?.[published.size];
+        const kept = was && sameSource(was, made) ? was : withPosition(made, published.size);
+        published.set(listed, kept);
+        return kept;
     };
 
     const normalised = permutations.map(({ input, label, contexts, sources }) => {
@@ -65,24 +57,7 @@ export function normalisePermutations(
         applyExtends(merged, input, diagnostics);
         generate(merged, input);
         inWrittenOrder(merged);
-        const tokens = new Map<string, NormalisedToken>();
-        for (const token of merged.tokens.values()) {
-            if (token.type === undefined && token.reference) {
-                tokens.set(token.path, { token });
-                continue;
-            }
-            const type = inherited(token, merged, "type");
-            if (type === "unusable") continue;
-            if (type === undefined) {
-                const { span, path } = token;
-                diagnostics.push(
-                    diagnostic("missing-type", {}, { span, path, permutation: input }),
-                );
-                continue;
-            }
-            tokens.set(token.path, { token, type, read: readValue.read(token, type, input) });
-        }
-        return { input, label, contexts, sources: sources.map(publish), merged, tokens };
+        return { input, label, contexts, sources: sources.map(publish), merged };
     });
     return { permutations: normalised, sources: [...published.values()] };
 }

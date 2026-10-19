@@ -1,23 +1,23 @@
 import { describe, expect, it } from "vitest";
 import type { ParseOptions } from "../../src/index.js";
-import { parseShadow } from "../../src/values.js";
+import { parseValue } from "../../src/values.js";
 
 const lenient: ParseOptions = { ignoreUnknownProperties: true };
 
 function read(raw: unknown, options?: ParseOptions) {
-    const result = parseShadow(raw, ["$value"], options);
+    const result = parseValue("shadow", raw, ["$value"], options);
     if (!result.ok) throw new Error(`expected a value, got ${JSON.stringify(result.errors)}`);
     return result.value;
 }
 
 function details(raw: unknown, options?: ParseOptions) {
-    const result = parseShadow(raw, ["$value"], options);
+    const result = parseValue("shadow", raw, ["$value"], options);
     if (result.ok) throw new Error(`expected errors, got ${JSON.stringify(result.value)}`);
     return result.errors.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
 function ignored(raw: unknown, options?: ParseOptions) {
-    const result = parseShadow(raw, ["$value"], options);
+    const result = parseValue("shadow", raw, ["$value"], options);
     return result.ignored.map(({ jsonPath, detail }) => ({ jsonPath, detail }));
 }
 
@@ -31,7 +31,7 @@ const layer = {
     spread: rem(0),
 };
 
-describe("parseShadow", () => {
+describe("parseValue, shadow", () => {
     describe("reads", () => {
         it("one shadow as a list of one, with inset filled in as false (Format 9.6)", () => {
             expect(read(layer)).toStrictEqual([{ ...layer, inset: false }]);
