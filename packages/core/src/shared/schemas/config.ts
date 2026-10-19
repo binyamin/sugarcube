@@ -72,6 +72,8 @@ const variableNameFnSchema = z.custom<(path: string) => string>((v) => typeof v 
 const variablesConfigSchema = z.object({
     path: z.string().optional(),
     prefix: z.string().optional(),
+    case: z.enum(["kebab"]).optional(),
+    delimiter: z.string().optional(),
     variableName: variableNameFnSchema.optional(),
     layer: z.string().optional(),
     transforms: transformsSchema.optional(),
@@ -196,6 +198,8 @@ export const internalConfigSchema = z.object({
     variables: z.object({
         path: z.string(),
         prefix: z.string().optional(),
+        case: z.enum(["kebab"]).optional(),
+        delimiter: z.string().optional(),
         variableName: variableNameFnSchema.optional(),
         layer: z.string().optional(),
         transforms: z.object({

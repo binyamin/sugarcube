@@ -36,6 +36,69 @@ describe("cssVariable", () => {
         expect(seen).toStrictEqual(["color.accent"]);
     });
 
+    it("joins every part with the delimiter: the prefix, the path's names and the words in them", () => {
+        expect(cssVariable("color.brand", { delimiter: "_" })).toBe("--color_brand");
+        expect(cssVariable("color.brand", { prefix: "ds", delimiter: "_" })).toBe(
+            "--ds_color_brand",
+        );
+        expect(cssVariable("type.body copy.size", { delimiter: "_" })).toBe(
+            "--type_body_copy_size",
+        );
+        expect(cssVariable("color.accent.$root", { delimiter: "_" })).toBe("--color_accent");
+    });
+
+    it("keeps what a name already holds, joining only the parts it splits", () => {
+        expect(cssVariable("color.brand-primary", { delimiter: "_" })).toBe(
+            "--color_brand-primary",
+        );
+    });
+
+    it.for([
+        { path: "color.brandPrimary", name: "--color-brand-primary" },
+        { path: "Background.Brand.Primary", name: "--background-brand-primary" },
+        { path: "state.60Hover", name: "--state-60-hover" },
+        { path: "format.XMLParser", name: "--format-xml-parser" },
+        { path: "type.Body Copy", name: "--type-body-copy" },
+    ])(
+        "splits camelCase and PascalCase into lowercase words with case kebab: $path as $name",
+        ({ path, name }) => {
+            expect(cssVariable(path, { case: "kebab" })).toBe(name);
+        },
+    );
+
+    it("joins kebab's words with the delimiter, and never changes the prefix's case", () => {
+        expect(
+            cssVariable("color.brandPrimary", { prefix: "DS", case: "kebab", delimiter: "_" }),
+        ).toBe("--DS_color_brand_primary");
+    });
+
+    it("names one of a typography token's variables by its CSS property, joined like any part", () => {
+        expect(cssVariable("type.body", { cssProperty: "font-size" })).toBe(
+            "--type-body-font-size",
+        );
+        expect(
+            cssVariable("type.bodyCopy", {
+                case: "kebab",
+                delimiter: "_",
+                cssProperty: "font-size",
+            }),
+        ).toBe("--type_body_copy_font-size");
+    });
+
+    it("joins a CSS property to a naming function's name with the delimiter", () => {
+        const name = (path: string) => path.replaceAll(".", "_");
+        expect(cssVariable("type.body", { name, cssProperty: "font-size" })).toBe(
+            "--type_body-font-size",
+        );
+        expect(cssVariable("type.body", { name, delimiter: "_", cssProperty: "font-size" })).toBe(
+            "--type_body_font-size",
+        );
+    });
+
+    it("escapes a delimiter a CSS name cannot hold", () => {
+        expect(cssVariable("color.brand", { delimiter: "/" })).toBe("--color\\/brand");
+    });
+
     it.for([
         { path: "space.1/2", name: "--space-1\\/2" },
         { path: "size.1.5x", name: "--size-1-5x" },

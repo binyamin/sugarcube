@@ -41,10 +41,19 @@ describe("cssFrom", () => {
     it("gives the declarations it made, for a reader that needs which variable is which token", () => {
         const { tokens, config } = project(classes);
 
-        expect(cssFrom(tokens, config).declared).toStrictEqual(declare(tokens, config));
+        const entriesAndProblems = ({ entries, diagnostics }: ReturnType<typeof declare>) => ({
+            entries,
+            diagnostics,
+        });
+
+        expect(entriesAndProblems(cssFrom(tokens, config).declared)).toStrictEqual(
+            entriesAndProblems(declare(tokens, config)),
+        );
         expect(
-            cssFrom(tokens, config, { variables: false, utilities: false }).declared,
-        ).toStrictEqual(declare(tokens, config));
+            entriesAndProblems(
+                cssFrom(tokens, config, { variables: false, utilities: false }).declared,
+            ),
+        ).toStrictEqual(entriesAndProblems(declare(tokens, config)));
     });
 
     it("gives what declaring, the variables and the utility rules give in turn", () => {

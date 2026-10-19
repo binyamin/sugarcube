@@ -27,13 +27,17 @@ export interface CSSValueOptions {
     /**
      * What to write for a reference, such as a variable for the token it refers to. Without an
      * answer, the part is written from the value the reference resolved to. A gradient stop's
-     * position takes a variable only, as `clamp(0%, var(…) * 100%, 100%)`; a typography value
-     * that is itself a reference takes a variable only, writing `var(--name-font-size)` and so on.
+     * position takes a variable only, as `clamp(0%, var(…) * 100%, 100%)`. A typography value
+     * that is itself a reference is asked once for each CSS property, with that `cssProperty`, and
+     * takes a variable only: the one holding that CSS property, such as `--body-font-size`.
      *
      * @example
-     * { replacement: (ref) => (ref.token ? { variable: cssVariable(ref.token.path) } : undefined) }
+     * {
+     *     replacement: (ref, cssProperty) =>
+     *         ref.token ? { variable: cssVariable(ref.token.path, { cssProperty }) } : undefined,
+     * }
      */
-    replacement?: (ref: Reference) => Replacement | undefined;
+    replacement?: (ref: Reference, cssProperty?: keyof TypographyCSS) => Replacement | undefined;
     /**
      * `"hex"` writes every color that has a `hex` as that hex, with two more digits when it is
      * not opaque, for a browser that cannot show its color space. A color without a `hex` is
@@ -145,9 +149,10 @@ function stop({ color, position }: GradientStopPart, options: CSSValueOptions): 
 }
 
 function typography(part: TypographyPart, options: CSSValueOptions): TypographyCSS {
-    const named = variable(part, options);
-    const each = (property: keyof TypographyCSS, value: Exclude<Part, TypographyPart>) =>
-        named ? `var(${named}-${property})` : write(value, options);
+    const each = (cssProperty: keyof TypographyCSS, value: Exclude<Part, TypographyPart>) => {
+        const answer = part.ref ? options.replacement?.(part.ref, cssProperty) : undefined;
+        return answer && "variable" in answer ? `var(${answer.variable})` : write(value, options);
+    };
     return {
         "font-family": each("font-family", part.fontFamily),
         "font-size": each("font-size", part.fontSize),

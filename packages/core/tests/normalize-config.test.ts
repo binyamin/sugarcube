@@ -200,6 +200,24 @@ describe("validateConfig — variables.variableName", () => {
     });
 });
 
+describe("validateConfig — variables.case and variables.delimiter", () => {
+    it("carries the naming settings onto the internal config", () => {
+        const result = validateConfig({
+            resolver: "./tokens.resolver.json",
+            variables: { prefix: "ds", case: "kebab", delimiter: "_" },
+        });
+
+        expect(result.variables).toMatchObject({ prefix: "ds", case: "kebab", delimiter: "_" });
+    });
+
+    it("leaves them undefined when omitted", () => {
+        const result = validateConfig({ resolver: "./tokens.resolver.json" });
+
+        expect(result.variables.case).toBeUndefined();
+        expect(result.variables.delimiter).toBeUndefined();
+    });
+});
+
 describe("validateConfig — content", () => {
     it("carries user-specified content globs onto the internal config", () => {
         const content = ["./**/*.heex", "../../lib/**/*.ex"];

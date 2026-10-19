@@ -74,6 +74,23 @@ describe("golden CSS through the CLI's build on the new core", () => {
         }
     });
 
+    it("names variables with delimiter _ as the polyfill case's naming function does", async () => {
+        const polyfill = CASES.find(({ name }) => name === "every-value-form/polyfill");
+        if (!polyfill || typeof polyfill.config !== "function") throw new Error("no polyfill case");
+        const withFunction = polyfill.config;
+        const withSettings: GoldenCase = {
+            ...polyfill,
+            config: (outDir) => {
+                const { variableName, ...variables } = withFunction(outDir).variables ?? {};
+                expect(variableName?.("a.b")).toBe("a_b");
+                return { ...withFunction(outDir), variables: { ...variables, delimiter: "_" } };
+            },
+        };
+        const [named, settled] = await Promise.all([built(polyfill), built(withSettings)]);
+        expect(settled.files).toStrictEqual(named.files);
+        expect(settled.files.some(({ css }) => css.includes("--color_"))).toBe(true);
+    });
+
     it("lists as decided only files the golden set has", () => {
         const files = new Set(
             CASES.flatMap(({ name }) =>

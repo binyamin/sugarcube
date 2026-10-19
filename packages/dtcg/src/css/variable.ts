@@ -1,17 +1,41 @@
 import { withoutRoot } from "../path.js";
 
-/** How a token path becomes a CSS custom property's name. */
-export interface CSSVariableOptions {
-    /** Put before every name, joined with a dash. */
+/** How a token path becomes a CSS custom property's name, as settings any tool can pass on. */
+export interface CSSNaming {
+    /** Put before every name, joined like any other part, and never changed by `case`. */
     prefix?: string;
     /**
-     * Makes the name from the path instead, without the leading `--`. It receives the path with a
-     * final `$root` dropped, and its result is escaped like any other. `prefix` is then not used.
+     * `"kebab"` splits each name in the path at its camelCase and PascalCase words and writes them
+     * in lowercase: `brandPrimary` is `brand-primary`, `XMLParser` is `xml-parser`, `60Hover` is
+     * `60-hover`. Without it, names are as written.
+     */
+    case?: "kebab";
+    /**
+     * What joins the parts: the prefix, the names in the path, the words `case` or a space splits
+     * a name into, and a typography variable's CSS property. Characters already in a name are kept,
+     * so `color.brand-primary` with `"_"` is `--color_brand-primary`.
+     * @default "-"
+     */
+    delimiter?: string;
+    /**
+     * Makes the name from the path instead, without the leading `--`, for a tool whose names no
+     * settings describe. It receives the path with a final `$root` dropped, and its result is
+     * escaped like any other. `prefix` and `case` are then not used; `delimiter` still joins a
+     * typography variable's CSS property.
      *
      * @example
      * { name: (path) => path.replaceAll(".", "_") } // "color.brand" → "--color_brand"
      */
     name?: (path: string) => string;
+}
+
+/** A token's CSS custom property: its naming, and for typography the CSS property it is one of. */
+export interface CSSVariableOptions extends CSSNaming {
+    /**
+     * The CSS property this variable holds of a typography token, which {@link cssValue} writes as
+     * one variable per CSS property: `"font-size"` gives `--type-body-font-size`.
+     */
+    cssProperty?: string;
 }
 
 /**
@@ -26,30 +50,54 @@ export interface CSSVariableOptions {
  * cssName("space.1/2")            // "space-1/2", escaped only where it is written
  */
 export function cssName(path: string): string {
-    return withoutRoot(path)
-        .split(".")
-        .map((segment) => segment.trim().replace(/\s+/g, "-"))
-        .join("-");
+    return named(path, {});
 }
 
 /**
- * The CSS custom property for a token path: its {@link cssName}, so dots become dashes and a final
- * `$root` is dropped, as it names its group's own value, and anything a CSS name cannot hold is
- * escaped, so the name always works in a browser. A typography token's variables are this name, a
- * dash, and each CSS property {@link cssValue} gives it, such as `--type-body-font-size`.
- * Different paths can give the same name: `a.b-c` and `a-b.c` are both `--a-b-c`.
+ * The CSS custom property for a token path, named from the path as DTCG asks of translation tools
+ * (Format §6.10.3): a final `$root` dropped, as it names its group's own value, the names in the
+ * path joined with dashes (or the `delimiter`), and anything a CSS name cannot hold escaped, so
+ * the name always works in a browser. A typography token's variables are this name joined to each
+ * CSS property {@link cssValue} gives it, such as `--type-body-font-size`. Different paths can
+ * give the same name: `a.b-c` and `a-b.c` are both `--a-b-c`, and with `case: "kebab"`,
+ * `fooBar` and `foo-bar` are too.
  *
  * @example
- * cssVariable("color.brand")                     // "--color-brand"
- * cssVariable("color.accent.$root")              // "--color-accent"
- * cssVariable("space.1/2")                       // "--space-1\\/2"
- * cssVariable("color.brand", { prefix: "ds" })   // "--ds-color-brand"
+ * cssVariable("color.brand")                                // "--color-brand"
+ * cssVariable("color.accent.$root")                         // "--color-accent"
+ * cssVariable("space.1/2")                                  // "--space-1\\/2"
+ * cssVariable("color.brand", { prefix: "ds" })              // "--ds-color-brand"
+ * cssVariable("color.brandPrimary", { case: "kebab" })      // "--color-brand-primary"
+ * cssVariable("color.brand", { delimiter: "_" })            // "--color_brand"
+ * cssVariable("type.body", { cssProperty: "font-size" })    // "--type-body-font-size"
  */
 export function cssVariable(path: string, options: CSSVariableOptions = {}): string {
-    const named = options.name
-        ? options.name(withoutRoot(path))
-        : [...(options.prefix ? [options.prefix] : []), cssName(path)].join("-");
-    return `--${escape(named)}`;
+    return `--${escape(named(path, options))}`;
+}
+
+function named(
+    path: string,
+    { prefix, case: casing, delimiter = "-", name, cssProperty }: CSSVariableOptions,
+): string {
+    let whole = name
+        ? name(withoutRoot(path))
+        : withoutRoot(path)
+              .split(".")
+              .map((segment) => words(segment, casing, delimiter))
+              .join(delimiter);
+    if (!name && prefix) whole = `${prefix}${delimiter}${whole}`;
+    return cssProperty ? `${whole}${delimiter}${cssProperty}` : whole;
+}
+
+function words(segment: string, casing: "kebab" | undefined, delimiter: string): string {
+    let spaced = segment.trim();
+    if (casing === "kebab") {
+        spaced = spaced
+            .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+            .replace(/([A-Z])([A-Z])(?=[a-z])/g, "$1 $2")
+            .toLowerCase();
+    }
+    return /\s/.test(spaced) ? spaced.replace(/\s+/g, () => delimiter) : spaced;
 }
 
 function escape(name: string): string {

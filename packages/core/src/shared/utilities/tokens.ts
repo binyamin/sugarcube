@@ -1,6 +1,6 @@
 import type { Token } from "@sugarcube-sh/dtcg";
+import type { CSSDeclarations } from "@sugarcube-sh/dtcg/css";
 import type { Declarations } from "../css/declare.js";
-import type { Declared } from "../css/declarations.js";
 
 export type UtilityVariable = { property: string; name: string };
 
@@ -26,14 +26,16 @@ export function utilityTokens({ entries }: Declarations): UtilityToken[] {
         listed.push(each);
     };
     for (const declared of read) for (const each of declaredIn(declared)) add(each);
-    for (const { undeclared } of read) for (const each of undeclared) add(each);
+    for (const { notWritten } of read) {
+        for (const { token, because } of notWritten) add({ token, private: because === "skipped" });
+    }
     return listed;
 }
 
-function declaredIn({ declarations }: Declared): UtilityToken[] {
+function declaredIn({ declarations }: CSSDeclarations): UtilityToken[] {
     const listed: UtilityToken[] = [];
     const parts = new Map<Token, UtilityVariable[]>();
-    for (const { token, name, property } of declarations) {
+    for (const { token, name, cssProperty: property } of declarations) {
         if (property === undefined) {
             listed.push({ token, name });
             continue;

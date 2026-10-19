@@ -3,19 +3,23 @@ import {
     type Input,
     type Permutation,
     PermutationError,
+    type Token,
 } from "@sugarcube-sh/dtcg";
+import { type CSSDeclarations, type CSSWriter, cssWriter } from "@sugarcube-sh/dtcg/css";
 import type { Permutation as ConfigPermutation, InternalConfig } from "../../types/config.js";
 import type { Reported } from "../../types/diagnostics.js";
 import { type AboutToken, aboutToken, diagnostic, located } from "../diagnostics.js";
-import { type Declared, declarationOptions, declarations, renderer } from "./declarations.js";
+import { fallbacksIn } from "./polyfill.js";
 import { textZoomWarnings } from "./text-zoom.js";
+import { cssWriterOptions } from "./writer-options.js";
 
 export interface Entry {
     permutation: Permutation;
+    input: Input;
     selector: string | string[];
     atRule?: string;
     path: string;
-    declared: Declared;
+    declared: CSSDeclarations;
 }
 
 /**
@@ -23,9 +27,12 @@ export interface Entry {
  * `declared` for every entry of one permutation); and every problem found reading and declaring:
  * the read's own, a deprecated `colorFallbackStrategy`, a default permutation's block written after
  * another in its file, fluid text that fails text zoom, a color with no `hex` to fall back to, and
- * two paths making one variable.
+ * two paths making one variable. With them, the design tokens declared and the writer that
+ * declared them, which `emitCSS` writes the blocks with.
  */
 export interface Declarations {
+    tokens: DesignTokens;
+    writer: CSSWriter;
     entries: Entry[];
     diagnostics: Reported[];
 }
@@ -41,35 +48,42 @@ export interface Declarations {
  * const { rules, safelist } = utilityRules(utilityTokens(declared), config.utilities.classes);
  */
 export function declare(tokens: DesignTokens, config: InternalConfig): Declarations {
-    const deprecated =
-        config.variables.transforms.colorFallbackStrategy === "polyfill"
-            ? [diagnostic("option-deprecated", { option: 'colorFallbackStrategy: "polyfill"' })]
-            : [];
+    const polyfill = config.variables.transforms.colorFallbackStrategy === "polyfill";
+    const deprecated = polyfill
+        ? [diagnostic("option-deprecated", { option: 'colorFallbackStrategy: "polyfill"' })]
+        : [];
+    const options = cssWriterOptions(tokens, config);
+    const writer = cssWriter(options);
     const listed = config.variables.permutations ?? [];
     const required = listed.length === 0 ? defaultRequired(tokens) : undefined;
-    if (required)
-        return { entries: [], diagnostics: [...tokens.diagnostics, required, ...deprecated] };
+    if (required) {
+        return {
+            tokens,
+            writer,
+            entries: [],
+            diagnostics: [...tokens.diagnostics, required, ...deprecated],
+        };
+    }
 
-    const options = declarationOptions(tokens, config);
-    const rendering = renderer(options);
-    const declaredIn = new Map<Permutation, Declared>();
-    const declaredFor = (permutation: Permutation) => {
-        const found = declaredIn.get(permutation) ?? declarations(permutation, options, rendering);
-        declaredIn.set(permutation, found);
-        return found;
-    };
-    const toWrite = entries(tokens, config, listed, declaredFor);
-    const once = [...declaredIn.values()];
+    const toWrite = entries(tokens, config, listed, writer);
+    const permutations = [...new Set(toWrite.map(({ permutation }) => permutation))];
+    const once = permutations.map((permutation) => writer.declarations(permutation));
 
     return {
+        tokens,
+        writer,
         entries: toWrite,
         diagnostics: [
             ...tokens.diagnostics,
             ...deprecated,
             ...defaultsNotFirst(toWrite),
             ...located(tokens, [
-                ...textZoomWarnings([...declaredIn.keys()], options.fluid, options.parseOptions),
-                ...missingHex(once),
+                ...textZoomWarnings(
+                    permutations,
+                    config.variables.transforms.fluid,
+                    tokens.parseOptions,
+                ),
+                ...(polyfill ? missingHex(once, options.skip) : []),
                 ...sameNames(once),
             ]),
         ],
@@ -80,17 +94,21 @@ function entries(
     tokens: DesignTokens,
     config: InternalConfig,
     listed: ConfigPermutation[],
-    declaredFor: (permutation: Permutation) => Declared,
+    writer: CSSWriter,
 ): Entry[] {
     if (listed.length === 0) {
         const base = tokens.permutations.filter(({ isDefault }) => isDefault);
         const overrides = tokens.permutations.filter(({ isDefault }) => !isDefault);
-        return [...base, ...overrides].map((permutation) => ({
-            permutation,
-            selector: derivedSelector(permutation),
-            path: config.variables.path,
-            declared: declaredFor(permutation),
-        }));
+        return [...base, ...overrides].map((permutation) => {
+            const input = setApart(permutation);
+            return {
+                permutation,
+                selector: derivedSelector(input),
+                input,
+                path: config.variables.path,
+                declared: writer.declarations(permutation),
+            };
+        });
     }
     return listed.flatMap(({ input, selector, atRule, path }) => {
         const permutation = configured(tokens, input);
@@ -98,10 +116,11 @@ function entries(
         return [
             {
                 permutation,
+                input,
                 selector,
                 path: path ?? config.variables.path,
                 ...(atRule && { atRule }),
-                declared: declaredFor(permutation),
+                declared: writer.declarations(permutation),
             },
         ];
     });
@@ -132,9 +151,17 @@ function configured(tokens: DesignTokens, input: Input): Permutation | undefined
     }
 }
 
-function derivedSelector(permutation: Permutation): string {
-    const changed = permutation.contexts.find((context) => !context.isDefault);
-    return changed ? `[data-${changed.modifier.name}="${changed.name}"]` : ":root";
+function setApart(permutation: Permutation): Input {
+    return Object.fromEntries(
+        permutation.contexts
+            .filter((context) => !context.isDefault)
+            .map((context) => [context.modifier.name, context.name]),
+    );
+}
+
+function derivedSelector(input: Input): string {
+    const [changed] = Object.entries(input);
+    return changed ? `[data-${changed[0]}="${changed[1]}"]` : ":root";
 }
 
 function defaultRequired(tokens: DesignTokens): Reported | undefined {
@@ -149,16 +176,20 @@ function defaultRequired(tokens: DesignTokens): Reported | undefined {
     };
 }
 
-function missingHex(declared: Declared[]): AboutToken[] {
+function missingHex(declared: CSSDeclarations[], skip: (token: Token) => boolean): AboutToken[] {
     const found = new Map<string, AboutToken>();
-    for (const { token, colorSpace } of declared.flatMap(({ missing }) => missing)) {
+    const written = new Set(
+        declared.flatMap(({ declarations }) => declarations.map(({ token }) => token)),
+    );
+    const missing = [...written].flatMap((token) => fallbacksIn(token, skip).missing);
+    for (const { token, colorSpace } of missing) {
         const key = `${token.path}\u0000${colorSpace}`;
         if (!found.has(key)) found.set(key, aboutToken(token, "fallback-missing", { colorSpace }));
     }
     return [...found.values()];
 }
 
-function sameNames(declared: Declared[]): AboutToken[] {
+function sameNames(declared: CSSDeclarations[]): AboutToken[] {
     const found = new Map<string, AboutToken>();
     for (const { declarations: lines } of declared) {
         const first = new Map<string, string>();

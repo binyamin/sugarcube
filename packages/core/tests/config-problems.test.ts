@@ -80,6 +80,17 @@ it("lists the values a setting allows", async () => {
     ]);
 });
 
+it("lists the naming cases there are, and says a delimiter is text", async () => {
+    const { lines } = await problemsWith(
+        'export default { variables: { case: "camel", delimiter: 5 } };',
+    );
+
+    expect(lines).toEqual([
+        '`variables.case` must be "kebab", not "camel"',
+        "`variables.delimiter` must be a string, not a number",
+    ]);
+});
+
 it("lists every form a setting takes when the value is none of them", async () => {
     const { lines } = await problemsWith(entry('source: "color.*", safelist: 5'));
 
