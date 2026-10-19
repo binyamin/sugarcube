@@ -26,7 +26,7 @@ export interface Declared {
 }
 
 export interface DeclarationOptions {
-    variable: (path: string) => string;
+    variable: (path: string, property?: string) => string;
     privateSource: (source: Source) => boolean;
     fluid: FluidConfig;
     polyfill: boolean;
@@ -37,9 +37,16 @@ export function declarationOptions(
     tokens: DesignTokens,
     config: InternalConfig,
 ): DeclarationOptions {
-    const { prefix, variableName, transforms } = config.variables;
+    const { prefix, case: casing, delimiter, variableName, transforms } = config.variables;
     return {
-        variable: (path) => cssVariable(path, { prefix, name: variableName }),
+        variable: (path, property) =>
+            cssVariable(path, {
+                prefix,
+                case: casing,
+                delimiter,
+                name: variableName,
+                cssProperty: property,
+            }),
         privateSource: (source) => !emits(source),
         fluid: transforms.fluid,
         polyfill: transforms.colorFallbackStrategy === "polyfill",
@@ -79,11 +86,11 @@ export function renderer({
             }
             return renderedFor.get(each);
         };
-        const replacementFor: ReplacementFor = (ref) => {
+        const replacementFor: ReplacementFor = (ref, property) => {
             const target = ref.token;
             const written = target && rendered(target);
             if (!target || written === undefined) return undefined;
-            return isPrivate(target) ? { written } : { variable: variable(target.path) };
+            return isPrivate(target) ? { written } : { variable: variable(target.path, property) };
         };
         return rendered;
     };
@@ -96,11 +103,12 @@ export function declarations(
     { native, fallback, isPrivate }: Renderer,
 ): Declared {
     const lines = (each: Token, written: Written): Declaration[] => {
-        const name = variable(each.path);
-        if (typeof written === "string") return [{ token: each, name, value: written }];
+        if (typeof written === "string") {
+            return [{ token: each, name: variable(each.path), value: written }];
+        }
         return Object.entries(written).map(([property, value]) => ({
             token: each,
-            name: `${name}-${property}`,
+            name: variable(each.path, property),
             property,
             value,
         }));

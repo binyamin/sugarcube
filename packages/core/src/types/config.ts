@@ -61,8 +61,24 @@ export interface VariablesConfig {
     prefix?: string;
 
     /**
+     * `"kebab"` splits each name in a token's path at its camelCase and PascalCase words, in
+     * lowercase.
+     * @example // case: "kebab" makes color.brandPrimary --color-brand-primary
+     */
+    case?: "kebab";
+
+    /**
+     * What joins the parts of a variable's name: the prefix, the names in the path, their words, and
+     * a typography variable's CSS property.
+     * @default "-"
+     * @example // delimiter: "_" makes color.brandPrimary --color_brandPrimary
+     */
+    delimiter?: string;
+
+    /**
      * Full control over the CSS variable name from a token path.
-     * Overrides `prefix` when set. Return the name without the leading `--`.
+     * Overrides `prefix` and `case` when set, and `delimiter` but for joining a typography
+     * variable's CSS property. Return the name without the leading `--`.
      */
     variableName?: VariableNameFn;
 
@@ -316,6 +332,8 @@ export interface InternalConfig {
     variables: {
         path: string;
         prefix?: string;
+        case?: "kebab";
+        delimiter?: string;
         variableName?: VariableNameFn;
         layer?: string;
         transforms: {

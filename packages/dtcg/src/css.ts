@@ -1,4 +1,4 @@
-export { type CSSVariableOptions, cssName, cssVariable } from "./css/variable.js";
+export { type CSSNaming, type CSSVariableOptions, cssName, cssVariable } from "./css/variable.js";
 export {
     type CSSValueOptions,
     type Replacement,

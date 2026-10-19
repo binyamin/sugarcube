@@ -18,7 +18,8 @@ function read(json: Record<string, unknown>): (path: string) => Token {
 }
 
 const asVariables: CSSValueOptions = {
-    replacement: (ref) => (ref.token ? { variable: cssVariable(ref.token.path) } : undefined),
+    replacement: (ref, cssProperty) =>
+        ref.token ? { variable: cssVariable(ref.token.path, { cssProperty }) } : undefined,
 };
 
 describe("cssValue", () => {
@@ -289,6 +290,32 @@ describe("cssValue", () => {
                 "letter-spacing": "var(--body-letter-spacing)",
                 "line-height": "var(--body-line-height)",
             });
+        });
+
+        it("asking for each CSS property's variable, so a caller's naming decides how it is joined", () => {
+            const asked: (string | undefined)[] = [];
+            const css = cssValue(at("quote"), {
+                replacement: (ref, cssProperty) => {
+                    asked.push(cssProperty);
+                    return ref.token
+                        ? { variable: cssVariable(ref.token.path, { delimiter: "_", cssProperty }) }
+                        : undefined;
+                },
+            });
+            expect(css).toStrictEqual({
+                "font-family": "var(--body_font-family)",
+                "font-size": "var(--body_font-size)",
+                "font-weight": "var(--body_font-weight)",
+                "letter-spacing": "var(--body_letter-spacing)",
+                "line-height": "var(--body_line-height)",
+            });
+            expect(asked).toStrictEqual([
+                "font-family",
+                "font-size",
+                "font-weight",
+                "letter-spacing",
+                "line-height",
+            ]);
         });
     });
 

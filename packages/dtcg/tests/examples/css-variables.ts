@@ -7,8 +7,8 @@ import { cssValue, cssVariable } from "@sugarcube-sh/dtcg/css";
 declare const tokens: DesignTokens;
 declare function selectorFor(p: Permutation): string;
 
-const replacement = (ref: Reference) =>
-    ref.token ? { variable: cssVariable(ref.token.path) } : undefined;
+const replacement = (ref: Reference, cssProperty?: string) =>
+    ref.token ? { variable: cssVariable(ref.token.path, { cssProperty }) } : undefined;
 
 function declarations(p: Permutation): string[] {
     return p.tokens.flatMap((t) => {
@@ -16,7 +16,9 @@ function declarations(p: Permutation): string[] {
         const name = cssVariable(t.path);
         if (css === undefined) return [];
         if (typeof css === "string") return [`  ${name}: ${css};`];
-        return Object.entries(css).map(([property, value]) => `  ${name}-${property}: ${value};`);
+        return Object.entries(css).map(
+            ([cssProperty, value]) => `  ${cssVariable(t.path, { cssProperty })}: ${value};`,
+        );
     });
 }
 

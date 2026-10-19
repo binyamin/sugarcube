@@ -9,7 +9,10 @@ export type Written = string | TypographyCSS;
 
 export type WrittenReplacement = { variable: string } | { written: Written };
 
-export type ReplacementFor = (ref: Reference) => WrittenReplacement | undefined;
+export type ReplacementFor = (
+    ref: Reference,
+    property?: keyof TypographyCSS,
+) => WrittenReplacement | undefined;
 
 export function renderToken(
     token: Token,
@@ -27,8 +30,11 @@ export function renderToken(
     const replaced = whole && replacementFor(whole);
     if (replaced && "written" in replaced) return replaced.written;
 
-    const replacement = (ref: Reference): Replacement | undefined => {
-        const each = replacementFor(ref);
+    const replacement = (
+        ref: Reference,
+        property?: keyof TypographyCSS,
+    ): Replacement | undefined => {
+        const each = replacementFor(ref, property);
         if (!each || "variable" in each) return each;
         return typeof each.written === "string" ? { css: each.written } : undefined;
     };

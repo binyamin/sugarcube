@@ -1260,6 +1260,55 @@ describe("emitCSS", () => {
             );
         });
 
+        it("with the config's case and delimiter, in declarations and references alike", () => {
+            const named = {
+                "tokens.json": {
+                    color: {
+                        $type: "color",
+                        brandPrimary: { $value: "#e11d48" },
+                        onBrand: { $value: "{color.brandPrimary}" },
+                    },
+                },
+            };
+            expect(cssFor(named, { prefix: "ds", case: "kebab", delimiter: "_" })).toBe(
+                [
+                    ":root {",
+                    "    --ds_color_brand_primary: #e11d48;",
+                    "    --ds_color_on_brand: var(--ds_color_brand_primary);",
+                    "}",
+                    "",
+                ].join("\n"),
+            );
+        });
+
+        it("with the delimiter joining a typography variable's CSS property, in references too", () => {
+            const type = {
+                "tokens.json": {
+                    body: {
+                        $type: "typography",
+                        $value: {
+                            fontFamily: ["Inter"],
+                            fontSize: { value: 1, unit: "rem" },
+                            fontWeight: 400,
+                            letterSpacing: { value: 0, unit: "px" },
+                            lineHeight: 1.5,
+                        },
+                    },
+                    quote: { $type: "typography", $value: "{body}" },
+                },
+            };
+            const css = cssFor(type, { delimiter: "_" });
+            expect(css).toContain("    --body_font-size: 1rem;");
+            expect(css).toContain("    --quote_font-size: var(--body_font-size);");
+        });
+
+        it("with variableName winning over case and delimiter, as over prefix", () => {
+            const variableName = (path: string) => path.replaceAll(".", "+");
+            expect(cssFor(tokens, { variableName, case: "kebab", delimiter: "_" })).toContain(
+                "--color\\+accent\\+soft: #fda4af;",
+            );
+        });
+
         it("with the config's variableName instead, given the path without $root, escaped", () => {
             const variableName = (path: string) => path.replaceAll(".", "_");
             expect(cssFor(tokens, { variableName })).toContain(
