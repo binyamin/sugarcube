@@ -181,7 +181,7 @@ function newSharedPlace(tokens: DesignTokens, path: string, place: string | unde
     return { into, alsoAffects: seenReading(tokens, into) };
 }
 
-function contextPlace(
+export function contextPlace(
     tokens: DesignTokens,
     path: string,
     chosen: Chosen,
@@ -248,7 +248,7 @@ function newContextPlace(
     return { into, alsoAffects: seenReading(tokens, into, chosen) };
 }
 
-function chosenContext(
+export function chosenContext(
     tokens: DesignTokens,
     input: Input,
 ): Chosen | { refused: Refusal } | undefined {

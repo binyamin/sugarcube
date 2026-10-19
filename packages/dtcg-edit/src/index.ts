@@ -188,6 +188,16 @@ export { rename } from "./rename.js";
 
 export { setDescription, setValue } from "./set-value.js";
 
+/** A context a token can be given its own value for, as {@link overridable} lists it. */
+export interface Overridable {
+    /** The input {@link setValue} writes the override with, such as `{ mode: "dark" }`. */
+    input: Input;
+    /** The context as a permutation's label words it, such as `"mode: dark"`. */
+    label: string;
+}
+
+export { overridable } from "./overridable.js";
+
 /**
  * How a value change is made: for a context or at a place the token is written, and which part of
  * the value it changes.

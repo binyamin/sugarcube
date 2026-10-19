@@ -1,0 +1,29 @@
+import type { DesignTokens } from "@sugarcube-sh/dtcg";
+import type { Overridable } from "./index.js";
+import { chosenContext, contextPlace } from "./placement.js";
+
+/**
+ * Each context the token at `path` can be given its own value for: one that doesn't write the
+ * token already, with a file of its own to hold the override where no later file would hide it.
+ * Each gives the `input` that {@link setValue} writes the override with, so a tool offers only
+ * overrides that will be written. A modifier's default is never listed: a value for it is the
+ * shared one.
+ *
+ * @example
+ * for (const { input, label } of overridable(tokens, "color.brand")) {
+ *     offer(`Override for ${label}`, (value) => setValue(tokens, "color.brand", value, { input }));
+ * }
+ */
+export function overridable(tokens: DesignTokens, path: string): readonly Overridable[] {
+    return (tokens.resolver?.modifiers ?? []).flatMap((modifier) =>
+        modifier.contexts.flatMap((context) => {
+            const input = { [modifier.name]: context.name };
+            const chosen = chosenContext(tokens, input);
+            if (!chosen || "refused" in chosen) return [];
+            const placed = contextPlace(tokens, path, chosen, undefined);
+            return "into" in placed || "choose" in placed
+                ? [{ input, label: chosen.perm.label }]
+                : [];
+        }),
+    );
+}
