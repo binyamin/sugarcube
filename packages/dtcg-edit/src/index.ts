@@ -54,13 +54,14 @@ export { fixesFor } from "./fixes.js";
  * unless what it would write is already there. `renameKey` records `was`, the value at the key,
  * only to tell when the rename is already done: the key is renamed whatever its value now.
  */
-export type FileOp =
+export type FileOp = Readonly<
     | { kind: "set"; file: string; jsonPath: JsonPath; value: JsonValue; was: JsonValue }
     | { kind: "add"; file: string; jsonPath: JsonPath; value: JsonValue }
     | { kind: "remove"; file: string; jsonPath: JsonPath; was: JsonValue }
     | { kind: "renameKey"; file: string; jsonPath: JsonPath; name: string; was: JsonValue }
     | { kind: "createFile"; file: string; value: JsonValue }
-    | { kind: "deleteFile"; file: string; was: string };
+    | { kind: "deleteFile"; file: string; was: string }
+>;
 
 /**
  * A question an operation can't answer from the files alone. Ask the person, then call `answer`
@@ -457,8 +458,8 @@ export type Committed =
 
 /** Edits, with the moves they made, as they are kept for undo and saved for later. */
 export interface Edits {
-    ops: readonly FileOp[];
-    moved: readonly Move[];
+    readonly ops: readonly FileOp[];
+    readonly moved: readonly Move[];
 }
 
 export { isEdits } from "./is-edits.js";

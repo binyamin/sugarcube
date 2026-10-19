@@ -5,14 +5,14 @@ import { type Edits, setValue } from "@sugarcube-sh/dtcg-edit";
 import { afterEach, describe, expect, it } from "vitest";
 import { adapterFor } from "../../src/adapters";
 import { createStudio } from "../../src/controllers/studio";
-import type { Saved } from "../../src/protocol";
+import type { SaveOutcome } from "../../src/protocol";
 import { saveEdits } from "../../src/server/save";
 import { demoCopy } from "../server/demo-copy";
 import { demoMessage, studioOn } from "./demo-message";
 
 const darkText = { input: { mode: "dark" } } as const;
 
-function withHost(answer: (edits: Edits) => Promise<Saved>) {
+function withHost(answer: (edits: Edits) => Promise<SaveOutcome>) {
     const sent: Edits[] = [];
     const studio = createStudio(demoMessage(), adapterFor, (edits) => {
         sent.push(edits);
@@ -59,7 +59,7 @@ describe("saving", () => {
     });
 
     it("keeps an edit made while the save was on its way as unsaved", async () => {
-        let answer: (saved: Saved) => void = () => {};
+        let answer: (saved: SaveOutcome) => void = () => {};
         const { studio } = withHost(() => new Promise((resolve) => (answer = resolve)));
         studio.do(
             setValue(studio.state.tokens, "color.text.default", "{color.neutral.100}", darkText),

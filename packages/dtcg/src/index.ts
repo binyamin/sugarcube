@@ -2087,8 +2087,8 @@ export type CompleteInput = { ok: true; input: Input } | ({ ok: false } & InputP
 
 /** A token or group whose path changed, such as after a rename. */
 export interface Move {
-    from: string;
-    to: string;
+    readonly from: string;
+    readonly to: string;
 }
 
 /** A property a file can set on a token, named as the spec names it, without the `$`. */

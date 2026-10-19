@@ -1,10 +1,16 @@
 import { rename, setValue } from "@sugarcube-sh/dtcg-edit";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { decodeEdits, encodeEdits } from "../../src/controllers/edits-text";
 import { keepUnsaved } from "../../src/controllers/unsaved";
 import { demoMessage, studioOn, withFile } from "./demo-message";
 
 const darkText = { input: { mode: "dark" } } as const;
+
+const kept = (storage: { held: Map<string, string> }, key: string, edits = 1) =>
+    vi.waitFor(async () => {
+        const held = storage.held.get(key);
+        expect(held && (await decodeEdits(held))?.ops).toHaveLength(edits);
+    });
 
 function memoryStorage() {
     const held = new Map<string, string>();
@@ -15,8 +21,6 @@ function memoryStorage() {
         removeItem: (key: string) => void held.delete(key),
     };
 }
-
-const settled = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 describe("edits as text", () => {
     it("gives back the same edits", async () => {
@@ -40,7 +44,7 @@ describe("keepUnsaved", () => {
         before.do(
             setValue(before.state.tokens, "color.text.default", "{color.neutral.100}", darkText),
         );
-        await settled();
+        await kept(storage, "demo");
 
         const after = studioOn();
         await keepUnsaved(after, storage, "demo");
@@ -56,13 +60,11 @@ describe("keepUnsaved", () => {
         studio.do(
             setValue(studio.state.tokens, "color.text.default", "{color.neutral.100}", darkText),
         );
-        await settled();
-        expect(storage.held.has("demo")).toBe(true);
+        await kept(storage, "demo");
 
         studio.discard();
-        await settled();
 
-        expect(storage.held.has("demo")).toBe(false);
+        await vi.waitFor(() => expect(storage.held.has("demo")).toBe(false));
     });
 
     it("gives a clash for an edit the files no longer fit, keeping the rest", async () => {
@@ -73,7 +75,7 @@ describe("keepUnsaved", () => {
             setValue(before.state.tokens, "color.text.default", "{color.neutral.100}", darkText),
         );
         before.do(setValue(before.state.tokens, "radius.md", { value: 0.5, unit: "rem" }));
-        await settled();
+        await kept(storage, "demo", 2);
 
         const dark = demoMessage().files["dark.json"] ?? "";
         const after = studioOn(
@@ -98,7 +100,7 @@ describe("keepUnsaved", () => {
         const studio = studioOn();
         keepUnsaved(studio, storage, "one");
         studio.do(setValue(studio.state.tokens, "radius.md", { value: 0.5, unit: "rem" }));
-        await settled();
+        await kept(storage, "one");
 
         const other = studioOn();
         await keepUnsaved(other, storage, "two");

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Saved } from "../protocol";
+import type { SaveOutcome } from "../protocol";
 import { Icon } from "../components/ui/icon/Icons";
 import { type ChangeLine, changeLines } from "../controllers/views";
 import { useStudio, useStudioState } from "../providers/studio-context";
@@ -10,7 +10,10 @@ export function ChangeBar() {
     const lines = useMemo(() => changeLines(changes), [changes]);
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [outcome, setOutcome] = useState<Saved | { failed: string }>();
+    const [outcome, setOutcome] = useState<{
+        shown: SaveOutcome | { failed: string };
+        at: typeof changes;
+    }>();
     const count = lines.length;
     const { save } = studio;
 
@@ -18,9 +21,11 @@ export function ChangeBar() {
         if (!save) return;
         setSaving(true);
         try {
-            setOutcome(await save());
+            const shown = await save();
+            setOutcome({ shown, at: studio.state.changes });
         } catch (error) {
-            setOutcome({ failed: error instanceof Error ? error.message : String(error) });
+            const failed = error instanceof Error ? error.message : String(error);
+            setOutcome({ shown: { failed }, at: studio.state.changes });
         } finally {
             setSaving(false);
         }
@@ -37,7 +42,7 @@ export function ChangeBar() {
                     ))}
                 </ul>
             )}
-            {outcome && <Outcome outcome={outcome} />}
+            {outcome?.at === changes && <Outcome outcome={outcome.shown} />}
             <div
                 className="inspector-actions repel"
                 role="toolbar"
@@ -79,7 +84,7 @@ export function ChangeBar() {
     );
 }
 
-function Outcome({ outcome }: { outcome: Saved | { failed: string } }) {
+function Outcome({ outcome }: { outcome: SaveOutcome | { failed: string } }) {
     if ("failed" in outcome) return <p>Save failed: {outcome.failed}</p>;
     if (outcome.conflicts) {
         return (

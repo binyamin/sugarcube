@@ -16,7 +16,7 @@ export type StudioConnectionConfig = {
     saveUrl?: string;
 };
 
-export type Saved =
+export type SaveOutcome =
     | { written: string[]; deleted: string[]; conflicts?: undefined }
     | { conflicts: Conflict[]; written?: undefined; deleted?: undefined };
 

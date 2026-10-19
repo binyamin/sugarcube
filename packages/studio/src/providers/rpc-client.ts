@@ -3,7 +3,7 @@ import type { SharedMessage } from "../host/open-studio";
 import type { Edits } from "@sugarcube-sh/dtcg-edit";
 import {
     STUDIO_RPC,
-    type Saved,
+    type SaveOutcome,
     type StudioConnectionConfig,
     type StudioMessage,
 } from "../protocol";
@@ -12,7 +12,7 @@ export type StudioConnection = {
     transport: Awaited<ReturnType<typeof connectDevframe>>["transport"];
     config: StudioConnectionConfig;
     message: SharedMessage;
-    save?: (edits: Edits) => Promise<Saved>;
+    save?: (edits: Edits) => Promise<SaveOutcome>;
 };
 
 /**

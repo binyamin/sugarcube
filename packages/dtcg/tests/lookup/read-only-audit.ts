@@ -8,7 +8,10 @@ const entries = {
     "dtcg-edit": ["dtcg-edit/src/index.ts", "dtcg-edit/src/node.ts"],
 };
 
-const KEEP_THEIR_ANSWERS = [["dtcg/src/css.ts", "CSSWriter"]] as const;
+const KEEP_THEIR_ANSWERS = [
+    ["dtcg/src/css.ts", "CSSWriter"],
+    ["dtcg-edit/src/index.ts", "Edits"],
+] as const;
 
 export type Package = keyof typeof entries;
 

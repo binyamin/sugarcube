@@ -13,7 +13,7 @@ import {
     type OpResult,
     createSession,
 } from "@sugarcube-sh/dtcg-edit";
-import type { Saved, SentAdapter, StudioMessage } from "../protocol";
+import type { SaveOutcome, SentAdapter, StudioMessage } from "../protocol";
 import type { BuildAdapter, BuildProblem, BuildOutput } from "./adapter";
 
 export interface StudioState {
@@ -38,13 +38,13 @@ export interface Studio {
     restore(edits: Edits): void;
     idOf(path: string): string | undefined;
     pathOf(id: string): string | undefined;
-    save?(): Promise<Saved>;
+    save?(): Promise<SaveOutcome>;
 }
 
 export function createStudio(
     first: StudioMessage,
     adapterFor: (sent: SentAdapter) => BuildAdapter,
-    saveEdits?: (edits: Edits) => Promise<Saved>,
+    saveEdits?: (edits: Edits) => Promise<SaveOutcome>,
 ): Studio {
     let message = first;
     let adapter = adapterFor(first.adapter);
@@ -73,6 +73,11 @@ export function createStudio(
     }
 
     const stopSession = session.subscribe(() => publish(built(state.showing.input)));
+
+    function settled(found: readonly Clash[]) {
+        clashes = found;
+        publish(built(state.showing.input));
+    }
 
     const save = saveEdits
         ? async () => {
@@ -106,11 +111,11 @@ export function createStudio(
             return session.do(result);
         },
         discard() {
+            clashes = [];
             session.discard();
         },
         restore(edits) {
-            clashes = session.restore(edits);
-            publish(built(state.showing.input));
+            settled(session.restore(edits));
         },
         idOf(path) {
             return session.idOf(path);
@@ -127,11 +132,11 @@ export function createStudio(
                 !sameJson(next.adapter.settings, previous.adapter.settings)
             ) {
                 adapter = adapterFor(next.adapter);
-                session.rebase(read(next, adapter));
+                settled(session.rebase(read(next, adapter)));
                 return;
             }
             const fresh = session.opened.rereadAll(next.files);
-            if (fresh !== session.opened) session.rebase(fresh);
+            if (fresh !== session.opened) settled(session.rebase(fresh));
             else if (!sameJson(next.adapter.problems, previous.adapter.problems))
                 publish(built(state.showing.input));
         },
