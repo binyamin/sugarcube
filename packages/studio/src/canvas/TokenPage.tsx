@@ -9,7 +9,8 @@ import { Showing } from "./Showing";
 import { TokenActions } from "./TokenActions";
 import { AsCSS } from "./Value";
 
-export function TokenPage({ token }: { token: Token }) {
+export function TokenPage({ token, shown }: { token: Token; shown: boolean }) {
+    const showing = useStudioState((state) => state.showing);
     const tokens = useStudioState((state) => state.tokens);
     const value = useStudioState((state) => state.value);
     const [adding, setAdding] = useState<readonly string[]>([]);
@@ -64,7 +65,7 @@ export function TokenPage({ token }: { token: Token }) {
                 )}
                 <dt>CSS</dt>
                 <dd>
-                    <AsCSS type={row.type} css={row.css} />
+                    {shown ? <AsCSS type={row.type} css={row.css} /> : <>Not in {showing.label}</>}
                 </dd>
             </dl>
             {offered

@@ -6,7 +6,7 @@ import type { SaveOutcome } from "../protocol";
 
 export async function saveEdits(onDisk: TokensOnDisk, sent: unknown): Promise<SaveOutcome> {
     if (!isEdits(sent)) throw new Error(ErrorMessages.NOT_EDITS);
-    const saved = await applyToDisk(onDisk, sent.ops);
+    const saved = await applyToDisk(onDisk, sent);
     if (saved.conflicts) return { conflicts: saved.conflicts };
     return { written: Object.keys(saved.written), deleted: saved.deleted };
 }

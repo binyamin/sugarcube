@@ -1,7 +1,7 @@
 import { type DesignTokens, type Move, movedPath } from "@sugarcube-sh/dtcg";
-import { applyWhatFits, commit } from "./apply.js";
+import { applyStepsThatFit, commit } from "./apply.js";
 import { clashesOf } from "./clashes.js";
-import type { Committed, Edits, OpResult, Session } from "./index.js";
+import type { Committed, EditStep, Edits, OpResult, Session } from "./index.js";
 
 /**
  * Starts an editing session on design tokens.
@@ -15,7 +15,7 @@ import type { Committed, Edits, OpResult, Session } from "./index.js";
 export function createSession(tokens: DesignTokens): Session {
     let current = tokens;
     let opened = tokens;
-    let unsaved: Edits = { ops: [], moved: [] };
+    let unsaved: Edits = { steps: [] };
     const counter = { made: 0 };
     let ids = followed(undefined, [], tokens, counter);
     let openedIds = ids;
@@ -40,10 +40,7 @@ export function createSession(tokens: DesignTokens): Session {
             const done = commit(current, result);
             if (!done.tokens) return done;
             current = done.tokens;
-            unsaved = {
-                ops: [...unsaved.ops, ...done.ops],
-                moved: [...unsaved.moved, ...done.moved],
-            };
+            unsaved = { steps: [...unsaved.steps, { ops: done.ops, moved: done.moved }] };
             ids = followed(ids, done.moved, current, counter);
             changed();
             return done;
@@ -58,39 +55,38 @@ export function createSession(tokens: DesignTokens): Session {
             throw new Error("not implemented yet");
         },
         changes() {
-            return current.diff(opened, { moved: unsaved.moved });
+            return current.diff(opened, { moved: movesIn(unsaved.steps) });
         },
         markSaved() {
             opened = current;
-            unsaved = { ops: [], moved: [] };
+            unsaved = { steps: [] };
             openedIds = ids;
             changed();
         },
         discard() {
             current = opened;
-            unsaved = { ops: [], moved: [] };
+            unsaved = { steps: [] };
             ids = openedIds;
             changed();
         },
         restore(edits) {
-            const { tokens: next, applied, skipped } = applyWhatFits(current, edits.ops);
+            const { tokens: next, applied, skipped } = applyStepsThatFit(current, edits.steps);
             const clashes = clashesOf(skipped, current, next);
             if (applied.length === 0) return clashes;
-            const moved = kept(edits.moved, next);
             current = next;
-            unsaved = { ops: [...unsaved.ops, ...applied], moved: [...unsaved.moved, ...moved] };
-            ids = followed(ids, moved, current, counter);
+            unsaved = { steps: [...unsaved.steps, ...applied] };
+            ids = followed(ids, movesIn(applied), current, counter);
             changed();
             return clashes;
         },
         rebase(fresh) {
-            const { tokens: next, applied, skipped } = applyWhatFits(fresh, unsaved.ops);
+            const { tokens: next, applied, skipped } = applyStepsThatFit(fresh, unsaved.steps);
             const clashes = clashesOf(skipped, fresh, next, [current, opened]);
             openedIds = followed(openedIds, [], fresh, counter);
             ids = followed(ids, [], next, counter, openedIds);
             opened = fresh;
             current = next;
-            unsaved = { ops: applied, moved: kept(unsaved.moved, next) };
+            unsaved = { steps: applied };
             changed();
             return clashes;
         },
@@ -147,14 +143,8 @@ function followed(
     return { byId, byPath };
 }
 
-function kept(moved: readonly Move[], tokens: DesignTokens): Move[] {
-    const paths = pathsIn(tokens);
-    const later: Move[] = [];
-    for (let index = moved.length - 1; index >= 0; index--) {
-        const move = moved[index];
-        if (move && paths.has(movedPath(move.to, later))) later.unshift(move);
-    }
-    return later;
+function movesIn(steps: readonly EditStep[]): Move[] {
+    return steps.flatMap((step) => step.moved);
 }
 
 function pathsIn(tokens: DesignTokens): Set<string> {

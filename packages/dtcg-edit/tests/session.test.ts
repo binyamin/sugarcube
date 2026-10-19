@@ -9,7 +9,7 @@ import {
     setDescription,
     setValue,
 } from "../src/index.js";
-import { demo } from "./helpers.js";
+import { demo, opsIn } from "./helpers.js";
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 
 describe("createSession", () => {
@@ -18,7 +18,7 @@ describe("createSession", () => {
 
         expect(session.tokens).toBe(demo);
         expect(session.opened).toBe(demo);
-        expect(session.unsaved).toEqual({ ops: [], moved: [] });
+        expect(session.unsaved).toEqual({ steps: [] });
         expect(session.changes()).toEqual([]);
     });
 
@@ -27,7 +27,7 @@ describe("createSession", () => {
         const done = session.do(setValue(session.tokens, "color.brand.500", red));
 
         expect(done.tokens).toBe(session.tokens);
-        expect(session.unsaved.ops).toEqual([
+        expect(opsIn(session.unsaved)).toEqual([
             expect.objectContaining({ kind: "set", file: "color.json" }),
         ]);
         expect(session.unsaved).not.toHaveProperty("files");
@@ -40,10 +40,36 @@ describe("createSession", () => {
         session.do(setValue(session.tokens, "color.brand.500", red));
         session.do(setDescription(session.tokens, "color.brand.500", "The anchor."));
 
-        expect(session.unsaved.ops.map((op) => op.kind)).toEqual(["set", "set"]);
-        expect(session.unsaved.ops.map((op) => "jsonPath" in op && op.jsonPath.at(-1))).toEqual([
+        expect(opsIn(session.unsaved).map((op) => op.kind)).toEqual(["set", "set"]);
+        expect(opsIn(session.unsaved).map((op) => "jsonPath" in op && op.jsonPath.at(-1))).toEqual([
             "$value",
             "$description",
+        ]);
+    });
+
+    it("keeps each operation as one step, with every file it changes and the moves it made", () => {
+        const session = createSession(demo);
+
+        session.do(rename(session.tokens, "color.text.default", "body"));
+
+        expect(session.unsaved.steps).toHaveLength(1);
+        expect(session.unsaved.steps[0]?.ops.map((op) => op.file)).toEqual([
+            "color.json",
+            "dark.json",
+        ]);
+        expect(session.unsaved.steps[0]?.moved).toEqual([
+            { from: "color.text.default", to: "color.text.body" },
+        ]);
+    });
+
+    it("keeps one step for each operation, in the order they were done", () => {
+        const session = createSession(demo);
+        session.do(setValue(session.tokens, "radius.md", { value: 1, unit: "rem" }));
+        session.do(rename(session.tokens, "radius.md", "medium"));
+
+        expect(session.unsaved.steps.map((step) => step.ops.map((op) => op.kind))).toEqual([
+            ["set"],
+            ["renameKey"],
         ]);
     });
 
@@ -55,7 +81,7 @@ describe("createSession", () => {
 
         expect(answer).toMatchObject({ refused: { kind: "not-found" } });
         expect(session.tokens).toBe(demo);
-        expect(session.unsaved.ops).toEqual([]);
+        expect(opsIn(session.unsaved)).toEqual([]);
         expect(heard).not.toHaveBeenCalled();
     });
 
@@ -65,7 +91,9 @@ describe("createSession", () => {
         session.do(rename(session.tokens, "color.brand.300", "350"));
 
         expect(session.changes()).toEqual(
-            session.tokens.diff(demo, { moved: session.unsaved.moved }),
+            session.tokens.diff(demo, {
+                moved: session.unsaved.steps.flatMap((step) => step.moved),
+            }),
         );
         expect(session.changes().map((change) => [change.kind, change.path])).toContainEqual([
             "renamed",
@@ -81,7 +109,7 @@ describe("createSession", () => {
 
         expect(session.tokens).toBe(demo);
         expect(session.tokens.toMemory().files).toEqual(demo.toMemory().files);
-        expect(session.unsaved).toEqual({ ops: [], moved: [] });
+        expect(session.unsaved).toEqual({ steps: [] });
         expect(session.changes()).toEqual([]);
     });
 
@@ -92,7 +120,7 @@ describe("createSession", () => {
         session.markSaved();
 
         expect(session.opened).toBe(saved);
-        expect(session.unsaved).toEqual({ ops: [], moved: [] });
+        expect(session.unsaved).toEqual({ steps: [] });
         expect(session.changes()).toEqual([]);
 
         session.do(setDescription(session.tokens, "color.brand.500", "The anchor."));
@@ -132,7 +160,7 @@ describe("createSession", () => {
         session.do(create(session.tokens, "motion2", { group: true }));
         session.do(remove(session.tokens, "color.brand.50"));
         session.do(rename(session.tokens, "color.brand", "primary"));
-        const replayed = apply(demo, session.unsaved.ops);
+        const replayed = apply(demo, opsIn(session.unsaved));
         if (replayed.conflicts) throw new Error(JSON.stringify(replayed.conflicts));
         expect(replayed.tokens.toMemory().files).toEqual(session.tokens.toMemory().files);
         const plain = (tokens: DesignTokens) => JSON.parse(JSON.stringify(tokens));

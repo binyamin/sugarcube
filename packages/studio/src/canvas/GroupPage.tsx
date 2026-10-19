@@ -1,21 +1,26 @@
 import { NavLink } from "react-router";
 import { hrefFor } from "../app/token-path";
-import type { Group } from "@sugarcube-sh/dtcg";
+import type { Group, Token } from "@sugarcube-sh/dtcg";
 import { groupView } from "../controllers/views";
 import { useStudioState } from "../providers/studio-context";
 import { NewToken } from "./NewToken";
 import { Showing } from "./Showing";
 import { AsCSS, Written } from "./Value";
 
-export function GroupPage({ group }: { group: Group }) {
+export function GroupPage({ group, shown }: { group: Group; shown: boolean }) {
     const value = useStudioState((state) => state.value);
-    const view = groupView(group, value);
+    const showing = useStudioState((state) => state.showing);
+    const view = groupView(group, (token: Token) => {
+        const here = showing.token(token.path);
+        return here && value(here);
+    });
 
     return (
         <article>
             <h1>{view.path}</h1>
             {view.description && <p>{view.description}</p>}
             <Showing />
+            {!shown && <p>Not in {showing.label}</p>}
 
             {view.groups.length > 0 && (
                 <table>

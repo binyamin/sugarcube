@@ -12,6 +12,7 @@ import {
     type Edits,
     type OpResult,
     createSession,
+    keepYours,
 } from "@sugarcube-sh/dtcg-edit";
 import type { SaveOutcome, SentAdapter, StudioMessage } from "../protocol";
 import type { BuildAdapter, BuildProblem, BuildOutput } from "./adapter";
@@ -36,6 +37,7 @@ export interface Studio {
     do(result: OpResult): Committed;
     discard(): void;
     restore(edits: Edits): void;
+    keep(clash: Clash, side: "yours" | "theirs"): Committed | undefined;
     idOf(path: string): string | undefined;
     pathOf(id: string): string | undefined;
     save?(): Promise<SaveOutcome>;
@@ -116,6 +118,13 @@ export function createStudio(
         },
         restore(edits) {
             settled(session.restore(edits));
+        },
+        keep(clash, side) {
+            const done =
+                side === "yours" ? session.do(keepYours(session.tokens, clash)) : undefined;
+            if (done && !done.tokens) return done;
+            settled(clashes.filter((each) => each !== clash));
+            return done;
         },
         idOf(path) {
             return session.idOf(path);

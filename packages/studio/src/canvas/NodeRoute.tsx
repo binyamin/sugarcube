@@ -2,7 +2,7 @@ import { parentOf } from "@sugarcube-sh/dtcg";
 import { useEffect, useMemo } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { hrefFor, pathFromPathname } from "../app/token-path";
-import { sidebarTree } from "../controllers/views";
+import { nodeAt, sidebarTree } from "../controllers/views";
 import { useStudio, useStudioState } from "../providers/studio-context";
 import { GroupPage } from "./GroupPage";
 import { TokenPage } from "./TokenPage";
@@ -18,12 +18,12 @@ export function NodeRoute() {
     useFollowed(path);
 
     if (path === undefined) return <Home />;
-    const group = showing.group(path);
-    if (group) return <GroupPage key={path} group={group} />;
-    const token = showing.token(path);
-    if (token) return <TokenPage key={path} token={token} />;
-    if (tokens.has(path)) return <p>Not in {showing.label}.</p>;
-    return <p>Nothing at this address.</p>;
+    const found = nodeAt(tokens, showing, path);
+    if (!found) return <p>Nothing at this address.</p>;
+    if (found.node.kind === "group") {
+        return <GroupPage key={path} group={found.node} shown={found.shown} />;
+    }
+    return <TokenPage key={path} token={found.node} shown={found.shown} />;
 }
 
 function useFollowed(path: string | undefined) {

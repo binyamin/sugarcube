@@ -36,7 +36,7 @@ describe("saving", () => {
 
         expect(edits).toBe(0);
         expect(sent).toHaveLength(1);
-        expect(sent[0]?.ops).toHaveLength(1);
+        expect(sent[0]?.steps).toHaveLength(1);
         expect(saved).toEqual({ written: ["dark.json"], deleted: [] });
         expect(studio.state.changes).toEqual([]);
     });

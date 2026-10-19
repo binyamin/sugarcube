@@ -36,7 +36,7 @@ export function openInBrowser(sent: TokensInMemory): DesignTokens {
 export async function save(sent: unknown): Promise<string> {
     if (!serving) return "Nothing to save to yet";
     if (!isEdits(sent)) return "That isn't a set of edits";
-    const result = await applyToDisk(onDisk, sent.ops);
+    const result = await applyToDisk(onDisk, sent);
     if (result.conflicts) return result.conflicts.map((c) => c.reason).join("\n");
     await live.readAgain();
     return `Saved ${Object.keys(result.written).length} files`;

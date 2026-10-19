@@ -1,7 +1,7 @@
 import { type DesignTokens, type JsonValue, sameJson } from "@sugarcube-sh/dtcg";
 import { type Node, findNodeAtLocation, getNodeValue, parseTree } from "jsonc-parser";
 import { conflict } from "./error-messages.js";
-import type { Applied, Committed, Conflict, FileOp, OpResult } from "./index.js";
+import type { Applied, Committed, Conflict, EditStep, Edits, FileOp, OpResult } from "./index.js";
 import { type Splice, indentUnit, lineBreak, removal, spliced } from "./json-text.js";
 import { renameSplices, setSplices, valueAt } from "./text-edits.js";
 
@@ -36,7 +36,7 @@ interface Texts {
  * else tokens = next.tokens;
  */
 export function apply(tokens: DesignTokens, ops: readonly FileOp[]): Applied {
-    const changes = changedFiles(tokens, ops);
+    const changes = changedBy(tokens, ops);
     return changes.conflicts ? { conflicts: changes.conflicts } : { tokens: changes.tokens };
 }
 
@@ -48,22 +48,28 @@ export function apply(tokens: DesignTokens, ops: readonly FileOp[]): Applied {
  * longer applies, the answer is the conflicts.
  *
  * @example
- * const changes = changedFiles(tokens, edits.ops);
+ * const changes = changedFiles(tokens, session.unsaved);
  * if (changes.conflicts) showConflicts(changes.conflicts);
  * else await openPullRequest(changes);
  */
-export function changedFiles(
-    tokens: DesignTokens,
-    ops: readonly FileOp[],
-):
+export function changedFiles(tokens: DesignTokens, edits: Edits): FilesChanged {
+    return changedBy(
+        tokens,
+        edits.steps.flatMap((step) => step.ops),
+    );
+}
+
+type FilesChanged =
     | {
           tokens: DesignTokens;
           written: Record<string, string>;
           deleted: string[];
           conflicts?: undefined;
       }
-    | { conflicts: Conflict[]; tokens?: undefined } {
-    const { changed, conflicts } = editedFiles(tokens, ops);
+    | { conflicts: Conflict[]; tokens?: undefined };
+
+function changedBy(tokens: DesignTokens, ops: readonly FileOp[]): FilesChanged {
+    const { changed, conflicts } = editedFiles(tokens, [{ ops, moved: [] }]);
     if (conflicts.length > 0) return { conflicts };
     const next = tokens.reread(changed);
     const lost = unread(next, ops);
@@ -78,30 +84,34 @@ export function changedFiles(
     return { tokens: next, written: Object.fromEntries(written), deleted: deleted.sort() };
 }
 
-export function applyWhatFits(
+export function applyStepsThatFit(
     tokens: DesignTokens,
-    ops: readonly FileOp[],
-): { tokens: DesignTokens; applied: readonly FileOp[]; skipped: readonly FileOp[] } {
-    const { changed, conflicts } = editedFiles(tokens, ops);
-    if (conflicts.length === ops.length) return { tokens, applied: [], skipped: ops };
-    const next = tokens.reread(changed);
-    const lost = unread(next, ops);
-    const failed = new Set([...conflicts.map(({ op }) => op), ...lost]);
-    const skipped = ops.filter((op) => failed.has(op));
-    return { tokens: next, applied: ops.filter((op) => !failed.has(op)), skipped };
+    steps: readonly EditStep[],
+): { tokens: DesignTokens; applied: readonly EditStep[]; skipped: readonly EditStep[] } {
+    let trying = steps;
+    for (;;) {
+        const { changed, fitting } = editedFiles(tokens, trying);
+        const next = fitting.length === 0 ? tokens : tokens.reread(changed);
+        const lost = fitting.filter((step) => unread(next, step.ops).length > 0);
+        if (lost.length === 0) {
+            const kept = new Set(fitting);
+            const skipped = steps.filter((step) => !kept.has(step));
+            return { tokens: next, applied: fitting, skipped };
+        }
+        trying = fitting.filter((step) => !lost.includes(step));
+    }
 }
 
-function editedFiles(tokens: DesignTokens, ops: readonly FileOp[]) {
-    const changed: Changed = {};
+function editedFiles(tokens: DesignTokens, steps: readonly EditStep[]) {
+    let changed: Changed = {};
     const texts: Texts = {
         of: (file) => (file in changed ? (changed[file] ?? undefined) : tokens.text(file)),
         set: (file, text) => {
             changed[file] = text;
         },
     };
-    const drafts = new Map<string, Draft>();
+    let drafts = new Map<string, Draft>();
     const style = texts.of(tokens.entry) ?? "";
-    const conflicts: Conflict[] = [];
     const written = (file: string) => {
         const draft = drafts.get(file);
         if (draft && draft.pending.length > 0) texts.set(file, spliced(draft.text, draft.pending));
@@ -113,12 +123,29 @@ function editedFiles(tokens: DesignTokens, ops: readonly FileOp[]) {
         if (draft) drafts.set(file, draft);
         return draft;
     };
-    for (const op of ops) {
-        const kind = applyOne(op, style, texts, { draftOf, written });
-        if (kind !== undefined) conflicts.push(conflict(op, kind));
+    const conflicts: Conflict[] = [];
+    const fitting: EditStep[] = [];
+    for (const step of steps) {
+        const before = { changed: { ...changed }, drafts: new Map(drafts) };
+        const pendingBefore = new Map(
+            [...drafts].map(([file, draft]) => [file, draft.pending.length]),
+        );
+        const found: Conflict[] = [];
+        for (const op of step.ops) {
+            const kind = applyOne(op, style, texts, { draftOf, written });
+            if (kind !== undefined) found.push(conflict(op, kind));
+        }
+        if (found.length === 0) {
+            fitting.push(step);
+            continue;
+        }
+        conflicts.push(...found);
+        changed = before.changed;
+        drafts = before.drafts;
+        for (const [file, draft] of drafts) draft.pending.length = pendingBefore.get(file) ?? 0;
     }
     for (const file of drafts.keys()) written(file);
-    return { changed, conflicts };
+    return { changed, conflicts, fitting };
 }
 
 function unread(next: DesignTokens, ops: readonly FileOp[]): FileOp[] {

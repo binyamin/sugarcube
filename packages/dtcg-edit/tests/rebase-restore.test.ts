@@ -9,7 +9,7 @@ import {
     setDescription,
     setValue,
 } from "../src/index.js";
-import { at, changed, demo } from "./helpers.js";
+import { asEdits, at, changed, demo, opsIn, partsOf } from "./helpers.js";
 const red = { colorSpace: "srgb", components: [1, 0, 0] };
 const blue = { colorSpace: "srgb", components: [0, 0, 1] };
 
@@ -23,7 +23,7 @@ describe("rebase", () => {
         expect(session.rebase(fresh)).toEqual([]);
         expect(session.tokens.toMemory().files).toEqual(fresh.toMemory().files);
         expect(session.opened).toBe(fresh);
-        expect(session.unsaved).toEqual({ ops: [], moved: [] });
+        expect(session.unsaved).toEqual({ steps: [] });
         expect(session.changes()).toEqual([]);
     });
 
@@ -37,7 +37,7 @@ describe("rebase", () => {
         expect(session.tokens.permutation().token("color.brand.600")?.authored?.value).toEqual(
             blue,
         );
-        expect(session.unsaved.ops).toHaveLength(1);
+        expect(opsIn(session.unsaved)).toHaveLength(1);
         expect(session.changes().map((change) => change.path)).toEqual(["color.brand.500"]);
     });
 
@@ -58,7 +58,7 @@ describe("rebase", () => {
         session.do(setValue(session.tokens, "color.brand.500", red));
         const fresh = changed(demo, [["color.json", ["color", "brand", "500", "$value"], blue]]);
 
-        expect(session.rebase(fresh)).toEqual([
+        expect(partsOf(session.rebase(fresh))).toEqual([
             {
                 path: "color.brand.500",
                 file: "color.json",
@@ -68,7 +68,7 @@ describe("rebase", () => {
             },
         ]);
         expect(session.tokens).toBe(fresh);
-        expect(session.unsaved).toEqual({ ops: [], moved: [] });
+        expect(session.unsaved).toEqual({ steps: [] });
     });
 
     it("gives your version of a clashing token with every edit of yours to it, those that fit too", () => {
@@ -77,7 +77,7 @@ describe("rebase", () => {
         session.do(setValue(session.tokens, "color.brand.500", red));
         const fresh = changed(demo, [["color.json", ["color", "brand", "500", "$value"], blue]]);
 
-        expect(session.rebase(fresh)).toEqual([
+        expect(partsOf(session.rebase(fresh))).toEqual([
             {
                 path: "color.brand.500",
                 file: "color.json",
@@ -93,7 +93,7 @@ describe("rebase", () => {
         session.do(setValue(session.tokens, "color.brand.500", red));
         const fresh = changed(demo, [["color.json", ["color", "brand", "500"], undefined]]);
 
-        expect(session.rebase(fresh)).toEqual([
+        expect(partsOf(session.rebase(fresh))).toEqual([
             {
                 path: "color.brand.500",
                 file: "color.json",
@@ -123,7 +123,7 @@ describe("rebase", () => {
             entry: "tokens.resolver.json",
         });
 
-        expect(session.rebase(fresh)).toEqual([
+        expect(partsOf(session.rebase(fresh))).toEqual([
             {
                 path: "size.sm",
                 file: "tokens.resolver.json",
@@ -167,13 +167,47 @@ describe("rebase", () => {
         expect(session.pathOf(made ?? "")).toBeUndefined();
     });
 
+    it("puts a step back whole or not at all, so a rename is never half kept", () => {
+        const session = createSession(demo);
+        session.do(rename(session.tokens, "color.text.default", "defaultttttt"));
+        const fresh = changed(demo, [
+            ["color.json", ["color", "text", "default"], undefined],
+            ["color.json", ["color", "text", "body"], { $value: "{color.neutral.900}" }],
+        ]);
+
+        expect(session.rebase(fresh)).not.toEqual([]);
+        expect(session.tokens.toMemory().files).toEqual(fresh.toMemory().files);
+        expect(session.tokens.has("color.text.defaultttttt")).toBe(false);
+        expect(session.unsaved).toEqual({ steps: [] });
+        expect(session.changes()).toEqual([]);
+    });
+
+    it("keeps a later step that still fits when an earlier one is dropped", () => {
+        const session = createSession(demo);
+        session.do(rename(session.tokens, "color.text.default", "defaultttttt"));
+        session.do(setValue(session.tokens, "radius.md", { value: 1, unit: "rem" }));
+        const fresh = changed(demo, [["color.json", ["color", "text", "default"], undefined]]);
+
+        session.rebase(fresh);
+
+        expect(session.unsaved.steps.map((step) => step.ops.map((op) => op.file))).toEqual([
+            ["radius.json"],
+        ]);
+        expect(session.tokens.permutation().token("radius.md")?.authored?.value).toEqual({
+            value: 1,
+            unit: "rem",
+        });
+    });
+
     it("names each clash by the token its edits were made to, before and after your rename", () => {
         const session = createSession(demo);
         session.do(rename(session.tokens, "radius.md", "medium"));
         session.do(setValue(session.tokens, "radius.medium", { value: 1, unit: "rem" }));
         const fresh = changed(demo, [["radius.json", ["radius", "md"], undefined]]);
 
-        expect(session.rebase(fresh).map(({ path, jsonPath }) => [path, jsonPath])).toEqual([
+        expect(
+            partsOf(session.rebase(fresh)).map(({ path, jsonPath }) => [path, jsonPath]),
+        ).toEqual([
             ["radius.md", ["radius", "md"]],
             ["radius.medium", ["radius", "medium"]],
         ]);
@@ -184,10 +218,10 @@ describe("rebase", () => {
         session.do(rename(session.tokens, "radius.md", "medium"));
         const fresh = changed(demo, [["radius.json", ["radius", "md"], undefined]]);
 
-        expect(session.rebase(fresh)).toMatchObject([
+        expect(partsOf(session.rebase(fresh))).toMatchObject([
             { path: "radius.md", file: "radius.json", jsonPath: ["radius", "md"] },
         ]);
-        expect(session.unsaved).toEqual({ ops: [], moved: [] });
+        expect(session.unsaved).toEqual({ steps: [] });
         expect(session.changes()).toEqual([]);
     });
 
@@ -200,7 +234,7 @@ describe("rebase", () => {
         ]);
 
         expect(session.rebase(fresh)).toEqual([]);
-        expect(session.unsaved.moved).toEqual([
+        expect(session.unsaved.steps.flatMap((step) => step.moved)).toEqual([
             { from: "radius.md", to: "radius.medium" },
             { from: "radius.medium", to: "radius.mid" },
         ]);
@@ -220,6 +254,51 @@ describe("rebase", () => {
         );
 
         expect(heard).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("a clash", () => {
+    it("is one per step that no longer fits, holding the step and each part of a file it changes", () => {
+        const session = createSession(demo);
+        session.do(rename(session.tokens, "color.text.default", "defaultttttt"));
+        const [step] = session.unsaved.steps;
+        const fresh = changed(demo, [
+            ["color.json", ["color", "text", "default"], undefined],
+            ["color.json", ["color", "text", "body"], { $value: "{color.neutral.900}" }],
+        ]);
+
+        const clashes = session.rebase(fresh);
+
+        expect(clashes).toHaveLength(1);
+        expect(clashes[0]?.step).toBe(step);
+        expect(clashes[0]?.parts.map(({ file }) => file)).toEqual(["color.json", "dark.json"]);
+        expect(clashes[0]?.keepable).toBe(false);
+    });
+
+    it("can be kept yours when every place your step changes is still there", () => {
+        const session = createSession(demo);
+        session.do(setValue(session.tokens, "color.brand.500", red));
+        const fresh = changed(demo, [["color.json", ["color", "brand", "500", "$value"], blue]]);
+
+        expect(session.rebase(fresh)[0]?.keepable).toBe(true);
+    });
+
+    it("can't be kept yours when they removed or renamed what you changed", () => {
+        const session = createSession(demo);
+        session.do(setValue(session.tokens, "color.brand.500", red));
+        const fresh = changed(demo, [["color.json", ["color", "brand", "500"], undefined]]);
+
+        expect(session.rebase(fresh)[0]?.keepable).toBe(false);
+    });
+
+    it("can be kept yours when you removed what they changed", () => {
+        const session = createSession(demo);
+        session.do(remove(session.tokens, "radius.full"));
+        const fresh = changed(demo, [
+            ["radius.json", ["radius", "full", "$value"], { value: 1000, unit: "px" }],
+        ]);
+
+        expect(session.rebase(fresh)[0]?.keepable).toBe(true);
     });
 });
 
@@ -264,7 +343,7 @@ describe("restore", () => {
         const moved = changed(demo, [["color.json", ["color", "brand", "500", "$value"], blue]]);
 
         const session = createSession(moved);
-        expect(session.restore(kept)).toEqual([
+        expect(partsOf(session.restore(kept))).toEqual([
             {
                 path: "color.brand.500",
                 file: "color.json",
@@ -277,7 +356,60 @@ describe("restore", () => {
             value: 1,
             unit: "rem",
         });
-        expect(session.unsaved.ops).toHaveLength(1);
+        expect(opsIn(session.unsaved)).toHaveLength(1);
+    });
+
+    it("leaves no trace of a step that fails part way, in a file a later step that fits also changes", () => {
+        const fits: FileOp = {
+            kind: "set",
+            file: "radius.json",
+            jsonPath: ["radius", "sm", "$value"],
+            value: { value: 9, unit: "px" },
+            was: at(demo, "radius.json", ["radius", "sm", "$value"]) as JsonValue,
+        };
+        const stale: FileOp = {
+            kind: "set",
+            file: "radius.json",
+            jsonPath: ["radius", "md", "$value"],
+            value: { value: 1, unit: "rem" },
+            was: "not what is there",
+        };
+        const later: FileOp = {
+            kind: "set",
+            file: "radius.json",
+            jsonPath: ["radius", "lg", "$value"],
+            value: { value: 2, unit: "rem" },
+            was: at(demo, "radius.json", ["radius", "lg", "$value"]) as JsonValue,
+        };
+        const session = createSession(demo);
+
+        session.restore({
+            steps: [
+                { ops: [fits, stale], moved: [] },
+                { ops: [later], moved: [] },
+            ],
+        });
+
+        expect(at(session.tokens, "radius.json", ["radius", "sm", "$value"])).toEqual(
+            at(demo, "radius.json", ["radius", "sm", "$value"]),
+        );
+        expect(at(session.tokens, "radius.json", ["radius", "lg", "$value"])).toEqual({
+            value: 2,
+            unit: "rem",
+        });
+        expect(session.unsaved.steps).toEqual([{ ops: [later], moved: [] }]);
+    });
+
+    it("puts back a step whole or not at all after a reload", () => {
+        const before = createSession(demo);
+        before.do(rename(before.tokens, "color.text.default", "defaultttttt"));
+        const elsewhere = changed(demo, [["color.json", ["color", "text", "default"], undefined]]);
+
+        const session = createSession(elsewhere);
+        session.restore(before.unsaved);
+
+        expect(session.tokens).toBe(elsewhere);
+        expect(session.unsaved).toEqual({ steps: [] });
     });
 
     it("puts back only the moves of the renames that fit", () => {
@@ -288,7 +420,9 @@ describe("restore", () => {
 
         const session = createSession(elsewhere);
         session.restore(before.unsaved);
-        expect(session.unsaved.moved).toEqual([{ from: "radius.sm", to: "radius.small" }]);
+        expect(session.unsaved.steps.flatMap((step) => step.moved)).toEqual([
+            { from: "radius.sm", to: "radius.small" },
+        ]);
     });
 
     it("says where a clash on what is neither a token nor a group is, and names no token", () => {
@@ -305,7 +439,7 @@ describe("restore", () => {
         const theirs = changed(demo, [["tokens.resolver.json", sources, listed.slice(1)]]);
 
         const session = createSession(theirs);
-        expect(session.restore({ ops: [mine], moved: [] })).toEqual([
+        expect(partsOf(session.restore(asEdits([mine])))).toEqual([
             { file: "tokens.resolver.json", jsonPath: sources, yours, theirs: listed.slice(1) },
         ]);
     });
@@ -322,7 +456,7 @@ describe("restore", () => {
 
         const heard = vi.fn();
         session.subscribe(heard);
-        expect(session.restore({ ops: [op], moved: [] })).toEqual([
+        expect(partsOf(session.restore(asEdits([op])))).toEqual([
             { file: "gone.json", jsonPath: ["glow"], yours: { $value: 1 } },
         ]);
         expect(session.tokens).toBe(demo);

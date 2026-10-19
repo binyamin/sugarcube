@@ -9,7 +9,7 @@ const darkText = { input: { mode: "dark" } } as const;
 const kept = (storage: { held: Map<string, string> }, key: string, edits = 1) =>
     vi.waitFor(async () => {
         const held = storage.held.get(key);
-        expect(held && (await decodeEdits(held))?.ops).toHaveLength(edits);
+        expect(held && (await decodeEdits(held))?.steps).toHaveLength(edits);
     });
 
 function memoryStorage() {
@@ -84,15 +84,17 @@ describe("keepUnsaved", () => {
         await keepUnsaved(after, storage, "demo");
 
         expect(after.state.changes.map(({ path }) => path)).toEqual(["radius.md"]);
-        expect(after.state.clashes.map(({ path, yours, theirs }) => [path, yours, theirs])).toEqual(
+        expect(
+            after.state.clashes
+                .flatMap((clash) => clash.parts)
+                .map(({ path, yours, theirs }) => [path, yours, theirs]),
+        ).toEqual([
             [
-                [
-                    "color.text.default",
-                    { $value: "{color.neutral.100}" },
-                    { $value: "{color.neutral.200}" },
-                ],
+                "color.text.default",
+                { $value: "{color.neutral.100}" },
+                { $value: "{color.neutral.200}" },
             ],
-        );
+        ]);
     });
 
     it("keeps each project's edits apart", async () => {

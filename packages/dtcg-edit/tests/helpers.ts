@@ -7,7 +7,7 @@ import {
     readFromMemory,
     type JsonValue,
 } from "@sugarcube-sh/dtcg";
-import { type FileOp, type OpResult, commit } from "../src/index.js";
+import { type Clash, type Edits, type FileOp, type OpResult, commit } from "../src/index.js";
 import { removeAt, setAt } from "../src/text-edits.js";
 
 const folder = join(import.meta.dirname, "fixtures/demo");
@@ -65,3 +65,9 @@ export function changed(
     }
     return tokens.reread(texts);
 }
+
+export const opsIn = (edits: Edits): readonly FileOp[] => edits.steps.flatMap((step) => step.ops);
+
+export const asEdits = (ops: readonly FileOp[]): Edits => ({ steps: [{ ops, moved: [] }] });
+
+export const partsOf = (clashes: readonly Clash[]) => clashes.flatMap((clash) => clash.parts);

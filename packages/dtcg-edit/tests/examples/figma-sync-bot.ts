@@ -8,7 +8,7 @@ declare const tokens: DesignTokens;
 const result = setValue(tokens, "color.primary.600", figmaValue, { input: { mode: "dark" } });
 
 if (result.ops) {
-    const changes = changedFiles(tokens, result.ops);
+    const changes = changedFiles(tokens, { steps: [result] });
     if (!changes.conflicts) {
         await openPullRequest(changes, {
             title: "Figma: color.primary.600 in mode: dark",

@@ -1,9 +1,10 @@
 import type { Edits } from "./index.js";
 
 /**
- * Whether a value is well-formed {@link Edits}: every edit one of the six kinds, with the members
- * its kind needs, and every move a `from` and a `to`. For edits from outside the session, such as
- * a request, a link or storage, before they go to {@link Session.restore} or {@link apply}.
+ * Whether a value is well-formed {@link Edits}: a list of steps, every edit in each one of the six
+ * kinds, with the members its kind needs, and every move a `from` and a `to`. For edits from
+ * outside the session, such as a request, a link or storage, before they go to
+ * {@link Session.restore}, {@link changedFiles} or `applyToDisk`.
  *
  * @example
  * const sent: unknown = JSON.parse(body);
@@ -11,6 +12,10 @@ import type { Edits } from "./index.js";
  * session.restore(sent);
  */
 export function isEdits(value: unknown): value is Edits {
+    return isObject(value) && Array.isArray(value.steps) && value.steps.every(isStep);
+}
+
+function isStep(value: unknown): boolean {
     if (!isObject(value)) return false;
     const { ops, moved } = value;
     return Array.isArray(ops) && ops.every(isOp) && Array.isArray(moved) && moved.every(isMove);

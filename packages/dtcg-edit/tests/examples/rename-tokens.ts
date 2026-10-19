@@ -7,5 +7,5 @@ import { applyToDisk } from "@sugarcube-sh/dtcg-edit/node";
 const source = { entry: "tokens/tokens.resolver.json" };
 const tokens = await read(source.entry);
 const done = commit(tokens, rename(tokens, "color.brand", "primary"));
-if (done.tokens) await applyToDisk(source, done.ops);
+if (done.tokens) await applyToDisk(source, { steps: [done] });
 else if (done.refused) showMessage(done.refused.reason);

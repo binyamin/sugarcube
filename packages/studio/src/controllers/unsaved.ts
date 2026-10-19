@@ -15,7 +15,7 @@ export async function keepUnsaved(
         if (unsaved === kept) return;
         kept = unsaved;
         const turn = ++latest;
-        if (unsaved.ops.length === 0) {
+        if (unsaved.steps.length === 0) {
             storage.removeItem(key);
             return;
         }

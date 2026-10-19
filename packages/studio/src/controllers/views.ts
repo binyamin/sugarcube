@@ -2,6 +2,7 @@ import type {
     Change,
     DesignTokens,
     Group,
+    Permutation,
     Permutations,
     Token,
     TokenType,
@@ -101,6 +102,20 @@ function finish(draft: Draft): TreeNode {
         children,
         ...(draft.hasValue ? { hasValue: true as const } : {}),
     };
+}
+
+export function nodeAt(
+    tokens: DesignTokens,
+    showing: Permutation,
+    path: string,
+): { node: Token | Group; shown: boolean } | undefined {
+    const here = showing.token(path) ?? showing.group(path);
+    if (here) return { node: here, shown: true };
+    for (const permutation of tokens.permutations) {
+        const there = permutation.token(path) ?? permutation.group(path);
+        if (there) return { node: there, shown: false };
+    }
+    return undefined;
 }
 
 export function trail(path: string): Crumb[] {

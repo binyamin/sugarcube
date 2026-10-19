@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { SaveOutcome } from "../protocol";
 import { Icon } from "../components/ui/icon/Icons";
 import { type ChangeLine, changeLines } from "../controllers/views";
+import { Clashes } from "./Clashes";
 import { useStudio, useStudioState } from "../providers/studio-context";
 
 export function ChangeBar() {
@@ -33,6 +34,7 @@ export function ChangeBar() {
 
     return (
         <div className="change-bar">
+            <Clashes />
             {open && count > 0 && (
                 <ul>
                     {lines.map((line) => (
