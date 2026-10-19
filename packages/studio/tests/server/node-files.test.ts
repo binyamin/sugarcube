@@ -1,9 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { FileWatcher } from "@sugarcube-sh/dtcg/node";
-import { createSession, setValue } from "@sugarcube-sh/dtcg-edit";
-import { readFromMemory } from "@sugarcube-sh/dtcg";
-import { readOptions } from "@sugarcube-sh/core/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { nodeFiles } from "../../src/server/node-files";
 import { demoCopy } from "./demo-copy";
@@ -36,7 +33,7 @@ describe("nodeFiles", () => {
     it("sends every file the tokens are read from", async () => {
         const { dir, files } = await demo();
 
-        const { files: sent } = files.message();
+        const sent = files.now().tokens.toMemory().files;
 
         expect(sent["dark.json"]).toBe(readFileSync(join(dir, "dark.json"), "utf8"));
         expect(sent["tokens.resolver.json"]).toBeDefined();
@@ -67,7 +64,7 @@ describe("nodeFiles", () => {
         change(path);
         await changed;
 
-        expect(files.message().files["dark.json"]).toBe(edited);
+        expect(files.now().tokens.text("dark.json")).toBe(edited);
     });
 
     it("stops telling a listener once it stops listening", async () => {
@@ -87,22 +84,5 @@ describe("nodeFiles", () => {
         await told;
 
         expect(listener).not.toHaveBeenCalled();
-    });
-
-    it("saves edits to the files it reads", async () => {
-        const { dir, files } = await demo();
-        const message = files.message();
-        const session = createSession(readFromMemory(message, readOptions(message.config)));
-        session.do(
-            setValue(session.tokens, "color.brand.500", {
-                colorSpace: "oklch",
-                components: [0.9, 0.05, 258],
-            }),
-        );
-
-        const saved = await files.save(session.unsaved);
-
-        expect(saved).toEqual({ written: ["color.json"], deleted: [] });
-        expect(readFileSync(join(dir, "color.json"), "utf8")).toContain("0.9");
     });
 });

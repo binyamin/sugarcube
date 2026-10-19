@@ -18,7 +18,7 @@ export default defineConfig(({ command, mode }) => ({
     plugins: [
         react(),
         sugarcube({ unoOptions: { presets: [presetWind3({ preflight: false })] } }),
-        ...demoStudio(),
+        demoStudio(),
     ],
     build: {
         outDir,

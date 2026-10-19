@@ -2,7 +2,7 @@ import { readOptions } from "@sugarcube-sh/core/client";
 import { readFromMemory } from "@sugarcube-sh/dtcg";
 import { cssValue } from "@sugarcube-sh/dtcg/css";
 import { describe, expect, it } from "vitest";
-import { groupView, sidebarTree, trail } from "../../src/controllers/views";
+import { groupView, sidebarTree, tokenRow, trail } from "../../src/controllers/views";
 import { asSent } from "./demo-message";
 
 const blue = { colorSpace: "srgb", components: [0, 0, 1] };
@@ -84,7 +84,7 @@ describe("trail", () => {
 
 describe("groupView", () => {
     it("lists a group's description, groups and tokens", () => {
-        const view = groupView(light, "color.text");
+        const view = groupView(light.group("color.text")!);
 
         expect(view?.description).toBe("Foreground");
         expect(view?.groups).toEqual([]);
@@ -92,8 +92,8 @@ describe("groupView", () => {
     });
 
     it("shows what the file wrote and the literal value in the permutation shown", () => {
-        const inLight = groupView(light, "color.text")?.tokens[0];
-        const inDark = groupView(dark, "color.text")?.tokens[0];
+        const inLight = groupView(light.group("color.text")!)?.tokens[0];
+        const inDark = groupView(dark.group("color.text")!)?.tokens[0];
 
         expect(inLight?.written).toBe("{color.bg}");
         expect(inLight?.css).toBe(cssValue(light.token("color.bg")!));
@@ -103,7 +103,7 @@ describe("groupView", () => {
     });
 
     it("counts the tokens under each group it lists", () => {
-        const view = groupView(dark, "color");
+        const view = groupView(dark.group("color")!);
 
         expect(view?.groups.map((row) => [row.name, row.count])).toEqual([
             ["text", 1],
@@ -112,8 +112,12 @@ describe("groupView", () => {
         ]);
         expect(view?.tokens.map((row) => row.name)).toEqual(["bg"]);
     });
+});
 
-    it("has nothing for a group the permutation shown doesn't have", () => {
-        expect(groupView(light, "color.glow")).toBeUndefined();
+describe("tokenRow", () => {
+    it("is the row a group lists for the token", () => {
+        const token = dark.token("color.text.default")!;
+
+        expect(tokenRow(token, "default")).toEqual(groupView(dark.group("color.text")!).tokens[0]);
     });
 });

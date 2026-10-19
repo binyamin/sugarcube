@@ -2,7 +2,7 @@ import type { InternalConfig, Reported } from "@sugarcube-sh/core/client";
 
 export const STUDIO_RPC = {
     SAVE: "sugarcube:studio:save",
-    SHARED_STATE_DISK: "sugarcube:studio:disk",
+    MESSAGE: "sugarcube:studio:message",
     /** Not a method: studio's key in the handshake's `configs`. */
     CONFIG: "sugarcube:studio",
 } as const;

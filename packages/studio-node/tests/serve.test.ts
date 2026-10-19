@@ -1,9 +1,8 @@
 import { createServer } from "node:http";
-import { fileURLToPath } from "node:url";
-import type { InternalConfig } from "@sugarcube-sh/core";
-import { createNodeTokenSource, studioDevframe } from "@sugarcube-sh/studio/server";
+import { studioDevframe } from "@sugarcube-sh/studio/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { STUDIO_PORT, serveStudioHub } from "../src/hub";
+import { filesAt } from "./demo";
 
 vi.mock("devframe/utils/open", () => ({
     open: async () => {
@@ -11,23 +10,13 @@ vi.mock("devframe/utils/open", () => ({
     },
 }));
 
-const demoResolver = fileURLToPath(
-    new URL("../../studio/demo/tokens.resolver.json", import.meta.url),
-);
-
-function demoSource() {
-    return createNodeTokenSource({
-        loadConfig: async () => ({ resolver: demoResolver, variables: {} }) as InternalConfig,
-    });
-}
-
 describe("studioDevframe", () => {
     it("declares the studio route and dock without any host running", () => {
-        const def = studioDevframe({ source: demoSource() });
+        const def = studioDevframe({ files: filesAt() });
 
         expect(def.id).toBe("sugarcube-studio");
         expect(def.basePath).toBe("/__studio/");
-        expect(def.dock?.title).toBe("Studio");
+        expect(def.dock?.title).toBe("studio");
     });
 });
 
@@ -35,7 +24,7 @@ describe("serveStudioHub", () => {
     let hub: Awaited<ReturnType<typeof serveStudioHub>>;
 
     beforeAll(async () => {
-        hub = await serveStudioHub({ source: demoSource(), port: 0 });
+        hub = await serveStudioHub({ files: await filesAt(), port: 0 });
     }, 30_000);
 
     afterAll(async () => {
@@ -47,7 +36,7 @@ describe("serveStudioHub", () => {
         expect(hub.origin).toMatch(/^http:\/\/localhost:\d+$/);
     });
 
-    it("serves Studio full width under the hub", async () => {
+    it("serves studio full width under the hub", async () => {
         const response = await fetch(hub.studioUrl);
 
         expect(response.status).toBe(200);
@@ -102,7 +91,7 @@ describe("serveStudioHub, when things go wrong", () => {
         const address = taken.address();
         const port = typeof address === "object" && address ? address.port : 0;
 
-        await expect(serveStudioHub({ source: demoSource(), port })).rejects.toMatchObject({
+        await expect(serveStudioHub({ files: await filesAt(), port })).rejects.toMatchObject({
             code: "EADDRINUSE",
         });
 
@@ -111,10 +100,11 @@ describe("serveStudioHub, when things go wrong", () => {
 
     it("still serves when the browser cannot be opened", async () => {
         const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-        const hub = await serveStudioHub({ source: demoSource(), port: 0, open: true });
+        const hub = await serveStudioHub({ files: await filesAt(), port: 0, open: true });
 
         expect((await fetch(hub.studioUrl)).status).toBe(200);
         expect(warn).toHaveBeenCalledWith(expect.stringContaining(hub.studioUrl));
+        expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[sugarcube studio\] /));
 
         warn.mockRestore();
         await hub.close();

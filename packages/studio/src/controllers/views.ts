@@ -1,4 +1,5 @@
-import type { DesignTokens, Group, Permutation, Token, TokenType } from "@sugarcube-sh/dtcg";
+import { type Reported, problemLines } from "@sugarcube-sh/core/client";
+import type { DesignTokens, Group, Token, TokenType } from "@sugarcube-sh/dtcg";
 import { type TypographyCSS, cssValue } from "@sugarcube-sh/dtcg/css";
 
 export interface TreeNode {
@@ -84,23 +85,29 @@ export function trail(path: string): Crumb[] {
     return names.map((name, index) => ({ path: names.slice(0, index + 1).join("."), name }));
 }
 
-export function groupView(permutation: Permutation, path: string): GroupView | undefined {
-    const group = permutation.group(path);
-    if (!group) return undefined;
-    const below = (child: Token | Group) => child.path.slice(path.length + 1);
-
+export function groupView(group: Group): GroupView {
+    const below = (child: Token | Group) => child.path.slice(group.path.length + 1);
     return {
-        path,
+        path: group.path,
         ...(group.description === undefined ? {} : { description: group.description }),
         groups: group.children
             .filter((child): child is Group => child.kind === "group")
             .map((child) => ({ path: child.path, name: below(child), count: child.tokens.length })),
-        tokens: group.childTokens.map((token) => ({
-            path: token.path,
-            name: below(token),
-            type: token.type,
-            written: token.authored?.value,
-            css: cssValue(token),
-        })),
+        tokens: group.childTokens.map((token) => tokenRow(token, below(token))),
     };
+}
+
+export function tokenRow(token: Token, name: string): TokenRow {
+    return {
+        path: token.path,
+        name,
+        type: token.type,
+        written: token.authored?.value,
+        css: cssValue(token),
+    };
+}
+
+export function problemList(problems: readonly Reported[]): string[] {
+    if (problems.length === 0) return [];
+    return problemLines(problems, { cwd: ".", folder: "." }, { colors: false });
 }

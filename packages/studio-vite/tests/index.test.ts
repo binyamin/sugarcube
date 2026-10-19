@@ -1,89 +1,76 @@
 import { SUGARCUBE_API_PLUGIN_NAME, type SugarcubePluginContext } from "@sugarcube-sh/vite";
 import type { ResolvedConfig } from "vite";
-import { describe, expect, it } from "vitest";
-import sugarcubeStudio, { reloadingWith } from "../src/index";
+import { describe, expect, it, vi } from "vitest";
+import sugarcubeStudio, { filesFromSugarcube } from "../src/index";
 
 function context() {
-    const listeners: Array<() => void> = [];
+    const listeners = new Set<() => void>();
     const ctx = {
+        config: { resolver: "tokens/tokens.resolver.json", variables: {} },
+        tokens: { files: ["tokens.resolver.json"] },
+        configProblems: [],
         onReload: (fn: () => void) => {
-            listeners.push(fn);
-            return () => {};
+            listeners.add(fn);
+            return () => listeners.delete(fn);
         },
     } as unknown as SugarcubePluginContext;
     return { ctx, readAgain: () => listeners.forEach((fn) => fn()) };
 }
 
-function source() {
-    let reloads = 0;
-    return {
-        source: { reloadTokens: async () => void (reloads += 1) } as never,
-        reloads: () => reloads,
-    };
-}
-
-function resolve(plugin: ReturnType<typeof reloadingWith>, plugins: unknown[]) {
+function resolve(plugin: ReturnType<typeof filesFromSugarcube>["plugin"], plugins: unknown[]) {
     const warnings: string[] = [];
-    const errors: string[] = [];
     const config = {
         plugins,
-        logger: {
-            warn: (message: string) => warnings.push(message),
-            error: (message: string) => errors.push(message),
-        },
+        logger: { warn: (message: string) => warnings.push(message), error: () => {} },
     } as unknown as ResolvedConfig;
     (plugin.configResolved as (config: ResolvedConfig) => void)(config);
-    return { warnings, errors };
+    return { warnings };
 }
 
-describe("Studio's tokens under Vite", () => {
-    it("reload whenever sugarcube's plugin reads the tokens again", () => {
-        const { ctx, readAgain } = context();
-        const { source: studio, reloads } = source();
-        const plugin = reloadingWith(studio);
+describe("studio's files under Vite", () => {
+    it("are what sugarcube's plugin last read", async () => {
+        const { ctx } = context();
+        const { plugin, files } = filesFromSugarcube();
 
         const { warnings } = resolve(plugin, [
             { name: "vite:something" },
             { name: SUGARCUBE_API_PLUGIN_NAME, api: { getContext: () => ctx } },
         ]);
-        readAgain();
 
-        expect(reloads()).toBe(1);
+        expect((await files).now()).toBe(ctx);
         expect(warnings).toEqual([]);
         expect(plugin.apply).toBe("serve");
     });
 
-    it("log a reload that fails, rather than leave it unhandled", async () => {
+    it("change whenever sugarcube's plugin reads the tokens again", async () => {
         const { ctx, readAgain } = context();
-        const failing = {
-            reloadTokens: () => Promise.reject(new Error("nothing to show")),
-        } as never;
+        const { plugin, files } = filesFromSugarcube();
+        resolve(plugin, [{ name: SUGARCUBE_API_PLUGIN_NAME, api: { getContext: () => ctx } }]);
+        const listener = vi.fn();
 
-        const { errors } = resolve(reloadingWith(failing), [
-            { name: SUGARCUBE_API_PLUGIN_NAME, api: { getContext: () => ctx } },
-        ]);
+        (await files).onChange(listener);
         readAgain();
-        await new Promise((done) => setTimeout(done, 0));
 
-        expect(errors).toEqual(["[studio] nothing to show"]);
+        expect(listener).toHaveBeenCalledTimes(1);
     });
 
-    it("say why they never reload when sugarcube's plugin is not there", () => {
-        const { source: studio } = source();
+    it("say why studio never opens when sugarcube's plugin is not there", () => {
+        const { plugin } = filesFromSugarcube();
 
-        const { warnings } = resolve(reloadingWith(studio), [{ name: "vite:something" }]);
+        const { warnings } = resolve(plugin, [{ name: "vite:something" }]);
 
         expect(warnings).toHaveLength(1);
+        expect(warnings[0]).toMatch(/^\[sugarcube studio\] /);
         expect(warnings[0]).toContain("@sugarcube-sh/vite");
     });
 });
 
 describe("what a host's Vite config gets", () => {
-    it("is the reloading plugin and a devframes hub, nothing to configure", () => {
+    it("is the plugin that finds the files and a devframes hub, nothing to configure", () => {
         const plugins = sugarcubeStudio();
 
         expect(plugins.map((plugin) => plugin.name)).toEqual([
-            "sugarcube:studio:reload",
+            "sugarcube:studio:files",
             "devframes:hub",
         ]);
     });

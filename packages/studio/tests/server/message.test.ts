@@ -20,7 +20,7 @@ describe("studioMessage", () => {
     it("sends every file the tokens were read from, by the names they read them by", async () => {
         const { config, tokens } = await demo();
 
-        const message = studioMessage(config, tokens, []);
+        const message = studioMessage({ config, tokens, configProblems: [] });
 
         expect(Object.keys(message.files).sort()).toEqual([...tokens.files].sort());
         expect(message.files["dark.json"]).toBe(tokens.text("dark.json"));
@@ -30,7 +30,7 @@ describe("studioMessage", () => {
     it("sends what a browser needs to read the same tokens", async () => {
         const { config, tokens } = await demo();
 
-        const message = studioMessage(config, tokens, []);
+        const message = studioMessage({ config, tokens, configProblems: [] });
         const there = readFromMemory(message, readOptions(message.config));
 
         expect(there.tokenPaths()).toEqual(tokens.tokenPaths());
@@ -43,7 +43,7 @@ describe("studioMessage", () => {
             variables: { ...config.variables, variableName: (path: string) => path },
         };
 
-        const message = studioMessage(named, tokens, []);
+        const message = studioMessage({ config: named, tokens, configProblems: [] });
 
         expect(message.config.variables.variableName).toBeUndefined();
         expect(JSON.parse(JSON.stringify(message))).toEqual(message);
@@ -52,8 +52,8 @@ describe("studioMessage", () => {
     it("sends the config's problems it is given", async () => {
         const { config, tokens } = await demo();
 
-        expect(studioMessage(config, tokens, [configProblem]).configProblems).toEqual([
-            configProblem,
-        ]);
+        expect(
+            studioMessage({ config, tokens, configProblems: [configProblem] }).configProblems,
+        ).toEqual([configProblem]);
     });
 });

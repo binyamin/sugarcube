@@ -7,6 +7,7 @@ import type {
     JsonValue,
     Move,
     Permutation,
+    Permutations,
     Token,
     TokenProperty,
     TopLevel,
@@ -197,7 +198,7 @@ class Changes {
         this.#found.push(entry);
     }
 
-    list(all: readonly Permutation[]): Change[] {
+    list(all: Permutations): Change[] {
         return this.#found.map(
             ({ change, permutations }) =>
                 ({ ...change, permutations: permutationsOf(permutations, all) }) as Change,

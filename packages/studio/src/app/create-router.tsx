@@ -1,5 +1,5 @@
 import { type RouteObject, createMemoryRouter } from "react-router";
-import { IndexRoute, NodeRoute } from "../mvp/NodeRoute";
+import { IndexRoute, NodeRoute } from "../canvas/NodeRoute";
 import { App } from "./App";
 
 const routes: RouteObject[] = [

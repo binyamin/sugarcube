@@ -1,16 +1,11 @@
 import { connectDevframe } from "devframe/client";
-import type { SharedState } from "devframe/utils/shared-state";
-import type { SaveBundle } from "../host/types";
-import { STUDIO_RPC, type StudioConnectionConfig } from "../protocol";
-import type { StudioDiskState } from "../tokens/types";
-
-export type DiskSharedStateHandle = SharedState<Partial<StudioDiskState>>;
+import type { SharedMessage } from "../host/open-studio";
+import { STUDIO_RPC, type StudioConnectionConfig, type StudioMessage } from "../protocol";
 
 export type StudioConnection = {
     transport: Awaited<ReturnType<typeof connectDevframe>>["transport"];
     config: StudioConnectionConfig;
-    diskState: DiskSharedStateHandle;
-    save: (bundle: SaveBundle) => Promise<void>;
+    message: SharedMessage;
 };
 
 /**
@@ -35,14 +30,14 @@ export async function connectStudio(signal: AbortSignal): Promise<StudioConnecti
     }
     signal.addEventListener("abort", () => client.close?.(), { once: true });
 
+    const shared = await client.sharedState.get<StudioMessage>(STUDIO_RPC.MESSAGE);
     return {
         transport: client.transport,
         config: client.connectionMeta.configs?.[STUDIO_RPC.CONFIG] ?? {},
-        diskState: await client.sharedState.get<Partial<StudioDiskState>>(
-            STUDIO_RPC.SHARED_STATE_DISK,
-        ),
-        save: async (bundle) => {
-            await client.call(STUDIO_RPC.SAVE, bundle);
+        message: {
+            value: () => shared.value() as unknown as StudioMessage | undefined,
+            on: (event, listener) =>
+                shared.on(event, (next) => listener(next as unknown as StudioMessage)),
         },
     };
 }

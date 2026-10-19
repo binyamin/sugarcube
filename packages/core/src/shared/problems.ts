@@ -30,7 +30,7 @@ interface Look {
 }
 
 export function problemsText(
-    problems: Reported[],
+    problems: readonly Reported[],
     where: Where,
     { ending, ...look }: Look & { ending?: string } = {},
 ): string {
@@ -42,7 +42,7 @@ export function problemsText(
 }
 
 export function problemLines(
-    problems: Reported[],
+    problems: readonly Reported[],
     where: Where,
     { colors: colored, width }: Look = {},
 ): string[] {
@@ -77,7 +77,7 @@ export function problemLines(
     });
 }
 
-export function problemCount(problems: Reported[]): string {
+export function problemCount(problems: readonly Reported[]): string {
     const errors = problems.filter(({ severity }) => severity === "error").length;
     const warnings = problems.filter(({ severity }) => severity === "warning").length;
     const counted = [

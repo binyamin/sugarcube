@@ -23,30 +23,32 @@ export interface Search {
 }
 
 export function createSearch(studio: Studio): Search {
-    const listeners = new Set<() => void>();
-    let state = found(studio.state, "");
-
-    function publish(next: SearchState) {
-        state = next;
-        for (const listener of listeners) listener();
-    }
-
-    const stopStudio = studio.subscribe(() => publish(found(studio.state, state.query)));
+    const listeners = new Map<() => void, () => void>();
+    let query = "";
+    let kept: { from: StudioState; query: string; state: SearchState } | undefined;
 
     return {
         get state() {
-            return state;
+            if (kept?.from !== studio.state || kept.query !== query) {
+                kept = { from: studio.state, query, state: found(studio.state, query) };
+            }
+            return kept.state;
         },
         subscribe(listener) {
-            listeners.add(listener);
-            return () => listeners.delete(listener);
+            const stop = studio.subscribe(listener);
+            listeners.set(listener, stop);
+            return () => {
+                stop();
+                listeners.delete(listener);
+            };
         },
         destroy() {
-            stopStudio();
+            for (const stop of listeners.values()) stop();
             listeners.clear();
         },
-        setQuery(query) {
-            publish(found(studio.state, query));
+        setQuery(next) {
+            query = next;
+            for (const listener of listeners.keys()) listener();
         },
     };
 }

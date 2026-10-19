@@ -14,7 +14,7 @@ import { parseJson } from "./json.js";
 import { isResolver } from "./resolver.js";
 import { thrownMessages } from "../error-messages.js";
 import { linkedDesignTokens, placesIn } from "./linked.js";
-import { permutationsOf } from "./permutations-of.js";
+import { allPermutations } from "./permutations-of.js";
 
 const { performance } = globalThis as unknown as { performance: { now(): number } };
 
@@ -170,7 +170,7 @@ function toDesignTokens(
     onStage?.("normalise", resolving - normalising - generating);
     const places = placesIn(loaded.texts, previous);
     const resolved = buildPermutations(normalised, readValue, found, places, previous);
-    const permutations = permutationsOf(resolved, resolved);
+    const permutations = allPermutations(resolved, loaded.resolver);
     onStage?.("resolve", performance.now() - resolving);
     validateExtensions(
         normalised,

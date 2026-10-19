@@ -5,10 +5,11 @@ import "./styles/index.css";
 import { StudioProvider } from "./providers/StudioProvider";
 import { RouterProvider } from "react-router";
 import { createStudioRouter } from "./app/create-router";
+import { ErrorMessages } from "./error-messages";
 
 const rootEl = document.getElementById("root");
 if (!rootEl) {
-    throw new Error('Studio mount point "#root" not found in index.html');
+    throw new Error(ErrorMessages.NO_MOUNT_POINT);
 }
 
 const router = createStudioRouter();

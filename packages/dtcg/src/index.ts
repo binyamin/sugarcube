@@ -1713,6 +1713,20 @@ export interface Permutations extends ReadonlyArray<Permutation> {
      * elsewhere.label; // "mode: light"
      */
     where(test: (permutation: Permutation) => boolean): Permutations;
+    /**
+     * The permutation in this list that an input names, found as {@link DesignTokens.permutation}
+     * finds it: modifiers left out take their default (Resolver 4.1.5.3), and names match
+     * whatever their case (Resolver 5.1); `undefined` when the resolver has no such
+     * context or modifier, when the read built no such permutation, or when this list doesn't hold
+     * it. What a tool asks to find a permutation again from an input it kept, such as one chosen
+     * before the files changed. For why there is none, see {@link completeInput}.
+     *
+     * @example
+     * tokens.permutations.matching({ mode: "dark" })?.label;                          // "mode: dark"
+     * tokens.permutations.matching(kept.input) ?? tokens.permutation();               // the default if it went
+     * problem.permutations.matching({ mode: "dark" }) !== undefined;                   // found in mode: dark?
+     */
+    matching(input: Input): Permutation | undefined;
 }
 
 /**

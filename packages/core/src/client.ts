@@ -127,3 +127,6 @@ export type {
     TokenRef,
     GroupRef,
 } from "./types/dtcg.js";
+
+export { problemCount, problemLines, problemsText } from "./shared/problems.js";
+export type { Where } from "./shared/problems.js";

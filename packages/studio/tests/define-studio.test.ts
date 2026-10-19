@@ -1,14 +1,16 @@
-import type { InternalConfig, TokenTree } from "@sugarcube-sh/core";
-import { describe, expect, it, vi } from "vitest";
-import { STUDIO_RPC } from "../src/protocol";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { readOptions } from "@sugarcube-sh/core/client";
+import { readFromMemory } from "@sugarcube-sh/dtcg";
+import { read } from "@sugarcube-sh/dtcg/node";
+import { createSession, setValue } from "@sugarcube-sh/dtcg-edit";
+import { afterEach, describe, expect, it } from "vitest";
+import { STUDIO_RPC, type StudioMessage } from "../src/protocol";
 import { STUDIO_ROUTE, STUDIO_SURFACE, defineStudio } from "../src/server/define-studio";
-import type {
-    StudioHostBridge,
-    StudioSaveBundle,
-    StudioSharedState,
-    StudioTokenSource,
-} from "../src/server/types";
-import { resolved } from "./fixtures";
+import type { FilesNow, StudioFiles } from "../src/server/files";
+import type { StudioHostBridge, StudioSharedState } from "../src/server/types";
+import { configProblem } from "./controllers/demo-message";
+import { demoCopy } from "./server/demo-copy";
 
 type FakeState<T extends object> = StudioSharedState<T> & { value(): T };
 
@@ -24,36 +26,31 @@ function fakeState<T extends object>(initialValue: T): FakeState<T> {
     };
 }
 
-const SOURCES = { files: { "color.json": "{}", "dark.json": "{}" }, order: [] };
+let remove = () => {};
+afterEach(() => remove());
 
-function setup(overrides: Partial<StudioTokenSource> = {}) {
-    const first = resolved({ path: "color.bg", value: "#fff" });
-    let reloadHandler: (() => void) | undefined;
-
-    const source: StudioTokenSource & { fire: { reload(): void } } = {
-        ready: Promise.resolve(),
-        config: { variables: {} } as InternalConfig,
-        trees: [] as TokenTree[],
-        resolved: first,
-        defaultContext: null,
-        permutations: [],
-        sources: SOURCES,
-        writeOps: vi.fn(async () => {}),
-        reloadTokens: vi.fn(async () => {}),
-        onReload: (fn) => {
-            reloadHandler = fn;
+async function setup(change: Partial<FilesNow> = {}) {
+    const copy = demoCopy();
+    remove = copy.remove;
+    let now: FilesNow = {
+        config: copy.config,
+        tokens: await read(copy.config.resolver, readOptions(copy.config)),
+        configProblems: [],
+        ...change,
+    };
+    const listeners = new Set<() => void>();
+    const files: StudioFiles = {
+        now: () => now,
+        onChange: (listener) => {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
         },
-        fire: {
-            reload: () => reloadHandler?.(),
-        },
-        ...overrides,
     };
 
     const states = new Map<string, FakeState<object>>();
-    const actions = new Map<string, (...args: never[]) => Promise<void>>();
+    const actions = new Map<string, (...args: unknown[]) => Promise<unknown>>();
     const warnings: string[] = [];
     const configs: unknown[] = [];
-
     const host: StudioHostBridge = {
         sharedState: async (key, initialValue) => {
             const state = fakeState(initialValue);
@@ -61,7 +58,7 @@ function setup(overrides: Partial<StudioTokenSource> = {}) {
             return state;
         },
         registerAction: (name, handler) => {
-            actions.set(name, handler as unknown as (...args: never[]) => Promise<void>);
+            actions.set(name, handler as (...args: unknown[]) => Promise<unknown>);
         },
         warn: (message) => warnings.push(message),
         publishConfig: (config) => {
@@ -69,149 +66,106 @@ function setup(overrides: Partial<StudioTokenSource> = {}) {
         },
     };
 
-    const disk = () => states.get(STUDIO_RPC.SHARED_STATE_DISK)?.value() as Record<string, unknown>;
-    const save = (files: StudioSaveBundle["files"]) =>
-        actions.get(STUDIO_RPC.SAVE)?.({ title: "", description: "", files } as never);
-
-    return { source, host, states, actions, warnings, configs, first, disk, save };
+    return {
+        ...copy,
+        files,
+        host,
+        warnings,
+        configs,
+        message: () => states.get(STUDIO_RPC.MESSAGE)?.value() as StudioMessage,
+        save: (sent: unknown) => actions.get(STUDIO_RPC.SAVE)?.(sent),
+        change: (next: Partial<FilesNow>) => {
+            now = { ...now, ...next };
+            for (const listener of listeners) listener();
+        },
+    };
 }
 
 describe("defineStudio", () => {
     it("names the surface as data, leaving each host to mount it", () => {
         expect(STUDIO_SURFACE).toEqual({
             id: "sugarcube-studio",
-            title: "Studio",
+            title: "studio",
             route: STUDIO_ROUTE,
         });
     });
 
     it("bakes the save address into the handshake when a build names one", async () => {
-        const s = setup();
+        const s = await setup();
 
-        await defineStudio(s.source, s.host, { saveUrl: "https://example.test/submit-pr" });
+        await defineStudio(s.files, s.host, { saveUrl: "https://example.test/submit-pr" });
 
         expect(s.configs).toEqual([{ saveUrl: "https://example.test/submit-pr" }]);
     });
 
     it("publishes nothing about saving when there is a server to save to", async () => {
-        const s = setup();
+        const s = await setup();
 
-        await defineStudio(s.source, s.host);
+        await defineStudio(s.files, s.host);
 
         expect(s.configs).toEqual([]);
     });
 
-    it("seeds the disk state from the pipeline, with a copy of the config", async () => {
-        const s = setup();
+    it("shares the files the host read, with the config and its problems", async () => {
+        const s = await setup({ configProblems: [configProblem] });
 
-        await defineStudio(s.source, s.host);
+        await defineStudio(s.files, s.host);
 
-        expect(s.states.size).toBe(1);
-        expect(s.disk().resolved).toEqual(s.first);
-        expect(s.disk().config).toEqual(s.source.config);
-        expect(s.disk().config).not.toBe(s.source.config);
+        expect(s.message().entry).toBe("tokens.resolver.json");
+        expect(s.message().files["dark.json"]).toBe(readFileSync(join(s.dir, "dark.json"), "utf8"));
+        expect(s.message().config.resolver).toBe(s.config.resolver);
+        expect(s.message().configProblems).toEqual([configProblem]);
     });
 
-    it("pushes disk state on reload", async () => {
-        const s = setup();
-        await defineStudio(s.source, s.host);
+    it("shares the files again when the host reads them again", async () => {
+        const s = await setup();
+        await defineStudio(s.files, s.host);
+        const edited = s.message().files["dark.json"]?.replace("50}", "100}") ?? "";
 
-        const fromDisk = resolved({ path: "color.bg", value: "#111" });
-        s.source.resolved = fromDisk;
-        s.source.fire.reload();
-
-        expect(s.disk()).toMatchObject({ resolved: fromDisk });
-    });
-
-    it("warns when the first load has nothing, and mounts on the first load that does", async () => {
-        const s = setup({ resolved: null, errors: ["Invalid JSON in resolver file"] });
-        await defineStudio(s.source, s.host);
-
-        expect(s.warnings).toHaveLength(1);
-        expect(s.warnings[0]).toContain("Invalid JSON in resolver file");
-        expect(s.disk()).toEqual({});
-        expect(s.actions.has(STUDIO_RPC.SAVE)).toBe(true);
-
-        s.source.resolved = s.first;
-        s.source.errors = [];
-        s.source.fire.reload();
-
-        expect(s.disk().resolved).toEqual(s.first);
-    });
-
-    it("keeps the last good state when a reload produces nothing, and says why", async () => {
-        const s = setup();
-        await defineStudio(s.source, s.host);
-
-        s.source.sources = null;
-        s.source.errors = ["Invalid JSON in resolver file"];
-        s.source.fire.reload();
-
-        expect(s.disk().resolved).toEqual(s.first);
-        expect(s.warnings).toHaveLength(1);
-        expect(s.warnings[0]).toContain("Invalid JSON in resolver file");
-    });
-
-    it("mounts a project whose config names variables with a function, and says the browser cannot", async () => {
-        const s = setup({
-            config: { variables: { variableName: (path: string) => `ds-${path}` } } as never,
+        s.change({
+            tokens: s.files.now().tokens.rereadAll({ ...s.message().files, "dark.json": edited }),
         });
 
-        await defineStudio(s.source, s.host);
+        expect(s.message().files["dark.json"]).toBe(edited);
+    });
 
-        expect(s.disk().config).toEqual({ variables: {} });
+    it("warns once when the config names variables with a function", async () => {
+        const s = await setup();
+        const named = {
+            ...s.config,
+            variables: { ...s.config.variables, variableName: (path: string) => path },
+        };
+        s.change({ config: named });
+
+        await defineStudio(s.files, s.host);
+        s.change({});
+
         expect(s.warnings).toHaveLength(1);
-        expect(s.warnings[0]).toContain("function");
-
-        s.source.fire.reload();
-        expect(s.warnings).toHaveLength(1);
+        expect(s.warnings[0]).toContain("names variables with a function");
+        expect(s.message().config.variables.variableName).toBeUndefined();
     });
 
-    it("hands every file's operations to the source in one call, so a save is all or nothing", async () => {
-        const s = setup();
-        await defineStudio(s.source, s.host);
+    it("saves edits sent from the browser to the files on disk", async () => {
+        const s = await setup();
+        await defineStudio(s.files, s.host);
+        const session = createSession(readFromMemory(s.message(), readOptions(s.message().config)));
+        session.do(
+            setValue(session.tokens, "color.brand.500", {
+                colorSpace: "oklch",
+                components: [0.9, 0.05, 258],
+            }),
+        );
 
-        const files: StudioSaveBundle["files"] = [
-            { path: "color.json", ops: [{ kind: "set", path: ["color", "bg"], value: "#000" }] },
-            { path: "dark.json", ops: [{ kind: "set", path: ["color", "bg"], value: "#fff" }] },
-        ];
-        await s.save(files);
+        const saved = await s.save(JSON.parse(JSON.stringify(session.unsaved)));
 
-        expect(s.source.writeOps).toHaveBeenCalledTimes(1);
-        expect(s.source.writeOps).toHaveBeenCalledWith(files);
+        expect(saved).toEqual({ written: ["color.json"], deleted: [] });
+        expect(readFileSync(join(s.dir, "color.json"), "utf8")).toContain("0.9");
     });
 
-    it("refuses a save naming a file that was not loaded, before touching any", async () => {
-        const s = setup();
-        await defineStudio(s.source, s.host);
+    it("refuses to save what isn't edits", async () => {
+        const s = await setup();
+        await defineStudio(s.files, s.host);
 
-        await expect(
-            s.save([
-                { path: "color.json", ops: [{ kind: "set", path: ["x"], value: 1 }] },
-                { path: "/etc/hosts", ops: [{ kind: "set", path: ["x"], value: 1 }] },
-            ]),
-        ).rejects.toThrow("/etc/hosts");
-
-        expect(s.source.writeOps).not.toHaveBeenCalled();
-    });
-
-    it("folds two entries for one file into one, in order", async () => {
-        const s = setup();
-        await defineStudio(s.source, s.host);
-
-        await s.save([
-            { path: "color.json", ops: [{ kind: "set", path: ["x"], value: 1 }] },
-            { path: "color.json", ops: [{ kind: "set", path: ["y"], value: 2 }] },
-        ]);
-
-        expect(s.source.writeOps).toHaveBeenCalledWith([
-            {
-                path: "color.json",
-                ops: [
-                    { kind: "set", path: ["x"], value: 1 },
-                    { kind: "set", path: ["y"], value: 2 },
-                ],
-            },
-        ]);
+        await expect(s.save({ title: "", files: [] })).rejects.toThrow(/^\[sugarcube studio\] /);
     });
 });

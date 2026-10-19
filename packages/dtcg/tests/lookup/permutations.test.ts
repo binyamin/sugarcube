@@ -138,6 +138,66 @@ describe("permutations.where", () => {
     });
 });
 
+describe("permutations.matching", () => {
+    it("finds the permutation an input names, filling each modifier it leaves out with its default", () => {
+        const dark = tokens.permutations.matching({ mode: "dark" });
+
+        expect(dark?.input).toStrictEqual({ mode: "dark", density: "comfy" });
+    });
+
+    it("fills a default that isn't the modifier's first context", () => {
+        const compactFirst = readFromMemory({
+            files: {
+                ...files,
+                "tokens.resolver.json": JSON.stringify({
+                    ...resolver,
+                    modifiers: {
+                        ...resolver.modifiers,
+                        density: { ...resolver.modifiers.density, default: "compact" },
+                    },
+                }),
+            },
+            entry: "tokens.resolver.json",
+        });
+
+        expect(compactFirst.permutations.matching({ mode: "dark" })?.input).toStrictEqual({
+            mode: "dark",
+            density: "compact",
+        });
+    });
+
+    it("is the permutation tokens.permutation gives, the same object", () => {
+        expect(tokens.permutations.matching({ mode: "dark" })).toBe(named({ mode: "dark" }));
+        expect(tokens.permutations.matching({})).toBe(named({}));
+    });
+
+    it("matches modifier and context names whatever their case, as the resolver spec asks", () => {
+        expect(tokens.permutations.matching({ Mode: "DARK" })).toBe(named({ mode: "dark" }));
+    });
+
+    it("is nothing for a context or a modifier the resolver doesn't have", () => {
+        expect(tokens.permutations.matching({ mode: "neon" })).toBeUndefined();
+        expect(tokens.permutations.matching({ shape: "round" })).toBeUndefined();
+    });
+
+    it("is nothing for a combination the read didn't build", () => {
+        const each = readWith({ permutations: "each-context" });
+
+        expect(each.permutations.matching({ mode: "dark", density: "compact" })).toBeUndefined();
+        expect(each.permutations.matching({ density: "compact" })?.input).toStrictEqual({
+            mode: "light",
+            density: "compact",
+        });
+    });
+
+    it("finds only among the permutations the list holds", () => {
+        const darkOnes = tokens.permutations.where(({ input }) => input.mode === "dark");
+
+        expect(darkOnes.matching({ mode: "dark" })).toBe(named({ mode: "dark" }));
+        expect(darkOnes.matching({})).toBeUndefined();
+    });
+});
+
 describe("the permutations an answer holds in", () => {
     const [reference] = tokens.referencedBy("red");
 

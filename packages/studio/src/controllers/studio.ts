@@ -36,8 +36,7 @@ export function createStudio(first: StudioMessage): Studio {
         const made = cssFrom(tokens, message.config, { utilities: false });
         return {
             tokens,
-            showing:
-                tokens.permutations.find((p) => sameJson(p.input, showing)) ?? tokens.permutation(),
+            showing: tokens.permutations.matching(showing) ?? tokens.permutation(),
             css: made.variables.map((file) => file.css).join("\n"),
             problems: [...message.configProblems, ...made.diagnostics],
             changes: session.changes().length,

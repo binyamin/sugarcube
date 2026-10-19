@@ -106,6 +106,22 @@ describe("createStudio", () => {
         expect(studio.state.css).toContain("--ds-color-text-onBrand:");
     });
 
+    it("keeps the permutation shown when the resolver gains a modifier", () => {
+        const studio = createStudio(demoMessage());
+        studio.show({ mode: "dark" });
+        const resolver = JSON.parse(demoMessage().files["tokens.resolver.json"] ?? "{}");
+        resolver.resolutionOrder.push({
+            type: "modifier",
+            name: "density",
+            default: "comfy",
+            contexts: { comfy: [], compact: [] },
+        });
+
+        studio.receive(withFile("tokens.resolver.json", JSON.stringify(resolver)));
+
+        expect(studio.state.showing.input).toStrictEqual({ mode: "dark", density: "comfy" });
+    });
+
     it("shows the default when the permutation shown is no longer read", () => {
         const studio = createStudio(demoMessage());
         studio.show({ mode: "dark" });

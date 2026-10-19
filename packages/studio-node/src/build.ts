@@ -4,14 +4,15 @@ import { buildHub } from "@devframes/hub/build";
 import { clientPath } from "@sugarcube-sh/studio/client";
 import {
     STUDIO_SURFACE,
-    type StudioTokenSource,
-    createNodeTokenSource,
+    type StudioFiles,
+    projectFiles,
+    refuseEmpty,
     studioDevframe,
 } from "@sugarcube-sh/studio/server";
 import { HUB_NAME, hubUi, studioDock } from "./studio-hub";
 
 export type BuildStudioOptions = {
-    source?: StudioTokenSource;
+    files?: StudioFiles;
     outDir: string;
     /** A static build cannot write files, so saves are posted here instead, to
      * a service that opens a pull request. */
@@ -26,11 +27,7 @@ export type StudioBuild = {
     embedTag: string;
     /** The path where studio opens on a page of its own, rather than over someone's. */
     studioPath: string;
-    errors: readonly string[];
 };
-
-const nothingToBuild = (errors: readonly string[]) =>
-    ["[studio] Nothing to build: the token source loaded no tokens.", ...errors].join(" ");
 
 /**
  * Builds studio into plain files that any web server can host, with nothing
@@ -40,10 +37,10 @@ const nothingToBuild = (errors: readonly string[]) =>
  * else and a save will aim at files that are not there.
  */
 export async function buildStudio(options: BuildStudioOptions): Promise<StudioBuild> {
-    const { source = createNodeTokenSource(), outDir, saveUrl } = options;
+    const { outDir, saveUrl } = options;
+    const files = options.files ?? (await projectFiles());
 
-    await source.ready;
-    if (!source.resolved) throw new Error(nothingToBuild(source.errors ?? []));
+    refuseEmpty(files);
 
     const base = DEVFRAMES_HUB_BASE;
     const rootDir = resolve(outDir);
@@ -53,7 +50,7 @@ export async function buildStudio(options: BuildStudioOptions): Promise<StudioBu
         outDir: hubDir,
         base,
         name: HUB_NAME,
-        devframes: [studioDock(studioDevframe({ source, clientAssets: clientPath, saveUrl }))],
+        devframes: [studioDock(studioDevframe({ files, clientAssets: clientPath, saveUrl }))],
         ui: hubUi(),
     });
 
@@ -62,6 +59,5 @@ export async function buildStudio(options: BuildStudioOptions): Promise<StudioBu
         hubDir,
         embedTag: `<script type="module" src="${base}embedded.js"></script>`,
         studioPath: `${base}${STUDIO_SURFACE.id}/`,
-        errors: source.errors ?? [],
     };
 }

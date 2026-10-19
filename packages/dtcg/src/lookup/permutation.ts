@@ -46,12 +46,12 @@ export function findPermutation(
         const { ok: _, ...detail } = complete;
         return detail;
     }
-    const found = tokens.permutations.find((each) => sameInput(each.input, complete.input));
-    return found ?? { reason: "not-read", input: complete.input };
-}
-
-function sameInput(built: Input, complete: Input): boolean {
-    return Object.keys(complete).every((name) => built[name] === complete[name]);
+    return (
+        tokens.permutations.matching(complete.input) ?? {
+            reason: "not-read",
+            input: complete.input,
+        }
+    );
 }
 
 /**

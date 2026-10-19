@@ -1,7 +1,7 @@
 import type { TokensOnDisk } from "@sugarcube-sh/dtcg/node";
 import { type Conflict, isEdits } from "@sugarcube-sh/dtcg-edit";
 import { applyToDisk } from "@sugarcube-sh/dtcg-edit/node";
-import { ErrorMessages } from "./error-messages";
+import { ErrorMessages } from "../error-messages";
 
 export type Saved =
     | { written: string[]; deleted: string[]; conflicts?: undefined }
