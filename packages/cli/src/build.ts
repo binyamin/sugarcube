@@ -9,6 +9,7 @@ import {
     cssFrom,
     fillDefaults,
     readOptions,
+    tokensOnDisk,
 } from "@sugarcube-sh/core";
 import { type DesignTokens, readFromMemory } from "@sugarcube-sh/dtcg";
 import { read } from "@sugarcube-sh/dtcg/node";
@@ -50,7 +51,8 @@ interface Reading {
 }
 
 export async function build(loaded: LoadedConfig, options: BuildOptions = {}): Promise<Built> {
-    const tokens = await read(loaded.config.resolver, readOptions(loaded.config));
+    const onDisk = tokensOnDisk(loaded.config);
+    const tokens = await read(onDisk.entry, onDisk.options);
     return buildFrom(tokens, loaded, options);
 }
 

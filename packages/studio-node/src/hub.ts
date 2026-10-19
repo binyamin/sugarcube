@@ -2,9 +2,10 @@ import { type Server, createServer } from "node:http";
 import { DEVFRAMES_HUB_BASE, initHub } from "@devframes/hub/initiate";
 import { clientPath } from "@sugarcube-sh/studio/client";
 import {
+    ErrorMessages,
     STUDIO_SURFACE,
-    type StudioTokenSource,
-    createNodeTokenSource,
+    type StudioFiles,
+    projectFiles,
     studioDevframe,
 } from "@sugarcube-sh/studio/server";
 import { getPort } from "devframe/utils/get-port";
@@ -17,7 +18,7 @@ export const STUDIO_PORT = 2823;
 const HOST = "localhost";
 
 export type ServeStudioHubOptions = {
-    source?: StudioTokenSource;
+    files?: StudioFiles;
     port?: number;
     open?: boolean;
 };
@@ -42,13 +43,14 @@ export type StudioHubServer = {
 export async function serveStudioHub(
     options: ServeStudioHubOptions = {},
 ): Promise<StudioHubServer> {
-    const { source = createNodeTokenSource(), open = false } = options;
+    const { open = false } = options;
+    const files = options.files ?? (await projectFiles());
     const port = options.port ?? (await getPort({ port: STUDIO_PORT, host: HOST }));
 
     const hub = initHub({
         base: DEVFRAMES_HUB_BASE,
         name: HUB_NAME,
-        devframes: [studioDock(studioDevframe({ source, clientAssets: clientPath }))],
+        devframes: [studioDock(studioDevframe({ files, clientAssets: clientPath }))],
         ui: hubUi(),
         auth: false,
     });
@@ -118,9 +120,7 @@ export async function serveStudioHub(
             await openInBrowser(studioUrl);
         } catch (error) {
             const reason = error instanceof Error ? error.message : String(error);
-            console.warn(
-                `[studio] Could not open a browser (${reason}). Open ${studioUrl} yourself.`,
-            );
+            console.warn(ErrorMessages.NO_BROWSER(reason, studioUrl));
         }
     }
 

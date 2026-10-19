@@ -12,15 +12,3 @@
 .inspector-actions-trigger-icon {
     color: var(--color-component-modified);
 }
-
-.save-pr-link {
-    padding-inline: var(--space-2xs);
-}
-
-.save-pr-link:hover {
-    text-decoration: underline;
-}
-
-.save-error {
-    padding-inline: var(--space-2xs);
-}

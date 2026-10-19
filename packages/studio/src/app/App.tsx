@@ -3,16 +3,14 @@ import { AppSidebar } from "../components/app-sidebar";
 import { Separator } from "../components/ui/separator/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "../components/ui/sidebar/sidebar";
 import { TooltipProvider } from "../components/ui/tooltip/tooltip";
+import { Problems } from "../canvas/Problems";
 import { ChangeBar } from "../inspector/ChangeBar";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { Search } from "./Search";
 import { useSearch } from "./use-search";
 
 export function App() {
-    const { query, setQuery, close } = useSearch();
-
-    const search =
-        query === null ? null : <Search query={query} onQuery={setQuery} onClose={close} />;
+    const { open, close } = useSearch();
 
     return (
         <SidebarProvider className="shell">
@@ -27,11 +25,12 @@ export function App() {
                     <main className="canvas">
                         <div className="canvas-body">
                             <Outlet />
+                            <Problems />
                         </div>
                     </main>
                     <ChangeBar />
                 </SidebarInset>
-                {search}
+                {open && <Search onClose={close} />}
             </TooltipProvider>
         </SidebarProvider>
     );

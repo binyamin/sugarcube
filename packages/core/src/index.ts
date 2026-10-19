@@ -15,6 +15,7 @@ export * from "./client.js";
 export { fillDefaults, validateConfig } from "./node/config/normalize.js";
 export { configFileExists, isNoConfigError, loadInternalConfig } from "./node/config/load.js";
 export type { ConfigOverrides, LoadedConfig } from "./node/config/load.js";
+export { tokensOnDisk } from "./node/tokens-on-disk.js";
 
 export { loadTokens } from "./node/load-tokens.js";
 export type { LoadResult } from "./node/load-tokens.js";
@@ -23,6 +24,4 @@ export type { ChangeQueue, ChangeQueueCallbacks } from "./shared/scheduling.js";
 
 export { writeCSSFiles } from "./node/write-css.js";
 
-export { problemCount, problemLines, problemsText } from "./shared/problems.js";
-export type { Where } from "./shared/problems.js";
 export { plural } from "./shared/plural.js";

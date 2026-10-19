@@ -8,10 +8,10 @@ import {
     CommandPrimitive,
 } from "../components/ui/command/command";
 import { Icon } from "../components/ui/icon/Icons";
-import { useCurrentContext, usePathIndex, useTokenStore } from "../store/hooks";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router";
-import { searchHits } from "./search-hits";
+import { createSearch } from "../controllers/search";
+import { useStudio } from "../providers/studio-context";
 import { hrefFor } from "./token-path";
 
 /** The matched run, marked, so it is obvious why a row is here. */
@@ -29,24 +29,11 @@ function Highlight({ path, query }: { path: string; query: string }) {
     );
 }
 
-export function Search({
-    query,
-    onQuery,
-    onClose,
-}: {
-    query: string;
-    onQuery: (next: string) => void;
-    onClose: () => void;
-}) {
-    const pathIndex = usePathIndex();
-    const resolved = useTokenStore((state) => state.resolved);
-    const context = useCurrentContext();
+export function Search({ onClose }: { onClose: () => void }) {
+    const studio = useStudio();
+    const search = useMemo(() => createSearch(studio), [studio]);
+    const { query, hits, capped } = useSyncExternalStore(search.subscribe, () => search.state);
     const navigate = useNavigate();
-
-    const { hits, capped } = useMemo(
-        () => searchHits(pathIndex, resolved, context, query),
-        [query, pathIndex, resolved, context],
-    );
 
     const input = useRef<HTMLInputElement>(null);
     useEffect(() => input.current?.focus(), []);
@@ -77,7 +64,7 @@ export function Search({
                             aria-label="Find a token"
                             value={query}
                             ref={input}
-                            onValueChange={onQuery}
+                            onValueChange={search.setQuery}
                         />
                         <span className="search-kbd">esc</span>
                     </div>

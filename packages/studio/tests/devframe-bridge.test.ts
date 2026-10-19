@@ -23,5 +23,5 @@ it("prints a warning the way devframe reports one", () => {
 
     expect(printed).toHaveBeenCalledOnce();
     const shown = stripVTControlCharacters(String(printed.mock.calls[0]?.[0]));
-    expect(shown).toContain("[studio] nothing to show");
+    expect(shown).toContain("[sugarcube studio] nothing to show");
 });

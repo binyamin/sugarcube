@@ -1,11 +1,14 @@
 import { defineRpcFunction } from "devframe";
 import type { DevframeNodeContext } from "devframe/types";
+import { STUDIO_NAME } from "../error-messages";
 import { STUDIO_RPC } from "../protocol";
 import type { StudioHostBridge } from "./types";
 
 export function createDevframeBridge(ctx: DevframeNodeContext): StudioHostBridge {
     const diagnostics = ctx.diagnostics.defineDiagnostics({
-        codes: { studio: { why: ({ message }: { message: string }) => message, docs: false } },
+        codes: {
+            [STUDIO_NAME]: { why: ({ message }: { message: string }) => message, docs: false },
+        },
     });
 
     return {
@@ -22,7 +25,7 @@ export function createDevframeBridge(ctx: DevframeNodeContext): StudioHostBridge
         },
 
         warn: (message) => {
-            diagnostics.studio({ message });
+            diagnostics[STUDIO_NAME]({ message });
         },
 
         publishConfig: (config) => {

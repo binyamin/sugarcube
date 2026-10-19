@@ -1,15 +1,9 @@
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import type { InternalConfig } from "@sugarcube-sh/core";
-import { createNodeTokenSource } from "@sugarcube-sh/studio/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type StudioBuild, buildStudio } from "../src/build";
-
-const demoResolver = fileURLToPath(
-    new URL("../../studio/demo/tokens.resolver.json", import.meta.url),
-);
+import { filesAt } from "./demo";
 
 describe("buildStudio", () => {
     let outDir: string;
@@ -17,10 +11,8 @@ describe("buildStudio", () => {
 
     beforeAll(async () => {
         outDir = mkdtempSync(join(tmpdir(), "studio-build-"));
-        const source = createNodeTokenSource({
-            loadConfig: async () => ({ resolver: demoResolver, variables: {} }) as InternalConfig,
-        });
-        built = await buildStudio({ source, outDir, saveUrl: "https://example.test/submit-pr" });
+        const files = await filesAt();
+        built = await buildStudio({ files, outDir, saveUrl: "https://example.test/submit-pr" });
     }, 60_000);
 
     afterAll(() => {
@@ -36,7 +28,7 @@ describe("buildStudio", () => {
         expect(existsSync(join(built.rootDir, built.studioPath, "index.html"))).toBe(true);
     });
 
-    it("writes the hub folder with Studio, the dock bootstrap and a static descriptor", () => {
+    it("writes the hub folder with studio, the dock bootstrap and a static descriptor", () => {
         expect(existsSync(join(built.hubDir, "embedded.js"))).toBe(true);
         expect(existsSync(join(built.hubDir, "sugarcube-studio", "index.html"))).toBe(true);
 
@@ -53,25 +45,21 @@ describe("buildStudio", () => {
         });
     });
 
-    it("bakes the token files into the dump, so Studio boots with no server", () => {
+    it("bakes the token files into the dump, so studio boots with no server", () => {
         const dumpDir = join(built.hubDir, "__rpc-dump");
         const records = readdirSync(dumpDir)
             .filter((name) => name.includes("record"))
             .map((name) => readFileSync(join(dumpDir, name), "utf8"))
             .join("\n");
 
-        expect(records).toContain("sugarcube:studio:disk");
+        expect(records).toContain("sugarcube:studio:message");
         expect(records).toContain("color.json");
     });
 
-    it("puts the page script in the dock, so an edit reaches a page the built Studio is docked on", () => {
+    it("puts the page script in the dock, so an edit reaches a page the built studio is docked on", () => {
         expect(
             existsSync(join(built.hubDir, "sugarcube-studio", "__page-script", "page-script.mjs")),
         ).toBe(true);
-    });
-
-    it("reports nothing wrong with the demo", () => {
-        expect(built.errors).toEqual([]);
     });
 
     it("tells the caller the tag and the path, relative to the site root", () => {
@@ -83,16 +71,12 @@ describe("buildStudio", () => {
 });
 
 describe("buildStudio with nothing to build", () => {
-    it("refuses, naming the reason, rather than writing an empty Studio", async () => {
+    it("refuses, naming the problems, rather than writing an empty studio", async () => {
         const outDir = mkdtempSync(join(tmpdir(), "studio-build-empty-"));
-        const source = createNodeTokenSource({
-            loadConfig: async () => {
-                throw new Error("Unexpected token in sugarcube.config.ts");
-            },
-        });
+        const files = await filesAt(join(outDir, "missing.resolver.json"));
 
-        await expect(buildStudio({ source, outDir })).rejects.toThrow(
-            "Unexpected token in sugarcube.config.ts",
+        await expect(buildStudio({ files, outDir })).rejects.toThrow(
+            /^\[sugarcube studio\] Nothing to build[^]*missing\.resolver\.json/,
         );
 
         rmSync(outDir, { recursive: true, force: true });

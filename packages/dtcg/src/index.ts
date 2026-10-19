@@ -1581,6 +1581,19 @@ export interface DesignTokens {
      */
     reread(changed: Readonly<Record<string, string | null>>): DesignTokens;
     /**
+     * The design tokens read again from every file's text as it is now, from the same file and
+     * with the same options: `files` holds each file by the name {@link DesignTokens.files} gives
+     * it, and a file these read that `files` leaves out is read as deleted. These same design
+     * tokens when no file's text differs, so a tool sent every file after each change can tell
+     * that nothing did. What a host-fed editor asks; one that knows what it changed asks
+     * {@link DesignTokens.reread}.
+     *
+     * @example
+     * const next = tokens.rereadAll(received.files);
+     * if (next !== tokens) show(next);
+     */
+    rereadAll(files: Readonly<Record<string, string>>): DesignTokens;
+    /**
      * What to send to read these design tokens somewhere else, such as a browser or a worker: the
      * entry and the text of every file read, a {@link TokensInMemory} as {@link readFromMemory}
      * takes it. Read it there with the same options for the same design tokens; options can hold
@@ -1700,6 +1713,20 @@ export interface Permutations extends ReadonlyArray<Permutation> {
      * elsewhere.label; // "mode: light"
      */
     where(test: (permutation: Permutation) => boolean): Permutations;
+    /**
+     * The permutation in this list that an input names, found as {@link DesignTokens.permutation}
+     * finds it: modifiers left out take their default (Resolver 4.1.5.3), and names match
+     * whatever their case (Resolver 5.1); `undefined` when the resolver has no such
+     * context or modifier, when the read built no such permutation, or when this list doesn't hold
+     * it. What a tool asks to find a permutation again from an input it kept, such as one chosen
+     * before the files changed. For why there is none, see {@link completeInput}.
+     *
+     * @example
+     * tokens.permutations.matching({ mode: "dark" })?.label;                          // "mode: dark"
+     * tokens.permutations.matching(kept.input) ?? tokens.permutation();               // the default if it went
+     * problem.permutations.matching({ mode: "dark" }) !== undefined;                   // found in mode: dark?
+     */
+    matching(input: Input): Permutation | undefined;
 }
 
 /**

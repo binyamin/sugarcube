@@ -1,18 +1,18 @@
 import { type DevframeDefinition, defineDevframe } from "devframe";
 import { STUDIO_SURFACE, defineStudio } from "./define-studio";
 import { createDevframeBridge } from "./devframe-bridge";
+import type { StudioFiles } from "./files";
 import { STUDIO_ICON } from "./icon";
-import type { StudioTokenSource } from "./types";
 
 export type StudioDevframeOptions = {
-    source: StudioTokenSource;
+    files: StudioFiles | Promise<StudioFiles>;
     clientAssets?: string;
     /** Where a save goes from a build with no server. Baked into the handshake. */
     saveUrl?: string;
 };
 
 export function studioDevframe(options: StudioDevframeOptions): DevframeDefinition {
-    const { source, clientAssets, saveUrl } = options;
+    const { files, clientAssets, saveUrl } = options;
 
     return defineDevframe({
         id: STUDIO_SURFACE.id,
@@ -27,7 +27,7 @@ export function studioDevframe(options: StudioDevframeOptions): DevframeDefiniti
         ...(clientAssets ? { clientAssets } : {}),
         basePath: STUDIO_SURFACE.route,
         setup: async (ctx) => {
-            await defineStudio(source, createDevframeBridge(ctx), { saveUrl });
+            await defineStudio(await files, createDevframeBridge(ctx), { saveUrl });
         },
     });
 }

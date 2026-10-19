@@ -294,6 +294,14 @@ class DesignTokensObject {
         return readFiles(files, this.#self);
     }
 
+    rereadAll(files: Readonly<Record<string, string>>) {
+        const { texts, readFiles } = this.#kept;
+        const unchanged =
+            Object.keys(texts).every((file) => file in files) &&
+            Object.entries(files).every(([file, text]) => texts[file] === text);
+        return unchanged ? this.#self : readFiles({ ...files }, this.#self);
+    }
+
     toMemory() {
         return { entry: this.#self.entry, files: { ...this.#kept.texts } };
     }

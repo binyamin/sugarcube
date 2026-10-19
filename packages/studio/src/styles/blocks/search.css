@@ -45,6 +45,7 @@
     font-size: var(--text-base);
     color: var(--color-text-primary);
     padding: 0;
+    block-size: 2.5rem;
 }
 
 .search-kbd {
@@ -114,6 +115,7 @@
     text-align: center;
     font-size: var(--text-sm);
     color: var(--color-text-quiet);
+    margin: 0;
 }
 
 .search-foot {

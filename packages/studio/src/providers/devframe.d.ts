@@ -1,11 +1,11 @@
 /// <reference types="devframe" />
 
 import type { STUDIO_RPC, StudioConnectionConfig } from "../protocol";
-import type { SaveBundle } from "../host/types";
+import type { Saved } from "../server/save";
 
 declare module "devframe" {
     interface DevframeRpcServerFunctions {
-        [STUDIO_RPC.SAVE]: (bundle: SaveBundle) => Promise<void>;
+        [STUDIO_RPC.SAVE]: (sent: unknown) => Promise<Saved>;
     }
 
     interface DevframeConnectionConfigsRegistry {

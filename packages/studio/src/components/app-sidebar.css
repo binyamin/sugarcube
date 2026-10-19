@@ -2,6 +2,7 @@
     display: block;
     inline-size: 1.25rem;
     block-size: 1.25rem;
+    flex-shrink: 0;
 }
 
 .sidebar-menu-chevron {

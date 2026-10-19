@@ -1,7 +1,7 @@
 {
   "size": {
     "$type": "dimension",
-    "$description": "Sizing steps on a modular scale, fluid between a small and large viewport.",
+    "$description": "An example description",
     "step": {
       "$extensions": {
         "sh.sugarcube": {
@@ -20,7 +20,7 @@
     },
     "fluid": {
       "$type": "dimension",
-      "$description": "Authored fluid pairs, rather than pairs a recipe generated.",
+      "$description": "An example description",
       "gutter": {
         "$value": { "value": 2, "unit": "rem" },
         "$extensions": {

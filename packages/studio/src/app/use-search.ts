@@ -2,25 +2,24 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-/** `null` is closed. Anything else, including "", is open with that query. */
 export function useSearch() {
-    const [query, setQuery] = useState<string | null>(null);
+    const [open, setOpen] = useState(false);
 
     useEffect(() => {
         function onKey(event: KeyboardEvent) {
             if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
                 event.preventDefault();
-                setQuery((current) => (current === null ? "" : null));
+                setOpen((current) => !current);
                 return;
             }
-            if (event.key === "Escape") setQuery(null);
+            if (event.key === "Escape") setOpen(false);
         }
 
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
     }, []);
 
-    const close = useCallback(() => setQuery(null), []);
+    const close = useCallback(() => setOpen(false), []);
 
-    return { query, setQuery, close };
+    return { open, close };
 }

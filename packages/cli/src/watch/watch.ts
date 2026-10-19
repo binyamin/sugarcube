@@ -5,10 +5,10 @@ import {
     type Reported,
     configProblems,
     plural,
-    readOptions,
+    tokensOnDisk,
     writeCSSFiles,
 } from "@sugarcube-sh/core";
-import { type TokensOnDisk, liveTokens } from "@sugarcube-sh/dtcg/node";
+import { liveTokens } from "@sugarcube-sh/dtcg/node";
 import { type BuildOptions, type Built, buildFrom, filesOf, rescan } from "../build.js";
 import { type ConfigFlags, loadConfig } from "../config.js";
 import { ERROR_MESSAGES } from "../constants/error-messages.js";
@@ -34,7 +34,7 @@ export async function watch(flags: WatchFlags, first: LoadedConfig): Promise<voi
         const message = error instanceof Error ? error.message : String(error);
         console.error(`${errorPrefix} ${message}`);
     };
-    const live = liveTokens(() => onDisk(loaded), { onError });
+    const live = liveTokens(() => tokensOnDisk(loaded.config), { onError });
 
     const written = async (built: Built, files: CSSFileOutput): Promise<boolean> => {
         const failed = printProblems([...fromConfig, ...built.diagnostics], whereOf(built), {
@@ -99,10 +99,6 @@ export async function watch(flags: WatchFlags, first: LoadedConfig): Promise<voi
     });
 
     await new Promise(() => {});
-}
-
-function onDisk({ config }: LoadedConfig): TokensOnDisk {
-    return { entry: config.resolver, options: readOptions(config) };
 }
 
 function savedFile(change: Change, { configFile }: LoadedConfig): string {

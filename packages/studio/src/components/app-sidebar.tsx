@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink, useLocation, useMatch } from "react-router";
+import { useMemo, useState } from "react";
+import { Link, NavLink, useLocation, useMatch } from "react-router";
 import { ancestorsOf, hrefFor } from "../app/token-path";
 import { Logo } from "../app/Logo";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible/collapsible";
@@ -18,38 +18,38 @@ import {
     SidebarMenuSubButton,
     SidebarMenuSubItem,
 } from "./ui/sidebar/sidebar";
-import { useTokenTree } from "../pages/use-groups";
-import { type TokenNode, isLeaf } from "../tokens/groups";
+import { type TreeNode, sidebarTree } from "../controllers/views";
+import { useStudioState } from "../providers/studio-context";
 
 function useNodeActive(path: string) {
     return !!useMatch({ path: hrefFor(path), end: true });
 }
 
-function TreeLinkButton({ node }: { node: TokenNode }) {
+function TreeLinkButton({ node }: { node: TreeNode }) {
     const isActive = useNodeActive(node.path);
 
     return (
-        <SidebarMenuButton asChild isActive={isActive} tooltip={node.title}>
+        <SidebarMenuButton asChild isActive={isActive} tooltip={node.name}>
             <NavLink to={hrefFor(node.path)} end>
-                <span>{node.title}</span>
+                <span>{node.name}</span>
             </NavLink>
         </SidebarMenuButton>
     );
 }
 
-function TreeSubLinkButton({ node }: { node: TokenNode }) {
+function TreeSubLinkButton({ node }: { node: TreeNode }) {
     const isActive = useNodeActive(node.path);
 
     return (
         <SidebarMenuSubButton asChild isActive={isActive}>
             <NavLink to={hrefFor(node.path)} end>
-                <span>{node.title}</span>
+                <span>{node.name}</span>
             </NavLink>
         </SidebarMenuSubButton>
     );
 }
 
-function TreeBranchRow({ node, nested }: { node: TokenNode; nested?: boolean }) {
+function TreeBranchRow({ node, nested }: { node: TreeNode; nested?: boolean }) {
     const isActive = useNodeActive(node.path);
 
     return (
@@ -62,7 +62,7 @@ function TreeBranchRow({ node, nested }: { node: TokenNode; nested?: boolean }) 
                 }
                 data-active={isActive || undefined}
             >
-                <span className="sidebar-branch-title">{node.title}</span>
+                <span className="sidebar-branch-title">{node.name}</span>
                 <span className="sidebar-branch-meta">
                     <Icon name="caret-right" size="sm" className="sidebar-menu-chevron" />
                 </span>
@@ -72,13 +72,13 @@ function TreeBranchRow({ node, nested }: { node: TokenNode; nested?: boolean }) 
 }
 
 type TreeItemProps = {
-    node: TokenNode;
+    node: TreeNode;
     open: ReadonlySet<string>;
     onToggle: (path: string) => void;
     nested?: boolean;
 };
 
-function TreeLeafItem({ node, nested }: { node: TokenNode; nested?: boolean }) {
+function TreeLeafItem({ node, nested }: { node: TreeNode; nested?: boolean }) {
     if (nested) {
         return (
             <SidebarMenuSubItem>
@@ -121,7 +121,7 @@ function TreeBranchItem({ node, open, onToggle, nested }: TreeItemProps) {
 }
 
 function TreeItem({ node, open, onToggle, nested }: TreeItemProps) {
-    if (isLeaf(node)) {
+    if (node.children.length === 0) {
         return <TreeLeafItem node={node} nested={nested} />;
     }
 
@@ -129,7 +129,8 @@ function TreeItem({ node, open, onToggle, nested }: TreeItemProps) {
 }
 
 export function AppSidebar() {
-    const tree = useTokenTree();
+    const tokens = useStudioState((state) => state.tokens);
+    const tree = useMemo(() => sidebarTree(tokens), [tokens]);
     const { pathname } = useLocation();
     const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
     const [seen, setSeen] = useState<string | null>(null);
@@ -148,18 +149,16 @@ export function AppSidebar() {
         });
     }
 
-    const home = tree[0]?.name ?? "";
-
     return (
         <Sidebar variant="inset" collapsible="icon">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild size="lg">
-                            <NavLink to={`/${home}`} aria-label="Sugarcube">
+                            <Link to="/" aria-label="Sugarcube">
                                 <Logo />
                                 <span>Sugarcube</span>
-                            </NavLink>
+                            </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>

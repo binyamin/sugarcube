@@ -164,6 +164,8 @@
     transition-property: all;
     transition-timing-function: linear;
     transform: translateX(-50%);
+    border: 0;
+    padding: 0;
 }
 
 @media (min-width: 640px) {
@@ -380,6 +382,9 @@
     flex-direction: column;
     /* gap: 0; */
     gap: var(--space-100);
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
 .sidebar-menu-item {
@@ -400,6 +405,8 @@
     transition-property: width, height, padding;
     transition-duration: 200ms;
     transition-timing-function: linear;
+    border: 0;
+    text-decoration: none;
 }
 
 .sidebar-menu-button:hover {
@@ -599,6 +606,8 @@
     border-left: 1px solid var(--sidebar-border-color);
     padding-inline: 0.625rem;
     padding-block: 0.125rem;
+    margin-block: 0;
+    list-style: none;
 }
 
 .sidebar-menu-sub-item {

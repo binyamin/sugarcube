@@ -1,0 +1,19 @@
+export const STUDIO_NAME = "sugarcube studio";
+
+const prefix = `[${STUDIO_NAME}]`;
+
+export const ErrorMessages = {
+    NOT_EDITS: `${prefix} Refusing to save: what was sent is not a list of edits.`,
+    NAMING_DROPPED:
+        "The config names variables with a function, which cannot run in the browser. " +
+        "The page preview and any variable name studio shows use the default naming.",
+    NOTHING_TO_BUILD: (problems: string) =>
+        `${prefix} Nothing to build: no tokens were read.\n${problems}`,
+    NO_SUGARCUBE_PLUGIN: `${prefix} Could not find the sugarcube plugin. Is @sugarcube-sh/vite in this Vite config?`,
+    NO_BROWSER: (reason: string, url: string) =>
+        `${prefix} Could not open a browser (${reason}). Open ${url} yourself.`,
+    READ_FAILED: `${prefix} Reading the token files failed:`,
+    NO_MOUNT_POINT: `${prefix} The mount point "#root" is not in index.html.`,
+    NO_MESSAGE: `${prefix} The host sent no token files. studio needs the files to show them.`,
+    DEMO_FAILED: `${prefix} Reading the demo tokens failed:`,
+} as const;

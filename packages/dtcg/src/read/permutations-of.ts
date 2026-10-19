@@ -1,5 +1,6 @@
-import type { Permutation, Permutations, Scope } from "../index.js";
+import type { Input, Permutation, Permutations, Resolver, Scope } from "../index.js";
 import { scopeLabel, scopeOf } from "../lookup/permutation-label.js";
+import { checkedInput, modifiersIn } from "./input.js";
 
 interface Worded {
     scope: Scope;
@@ -27,9 +28,28 @@ function wordedFor(
     return worded;
 }
 
-export function permutationsOf(
+type Matching = (input: Input) => Permutation | undefined;
+
+export function allPermutations(
+    built: readonly Permutation[],
+    resolver: Resolver | undefined,
+): Permutations {
+    const modifiers = modifiersIn(resolver);
+    return listed(built, built, (input) => {
+        const checked = checkedInput(modifiers, input);
+        if (!checked.ok) return undefined;
+        return built.find((each) => sameInput(each.input, checked.input));
+    });
+}
+
+export function permutationsOf(given: readonly Permutation[], all: Permutations): Permutations {
+    return listed(given, all, all.matching);
+}
+
+function listed(
     given: readonly Permutation[],
     all: readonly Permutation[],
+    matchingAll: Matching,
 ): Permutations {
     const held = new Set(given);
     const list = all.filter((each) => held.has(each));
@@ -48,9 +68,19 @@ export function permutationsOf(
         where: {
             value: (test: (permutation: Permutation) => boolean) => {
                 const kept = list.filter(test);
-                return kept.length === list.length ? permutations : permutationsOf(kept, all);
+                return kept.length === list.length ? permutations : listed(kept, all, matchingAll);
+            },
+        },
+        matching: {
+            value: (input: Input) => {
+                const found = matchingAll(input);
+                return found && held.has(found) ? found : undefined;
             },
         },
     }) as unknown as Permutations;
     return permutations;
+}
+
+function sameInput(built: Input, complete: Input): boolean {
+    return Object.keys(complete).every((name) => built[name] === complete[name]);
 }

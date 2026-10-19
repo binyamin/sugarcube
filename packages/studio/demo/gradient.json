@@ -1,7 +1,7 @@
 {
   "gradient": {
     "$type": "gradient",
-    "$description": "Stops. Always a list, and each stop is a colour plus a position from 0 to 1 — so adding or removing a stop is an edit no text field can express.",
+    "$description": "An example description",
     "brand": {
       "$value": [
         { "color": "{color.brand.400}", "position": 0 },
@@ -9,7 +9,7 @@
       ]
     },
     "fade": {
-      "$description": "Three stops with literal colours, so the list has a length worth editing.",
+      "$description": "An example description",
       "$value": [
         { "color": "#fafafb", "position": 0 },
         { "color": "#e5e5ea", "position": 0.5 },

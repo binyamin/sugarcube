@@ -29,6 +29,7 @@ export { assignCSSNames } from "./shared/pipeline/assign-css-names.js";
 export { generateCSSVariables } from "./shared/generate-css-variables.js";
 
 export { readOptions } from "./shared/read-options.js";
+export type { ReadOptions } from "@sugarcube-sh/dtcg";
 export { declare } from "./shared/css/declare.js";
 export type { Declarations } from "./shared/css/declare.js";
 export { emitCSS } from "./shared/css/emit.js";
@@ -126,3 +127,6 @@ export type {
     TokenRef,
     GroupRef,
 } from "./types/dtcg.js";
+
+export { problemCount, problemLines, problemsText } from "./shared/problems.js";
+export type { Where } from "./shared/problems.js";

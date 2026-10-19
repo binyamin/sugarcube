@@ -9,19 +9,6 @@ body {
     min-block-size: 0;
 }
 
-.inspector-pane {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-block-size: 0;
-}
-
-.inspector-pane-body {
-    flex: 1;
-    min-block-size: 0;
-    overflow-y: auto;
-}
-
 .change-bar {
     flex: none;
     display: flex;
@@ -31,18 +18,10 @@ body {
     background: var(--color-surface-default);
 }
 
-.change-bar-conflicts {
-    padding-inline: var(--space-250);
-    padding-block: var(--space-150);
-    font-size: var(--text-sm);
-    color: var(--color-component-modified);
-    background-color: var(--color-component-modified-light);
-    border-block-end: var(--border-width-thin) solid var(--color-surface-border);
+.studio-error p {
+    margin: 0;
 }
 
-.change-bar-diff {
-    max-block-size: 40dvh;
-    overflow-y: auto;
-    background: var(--color-bg-subtle);
-    border-block-end: var(--border-width-thin) solid var(--color-surface-border);
+.studio-error pre {
+    margin: 0;
 }
