@@ -25,9 +25,5 @@
 @import "./blocks/search.css" layer(blocks);
 @import "./blocks/canvas.css" layer(blocks);
 @import "./blocks/inspector-actions.css" layer(blocks);
-@import "./blocks/token-path.css" layer(blocks);
-@import "./blocks/source-path.css" layer(blocks);
-@import "./blocks/diff.css" layer(blocks);
-@import "./blocks/swatch.css" layer(blocks);
 @import "./utilities/region.css" layer(utilities);
 @import "./utilities/visually-hidden.css" layer(utilities);
