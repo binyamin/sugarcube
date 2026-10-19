@@ -1,7 +1,6 @@
 /// <reference types="devframe" />
 
-import type { STUDIO_RPC, StudioConnectionConfig } from "../protocol";
-import type { Saved } from "../server/save";
+import type { STUDIO_RPC, Saved, StudioConnectionConfig } from "../protocol";
 
 declare module "devframe" {
     interface DevframeRpcServerFunctions {

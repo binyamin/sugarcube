@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { Saved } from "../protocol";
 import { Icon } from "../components/ui/icon/Icons";
 import { type ChangeLine, changeLines } from "../controllers/views";
 import { useStudio, useStudioState } from "../providers/studio-context";
@@ -8,7 +9,22 @@ export function ChangeBar() {
     const changes = useStudioState((state) => state.changes);
     const lines = useMemo(() => changeLines(changes), [changes]);
     const [open, setOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [outcome, setOutcome] = useState<Saved | { failed: string }>();
     const count = lines.length;
+    const { save } = studio;
+
+    const onSave = async () => {
+        if (!save) return;
+        setSaving(true);
+        try {
+            setOutcome(await save());
+        } catch (error) {
+            setOutcome({ failed: error instanceof Error ? error.message : String(error) });
+        } finally {
+            setSaving(false);
+        }
+    };
 
     return (
         <div className="change-bar">
@@ -21,6 +37,7 @@ export function ChangeBar() {
                     ))}
                 </ul>
             )}
+            {outcome && <Outcome outcome={outcome} />}
             <div
                 className="inspector-actions repel"
                 role="toolbar"
@@ -47,12 +64,43 @@ export function ChangeBar() {
                     >
                         Discard
                     </button>
-                    <button type="button" className="button" data-role="primary" disabled>
-                        Save
+                    <button
+                        type="button"
+                        className="button"
+                        data-role="primary"
+                        disabled={!save || count === 0 || saving}
+                        onClick={onSave}
+                    >
+                        {saving ? "Saving" : "Save"}
                     </button>
                 </div>
             </div>
         </div>
+    );
+}
+
+function Outcome({ outcome }: { outcome: Saved | { failed: string } }) {
+    if ("failed" in outcome) return <p>Save failed: {outcome.failed}</p>;
+    if (outcome.conflicts) {
+        return (
+            <ul>
+                {outcome.conflicts.map((conflict) => (
+                    <li key={conflict.reason}>{conflict.reason}</li>
+                ))}
+            </ul>
+        );
+    }
+    const files = [...outcome.written, ...outcome.deleted];
+    return (
+        <p>
+            Saved:{" "}
+            {files.map((file, index) => (
+                <span key={file}>
+                    {index > 0 && ", "}
+                    <code>{file}</code>
+                </span>
+            ))}
+        </p>
     );
 }
 

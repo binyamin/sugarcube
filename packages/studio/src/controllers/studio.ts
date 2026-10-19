@@ -6,8 +6,8 @@ import {
     readFromMemory,
     sameJson,
 } from "@sugarcube-sh/dtcg";
-import { type Committed, type OpResult, createSession } from "@sugarcube-sh/dtcg-edit";
-import type { SentAdapter, StudioMessage } from "../protocol";
+import { type Committed, type Edits, type OpResult, createSession } from "@sugarcube-sh/dtcg-edit";
+import type { Saved, SentAdapter, StudioMessage } from "../protocol";
 import type { BuildAdapter, BuildProblem, BuildOutput } from "./adapter";
 
 export interface StudioState {
@@ -29,11 +29,13 @@ export interface Studio {
     discard(): void;
     idOf(path: string): string | undefined;
     pathOf(id: string): string | undefined;
+    save?(): Promise<Saved>;
 }
 
 export function createStudio(
     first: StudioMessage,
     adapterFor: (sent: SentAdapter) => BuildAdapter,
+    saveEdits?: (edits: Edits) => Promise<Saved>,
 ): Studio {
     let message = first;
     let adapter = adapterFor(first.adapter);
@@ -61,7 +63,17 @@ export function createStudio(
 
     const stopSession = session.subscribe(() => publish(built(state.showing.input)));
 
+    const save = saveEdits
+        ? async () => {
+              const sent = session.unsaved;
+              const saved = await saveEdits(sent);
+              if (!saved.conflicts && session.unsaved === sent) session.markSaved();
+              return saved;
+          }
+        : undefined;
+
     return {
+        ...(save && { save }),
         get state() {
             return state;
         },

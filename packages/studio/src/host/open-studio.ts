@@ -1,7 +1,8 @@
 import { adapterFor } from "../adapters";
 import { type Studio, createStudio } from "../controllers/studio";
 import { ErrorMessages } from "../error-messages";
-import type { StudioMessage } from "../protocol";
+import type { Edits } from "@sugarcube-sh/dtcg-edit";
+import type { Saved, StudioMessage } from "../protocol";
 
 const WAIT_MS = 10_000;
 
@@ -13,10 +14,10 @@ export interface SharedMessage {
 export async function openStudio(
     shared: SharedMessage,
     signal: AbortSignal,
-    waitMs = WAIT_MS,
+    { save, waitMs = WAIT_MS }: { save?: (edits: Edits) => Promise<Saved>; waitMs?: number } = {},
 ): Promise<Studio> {
     const first = shared.value() ?? (await arrived(shared, signal, waitMs));
-    const studio = createStudio(first, adapterFor);
+    const studio = createStudio(first, adapterFor, save);
     const stop = shared.on("updated", (next) => studio.receive(next));
     signal.addEventListener("abort", () => {
         stop();
