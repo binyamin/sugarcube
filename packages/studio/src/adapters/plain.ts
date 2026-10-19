@@ -22,7 +22,7 @@ export function plain({ naming, blocks = DEFAULT_BLOCKS }: PlainSettings = {}): 
             return {
                 value: (token) => values.written(token)?.css,
                 css: cssText(cssBlocks(tokens, blocks, { writer: cssWriter({ naming }) })),
-                problems: [],
+                problems: tokens.diagnostics,
             };
         },
     };

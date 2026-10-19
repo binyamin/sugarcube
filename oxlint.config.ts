@@ -24,22 +24,16 @@ export default defineConfig({
     },
     overrides: [
         {
-            // Some rules to help keep the studio architecture clean.
-            files: ["packages/studio/src/components/controls/**"],
+            files: ["packages/studio/src/controllers/**", "packages/studio/src/adapters/plain.ts"],
             rules: {
                 "no-restricted-imports": [
                     "error",
                     {
                         patterns: [
                             {
-                                group: ["**/store", "**/store/**"],
+                                group: ["@sugarcube-sh/core", "@sugarcube-sh/core/*"],
                                 message:
-                                    "components/controls must stay presentational - take props and emit callbacks instead of reading the store.",
-                            },
-                            {
-                                group: ["**/rows", "**/rows/**"],
-                                message:
-                                    "components/controls must not depend on the row layer - a control renders props, it doesn't know about bindings or rows. Shared data shapes belong in tokens/.",
+                                    "studio's controllers and the plain adapter work for any build tool: ask the build adapter for what sugarcube writes, never core.",
                             },
                         ],
                     },

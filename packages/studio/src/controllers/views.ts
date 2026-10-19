@@ -1,6 +1,6 @@
-import { type Reported, problemLines } from "@sugarcube-sh/core/client";
 import type { DesignTokens, Group, Token, TokenType } from "@sugarcube-sh/dtcg";
-import { type TypographyCSS, cssValue } from "@sugarcube-sh/dtcg/css";
+import type { TypographyCSS } from "@sugarcube-sh/dtcg/css";
+import type { BuildProblem, BuildOutput } from "./adapter";
 
 export interface TreeNode {
     readonly path: string;
@@ -27,6 +27,14 @@ export interface TokenRow {
     readonly type: TokenType;
     readonly written: unknown;
     readonly css: string | TypographyCSS | undefined;
+}
+
+export interface ProblemRow {
+    readonly place?: string;
+    readonly severity: BuildProblem["severity"];
+    readonly message: string;
+    readonly inPermutations?: string;
+    readonly kind: string;
 }
 
 export interface GroupView {
@@ -85,7 +93,7 @@ export function trail(path: string): Crumb[] {
     return names.map((name, index) => ({ path: names.slice(0, index + 1).join("."), name }));
 }
 
-export function groupView(group: Group): GroupView {
+export function groupView(group: Group, value: BuildOutput["value"]): GroupView {
     const below = (child: Token | Group) => child.path.slice(group.path.length + 1);
     return {
         path: group.path,
@@ -93,21 +101,31 @@ export function groupView(group: Group): GroupView {
         groups: group.children
             .filter((child): child is Group => child.kind === "group")
             .map((child) => ({ path: child.path, name: below(child), count: child.tokens.length })),
-        tokens: group.childTokens.map((token) => tokenRow(token, below(token))),
+        tokens: group.childTokens.map((token) => tokenRow(token, below(token), value)),
     };
 }
 
-export function tokenRow(token: Token, name: string): TokenRow {
+export function tokenRow(token: Token, name: string, value: BuildOutput["value"]): TokenRow {
     return {
         path: token.path,
         name,
         type: token.type,
         written: token.authored?.value,
-        css: cssValue(token),
+        css: value(token),
     };
 }
 
-export function problemList(problems: readonly Reported[]): string[] {
-    if (problems.length === 0) return [];
-    return problemLines(problems, { cwd: ".", folder: "." }, { colors: false });
+export function problemRows(problems: readonly BuildProblem[]): ProblemRow[] {
+    return problems.map(({ span, severity, message, permutations, kind }) => {
+        const label = permutations?.label;
+        return {
+            ...(span ? { place: `${span.file}:${span.start.line}:${span.start.column}` } : {}),
+            severity,
+            message,
+            ...(label && label !== "everywhere" && label !== "nowhere"
+                ? { inPermutations: label }
+                : {}),
+            kind,
+        };
+    });
 }

@@ -1,3 +1,4 @@
+import { adapterFor } from "../adapters";
 import { type Studio, createStudio } from "../controllers/studio";
 import { ErrorMessages } from "../error-messages";
 import type { StudioMessage } from "../protocol";
@@ -15,7 +16,7 @@ export async function openStudio(
     waitMs = WAIT_MS,
 ): Promise<Studio> {
     const first = shared.value() ?? (await arrived(shared, signal, waitMs));
-    const studio = createStudio(first);
+    const studio = createStudio(first, adapterFor);
     const stop = shared.on("updated", (next) => studio.receive(next));
     signal.addEventListener("abort", () => {
         stop();

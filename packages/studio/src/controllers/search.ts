@@ -1,4 +1,3 @@
-import { cssValue } from "@sugarcube-sh/dtcg/css";
 import type { Studio, StudioState } from "./studio";
 
 export const MAX_HITS = 40;
@@ -53,7 +52,7 @@ export function createSearch(studio: Studio): Search {
     };
 }
 
-function found({ tokens, showing }: StudioState, query: string): SearchState {
+function found({ tokens, showing, value: asWritten }: StudioState, query: string): SearchState {
     const needle = query.trim().toLowerCase();
     const hits: Hit[] = [];
     if (!needle) return { query, hits, capped: false };
@@ -62,7 +61,7 @@ function found({ tokens, showing }: StudioState, query: string): SearchState {
         if (!path.toLowerCase().includes(needle)) continue;
         if (hits.length === MAX_HITS) return { query, hits, capped: true };
         const token = showing.token(path);
-        const css = token && cssValue(token);
+        const css = token && asWritten(token);
         const value = typeof css === "string" ? css : undefined;
         hits.push({ path, swatch: token?.type === "color" ? value : undefined, value });
     }

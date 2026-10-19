@@ -16,6 +16,17 @@ describe("plain", () => {
         expect(plain().write(tokens).problems).toEqual([]);
     });
 
+    it("reports what the read finds, as a build would", () => {
+        const files = { ...plainFiles(), "dark.json": '{ "color": { "text": ' };
+        const tokens = readFromMemory({ files, entry: PLAIN_ENTRY }, plain().read);
+
+        expect(
+            plain()
+                .write(tokens)
+                .problems.map(({ kind }) => kind),
+        ).toContain("invalid-json");
+    });
+
     it("writes a token's value as dtcg writes it, leaving another tool's extensions alone", () => {
         const tokens = readWith(plain());
         const gutter = tokens.permutation().token("size.fluid.gutter");

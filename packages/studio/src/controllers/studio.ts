@@ -1,4 +1,3 @@
-import { type Reported, cssFrom, readOptions } from "@sugarcube-sh/core/client";
 import {
     type DesignTokens,
     type Input,
@@ -7,13 +6,15 @@ import {
     sameJson,
 } from "@sugarcube-sh/dtcg";
 import { createSession } from "@sugarcube-sh/dtcg-edit";
-import type { StudioMessage } from "../protocol";
+import type { SentAdapter, StudioMessage } from "../protocol";
+import type { BuildAdapter, BuildProblem, BuildOutput } from "./adapter";
 
 export interface StudioState {
     readonly tokens: DesignTokens;
     readonly showing: Permutation;
+    readonly value: BuildOutput["value"];
     readonly css: string;
-    readonly problems: readonly Reported[];
+    readonly problems: readonly BuildProblem[];
     readonly changes: number;
 }
 
@@ -25,20 +26,25 @@ export interface Studio {
     receive(message: StudioMessage): void;
 }
 
-export function createStudio(first: StudioMessage): Studio {
+export function createStudio(
+    first: StudioMessage,
+    adapterFor: (sent: SentAdapter) => BuildAdapter,
+): Studio {
     let message = first;
-    const session = createSession(read(first));
+    let adapter = adapterFor(first.adapter);
+    const session = createSession(read(first, adapter));
     const listeners = new Set<() => void>();
     let state = built(session.tokens.permutation().input);
 
     function built(showing: Input): StudioState {
         const { tokens } = session;
-        const made = cssFrom(tokens, message.config, { utilities: false });
+        const written = adapter.write(tokens);
         return {
             tokens,
             showing: tokens.permutations.matching(showing) ?? tokens.permutation(),
-            css: made.variables.map((file) => file.css).join("\n"),
-            problems: [...message.configProblems, ...made.diagnostics],
+            value: written.value,
+            css: written.css,
+            problems: [...message.adapter.problems, ...written.problems],
             changes: session.changes().length,
         };
     }
@@ -68,18 +74,23 @@ export function createStudio(first: StudioMessage): Studio {
         receive(next) {
             const previous = message;
             message = next;
-            if (next.entry !== previous.entry || !sameJson(next.config, previous.config)) {
-                session.rebase(read(next));
+            if (
+                next.entry !== previous.entry ||
+                next.adapter.name !== previous.adapter.name ||
+                !sameJson(next.adapter.settings, previous.adapter.settings)
+            ) {
+                adapter = adapterFor(next.adapter);
+                session.rebase(read(next, adapter));
                 return;
             }
             const fresh = session.opened.rereadAll(next.files);
             if (fresh !== session.opened) session.rebase(fresh);
-            else if (!sameJson(next.configProblems, previous.configProblems))
+            else if (!sameJson(next.adapter.problems, previous.adapter.problems))
                 publish(built(state.showing.input));
         },
     };
 }
 
-function read({ files, entry, config }: StudioMessage): DesignTokens {
-    return readFromMemory({ files, entry }, readOptions(config));
+function read({ files, entry }: StudioMessage, adapter: BuildAdapter): DesignTokens {
+    return readFromMemory({ files, entry }, adapter.read);
 }

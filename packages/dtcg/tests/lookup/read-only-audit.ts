@@ -8,6 +8,8 @@ const entries = {
     "dtcg-edit": ["dtcg-edit/src/index.ts", "dtcg-edit/src/node.ts"],
 };
 
+const KEEP_THEIR_ANSWERS = [["dtcg/src/css.ts", "CSSWriter"]] as const;
+
 export type Package = keyof typeof entries;
 
 export interface Breaks {
@@ -155,6 +157,11 @@ export function readOnlyBreaks(): Breaks {
         .getExportsOfModule(dtcg)
         .find(({ name }) => name === "DesignTokens")!;
     walk(checker.getDeclaredTypeOfSymbol(designTokens), "snapshot", "DesignTokens");
+    for (const [file, name] of KEEP_THEIR_ANSWERS) {
+        const module = checker.getSymbolAtLocation(program.getSourceFile(join(packages, file))!)!;
+        const keeper = checker.getExportsOfModule(module).find((each) => each.name === name)!;
+        walk(checker.getDeclaredTypeOfSymbol(keeper), "snapshot", name);
+    }
     for (const [pkg, files] of Object.entries(entries)) {
         for (const file of files) {
             const module = checker.getSymbolAtLocation(
