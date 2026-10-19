@@ -1,10 +1,12 @@
 import { adapterFor } from "../adapters";
 import { type Studio, createStudio } from "../controllers/studio";
+import { keepUnsaved } from "../controllers/unsaved";
 import { ErrorMessages } from "../error-messages";
 import type { Edits } from "@sugarcube-sh/dtcg-edit";
 import type { Saved, StudioMessage } from "../protocol";
 
 const WAIT_MS = 10_000;
+const UNSAVED_KEY = "sugarcube:studio:unsaved:";
 
 export interface SharedMessage {
     value(): StudioMessage | undefined;
@@ -18,6 +20,8 @@ export async function openStudio(
 ): Promise<Studio> {
     const first = shared.value() ?? (await arrived(shared, signal, waitMs));
     const studio = createStudio(first, adapterFor, save);
+    const storage = sessionStorageOf();
+    if (storage) void keepUnsaved(studio, storage, `${UNSAVED_KEY}${first.entry}`);
     const stop = shared.on("updated", (next) => studio.receive(next));
     signal.addEventListener("abort", () => {
         stop();
@@ -51,4 +55,12 @@ function arrived(
         };
         signal.addEventListener("abort", aborted, { once: true });
     });
+}
+
+function sessionStorageOf(): Storage | undefined {
+    try {
+        return globalThis.sessionStorage;
+    } catch {
+        return undefined;
+    }
 }

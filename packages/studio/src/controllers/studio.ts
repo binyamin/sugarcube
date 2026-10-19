@@ -6,7 +6,13 @@ import {
     readFromMemory,
     sameJson,
 } from "@sugarcube-sh/dtcg";
-import { type Committed, type Edits, type OpResult, createSession } from "@sugarcube-sh/dtcg-edit";
+import {
+    type Clash,
+    type Committed,
+    type Edits,
+    type OpResult,
+    createSession,
+} from "@sugarcube-sh/dtcg-edit";
 import type { Saved, SentAdapter, StudioMessage } from "../protocol";
 import type { BuildAdapter, BuildProblem, BuildOutput } from "./adapter";
 
@@ -17,16 +23,19 @@ export interface StudioState {
     readonly css: string;
     readonly problems: readonly BuildProblem[];
     readonly changes: readonly Change[];
+    readonly clashes: readonly Clash[];
 }
 
 export interface Studio {
     readonly state: StudioState;
+    readonly unsaved: Edits;
     subscribe(listener: () => void): () => void;
     destroy(): void;
     show(input: Input): void;
     receive(message: StudioMessage): void;
     do(result: OpResult): Committed;
     discard(): void;
+    restore(edits: Edits): void;
     idOf(path: string): string | undefined;
     pathOf(id: string): string | undefined;
     save?(): Promise<Saved>;
@@ -41,6 +50,7 @@ export function createStudio(
     let adapter = adapterFor(first.adapter);
     const session = createSession(read(first, adapter));
     const listeners = new Set<() => void>();
+    let clashes: readonly Clash[] = [];
     let state = built(session.tokens.permutation().input);
 
     function built(showing: Input): StudioState {
@@ -53,6 +63,7 @@ export function createStudio(
             css: written.css,
             problems: [...message.adapter.problems, ...written.problems],
             changes: session.changes(),
+            clashes,
         };
     }
 
@@ -77,6 +88,9 @@ export function createStudio(
         get state() {
             return state;
         },
+        get unsaved() {
+            return session.unsaved;
+        },
         subscribe(listener) {
             listeners.add(listener);
             return () => listeners.delete(listener);
@@ -93,6 +107,10 @@ export function createStudio(
         },
         discard() {
             session.discard();
+        },
+        restore(edits) {
+            clashes = session.restore(edits);
+            publish(built(state.showing.input));
         },
         idOf(path) {
             return session.idOf(path);
