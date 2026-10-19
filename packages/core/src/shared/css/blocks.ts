@@ -1,13 +1,13 @@
 import type { Group, Permutation, Token } from "@sugarcube-sh/dtcg";
+import type { CSSDeclaration } from "@sugarcube-sh/dtcg/css";
 import { stacksOn } from "../pipeline/stacks-on.js";
-import type { Declaration } from "./declarations.js";
 import type { Entry } from "./declare.js";
 
-export type Supported = Declaration & { supports: NonNullable<Declaration["supports"]> };
+export type Supported = CSSDeclaration & { supports: NonNullable<CSSDeclaration["supports"]> };
 
 export interface Block {
     entry: Entry;
-    written: Declaration[];
+    written: CSSDeclaration[];
     supported: Supported[];
 }
 
@@ -18,7 +18,7 @@ export function blocks(
     const byFile = new Map<string, Block[]>();
     for (const entry of toWrite) {
         const earlier = byFile.get(entry.path) ?? [];
-        const inEffect = new Map<string, Declaration>();
+        const inEffect = new Map<string, CSSDeclaration>();
         for (const each of earlier.filter((block) => reaches(block.entry, entry))) {
             for (const line of each.entry.declared.declarations) inEffect.set(line.name, line);
         }
@@ -32,7 +32,7 @@ export function blocks(
             (line): line is Supported =>
                 line.supports !== undefined &&
                 (writtenNames.has(line.name) ||
-                    !sameSupports(inEffect.get(line.name), line.supports)),
+                    !sameSupports(inEffect.get(line.name)?.supports, line.supports)),
         );
         byFile.set(entry.path, [...earlier, { entry, written, supported }]);
     }
@@ -50,22 +50,25 @@ function reaches(earlier: Entry, later: Entry): boolean {
     return everyElement && everyScreen;
 }
 
-function changedFrom(earlier: Declaration | undefined, line: Declaration): boolean {
+function changedFrom(earlier: CSSDeclaration | undefined, line: CSSDeclaration): boolean {
     return earlier?.value !== line.value || (earlier.supports !== undefined && !line.supports);
 }
 
-function sameSupports(
-    earlier: Declaration | undefined,
-    { condition, value }: Supported["supports"],
-): boolean {
-    return earlier?.supports?.condition === condition && earlier.supports.value === value;
+function sameSupports(earlier: CSSDeclaration["supports"], later: Supported["supports"]): boolean {
+    return (
+        earlier?.length === later.length &&
+        earlier.every(
+            (each, index) =>
+                each.condition === later[index]?.condition && each.value === later[index]?.value,
+        )
+    );
 }
 
 function dependents(
     permutation: Permutation,
-    declared: Declaration[],
-    changed: Declaration[],
-): Declaration[] {
+    declared: readonly CSSDeclaration[],
+    changed: CSSDeclaration[],
+): CSSDeclaration[] {
     const written = new Set(changed.map(({ name }) => name));
     const referring = new Set<Token | Group>();
     for (const source of new Set(changed.map(({ token }) => token.path))) {

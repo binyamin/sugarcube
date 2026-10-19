@@ -17,9 +17,11 @@ function text({ entry: { selector, atRule }, written, supported }: Block): strin
     };
     const conditions = new Map<string, { name: string; value: string }[]>();
     for (const { name, supports } of supported) {
-        const lines = conditions.get(supports.condition) ?? [];
-        lines.push({ name, value: supports.value });
-        conditions.set(supports.condition, lines);
+        for (const { condition, value } of supports) {
+            const lines = conditions.get(condition) ?? [];
+            lines.push({ name, value });
+            conditions.set(condition, lines);
+        }
     }
     const css = [
         ...(written.length > 0 ? [rule(written)] : []),

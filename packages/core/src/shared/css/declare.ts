@@ -3,19 +3,22 @@ import {
     type Input,
     type Permutation,
     PermutationError,
+    type Token,
 } from "@sugarcube-sh/dtcg";
+import { type CSSDeclarations, cssWriter } from "@sugarcube-sh/dtcg/css";
 import type { Permutation as ConfigPermutation, InternalConfig } from "../../types/config.js";
 import type { Reported } from "../../types/diagnostics.js";
 import { type AboutToken, aboutToken, diagnostic, located } from "../diagnostics.js";
-import { type Declared, declarationOptions, declarations, renderer } from "./declarations.js";
+import { fallbacksIn } from "./polyfill.js";
 import { textZoomWarnings } from "./text-zoom.js";
+import { cssWriterOptions } from "./writer-options.js";
 
 export interface Entry {
     permutation: Permutation;
     selector: string | string[];
     atRule?: string;
     path: string;
-    declared: Declared;
+    declared: CSSDeclarations;
 }
 
 /**
@@ -41,20 +44,20 @@ export interface Declarations {
  * const { rules, safelist } = utilityRules(utilityTokens(declared), config.utilities.classes);
  */
 export function declare(tokens: DesignTokens, config: InternalConfig): Declarations {
-    const deprecated =
-        config.variables.transforms.colorFallbackStrategy === "polyfill"
-            ? [diagnostic("option-deprecated", { option: 'colorFallbackStrategy: "polyfill"' })]
-            : [];
+    const polyfill = config.variables.transforms.colorFallbackStrategy === "polyfill";
+    const deprecated = polyfill
+        ? [diagnostic("option-deprecated", { option: 'colorFallbackStrategy: "polyfill"' })]
+        : [];
     const listed = config.variables.permutations ?? [];
     const required = listed.length === 0 ? defaultRequired(tokens) : undefined;
     if (required)
         return { entries: [], diagnostics: [...tokens.diagnostics, required, ...deprecated] };
 
-    const options = declarationOptions(tokens, config);
-    const rendering = renderer(options);
-    const declaredIn = new Map<Permutation, Declared>();
+    const options = cssWriterOptions(tokens, config);
+    const writer = cssWriter(options);
+    const declaredIn = new Map<Permutation, CSSDeclarations>();
     const declaredFor = (permutation: Permutation) => {
-        const found = declaredIn.get(permutation) ?? declarations(permutation, options, rendering);
+        const found = declaredIn.get(permutation) ?? writer.declarations(permutation);
         declaredIn.set(permutation, found);
         return found;
     };
@@ -68,8 +71,12 @@ export function declare(tokens: DesignTokens, config: InternalConfig): Declarati
             ...deprecated,
             ...defaultsNotFirst(toWrite),
             ...located(tokens, [
-                ...textZoomWarnings([...declaredIn.keys()], options.fluid, options.parseOptions),
-                ...missingHex(once),
+                ...textZoomWarnings(
+                    [...declaredIn.keys()],
+                    config.variables.transforms.fluid,
+                    tokens.parseOptions,
+                ),
+                ...(polyfill ? missingHex(once, options.skip) : []),
                 ...sameNames(once),
             ]),
         ],
@@ -80,7 +87,7 @@ function entries(
     tokens: DesignTokens,
     config: InternalConfig,
     listed: ConfigPermutation[],
-    declaredFor: (permutation: Permutation) => Declared,
+    declaredFor: (permutation: Permutation) => CSSDeclarations,
 ): Entry[] {
     if (listed.length === 0) {
         const base = tokens.permutations.filter(({ isDefault }) => isDefault);
@@ -149,16 +156,20 @@ function defaultRequired(tokens: DesignTokens): Reported | undefined {
     };
 }
 
-function missingHex(declared: Declared[]): AboutToken[] {
+function missingHex(declared: CSSDeclarations[], skip: (token: Token) => boolean): AboutToken[] {
     const found = new Map<string, AboutToken>();
-    for (const { token, colorSpace } of declared.flatMap(({ missing }) => missing)) {
+    const written = new Set(
+        declared.flatMap(({ declarations }) => declarations.map(({ token }) => token)),
+    );
+    const missing = [...written].flatMap((token) => fallbacksIn(token, skip).missing);
+    for (const { token, colorSpace } of missing) {
         const key = `${token.path}\u0000${colorSpace}`;
         if (!found.has(key)) found.set(key, aboutToken(token, "fallback-missing", { colorSpace }));
     }
     return [...found.values()];
 }
 
-function sameNames(declared: Declared[]): AboutToken[] {
+function sameNames(declared: CSSDeclarations[]): AboutToken[] {
     const found = new Map<string, AboutToken>();
     for (const { declarations: lines } of declared) {
         const first = new Map<string, string>();

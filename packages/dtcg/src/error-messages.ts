@@ -121,6 +121,8 @@ export const thrownMessages = {
             : `${files.map((file) => `\`${file}\``).join(", ")} are token files with no resolver among them: a resolver says which files to read and in what order, so give one, or name the entry to start from`,
     severalResolvers: (files: string[]) =>
         `${files.map((file) => `\`${file}\``).join(", ")} are all resolvers: name the entry to start from`,
+    typographyPlaced:
+        "a typography value is one value per CSS property, so write`…` cannot place it whole: place the CSS property's value you mean",
     asyncSchema: (key: string) =>
         `the schema for \`${key}\` returned a Promise: extension schemas must validate synchronously`,
     emptyResult: "an extension reader's result needs a value, or a problem reported first",
