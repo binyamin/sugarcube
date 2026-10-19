@@ -9,15 +9,14 @@ import type { Declarations, Entry } from "./declare.js";
  * Writes the design tokens' CSS variables, named from the config's `prefix` or `variableName`,
  * with every reference to a token that has its own variable written as `var()`. Each permutation
  * is a block under its selector, inside its `atRule` if it has one, in its own `path` or the
- * config's. A block writes only what differs from the earlier blocks in its file that reach every
- * element and every screen it does (a selector list holding `:root` or all of its selectors; no
- * at-rule, the same one, or a media query it stacks on), the later winning, so a block nothing
- * reaches is written in full. After what it changes, a block writes again every variable that
- * refers to something it changed, unless `redeclareDependents` is `false`, so a theme set on any
- * element gives the right values. With `colorFallbackStrategy: "polyfill"`, a color outside sRGB
- * and HSL is written as its `hex`, and as itself inside an `@supports` block for browsers that
- * can show it. Hands back a warning when the config still says `propagateDependents`; what
- * reading and declaring found is in `declared.diagnostics`.
+ * config's. What each block in a file writes is `dtcg/css`'s `cssBlocks`, each block for its
+ * `input` (a worked-out block, the contexts that set it apart), so themes stack on one element;
+ * every variable referring to what a block writes is written again, unless `redeclareDependents`
+ * is `false`, so a theme set on any element gives the right values. With
+ * `colorFallbackStrategy: "polyfill"`, a color outside sRGB and HSL is written as its `hex`, and
+ * as itself inside an `@supports` block for browsers that can show it. Hands back a warning when
+ * the config still says `propagateDependents`; what reading and declaring found is in
+ * `declared.diagnostics`.
  *
  * @example
  * const tokens = await read(config.resolver, readOptions(config));
@@ -37,12 +36,14 @@ export function emitCSS(
     const files = [...byFile].flatMap(([path, entries]) => {
         const css = cssText(
             cssBlocks(
-                entries.map(({ declared: { declarations }, selector, atRule }) => ({
-                    declarations,
+                declared.tokens,
+                entries.map(({ selector, atRule, input }) => ({
+                    input,
                     selector,
                     ...(atRule && { atRules: [atRule] }),
                     redeclare,
                 })),
+                { writer: declared.writer },
             ),
         );
         return css ? [{ path, css }] : [];

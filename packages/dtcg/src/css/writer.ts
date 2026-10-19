@@ -255,8 +255,11 @@ export function cssWriter(options: CSSWriterOptions = {}): CSSWriter {
         );
     };
 
+    const declaredIn = new Map<Permutation, CSSDeclarations>();
     return {
         declarations(permutation) {
+            const kept = declaredIn.get(permutation);
+            if (kept) return kept;
             const declarations: CSSDeclaration[] = [];
             const notWritten: CSSNotWritten[] = [];
             for (const token of permutation.tokens) {
@@ -271,7 +274,9 @@ export function cssWriter(options: CSSWriterOptions = {}): CSSWriter {
                 }
                 declarations.push(...declare(token, own));
             }
-            return { declarations, notWritten };
+            const declared = { declarations, notWritten };
+            declaredIn.set(permutation, declared);
+            return declared;
         },
         written(token) {
             return written(token, "native");

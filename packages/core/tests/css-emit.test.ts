@@ -604,6 +604,109 @@ describe("emitCSS", () => {
         });
     });
 
+    describe("writes every token a block's modifiers provide a value for when another block on the page might say otherwise", () => {
+        const twoModifiers = {
+            "tokens.resolver.json": {
+                version: "2025.10",
+                resolutionOrder: [
+                    { type: "set", name: "base", sources: [{ $ref: "tokens.json" }] },
+                    {
+                        type: "modifier",
+                        name: "mode",
+                        contexts: { light: [], dark: [{ $ref: "dark.json" }] },
+                        default: "light",
+                    },
+                    {
+                        type: "modifier",
+                        name: "brand",
+                        contexts: { a: [], b: [{ $ref: "b.json" }] },
+                        default: "a",
+                    },
+                ],
+            },
+            "tokens.json": {
+                surface: color("#ffffff"),
+                primary: color("#ff0000"),
+                button: color("{primary}"),
+            },
+            "dark.json": { surface: color("#000000"), primary: color("#880000") },
+            "b.json": { primary: color("#ff0000") },
+        };
+
+        it("in the blocks worked out with no config, so dark and brand b stack on one element", () => {
+            expect(cssFor(twoModifiers)).toContain(
+                [
+                    '[data-brand="b"] {',
+                    "    --primary: #ff0000;",
+                    "    --button: var(--primary);",
+                    "}",
+                ].join("\n"),
+            );
+        });
+
+        it("in a default context listed with its own selector, so a light section in a dark page is light", () => {
+            const permutations: { input: Record<string, string>; selector: string }[] = [
+                { input: {}, selector: ":root" },
+                { input: { mode: "dark" }, selector: '[data-mode="dark"]' },
+                { input: { mode: "light" }, selector: '[data-mode="light"]' },
+            ];
+            expect(cssFor(twoModifiers, { permutations })).toContain(
+                [
+                    '[data-mode="light"] {',
+                    "    --surface: #ffffff;",
+                    "    --primary: #ff0000;",
+                    "    --button: var(--primary);",
+                    "}",
+                ].join("\n"),
+            );
+        });
+
+        it("in a composed context listed beside the modifier it overrides", () => {
+            const composed = {
+                "tokens.resolver.json": {
+                    version: "2025.10",
+                    resolutionOrder: [
+                        { type: "set", name: "base", sources: [{ $ref: "tokens.json" }] },
+                        {
+                            type: "modifier",
+                            name: "brand",
+                            contexts: { default: [], ocean: [{ $ref: "ocean.json" }] },
+                            default: "default",
+                        },
+                        {
+                            type: "modifier",
+                            name: "theme",
+                            contexts: {
+                                "light": [],
+                                "dark": [{ $ref: "dark.json" }],
+                                "dark-ocean": [{ $ref: "dark.json" }, { $ref: "dark-ocean.json" }],
+                            },
+                            default: "light",
+                        },
+                    ],
+                },
+                "tokens.json": { primary: color("#ff0000"), surface: color("#ffffff") },
+                "ocean.json": { primary: color("#0000ff") },
+                "dark.json": { surface: color("#1a1a1a") },
+                "dark-ocean.json": { primary: color("#ff0000"), surface: color("#0c2d3f") },
+            };
+            const permutations: { input: Record<string, string>; selector: string }[] = [
+                { input: {}, selector: ":root" },
+                { input: { brand: "ocean" }, selector: '[data-brand="ocean"]' },
+                { input: { theme: "dark" }, selector: '[data-theme="dark"]' },
+                { input: { theme: "dark-ocean" }, selector: '[data-theme="dark-ocean"]' },
+            ];
+            expect(cssFor(composed, { permutations })).toContain(
+                [
+                    '[data-theme="dark-ocean"] {',
+                    "    --primary: #ff0000;",
+                    "    --surface: #0c2d3f;",
+                    "}",
+                ].join("\n"),
+            );
+        });
+    });
+
     describe("warns when a file's default permutation block comes after another block", () => {
         const files = {
             "tokens.resolver.json": {

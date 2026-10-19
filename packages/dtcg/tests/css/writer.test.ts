@@ -109,6 +109,13 @@ describe("cssWriter", () => {
             expect(quote[0]?.refersTo).toStrictEqual([tokenAt(tokens, "body")]);
         });
 
+        it("gives the same declarations each time it is asked for a permutation", () => {
+            const writer = cssWriter();
+            expect(writer.declarations(modes.permutation())).toBe(
+                writer.declarations(modes.permutation()),
+            );
+        });
+
         it("lists a token with no value as not written, and writes a reference to it from its value", () => {
             const tokens = one({ broken: color("{nowhere}"), fine: color("#e11d48") });
             const { declarations, notWritten } = cssWriter().declarations(tokens.permutation());
