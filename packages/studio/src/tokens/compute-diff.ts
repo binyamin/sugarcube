@@ -1,12 +1,9 @@
 import {
     type ResolvedToken,
     type ResolvedTokens,
-    SUGARCUBE_NAMESPACE,
     isResolvedToken,
 } from "@sugarcube-sh/core/client";
-import type { ScaleBindingMeta, ScaleEdit } from "../store/scale-types";
 import type { PathIndex } from "./path-index";
-import { getScaleExtension } from "./scale-extension";
 import type {
     PathIndexEntry,
     SlimToken,
@@ -22,13 +19,6 @@ function slimToken({ $value, $description, $extensions }: ResolvedToken): SlimTo
     return slim;
 }
 
-export type ScaleDiffInput = {
-    edits?: Record<string, ScaleEdit>;
-    bindings?: Record<string, ScaleBindingMeta>;
-    bases?: Record<string, string>;
-    authoredBases?: Record<string, string>;
-};
-
 export type ComputeDiffInput = {
     resolved: ResolvedTokens;
     baseline: Pick<TokenSnapshot, "resolved" | "trees">;
@@ -37,7 +27,6 @@ export type ComputeDiffInput = {
     /** Where they lived before. Leave it out and a rename or a deletion reads
      * as no change at all, since every path matches itself. */
     baselineIndex?: PathIndex;
-    scale?: ScaleDiffInput;
 };
 
 /**
@@ -80,9 +69,6 @@ function bySignature() {
 
 export function computeDiff(input: ComputeDiffInput): TokenDiffEntry[] {
     const { resolved, baseline, index: pathIndex, baselineIndex } = input;
-    const { edits, bindings, bases, authoredBases } = input.scale ?? {};
-
-    const scaleOwnedPrefixes = collectScaleOwnedPrefixes(bindings);
     const base = baselineIndex ?? pathIndex;
 
     const changed = bySignature();
@@ -91,7 +77,7 @@ export function computeDiff(input: ComputeDiffInput): TokenDiffEntry[] {
 
     for (const [handle, indexEntries] of pathIndex.entries()) {
         const path = pathIndex.pathOf(handle);
-        if (path === undefined || isOwnedByScale(path, scaleOwnedPrefixes)) continue;
+        if (path === undefined) continue;
 
         const basePath = base.pathOf(handle);
 
@@ -147,19 +133,9 @@ export function computeDiff(input: ComputeDiffInput): TokenDiffEntry[] {
         }
     }
 
-    const removed = removedEntries(baseline, pathIndex, base, scaleOwnedPrefixes);
-    const scaleEntries = computeScaleDiffs(baseline, edits, bindings);
-    const baseEntries = computeScaleBaseDiffs(bindings, bases, authoredBases);
+    const removed = removedEntries(baseline, pathIndex, base);
     const groupEntries = computeGroupDescriptionDiffs(resolved, baseline, pathIndex, base);
-    return [
-        ...scaleEntries,
-        ...baseEntries,
-        ...groupEntries,
-        ...created,
-        ...moved,
-        ...removed,
-        ...changed.list(),
-    ];
+    return [...groupEntries, ...created, ...moved, ...removed, ...changed.list()];
 }
 
 function addedEntry(
@@ -215,7 +191,6 @@ function removedEntries(
     baseline: Pick<TokenSnapshot, "resolved" | "trees">,
     working: PathIndex,
     base: PathIndex,
-    scaleOwnedPrefixes: string[],
 ): TokenDiffEntry[] {
     const out: TokenDiffEntry[] = [];
 
@@ -223,7 +198,7 @@ function removedEntries(
         if (working.pathOf(handle) !== undefined) continue;
 
         const basePath = base.pathOf(handle);
-        if (basePath === undefined || isOwnedByScale(basePath, scaleOwnedPrefixes)) continue;
+        if (basePath === undefined) continue;
 
         for (const { key } of entries) {
             const original = baseline.resolved[key];
@@ -283,88 +258,4 @@ function computeGroupDescriptionDiffs(
     }
 
     return changed.list();
-}
-
-function collectScaleOwnedPrefixes(
-    bindings: Record<string, ScaleBindingMeta> | undefined,
-): string[] {
-    if (!bindings) return [];
-    return Object.values(bindings)
-        .filter((meta) => meta.kind === "scale")
-        .map((meta) => meta.parentPath);
-}
-
-function isOwnedByScale(path: string, prefixes: string[]): boolean {
-    for (const prefix of prefixes) {
-        if (path === prefix || path.startsWith(`${prefix}.`)) return true;
-    }
-    return false;
-}
-
-function computeScaleDiffs(
-    baseline: Pick<TokenSnapshot, "resolved" | "trees">,
-    edits: Record<string, ScaleEdit> | undefined,
-    bindings: Record<string, ScaleBindingMeta> | undefined,
-): TokenDiffEntry[] {
-    if (!edits || !bindings) return [];
-    const entries: TokenDiffEntry[] = [];
-
-    for (const [token, edit] of Object.entries(edits)) {
-        if (edit.kind !== "scale") continue;
-        const meta = bindings[token];
-        if (!meta || meta.kind !== "scale") continue;
-
-        const original = getScaleExtension(baseline.trees, meta.parentPath) ?? null;
-        const fromKey = JSON.stringify(original);
-        const toKey = JSON.stringify(edit.scale);
-        if (fromKey === toKey) continue;
-
-        entries.push({
-            kind: "changed",
-            handle: meta.parentPath,
-            path: meta.parentPath,
-            basePath: meta.parentPath,
-            sourcePath: meta.sourcePath,
-            contexts: [],
-            from: {
-                $extensions: { [SUGARCUBE_NAMESPACE]: { scale: original } },
-            },
-            to: {
-                $extensions: { [SUGARCUBE_NAMESPACE]: { scale: edit.scale } },
-            },
-        });
-    }
-
-    return entries;
-}
-
-function computeScaleBaseDiffs(
-    bindings: Record<string, ScaleBindingMeta> | undefined,
-    bases: Record<string, string> | undefined,
-    authoredBases: Record<string, string> | undefined,
-): TokenDiffEntry[] {
-    if (!bindings || !bases) return [];
-
-    const entries: TokenDiffEntry[] = [];
-    for (const [token, basePath] of Object.entries(bases)) {
-        const authored = authoredBases?.[token];
-        if (authored === basePath) continue;
-
-        const meta = bindings[token];
-        if (!meta) continue;
-
-        entries.push({
-            kind: "changed",
-            handle: meta.parentPath,
-            path: meta.parentPath,
-            basePath: meta.parentPath,
-            sourcePath: meta.sourcePath,
-            contexts: [],
-            from: authored
-                ? { $extensions: { [SUGARCUBE_NAMESPACE]: { scaleBase: authored } } }
-                : {},
-            to: { $extensions: { [SUGARCUBE_NAMESPACE]: { scaleBase: basePath } } },
-        });
-    }
-    return entries;
 }

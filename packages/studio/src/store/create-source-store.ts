@@ -51,9 +51,6 @@ export type SourceStoreHandle = {
     store: TokenStoreAPI;
     getPathIndex: () => PathIndex;
     getBaseline: () => SourceDocument;
-    /** Scale editing hands back a whole new `resolved`, which this store has no
-     * way to turn back into text. Currently does nothing. */
-    writeResolved: (next: ResolvedTokens) => void;
     activate: () => () => void;
 };
 
@@ -169,7 +166,6 @@ export function createSourceStore(
         store,
         getPathIndex: () => doc.index,
         getBaseline: () => baseline,
-        writeResolved: () => {},
         activate: () => {
             if (!disk) return () => {};
             return disk.subscribe((snapshot) => {

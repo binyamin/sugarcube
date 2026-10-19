@@ -4,7 +4,6 @@ import type { ResolvedTokens, TokenSources } from "@sugarcube-sh/core/client";
 import { createStore } from "zustand/vanilla";
 import { createDiffStore } from "../src/store/create-diff-store";
 import { type TokenStoreState, createSourceStore } from "../src/store/create-source-store";
-import { createScaleState } from "../src/store/scale-state";
 import { PathIndex } from "../src/tokens/path-index";
 import { openDocument } from "../src/tokens/source-document";
 import type { TokenSnapshot } from "../src/tokens/types";
@@ -75,22 +74,13 @@ export function wired(base: TokenSources = sources()) {
         sources: base,
     }));
     const tokens = createSourceStore(base, baseline);
-    const scale = createScaleState(
-        [],
-        baseline.getState(),
-        tokens.getPathIndex,
-        tokens.store,
-        baseline,
-        tokens.writeResolved,
-    );
-    const diff = createDiffStore(tokens, scale.store);
-    const teardowns = [tokens.activate(), scale.activate(), diff.activate()];
+    const diff = createDiffStore(tokens);
+    const teardowns = [tokens.activate(), diff.activate()];
 
     return {
         base,
         baseline,
         tokens,
-        scale,
         diff,
         stop: () => {
             for (const teardown of teardowns) teardown();
