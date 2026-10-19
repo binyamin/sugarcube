@@ -324,6 +324,12 @@ importers:
       '@sugarcube-sh/core':
         specifier: workspace:*
         version: link:../core
+      '@sugarcube-sh/dtcg':
+        specifier: workspace:*
+        version: link:../dtcg
+      '@sugarcube-sh/dtcg-edit':
+        specifier: workspace:*
+        version: link:../dtcg-edit
       culori:
         specifier: ^4.0.2
         version: 4.0.2

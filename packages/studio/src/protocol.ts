@@ -1,3 +1,5 @@
+import type { InternalConfig, Reported } from "@sugarcube-sh/core/client";
+
 export const STUDIO_RPC = {
     SAVE: "sugarcube:studio:save",
     SHARED_STATE_DISK: "sugarcube:studio:disk",
@@ -9,4 +11,11 @@ export const STUDIO_RPC = {
 export type StudioConnectionConfig = {
     /** Where saves go when there's no server to write files, e.g. a service that opens a PR. */
     saveUrl?: string;
+};
+
+export type StudioMessage = {
+    config: InternalConfig;
+    entry: string;
+    files: Readonly<Record<string, string>>;
+    problems: readonly Reported[];
 };

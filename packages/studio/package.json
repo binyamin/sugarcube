@@ -42,6 +42,8 @@
   },
   "dependencies": {
     "@sugarcube-sh/core": "workspace:*",
+    "@sugarcube-sh/dtcg": "workspace:*",
+    "@sugarcube-sh/dtcg-edit": "workspace:*",
     "culori": "^4.0.2",
     "devframe": "^1.0.0",
     "hdr-color-input": "0.4.2",
@@ -49,6 +51,7 @@
     "radix-ui": "^1.6.7"
   },
   "devDependencies": {
+    "@devframes/vite": "^1.0.0",
     "@sugarcube-sh/cli": "workspace:*",
     "@sugarcube-sh/vite": "workspace:*",
     "@types/culori": "^4.0.1",
@@ -65,7 +68,6 @@
     "react-router": "^7.9.6",
     "typescript": "^5.8.3",
     "vite": "^8",
-    "zustand": "^5.0.15",
-    "@devframes/vite": "^1.0.0"
+    "zustand": "^5.0.15"
   }
 }
