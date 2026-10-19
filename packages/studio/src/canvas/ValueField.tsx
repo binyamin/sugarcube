@@ -9,15 +9,13 @@ export function ValueField({
 }: {
     shown: string;
     label: string;
-    onWrite(value: JsonValue): string | undefined;
+    onWrite(value: JsonValue): void;
 }) {
     const [text, setText] = useState(shown);
-    const [refused, setRefused] = useState<string>();
     const parsed = parsedJson(text);
 
     const write = () => {
-        if (!parsed || JSON.stringify(parsed.value) === shown) return;
-        setRefused(onWrite(parsed.value));
+        if (parsed && JSON.stringify(parsed.value) !== shown) onWrite(parsed.value);
     };
 
     return (
@@ -25,17 +23,13 @@ export function ValueField({
             <input
                 aria-label={label}
                 value={text}
-                onChange={(event) => {
-                    setText(event.target.value);
-                    setRefused(undefined);
-                }}
+                onChange={(event) => setText(event.target.value)}
                 onBlur={write}
                 onKeyDown={(event) => {
                     if (event.key === "Enter") write();
                 }}
             />
-            {text !== "" && !parsed && <p>Not valid JSON yet, so nothing is written.</p>}
-            {refused && <p>{refused}</p>}
+            {text !== "" && !parsed && <p>Not valid JSON</p>}
         </>
     );
 }

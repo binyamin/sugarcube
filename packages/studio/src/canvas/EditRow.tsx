@@ -1,5 +1,6 @@
 import { type ValueOptions, setValue } from "@sugarcube-sh/dtcg-edit";
 import { useStudio } from "../providers/studio-context";
+import { useEdit } from "./use-edit";
 import { ValueField } from "./ValueField";
 
 export function EditRow({
@@ -14,6 +15,7 @@ export function EditRow({
     where: ValueOptions;
 }) {
     const studio = useStudio();
+    const edit = useEdit();
     const shown = value === undefined ? "" : JSON.stringify(value);
 
     return (
@@ -24,10 +26,9 @@ export function EditRow({
                     key={shown}
                     shown={shown}
                     label={label ?? path}
-                    onWrite={(next) =>
-                        studio.do(setValue(studio.state.tokens, path, next, where)).refused?.reason
-                    }
+                    onWrite={(next) => edit.run(setValue(studio.state.tokens, path, next, where))}
                 />
+                {edit.view}
             </dd>
         </>
     );

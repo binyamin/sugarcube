@@ -27,6 +27,8 @@ export interface Studio {
     receive(message: StudioMessage): void;
     do(result: OpResult): Committed;
     discard(): void;
+    idOf(path: string): string | undefined;
+    pathOf(id: string): string | undefined;
 }
 
 export function createStudio(
@@ -79,6 +81,12 @@ export function createStudio(
         },
         discard() {
             session.discard();
+        },
+        idOf(path) {
+            return session.idOf(path);
+        },
+        pathOf(id) {
+            return session.pathOf(id);
         },
         receive(next) {
             const previous = message;

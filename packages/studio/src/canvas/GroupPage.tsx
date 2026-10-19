@@ -3,6 +3,7 @@ import { hrefFor } from "../app/token-path";
 import type { Group } from "@sugarcube-sh/dtcg";
 import { groupView } from "../controllers/views";
 import { useStudioState } from "../providers/studio-context";
+import { NewToken } from "./NewToken";
 import { Showing } from "./Showing";
 import { AsCSS, Written } from "./Value";
 
@@ -73,6 +74,7 @@ export function GroupPage({ group }: { group: Group }) {
                     </tbody>
                 </table>
             )}
+            <NewToken key={group.path} group={group} />
         </article>
     );
 }

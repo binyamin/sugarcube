@@ -1,6 +1,6 @@
 import { setValue } from "@sugarcube-sh/dtcg-edit";
 import { describe, expect, it } from "vitest";
-import { parsedJson, placeRows } from "../../src/controllers/token-page";
+import { newToken, parsedJson, placeRows } from "../../src/controllers/token-page";
 import { studioOn } from "./demo-message";
 
 describe("placeRows", () => {
@@ -58,5 +58,31 @@ describe("parsedJson", () => {
     it("gives nothing when the text isn't JSON yet", () => {
         expect(parsedJson("{color.neutral.100}")).toBeUndefined();
         expect(parsedJson("")).toBeUndefined();
+    });
+});
+
+describe("newToken", () => {
+    it("leaves the type out when it is the group's, so the token takes it from the group", () => {
+        const group = studioOn().state.tokens.permutation().group("color.text");
+
+        expect(newToken({ type: "color", value: "{color.brand.500}" }, group)).toEqual({
+            $value: "{color.brand.500}",
+        });
+    });
+
+    it("writes the type when it isn't the group's", () => {
+        const group = studioOn().state.tokens.permutation().group("color.text");
+
+        expect(newToken({ type: "dimension", value: { value: 1, unit: "rem" } }, group)).toEqual({
+            $type: "dimension",
+            $value: { value: 1, unit: "rem" },
+        });
+    });
+
+    it("writes the type for a token made at the top, with no group", () => {
+        expect(newToken({ type: "number", value: 1 }, undefined)).toEqual({
+            $type: "number",
+            $value: 1,
+        });
     });
 });

@@ -1,4 +1,12 @@
-import type { DesignTokens, JsonValue, PlaceInPermutations, Span } from "@sugarcube-sh/dtcg";
+import type {
+    DesignTokens,
+    Group,
+    JsonValue,
+    PlaceInPermutations,
+    Span,
+    TokenType,
+} from "@sugarcube-sh/dtcg";
+import type { NewToken } from "@sugarcube-sh/dtcg-edit";
 import { isJsonObject } from "@sugarcube-sh/dtcg/values";
 
 export interface PlaceRow {
@@ -13,6 +21,13 @@ export function placeRows(tokens: DesignTokens, path: string): PlaceRow[] {
         value: isJsonObject(place.written) ? place.written.$value : undefined,
         at: place.span,
     }));
+}
+
+export function newToken(
+    { type, value }: { type: TokenType; value: JsonValue },
+    group: Group | undefined,
+): NewToken {
+    return type === group?.type ? { $value: value } : { $type: type, $value: value };
 }
 
 export function parsedJson(text: string): { value: JsonValue } | undefined {

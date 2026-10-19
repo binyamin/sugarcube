@@ -6,6 +6,7 @@ import { tokenRow } from "../controllers/views";
 import { useStudioState } from "../providers/studio-context";
 import { EditRow } from "./EditRow";
 import { Showing } from "./Showing";
+import { TokenActions } from "./TokenActions";
 import { AsCSS } from "./Value";
 
 export function TokenPage({ token }: { token: Token }) {
@@ -59,6 +60,7 @@ export function TokenPage({ token }: { token: Token }) {
                         Override for {label}
                     </button>
                 ))}
+            <TokenActions key={token.path} path={token.path} />
         </article>
     );
 }
