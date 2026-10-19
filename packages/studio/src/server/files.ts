@@ -1,5 +1,5 @@
-import type { LoadedConfig } from "@sugarcube-sh/core";
-import { type Reported, readOptions } from "@sugarcube-sh/core/client";
+import { type LoadedConfig, tokensOnDisk } from "@sugarcube-sh/core";
+import type { Reported } from "@sugarcube-sh/core/client";
 import type { DesignTokens } from "@sugarcube-sh/dtcg";
 import type { StudioMessage } from "../protocol";
 import { studioMessage } from "./message";
@@ -25,8 +25,7 @@ export function studioFiles(now: () => FilesNow, onChange: StudioFiles["onChange
         },
         onChange,
         save(sent) {
-            const { config } = now();
-            return saveEdits({ entry: config.resolver, options: readOptions(config) }, sent);
+            return saveEdits(tokensOnDisk(now().config), sent);
         },
     };
 }

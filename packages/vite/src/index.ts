@@ -10,7 +10,7 @@ import {
     cssFrom,
     loadInternalConfig,
     problemsText,
-    readOptions,
+    tokensOnDisk,
 } from "@sugarcube-sh/core";
 import type { DesignTokens } from "@sugarcube-sh/dtcg";
 import { onFileChanged } from "@sugarcube-sh/dtcg/node";
@@ -86,10 +86,7 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
     const { unoOptions = {} } = options;
     const timed = debugging(process.env.DEBUG);
     let loaded = await loadInternalConfig();
-    const reading = dtcg(() => ({
-        entry: loaded.config.resolver,
-        options: readOptions(loaded.config),
-    }));
+    const reading = dtcg(() => tokensOnDisk(loaded.config));
     let tokens = await reading.api.tokens();
     let fromConfig: Reported[] = [];
     let tokenProblems: Reported[] = [];
