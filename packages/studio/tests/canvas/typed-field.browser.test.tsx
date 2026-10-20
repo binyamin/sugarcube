@@ -59,59 +59,96 @@ describe("the JSON box", () => {
     });
 });
 
-describe("the colour picker", () => {
+describe("a colour", () => {
     const brand = { colorSpace: "oklch", components: [0.624, 0.181, 258], hex: "#3884f2" };
-    const pickers = () => document.querySelectorAll("color-input");
-    const pressElsewhere = () =>
-        document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    const writtenOf = (screen: Awaited<ReturnType<typeof render>>) =>
+        JSON.parse(screen.getByRole("status", { name: "written" }).element().textContent ?? "null");
 
-    it("opens a fresh picker set to the colour, opaque, and writes what it is changed to", async () => {
+    it("writes a component exactly as typed, and the hex the file has", async () => {
         const screen = await render(<Row type="color" start={brand} />);
-        const swatch = screen.getByRole("button", { name: "base, colour" });
 
-        await swatch.click();
-        await expect.poll(() => pickers().length).toBe(1);
-        const [picker] = pickers();
-        expect(picker?.hasAttribute("no-alpha")).toBe(true);
-        expect(picker?.value).toMatch(/^oklch\(/);
-
-        if (picker) {
-            picker.value = "oklch(0.65 0.2 258)";
-            picker.dispatchEvent(new Event("change"));
-        }
+        await screen.getByRole("textbox", { name: "base, C" }).fill("0.0134567");
 
         await expect
             .element(screen.getByRole("status", { name: "written" }))
-            .toHaveTextContent('"colorSpace":"oklch"');
-        const written = JSON.parse(
-            screen.getByRole("status", { name: "written" }).element().textContent ?? "{}",
-        );
-        expect(written.components[0]).toBeCloseTo(0.65);
-        expect(written.hex).toMatch(/^#[0-9a-f]{6}$/);
+            .toHaveTextContent("0.0134567");
+        expect(writtenOf(screen)).toMatchObject({
+            colorSpace: "oklch",
+            components: [0.624, 0.0134567, 258],
+            hex: expect.stringMatching(/^#[0-9a-f]{6}$/),
+        });
     });
 
-    it("removes the picker when you click elsewhere, and opens a new one next time", async () => {
+    it("writes what a slider is moved to", async () => {
         const screen = await render(<Row type="color" start={brand} />);
-        const swatch = screen.getByRole("button", { name: "base, colour" });
 
-        await swatch.click();
-        await expect.poll(() => pickers().length).toBe(1);
-        const first = pickers()[0];
-        pressElsewhere();
-        await expect.poll(() => pickers().length).toBe(0);
+        await screen.getByRole("slider", { name: "base, L" }).fill("0.9");
 
-        await swatch.click();
-        await expect.poll(() => pickers().length).toBe(1);
-        expect(pickers()[0]).not.toBe(first);
+        await expect
+            .element(screen.getByRole("status", { name: "written" }))
+            .toHaveTextContent("[0.9,0.181,258]");
     });
 
-    it("keeps the alpha slider for a translucent colour", async () => {
+    it("converts to the colour space chosen, to four decimal places", async () => {
+        const screen = await render(<Row type="color" start={brand} />);
+
+        await screen
+            .getByRole("combobox", { name: "base, colour space" })
+            .selectOptions("display-p3");
+
+        await expect
+            .element(screen.getByRole("status", { name: "written" }))
+            .toHaveTextContent('"colorSpace":"display-p3"');
+        for (const component of writtenOf(screen).components) {
+            expect(String(component)).toMatch(/^-?\d+(\.\d{1,4})?$/);
+        }
+    });
+
+    it("converts the colour you see when a box is left half typed", async () => {
+        const screen = await render(<Row type="color" start={brand} />);
+
+        await screen.getByRole("textbox", { name: "base, C" }).fill("");
+        await screen.getByRole("combobox", { name: "base, colour space" }).selectOptions("oklab");
+
+        await expect
+            .element(screen.getByRole("status", { name: "written" }))
+            .toHaveTextContent('"colorSpace":"oklab"');
+        const [lightness] = writtenOf(screen).components;
+        expect(lightness).toBeCloseTo(0.624, 3);
+    });
+
+    it("writes none typed for a component", async () => {
+        const screen = await render(<Row type="color" start={brand} />);
+
+        await screen.getByRole("textbox", { name: "base, H" }).fill("none");
+
+        await expect
+            .element(screen.getByRole("status", { name: "written" }))
+            .toHaveTextContent('[0.624,0.181,"none"]');
+    });
+
+    it("says which gamut the colour is in, and when a switch reduced its chroma to fit", async () => {
+        const vivid = { colorSpace: "oklch", components: [0.7, 0.28, 145] };
+        const screen = await render(<Row type="color" start={vivid} />);
+        await expect.element(screen.getByText("In Display P3")).toBeVisible();
+
+        await screen.getByRole("combobox", { name: "base, colour space" }).selectOptions("srgb");
+
+        await expect.element(screen.getByText("Chroma reduced to fit sRGB.")).toBeVisible();
+        await expect.element(screen.getByText("In sRGB")).toBeVisible();
+        for (const component of writtenOf(screen).components) {
+            expect(component).toBeGreaterThanOrEqual(0);
+            expect(component).toBeLessThanOrEqual(1);
+        }
+    });
+
+    it("keeps a hex colour a hex colour, as typed", async () => {
         const screen = await render(<Row type="color" start="#26262f1a" />);
 
-        await screen.getByRole("button", { name: "base, colour" }).click();
+        await screen.getByRole("textbox", { name: "base" }).fill("#2a2a33cc");
 
-        await expect.poll(() => pickers().length).toBe(1);
-        expect(pickers()[0]?.hasAttribute("no-alpha")).toBe(false);
-        pressElsewhere();
+        await expect
+            .element(screen.getByRole("status", { name: "written" }))
+            .toHaveTextContent('"#2a2a33cc"');
     });
 });

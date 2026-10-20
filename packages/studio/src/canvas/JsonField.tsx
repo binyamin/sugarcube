@@ -1,5 +1,6 @@
 import type { JsonValue } from "@sugarcube-sh/dtcg";
-import { changes, parsedJson } from "../controllers/value-field";
+import { parsedJson } from "../controllers/typed-text";
+import { changes } from "../controllers/value-field";
 import { JsonInput } from "./JsonInput";
 import { useDraft } from "./use-draft";
 

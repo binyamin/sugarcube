@@ -6,7 +6,7 @@ import {
     type Slot,
     withAdded,
     withRemoved,
-} from "../controllers/value-field";
+} from "../controllers/parts";
 import { Choice } from "./Choice";
 import { JsonField } from "./JsonField";
 import { TypedField } from "./TypedField";

@@ -1,23 +1,16 @@
 import type { JsonValue, TokenType } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
+import { hasParts } from "../../src/controllers/parts";
 import {
     changes,
     draftFor,
     fieldFor,
     fieldFrom,
     hasField,
-    hasParts,
-    moved,
-    parsedJson,
-    partsOf,
-    referable,
     says,
-    withAdded,
-    withRemoved,
-    without,
+    withPoint,
     writtenFor,
 } from "../../src/controllers/value-field";
-import { demoFiles, demoMessage, studioOn } from "./demo-message";
 
 describe("fieldFor", () => {
     it("shows a dimension as its number and unit", () => {
@@ -150,29 +143,6 @@ describe("writtenFor", () => {
     });
 });
 
-describe("referable", () => {
-    it("lists every other token of the type, for the Token side of a field", () => {
-        const { tokens, showing } = studioOn().state;
-
-        expect(referable(tokens, showing, "fontFamily", "typography.font.body")).toEqual([
-            "typography.font.mono",
-            "typography.font.system",
-        ]);
-    });
-
-    it("lists a token only one theme has, since a row may be that theme's", () => {
-        const files = demoFiles();
-        const dark = JSON.parse(files["dark.json"]!);
-        dark.color.glow = { $value: "{color.brand.500}" };
-        const { tokens, showing } = studioOn(
-            demoMessage({ files: { ...files, "dark.json": JSON.stringify(dark) } }),
-        ).state;
-
-        expect(showing.token("color.glow")).toBeUndefined();
-        expect(referable(tokens, showing, "color", "color.text.default")).toContain("color.glow");
-    });
-});
-
 describe("hasField", () => {
     it("names the types with a field of their own", () => {
         expect(
@@ -184,10 +154,11 @@ describe("hasField", () => {
                 "fontFamily",
                 "cubicBezier",
                 "strokeStyle",
+                "color",
             ].every((type) => hasField(type as TokenType)),
         ).toBe(true);
         expect(
-            ["color", "border", "transition", "shadow", "gradient", "typography"].some((type) =>
+            ["border", "transition", "shadow", "gradient", "typography"].some((type) =>
                 hasField(type as TokenType),
             ),
         ).toBe(false);
@@ -310,14 +281,6 @@ describe("changes", () => {
     });
 });
 
-describe("moved and without", () => {
-    it("moves an item in a list and takes one out", () => {
-        expect(moved(["a", "b", "c"], 2, 0)).toEqual(["c", "a", "b"]);
-        expect(moved(["a", "b", "c"], 0, 1)).toEqual(["b", "a", "c"]);
-        expect(without(["a", "b", "c"], 1)).toEqual(["a", "c"]);
-    });
-});
-
 const px = (value: number) => ({ value, unit: "px" });
 const layer = { color: "#0000001a", offsetX: px(0), offsetY: px(1), blur: px(2), spread: px(0) };
 
@@ -432,70 +395,11 @@ describe("composite fields", () => {
     });
 });
 
-describe("partsOf", () => {
-    it("gives a shadow layer's parts, its optional inset among them", () => {
-        expect(
-            partsOf("shadow", { ...layer, inset: true })?.map(({ name, type }) => [name, type]),
-        ).toEqual([
-            ["color", "color"],
-            ["offsetX", "dimension"],
-            ["offsetY", "dimension"],
-            ["blur", "dimension"],
-            ["spread", "dimension"],
-            ["inset", "boolean"],
-        ]);
-    });
+describe("withPoint", () => {
+    it("changes one point of a cubic Bézier's draft", () => {
+        const draft = draftFor("cubicBezier", { kind: "cubicBezier", points: [0.4, 0, 0.2, 1] });
+        if (draft.kind !== "cubicBezier") throw new Error(draft.kind);
 
-    it("gives nothing for a value it can't show exactly", () => {
-        expect(partsOf("shadow", { ...layer, glow: true })).toBeUndefined();
-        expect(partsOf("gradient", "{gradient.stop}")).toBeUndefined();
-    });
-});
-
-describe("withAdded and withRemoved", () => {
-    const list = (written: JsonValue) => {
-        const field = fieldFor("shadow", written);
-        if (field.kind !== "list") throw new Error(field.kind);
-        return field;
-    };
-    const dashes = (written: JsonValue) => {
-        const field = fieldFor("strokeStyle", written);
-        if (field.kind !== "dashes") throw new Error(field.kind);
-        return field;
-    };
-
-    it("adds a copy of the last item, making a single shadow a list", () => {
-        expect(withAdded(list(layer))).toEqual([layer, layer]);
-        expect(withAdded(list([layer, "{shadow.sm}"]))).toEqual([
-            layer,
-            "{shadow.sm}",
-            "{shadow.sm}",
-        ]);
-        expect(withAdded(dashes({ dashArray: [px(4)], lineCap: "round" }))).toEqual({
-            dashArray: [px(4), px(4)],
-            lineCap: "round",
-        });
-    });
-
-    it("takes one out, keeping a list a list", () => {
-        expect(withRemoved(list([layer, "{shadow.sm}"]), 0)).toEqual(["{shadow.sm}"]);
-        expect(withRemoved(dashes({ dashArray: [px(4), px(8)], lineCap: "butt" }), 1)).toEqual({
-            dashArray: [px(4)],
-            lineCap: "butt",
-        });
-    });
-});
-
-describe("parsedJson", () => {
-    it("gives the value when the text is JSON", () => {
-        expect(parsedJson('"{color.neutral.100}"')).toEqual({ value: "{color.neutral.100}" });
-        expect(parsedJson('{ "value": 2, "unit": "rem" }')).toEqual({
-            value: { value: 2, unit: "rem" },
-        });
-    });
-
-    it("gives nothing when the text isn't JSON yet", () => {
-        expect(parsedJson("{color.neutral.100}")).toBeUndefined();
-        expect(parsedJson("")).toBeUndefined();
+        expect(withPoint(draft, 2, "0.3").points).toEqual(["0.4", "0", "0.3", "1"]);
     });
 });

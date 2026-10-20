@@ -10,17 +10,17 @@ import {
     fieldFor,
     fieldFrom,
     hasField,
-    hasParts,
-    moved,
-    referable,
     says,
     weightKeywords,
-    without,
+    withPoint,
     writtenFor,
 } from "../controllers/value-field";
+import { moved, without } from "../controllers/lists";
+import { hasParts } from "../controllers/parts";
+import { referable } from "../controllers/views";
 import { useStudioState } from "../providers/studio-context";
 import { Choice } from "./Choice";
-import { ColorSwatch } from "./ColorSwatch";
+import { ColorInput } from "./ColorInput";
 import { CompositeInput } from "./CompositeInput";
 import { JsonField } from "./JsonField";
 import { useDraft, useItemKeys } from "./use-draft";
@@ -83,8 +83,6 @@ export function TypedField({
                     referred={field?.kind === "reference" ? field.path : undefined}
                     onPath={(to) => write({ kind: "reference", path: to })}
                 />
-            ) : field?.kind === "color" ? (
-                <ColorSwatch field={field} label={label} onPick={write} />
             ) : field && hasParts(field) ? (
                 <CompositeInput field={field} label={label} path={path} onWrite={onWrite} />
             ) : hasField(type) ? (
@@ -235,14 +233,7 @@ function ValueInput({
                             amount={amount}
                             min={index % 2 === 0 ? 0 : undefined}
                             max={index % 2 === 0 ? 1 : undefined}
-                            onAmount={(next) =>
-                                change({
-                                    ...draft,
-                                    points: draft.points.map((each, at) =>
-                                        at === index ? next : each,
-                                    ),
-                                })
-                            }
+                            onAmount={(next) => change(withPoint(draft, index, next))}
                         />
                     ))}
                 </fieldset>
@@ -256,6 +247,18 @@ function ValueInput({
                     onChoose={(keyword) => change({ ...draft, keyword })}
                 />
             );
+        case "color":
+        case "hexColor": {
+            const now = fieldFrom(draft) ?? field;
+            return (
+                <ColorInput
+                    draft={draft}
+                    shown={now?.kind === "color" ? now : undefined}
+                    label={label}
+                    onDraft={change}
+                />
+            );
+        }
     }
 }
 
