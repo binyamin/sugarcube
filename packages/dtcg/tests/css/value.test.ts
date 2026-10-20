@@ -42,8 +42,16 @@ describe("cssValue", () => {
         const written = {
             "linear": [space("srgb-linear", [0.2, 0.5, 0.75]), "color(srgb-linear 0.2 0.5 0.75)"],
             "hsl": [space("hsl", [270, 80, 60]), "hsl(270 80% 60%)"],
+            "hsl-fraction": [
+                space("hsl", [210.123456, 50.5, 40.12345]),
+                "hsl(210.1235 50.5% 40.1235%)",
+            ],
             "hwb": [space("hwb", [200, 12.5, 30]), "hwb(200 12.5% 30%)"],
             "hwb-none": [space("hwb", [200, "none", 30]), "hwb(200 none 30%)"],
+            "hwb-fraction": [
+                space("hwb", [200.123456, 12.34567, 30.00004]),
+                "hwb(200.1235 12.3457% 30%)",
+            ],
             "lab": [space("lab", [52.2345, 40.12345, -60.5]), "lab(52.2345 40.1235 -60.5)"],
             "lch": [space("lch", [52.2, 72.9, 303.45678]), "lch(52.2 72.9 303.4568)"],
             "oklab": [space("oklab", [0.62, 0.11, -0.153]), "oklab(0.62 0.11 -0.153)"],

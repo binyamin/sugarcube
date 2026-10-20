@@ -203,3 +203,16 @@ function partialLabel(permutations: Permutations | undefined): string | undefine
 function isPath(path: string | undefined): path is string {
     return path !== undefined;
 }
+
+export function referable(
+    tokens: DesignTokens,
+    showing: Permutation,
+    type: TokenType,
+    path: string,
+): string[] {
+    return tokens.tokenPaths().filter((each) => {
+        if (each === path) return false;
+        const node = nodeAt(tokens, showing, each)?.node;
+        return node?.kind !== "group" && node?.type === type;
+    });
+}

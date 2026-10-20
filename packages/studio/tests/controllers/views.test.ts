@@ -1,7 +1,8 @@
 import { readFromMemory } from "@sugarcube-sh/dtcg";
 import { describe, expect, it } from "vitest";
 import { plain } from "../../src/adapters/plain";
-import { groupView, sidebarTree, tokenRow, trail } from "../../src/controllers/views";
+import { groupView, referable, sidebarTree, tokenRow, trail } from "../../src/controllers/views";
+import { demoFiles, demoMessage, studioOn } from "./demo-message";
 
 const blue = { colorSpace: "srgb", components: [0, 0, 1] };
 const navy = { colorSpace: "srgb", components: [0, 0, 0.3] };
@@ -120,5 +121,28 @@ describe("tokenRow", () => {
         expect(tokenRow(token, "default", value)).toEqual(
             groupView(dark.group("color.text")!, value).tokens[0],
         );
+    });
+});
+
+describe("referable", () => {
+    it("lists every other token of the type, for the Token side of a field", () => {
+        const { tokens: demo, showing } = studioOn().state;
+
+        expect(referable(demo, showing, "fontFamily", "typography.font.body")).toEqual([
+            "typography.font.mono",
+            "typography.font.system",
+        ]);
+    });
+
+    it("lists a token only one theme has, since a row may be that theme's", () => {
+        const edited = demoFiles();
+        const darkJson = JSON.parse(edited["dark.json"]!);
+        darkJson.color.glow = { $value: "{color.brand.500}" };
+        const { tokens: demo, showing } = studioOn(
+            demoMessage({ files: { ...edited, "dark.json": JSON.stringify(darkJson) } }),
+        ).state;
+
+        expect(showing.token("color.glow")).toBeUndefined();
+        expect(referable(demo, showing, "color", "color.text.default")).toContain("color.glow");
     });
 });

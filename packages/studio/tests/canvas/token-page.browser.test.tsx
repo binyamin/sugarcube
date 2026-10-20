@@ -1,0 +1,151 @@
+import type { Group, Token } from "@sugarcube-sh/dtcg";
+import { describe, expect, it } from "vitest";
+import { render } from "vitest-browser-react";
+import { plain } from "../../src/adapters/plain";
+import { NewToken } from "../../src/canvas/NewToken";
+import { TokenPage } from "../../src/canvas/TokenPage";
+import { createStudio } from "../../src/controllers/studio";
+import { StudioContext } from "../../src/providers/studio-context";
+
+const files = {
+    "tokens.resolver.json": JSON.stringify({
+        version: "2025.10",
+        resolutionOrder: [
+            { type: "set", name: "base", sources: [{ $ref: "./base.json" }] },
+            {
+                type: "modifier",
+                name: "mode",
+                default: "light",
+                contexts: { light: [], dark: [{ $ref: "./dark.json" }] },
+            },
+        ],
+    }),
+    "base.json": JSON.stringify({
+        space: { $type: "dimension", s: { $value: { value: 4, unit: "px" } } },
+        shadow: {
+            $type: "shadow",
+            sm: {
+                $value: {
+                    color: "#00000033",
+                    offsetX: { value: 0, unit: "px" },
+                    offsetY: { value: 1, unit: "px" },
+                    blur: { value: 2, unit: "px" },
+                    spread: { value: 0, unit: "px" },
+                },
+            },
+        },
+        border: {
+            $type: "border",
+            card: {
+                $value: {
+                    color: "#000000",
+                    width: { value: 1, unit: "px" },
+                    style: { dashArray: [{ value: 4, unit: "px" }], lineCap: "round" },
+                },
+            },
+        },
+    }),
+    "dark.json": JSON.stringify({
+        space: { $type: "dimension", m: { $value: { value: 8, unit: "px" } } },
+    }),
+};
+
+function studioOnFiles() {
+    return createStudio(
+        {
+            adapter: { name: "plain", settings: {}, problems: [] },
+            entry: "tokens.resolver.json",
+            files,
+        },
+        (sent) => plain(sent.name === "plain" ? sent.settings : {}),
+    );
+}
+
+function studioPage(path: string) {
+    const studio = studioOnFiles();
+    const Page = () => (
+        <StudioContext.Provider value={studio}>
+            <TokenPage token={studio.state.showing.token(path) as Token} shown />
+        </StudioContext.Provider>
+    );
+    return { studio, Page };
+}
+
+describe("an override", () => {
+    it("starts from the value in force, and keeps your cursor once it is written", async () => {
+        const { studio, Page } = studioPage("space.s");
+        const screen = await render(<Page />);
+
+        await screen.getByRole("button", { name: "Override for mode: dark" }).click();
+        const box = screen.getByRole("spinbutton", { name: "Override for mode: dark, amount" });
+        await expect.element(box).toHaveValue(4);
+
+        await box.fill("6");
+
+        const written = screen.getByRole("spinbutton", { name: "mode: dark, amount" });
+        await expect.element(written).toHaveValue(6);
+        await expect.element(written).toHaveFocus();
+        expect(studio.state.tokens.text("dark.json")).toContain('"s"');
+    });
+});
+
+describe("a new token", () => {
+    it("is added once its field holds a whole value", async () => {
+        const studio = studioOnFiles();
+        const group = studio.state.showing.group("space") as Group;
+        const screen = await render(
+            <StudioContext.Provider value={studio}>
+                <NewToken group={group} />
+            </StudioContext.Provider>,
+        );
+        const add = screen.getByRole("button", { name: "Add" });
+
+        await screen.getByRole("textbox", { name: "Name" }).fill("l");
+        await screen.getByRole("spinbutton", { name: "Value, amount" }).fill("12");
+        await expect.element(add).toBeDisabled();
+        await screen.getByRole("combobox", { name: "Value, unit" }).selectOptions("px");
+        await expect.element(add).toBeEnabled();
+        await add.click();
+
+        expect(studio.state.showing.token("space.l")?.authored?.value).toEqual({
+            value: 12,
+            unit: "px",
+        });
+    });
+});
+
+describe("a composite", () => {
+    it("writes only the part you change", async () => {
+        const { studio, Page } = studioPage("shadow.sm");
+        const screen = await render(<Page />);
+
+        await screen.getByRole("spinbutton", { name: "base, layer 1, blur, amount" }).fill("8");
+
+        const written = JSON.parse(studio.state.tokens.text("base.json") ?? "{}").shadow.sm.$value;
+        expect(written).toEqual({
+            color: "#00000033",
+            offsetX: { value: 0, unit: "px" },
+            offsetY: { value: 1, unit: "px" },
+            blur: { value: 8, unit: "px" },
+            spread: { value: 0, unit: "px" },
+        });
+    });
+
+    it("reaches a part inside a part, and adds a layer as a copy of the last", async () => {
+        const { studio, Page } = studioPage("border.card");
+        const screen = await render(<Page />);
+
+        await screen.getByRole("spinbutton", { name: "base, style, dash 1, amount" }).fill("6");
+        await screen.getByRole("button", { name: "Add dash" }).click();
+
+        const style = JSON.parse(studio.state.tokens.text("base.json") ?? "{}").border.card.$value
+            .style;
+        expect(style).toEqual({
+            dashArray: [
+                { value: 6, unit: "px" },
+                { value: 6, unit: "px" },
+            ],
+            lineCap: "round",
+        });
+    });
+});
