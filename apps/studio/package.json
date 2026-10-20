@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "pnpm --filter @sugarcube-sh/studio build && wrangler deploy",
+    "deploy": "pnpm --filter @sugarcube-sh/dtcg --filter @sugarcube-sh/dtcg-edit build && wrangler deploy",
     "type-check": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@sugarcube-sh/studio": "workspace:*"
+    "@sugarcube-sh/dtcg": "workspace:*",
+    "@sugarcube-sh/dtcg-edit": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260907.1",

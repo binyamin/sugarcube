@@ -2,8 +2,7 @@ import { adapterFor } from "../adapters";
 import { type Studio, createStudio } from "../controllers/studio";
 import { keepUnsaved } from "../controllers/unsaved";
 import { ErrorMessages } from "../error-messages";
-import type { Edits } from "@sugarcube-sh/dtcg-edit";
-import type { SaveOutcome, StudioMessage } from "../protocol";
+import type { StudioMessage, StudioSave } from "../protocol";
 
 const WAIT_MS = 10_000;
 const UNSAVED_KEY = "sugarcube:studio:unsaved:";
@@ -13,13 +12,15 @@ export interface SharedMessage {
     on(event: "updated", listener: (value: StudioMessage) => void): () => void;
 }
 
+export interface StudioConnection {
+    readonly message: SharedMessage;
+    readonly save?: StudioSave | undefined;
+}
+
 export async function openStudio(
-    shared: SharedMessage,
+    { message: shared, save }: StudioConnection,
     signal: AbortSignal,
-    {
-        save,
-        waitMs = WAIT_MS,
-    }: { save?: (edits: Edits) => Promise<SaveOutcome>; waitMs?: number } = {},
+    { waitMs = WAIT_MS }: { waitMs?: number } = {},
 ): Promise<Studio> {
     const first = shared.value() ?? (await arrived(shared, signal, waitMs));
     const studio = createStudio(first, adapterFor, save);

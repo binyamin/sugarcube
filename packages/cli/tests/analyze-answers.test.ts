@@ -61,7 +61,7 @@ async function analysisOf(...uses: Use[]): Promise<Analysis> {
     const texts = Object.fromEntries(
         Object.entries(themed).map(([name, json]) => [name, JSON.stringify(json)]),
     );
-    const { tokens } = await buildFiles(texts, "/project");
+    const { tokens } = await buildFiles(texts, "tokens.resolver.json");
     return {
         tokens,
         uses: {
@@ -286,7 +286,7 @@ describe("impact, across themes", () => {
         unread: [],
     };
     const dependentsOf = async (path: string, built?: Awaited<ReturnType<typeof buildFiles>>) => {
-        const { tokens } = built ?? (await buildFiles(texts(), "/project"));
+        const { tokens } = built ?? (await buildFiles(texts(), "tokens.resolver.json"));
         const written = writtenOf(tokens, path);
         if (!written || written === "group") throw new Error(`no token ${path}`);
         return new Map(
@@ -316,7 +316,7 @@ describe("impact, across themes", () => {
                     b: { $type: "number", $value: "{a}" },
                 }),
             },
-            "/project",
+            "tokens.json",
         );
         const a = writtenOf(tokens, "a");
         if (!a || a === "group") throw new Error("no a");
@@ -344,7 +344,7 @@ describe("impact, across themes", () => {
                 "dark.json": { ...files["dark.json"], pair },
                 "alt.json": { ...files["alt.json"], pair },
             }),
-            "/project",
+            "tokens.resolver.json",
         );
         expect((await dependentsOf("blue", built)).get("pair")?.label).toBe("2 references");
     });

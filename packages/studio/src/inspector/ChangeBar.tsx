@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { SaveOutcome } from "../protocol";
 import { Icon } from "../components/ui/icon/Icons";
-import { type ChangeLine, changeLines } from "../controllers/views";
+import { type ChangeLine, changeLines, doneWord } from "../controllers/views";
 import { Clashes } from "./Clashes";
 import { useStudio, useStudioState } from "../providers/studio-context";
 
@@ -88,15 +88,17 @@ export function ChangeBar() {
 
 function Outcome({ outcome }: { outcome: SaveOutcome | { failed: string } }) {
     if ("failed" in outcome) return <p>Save failed: {outcome.failed}</p>;
-    if (outcome.conflicts) {
+    if (outcome.pullRequest) {
         return (
-            <ul>
-                {outcome.conflicts.map((conflict) => (
-                    <li key={conflict.reason}>{conflict.reason}</li>
-                ))}
-            </ul>
+            <p>
+                Opened{" "}
+                <a href={outcome.pullRequest.url} target="_blank" rel="noreferrer">
+                    pull request #{outcome.pullRequest.number}
+                </a>
+            </p>
         );
     }
+    if (outcome.conflicts) return <p>Not saved: changed elsewhere.</p>;
     const files = [...outcome.written, ...outcome.deleted];
     return (
         <p>
@@ -128,13 +130,3 @@ function Line({ line }: { line: ChangeLine }) {
         </>
     );
 }
-
-const doneWord: Record<Exclude<ChangeLine["kind"], "renamed" | "group-renamed">, string> = {
-    "added": "added",
-    "removed": "removed",
-    "changed": "changed",
-    "group-added": "added",
-    "group-removed": "removed",
-    "group-changed": "changed",
-    "top-level-changed": "changed",
-};

@@ -221,6 +221,19 @@ describe("validate command", () => {
     });
 
     it(
+        "places a single token file's problem at its path from the working folder",
+        { timeout: TEST_TIMEOUT },
+        async () => {
+            await write({ "tokens/a.json": { ink: color(black), text: color("{inc}") } });
+
+            const result = await validate("tokens/a.json");
+
+            expect(result.exitCode).toBe(1);
+            expect(result.stdout).toMatch(/^tokens\/a\.json:\d+:\d+  error  `inc` does not exist/m);
+        },
+    );
+
+    it(
         "refuses several token files with no resolver, naming them",
         { timeout: TEST_TIMEOUT },
         async () => {

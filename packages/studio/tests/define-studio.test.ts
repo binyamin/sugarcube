@@ -90,12 +90,14 @@ describe("defineStudio", () => {
         });
     });
 
-    it("bakes the save address into the handshake when a build names one", async () => {
+    it("bakes where saves go into the handshake when a build names it, with the resolver's path in the project", async () => {
         const s = await setup();
 
         await defineStudio(s.files, s.host, { saveUrl: "https://example.test/submit-pr" });
 
-        expect(s.configs).toEqual([{ saveUrl: "https://example.test/submit-pr" }]);
+        expect(s.configs).toEqual([
+            { saveTo: { url: "https://example.test/submit-pr", entry: s.config.resolver } },
+        ]);
     });
 
     it("publishes nothing about saving when there is a server to save to", async () => {

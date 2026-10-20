@@ -1,4 +1,4 @@
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import {
     ConfigError,
@@ -100,7 +100,7 @@ export default async function sugarcubePlugin(options: SugarcubePluginOptions = 
     const inTerminal = (shown: Reported[]) =>
         problemsText(shown, {
             cwd: process.cwd(),
-            folder: dirname(resolve(loaded.config.resolver)),
+            entry: resolve(loaded.config.resolver),
             configFile: loaded.configFile,
         });
 

@@ -9,7 +9,7 @@ import type { Merged } from "./merge.js";
 import { createValueReader } from "./parse-value.js";
 import { buildPermutations } from "./build.js";
 import type { PermutationOptions } from "./permutations.js";
-import { fileName, filePath, folderOf, normalise } from "./paths.js";
+import { fileName, folderOf, join, normalise } from "./paths.js";
 import { parseJson } from "./json.js";
 import { isResolver } from "./resolver.js";
 import { thrownMessages } from "../error-messages.js";
@@ -55,7 +55,7 @@ async function fetchAll(files: Request, folder: string, readText: ReadText): Pro
     const fetched = await Promise.all(
         files.map(async (file): Promise<[string, FileText]> => {
             try {
-                const text = await readText(filePath(folder, file), file);
+                const text = await readText(join(folder, file), file);
                 return [file, typeof text === "string" ? { text } : { missing: true }];
             } catch {
                 return [file, { missing: true }];
@@ -98,7 +98,7 @@ function fromMemory(
     while (!step.done) {
         const answer: Answer = {};
         for (const path of step.value) {
-            const text = texts.get(filePath(folder, path));
+            const text = texts.get(join(folder, path));
             answer[path] = text === undefined ? { missing: true } : { text };
         }
         step = run.next(answer);

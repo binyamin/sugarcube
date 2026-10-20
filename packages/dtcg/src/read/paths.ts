@@ -30,18 +30,19 @@ export function join(folder: string, path: string): string {
 }
 
 /**
- * Where a file the design tokens name was read from: the file's name joined onto the folder of the
- * entry, as given to `read`. A name written from the root, or as a URL, is that place already,
- * and comes back as it is.
+ * Where a file the design tokens name is: the file's name joined onto the folder of the entry they
+ * were read from, the rule `read` follows when it asks for each file. A name written from the root,
+ * or as a URL, is that place already, and comes back as it is. A file nothing has read yet, such as
+ * one an edit creates, is found the same way.
  *
- * @param folder The entry's folder, such as `"tokens"` for `read("tokens/tokens.resolver.json")`.
+ * @param entry The resolver or token file the design tokens were read from, as given to `read`.
  * @param file A file as the design tokens name it, in `DesignTokens.files` or a `Span`.
  *
  * @example
- * filePath("tokens", "themes/dark.json") // "tokens/themes/dark.json"
- * filePath("tokens", "../shared/base.json") // "shared/base.json"
- * filePath("tokens", "/shared/brand.json") // "/shared/brand.json"
+ * filePath("tokens/tokens.resolver.json", "themes/dark.json") // "tokens/themes/dark.json"
+ * filePath("tokens/tokens.resolver.json", "../shared/base.json") // "shared/base.json"
+ * filePath("tokens/tokens.resolver.json", "/shared/brand.json") // "/shared/brand.json"
  */
-export function filePath(folder: string, file: string): string {
-    return join(folder, file);
+export function filePath(entry: string, file: string): string {
+    return join(folderOf(entry), file);
 }
