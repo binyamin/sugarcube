@@ -1,10 +1,12 @@
-import type { Group, TokenType } from "@sugarcube-sh/dtcg";
+import type { Group, JsonValue, TokenType } from "@sugarcube-sh/dtcg";
 import { create } from "@sugarcube-sh/dtcg-edit";
 import { tokenTypes } from "@sugarcube-sh/dtcg/values";
 import { useId, useState } from "react";
-import { newToken, parsedJson } from "../controllers/token-page";
+import { newToken } from "../controllers/token-page";
+import { hasField } from "../controllers/value-field";
 import { useStudio } from "../providers/studio-context";
 import { JsonInput } from "./JsonInput";
+import { TypedField } from "./TypedField";
 import { useEdit } from "./use-edit";
 
 export function NewToken({ group }: { group: Group }) {
@@ -12,25 +14,23 @@ export function NewToken({ group }: { group: Group }) {
     const edit = useEdit();
     const [name, setName] = useState("");
     const [type, setType] = useState<TokenType>(group.type ?? "color");
-    const [value, setValue] = useState("");
-    const parsed = parsedJson(value);
+    const [value, setValue] = useState<JsonValue>();
+    const [text, setText] = useState("");
     const valueId = useId();
+    const path = `${group.path}.${name}`;
 
     return (
         <form
             onSubmit={(event) => {
                 event.preventDefault();
-                if (!parsed) return;
+                if (value === undefined) return;
                 const made = edit.run(
-                    create(
-                        studio.state.tokens,
-                        `${group.path}.${name}`,
-                        newToken({ type, value: parsed.value }, group),
-                    ),
+                    create(studio.state.tokens, path, newToken({ type, value }, group)),
                 );
                 if (made) {
                     setName("");
-                    setValue("");
+                    setValue(undefined);
+                    setText("");
                 }
             }}
         >
@@ -42,9 +42,11 @@ export function NewToken({ group }: { group: Group }) {
                 Type{" "}
                 <select
                     value={type}
-                    onChange={(event) =>
-                        setType(tokenTypes.find((each) => each === event.target.value) ?? type)
-                    }
+                    onChange={(event) => {
+                        setType(tokenTypes.find((each) => each === event.target.value) ?? type);
+                        setValue(undefined);
+                        setText("");
+                    }}
                 >
                     {tokenTypes.map((each) => (
                         <option key={each} value={each}>
@@ -53,9 +55,29 @@ export function NewToken({ group }: { group: Group }) {
                     ))}
                 </select>
             </label>{" "}
-            <label htmlFor={valueId}>Value</label>{" "}
-            <JsonInput id={valueId} text={value} onText={setValue} />{" "}
-            <button type="submit" disabled={name === "" || !parsed}>
+            {hasField(type) ? (
+                <TypedField
+                    key={type}
+                    type={type}
+                    written={value}
+                    label="Value"
+                    path={path}
+                    onWrite={setValue}
+                />
+            ) : (
+                <>
+                    <label htmlFor={valueId}>Value</label>{" "}
+                    <JsonInput
+                        id={valueId}
+                        text={text}
+                        onText={(next, parsed) => {
+                            setText(next);
+                            setValue(parsed?.value);
+                        }}
+                    />
+                </>
+            )}{" "}
+            <button type="submit" disabled={name === "" || value === undefined}>
                 Add
             </button>
             {edit.view}

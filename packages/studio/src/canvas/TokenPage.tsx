@@ -1,7 +1,6 @@
 import type { Token } from "@sugarcube-sh/dtcg";
-import { overridable } from "@sugarcube-sh/dtcg-edit";
 import { useState } from "react";
-import { placeRows } from "../controllers/token-page";
+import { valueView } from "../controllers/token-page";
 import { problemRows, tokenRow } from "../controllers/views";
 import { useStudioState } from "../providers/studio-context";
 import { EditRow } from "./EditRow";
@@ -15,7 +14,7 @@ export function TokenPage({ token, shown }: { token: Token; shown: boolean }) {
     const value = useStudioState((state) => state.value);
     const [adding, setAdding] = useState<readonly string[]>([]);
     const row = tokenRow(token, token.path, value);
-    const offered = overridable(tokens, token.path);
+    const view = valueView(tokens, token.path, adding);
     const problems = problemRows(tokens.diagnosticsFor(token.path));
 
     return (
@@ -26,28 +25,9 @@ export function TokenPage({ token, shown }: { token: Token; shown: boolean }) {
             <dl>
                 <dt>Type</dt>
                 <dd>{token.type}</dd>
-                {placeRows(tokens, token.path).map((place) => (
-                    <EditRow
-                        key={`${place.at.file}:${place.at.offset}`}
-                        label={place.label}
-                        type={token.type}
-                        value={place.value}
-                        path={token.path}
-                        where={{ at: place.at }}
-                    />
+                {view.rows.map((each) => (
+                    <EditRow key={each.key} row={each} type={token.type} path={token.path} />
                 ))}
-                {offered
-                    .filter(({ label }) => adding.includes(label))
-                    .map(({ label, input }) => (
-                        <EditRow
-                            key={label}
-                            label={`Override for ${label}`}
-                            type={token.type}
-                            value={undefined}
-                            path={token.path}
-                            where={{ input }}
-                        />
-                    ))}
                 {problems.length > 0 && (
                     <>
                         <dt>Problems</dt>
@@ -70,17 +50,15 @@ export function TokenPage({ token, shown }: { token: Token; shown: boolean }) {
                     {shown ? <AsCSS type={row.type} css={row.css} /> : <>Not in {showing.label}</>}
                 </dd>
             </dl>
-            {offered
-                .filter(({ label }) => !adding.includes(label))
-                .map(({ label }) => (
-                    <button
-                        key={label}
-                        type="button"
-                        onClick={() => setAdding((labels) => [...labels, label])}
-                    >
-                        Override for {label}
-                    </button>
-                ))}
+            {view.offers.map((label) => (
+                <button
+                    key={label}
+                    type="button"
+                    onClick={() => setAdding((labels) => [...labels, label])}
+                >
+                    Override for {label}
+                </button>
+            ))}
             <TokenActions path={token.path} />
         </article>
     );

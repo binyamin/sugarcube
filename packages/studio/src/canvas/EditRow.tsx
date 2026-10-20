@@ -1,24 +1,22 @@
-import type { JsonValue, TokenType } from "@sugarcube-sh/dtcg";
-import { type ValueOptions, setValue } from "@sugarcube-sh/dtcg-edit";
+import type { TokenType } from "@sugarcube-sh/dtcg";
+import { setValue } from "@sugarcube-sh/dtcg-edit";
+import type { ValueRow } from "../controllers/token-page";
 import { useStudio } from "../providers/studio-context";
 import { TypedField } from "./TypedField";
 import { useEdit } from "./use-edit";
 
 export function EditRow({
-    label,
+    row,
     type,
-    value,
     path,
-    where,
 }: {
-    label: string | undefined;
+    row: ValueRow;
     type: TokenType | undefined;
-    value: JsonValue | undefined;
     path: string;
-    where: ValueOptions;
 }) {
     const studio = useStudio();
     const edit = useEdit();
+    const label = row.unwritten ? `Override for ${row.label}` : row.label;
 
     return (
         <>
@@ -26,10 +24,12 @@ export function EditRow({
             <dd>
                 <TypedField
                     type={type}
-                    written={value}
+                    written={row.value}
                     label={label ?? path}
                     path={path}
-                    onWrite={(next) => edit.run(setValue(studio.state.tokens, path, next, where))}
+                    onWrite={(next) =>
+                        edit.run(setValue(studio.state.tokens, path, next, row.where))
+                    }
                 />
                 {edit.view}
             </dd>

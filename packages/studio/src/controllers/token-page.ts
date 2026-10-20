@@ -6,7 +6,7 @@ import type {
     Span,
     TokenType,
 } from "@sugarcube-sh/dtcg";
-import type { Clash, NewToken } from "@sugarcube-sh/dtcg-edit";
+import { type Clash, type NewToken, type ValueOptions, overridable } from "@sugarcube-sh/dtcg-edit";
 import { isJsonObject } from "@sugarcube-sh/dtcg/values";
 
 export interface PlaceRow {
@@ -21,6 +21,60 @@ export function placeRows(tokens: DesignTokens, path: string): PlaceRow[] {
         value: isJsonObject(place.written) ? place.written.$value : undefined,
         at: place.span,
     }));
+}
+
+export interface ValueRow {
+    readonly key: string;
+    readonly label: string | undefined;
+    readonly value: JsonValue | undefined;
+    readonly unwritten: boolean;
+    readonly where: ValueOptions;
+}
+
+export interface ValueView {
+    readonly rows: readonly ValueRow[];
+    readonly offers: readonly string[];
+}
+
+export function valueView(
+    tokens: DesignTokens,
+    path: string,
+    adding: readonly string[],
+): ValueView {
+    const places = placeRows(tokens, path);
+    const offered = overridable(tokens, path);
+    const written = places
+        .filter((place) => place.label === undefined || !adding.includes(place.label))
+        .map((place) => ({
+            key: `${place.at.file}:${place.at.offset}`,
+            label: place.label,
+            value: place.value,
+            unwritten: false,
+            where: { at: place.at },
+        }));
+    const overrides = adding.flatMap((label): ValueRow[] => {
+        const key = `adding ${label}`;
+        const place = places.find((each) => each.label === label);
+        if (place) {
+            return [{ key, label, value: place.value, unwritten: false, where: { at: place.at } }];
+        }
+        const offer = offered.find((each) => each.label === label);
+        if (!offer) return [];
+        const inForce = tokens.permutation(offer.input).token(path)?.valueFrom.written;
+        return [
+            {
+                key,
+                label,
+                value: isJsonObject(inForce) ? inForce.$value : undefined,
+                unwritten: true,
+                where: { input: offer.input },
+            },
+        ];
+    });
+    return {
+        rows: [...written, ...overrides],
+        offers: offered.map(({ label }) => label).filter((label) => !adding.includes(label)),
+    };
 }
 
 export type ClashRow = { readonly clash: Clash; readonly keepable: boolean } & (

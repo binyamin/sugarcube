@@ -1,6 +1,6 @@
 import { remove, setValue } from "@sugarcube-sh/dtcg-edit";
 import { describe, expect, it } from "vitest";
-import { newToken, parsedJson, placeRows } from "../../src/controllers/token-page";
+import { newToken, parsedJson, placeRows, valueView } from "../../src/controllers/token-page";
 import { problemRows } from "../../src/controllers/views";
 import { studioOn } from "./demo-message";
 
@@ -99,5 +99,81 @@ describe("a token's own problems", () => {
             ).toEqual(["missing-reference"]);
         }
         expect(studio.state.tokens.diagnosticsFor("color.text.default")).toEqual([]);
+    });
+});
+
+describe("valueView", () => {
+    it("gives a row for each place the token is written", () => {
+        const { tokens } = studioOn().state;
+
+        expect(
+            valueView(tokens, "color.text.default", []).rows.map((row) => [
+                row.label,
+                row.value,
+                row.unwritten,
+            ]),
+        ).toEqual([
+            ["base", "{color.neutral.900}", false],
+            ["mode: dark", "{color.neutral.50}", false],
+        ]);
+    });
+
+    it("starts an override from the value in force for that theme", () => {
+        const { tokens } = studioOn().state;
+
+        const [, override] = valueView(tokens, "typography.text.sm", ["mode: dark"]).rows;
+
+        expect(override).toMatchObject({
+            label: "mode: dark",
+            value: "{size.step.-1}",
+            unwritten: true,
+            where: { input: { mode: "dark" } },
+        });
+    });
+
+    it("keeps an override's row, last, once it is written, so typing carries on in it", () => {
+        const studio = studioOn();
+        const before = valueView(studio.state.tokens, "typography.text.sm", ["mode: dark"]).rows;
+
+        studio.do(
+            setValue(studio.state.tokens, "typography.text.sm", "{size.step.0}", {
+                input: { mode: "dark" },
+            }),
+        );
+        const after = valueView(studio.state.tokens, "typography.text.sm", ["mode: dark"]).rows;
+
+        expect(after.map((row) => row.key)).toEqual(before.map((row) => row.key));
+        expect(after.at(-1)).toMatchObject({
+            label: "mode: dark",
+            value: "{size.step.0}",
+            unwritten: false,
+            where: { at: { file: "dark.json" } },
+        });
+    });
+
+    it("offers nothing for a theme that isn't being added", () => {
+        const { tokens } = studioOn().state;
+
+        expect(valueView(tokens, "typography.text.sm", ["theme: none"]).rows).toHaveLength(1);
+    });
+});
+
+describe("valueView's offers", () => {
+    it("offers an override for each theme that can have one and isn't being added", () => {
+        const studio = studioOn();
+
+        expect(valueView(studio.state.tokens, "typography.text.sm", []).offers).toEqual([
+            "mode: dark",
+        ]);
+        expect(valueView(studio.state.tokens, "typography.text.sm", ["mode: dark"]).offers).toEqual(
+            [],
+        );
+
+        studio.do(
+            setValue(studio.state.tokens, "typography.text.sm", "{size.step.0}", {
+                input: { mode: "dark" },
+            }),
+        );
+        expect(valueView(studio.state.tokens, "typography.text.sm", []).offers).toEqual([]);
     });
 });
