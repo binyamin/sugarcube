@@ -11,7 +11,7 @@ import { isJsonObject } from "@sugarcube-sh/dtcg/values";
 
 export interface PlaceRow {
     readonly label: string | undefined;
-    readonly value: unknown;
+    readonly value: JsonValue | undefined;
     readonly at: Span;
 }
 

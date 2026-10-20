@@ -3,7 +3,7 @@ import { parsedJson } from "../controllers/token-page";
 import type { JsonValue } from "@sugarcube-sh/dtcg";
 import { JsonInput } from "./JsonInput";
 
-export function ValueField({
+export function JsonField({
     shown,
     label,
     onWrite,

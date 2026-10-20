@@ -30,6 +30,7 @@ export function TokenPage({ token, shown }: { token: Token; shown: boolean }) {
                     <EditRow
                         key={`${place.at.file}:${place.at.offset}`}
                         label={place.label}
+                        type={token.type}
                         value={place.value}
                         path={token.path}
                         where={{ at: place.at }}
@@ -41,6 +42,7 @@ export function TokenPage({ token, shown }: { token: Token; shown: boolean }) {
                         <EditRow
                             key={label}
                             label={`Override for ${label}`}
+                            type={token.type}
                             value={undefined}
                             path={token.path}
                             where={{ input }}

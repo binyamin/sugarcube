@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import sugarcube from "@sugarcube-sh/vite";
 import presetWind3 from "@unocss/preset-wind3";
 import react from "@vitejs/plugin-react";
+import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 import { demoStudio } from "./src/dev/demo";
 
@@ -27,10 +28,32 @@ export default defineConfig(({ command, mode }) => ({
         minify: mode !== "development",
     },
     test: {
-        root: fileURLToPath(new URL(".", import.meta.url)),
-        globals: true,
-        environment: "node",
-        include: ["tests/**/*.test.ts"],
+        projects: [
+            {
+                test: {
+                    name: "node",
+                    root,
+                    globals: true,
+                    environment: "node",
+                    include: ["tests/**/*.test.ts"],
+                },
+            },
+            {
+                plugins: [react()],
+                test: {
+                    name: "browser",
+                    root,
+                    include: ["tests/**/*.browser.test.tsx"],
+                    browser: {
+                        enabled: true,
+                        headless: true,
+                        screenshotFailures: false,
+                        provider: playwright(),
+                        instances: [{ browser: "chromium" }],
+                    },
+                },
+            },
+        ],
     },
     // Similar to above: `vite build` pins NODE_ENV to "production" regardless of --mode,
     // which bundles react.production.min.js and disables React DevTools'
