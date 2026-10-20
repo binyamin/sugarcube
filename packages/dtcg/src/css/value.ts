@@ -9,6 +9,7 @@ import type {
     Token,
     TypographyPart,
 } from "../index.js";
+import { colorDecimals, roundedTo } from "../values/decimals.js";
 
 /** A typography value written as CSS: one value for each CSS property it sets, in this order. */
 export interface TypographyCSS {
@@ -144,7 +145,7 @@ function stop({ color, position }: GradientStopPart, options: CSSValueOptions): 
     const named = variable(position, options);
     const where = named
         ? `clamp(0%, var(${named}) * 100%, 100%)`
-        : `${round(position.resolved * 100, 4)}%`;
+        : `${roundedTo(position.resolved * 100, 4)}%`;
     return `${write(color, options)} ${where}`;
 }
 
@@ -203,7 +204,7 @@ function writeColor(
 ): string {
     if (hex !== undefined && (colors === "hex" || colorSpace === "srgb")) return hexOf(hex, alpha);
     const [a, b, c] = components;
-    const four = [a, b, c].map((each) => fixed(each, 4)).join(" ");
+    const four = [a, b, c].map((each) => fixed(each, colorDecimals)).join(" ");
     switch (colorSpace) {
         case "srgb":
             return withAlpha(`rgb(${[a, b, c].map(channel).join(" ")}`, alpha);
@@ -228,7 +229,7 @@ function writeColor(
 }
 
 function withAlpha(opened: string, alpha: number): string {
-    return alpha === 1 ? `${opened})` : `${opened} / ${fixed(alpha, 4)})`;
+    return alpha === 1 ? `${opened})` : `${opened} / ${fixed(alpha, colorDecimals)})`;
 }
 
 function channel(component: ColorComponent): string {
@@ -240,13 +241,7 @@ function percent(component: ColorComponent, digits: number): string {
 }
 
 function fixed(component: ColorComponent, digits: number): string {
-    return component === "none" ? "none" : String(round(component, digits));
-}
-
-function round(value: number, digits: number): number {
-    const factor = 10 ** digits;
-    const scaled = Math.abs(value) * factor;
-    return (Math.sign(value) * Math.round(scaled * (1 + 4 * Number.EPSILON))) / factor;
+    return component === "none" ? "none" : String(roundedTo(component, digits));
 }
 
 function hexOf(hex: string, alpha: number): string {

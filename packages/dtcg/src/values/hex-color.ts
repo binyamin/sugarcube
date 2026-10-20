@@ -1,10 +1,11 @@
 import type { ColorValue } from "../index.js";
+import { colorDecimals, roundedTo } from "./decimals.js";
 import type { ValueErrorFacts } from "./value-errors.js";
 
 export function hexStringColor(hex: string): ColorValue {
     const full = (hex.length <= 5 ? expandedHex(hex) : hex).slice(1);
     const channel = (start: number) =>
-        rounded(Number.parseInt(full.slice(start, start + 2), 16) / 255);
+        roundedTo(Number.parseInt(full.slice(start, start + 2), 16) / 255, colorDecimals);
     return {
         colorSpace: "srgb",
         components: [channel(0), channel(2), channel(4)],
@@ -21,8 +22,4 @@ export function hexStringAsObject(hex: string): ValueErrorFacts["hex-string"]["a
 
 export function expandedHex(shortHex: string): string {
     return `#${Array.from(shortHex.slice(1), (digit) => digit + digit).join("")}`;
-}
-
-function rounded(value: number): number {
-    return Math.round(value * 10_000) / 10_000;
 }
