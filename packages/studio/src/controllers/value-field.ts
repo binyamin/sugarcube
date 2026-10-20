@@ -20,6 +20,7 @@ import {
     readReference,
     strokeStyleKeywords,
 } from "@sugarcube-sh/dtcg/values";
+import { type ColorField, colorField } from "./color";
 import { nodeAt } from "./views";
 
 type StrokeStyleKeyword = Extract<StrokeStyleValue, { kind: "keyword" }>["keyword"];
@@ -33,6 +34,7 @@ export type Field =
     | { readonly kind: "cubicBezier"; readonly points: CubicBezierValue }
     | { readonly kind: "strokeStyle"; readonly keyword: StrokeStyleKeyword }
     | { readonly kind: "reference"; readonly path: string }
+    | ColorField
     | { readonly kind: "parts"; readonly parts: readonly FieldPart[] }
     | {
           readonly kind: "list";
@@ -45,7 +47,10 @@ export type Field =
 
 export type FieldWithParts = Extract<Field, { kind: "parts" | "list" | "dashes" }>;
 
-export type FieldType = Exclude<Field["kind"], "reference" | "json" | FieldWithParts["kind"]>;
+export type FieldType = Exclude<
+    Field["kind"],
+    "reference" | "json" | "color" | FieldWithParts["kind"]
+>;
 
 export type CompositeType = keyof typeof compositeParts;
 
@@ -101,6 +106,7 @@ export function fieldFor(type: TokenType | undefined, written: JsonValue): Field
             ? { kind: "reference", path: reference.path }
             : json;
     }
+    if (type === "color") return colorField(written) ?? json;
     if (isComposite(type)) return compositeField(type, written) ?? json;
     if (type === "strokeStyle") {
         const dashes = dashesIn(written);
@@ -230,6 +236,8 @@ export function writtenFor(field: Field): JsonValue {
             return field.keyword;
         case "reference":
             return `{${field.path}}`;
+        case "color":
+            return field.written;
         case "parts":
             return Object.fromEntries(
                 field.parts.flatMap(({ name, written }) =>

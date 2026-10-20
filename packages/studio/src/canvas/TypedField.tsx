@@ -20,6 +20,7 @@ import {
 } from "../controllers/value-field";
 import { useStudioState } from "../providers/studio-context";
 import { Choice } from "./Choice";
+import { ColorSwatch } from "./ColorSwatch";
 import { CompositeInput } from "./CompositeInput";
 import { JsonField } from "./JsonField";
 import { useDraft, useItemKeys } from "./use-draft";
@@ -82,6 +83,8 @@ export function TypedField({
                     referred={field?.kind === "reference" ? field.path : undefined}
                     onPath={(to) => write({ kind: "reference", path: to })}
                 />
+            ) : field?.kind === "color" ? (
+                <ColorSwatch field={field} label={label} onPick={write} />
             ) : field && hasParts(field) ? (
                 <CompositeInput field={field} label={label} path={path} onWrite={onWrite} />
             ) : hasField(type) ? (

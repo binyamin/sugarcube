@@ -91,7 +91,6 @@ describe("fieldFor", () => {
             ["dimension", { $ref: "#/size/step/0/$value" }],
             ["fontWeight", "Bold"],
             ["cubicBezier", [0.4, 0, 0.2]],
-            ["color", { colorSpace: "srgb", components: [1, 0, 0] }],
         ];
 
         for (const [type, written] of fallbacks) {
