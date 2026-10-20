@@ -204,19 +204,19 @@ function writeColor(
 ): string {
     if (hex !== undefined && (colors === "hex" || colorSpace === "srgb")) return hexOf(hex, alpha);
     const [a, b, c] = components;
-    const four = [a, b, c].map((each) => fixed(each, colorDecimals)).join(" ");
+    const numbers = [a, b, c].map((each) => fixed(each)).join(" ");
     switch (colorSpace) {
         case "srgb":
             return withAlpha(`rgb(${[a, b, c].map(channel).join(" ")}`, alpha);
         case "hsl":
-            return withAlpha(`hsl(${fixed(a, 1)} ${percent(b, 0)} ${percent(c, 0)}`, alpha);
+            return withAlpha(`hsl(${fixed(a)} ${percent(b)} ${percent(c)}`, alpha);
         case "hwb":
-            return withAlpha(`hwb(${fixed(a, 4)} ${percent(b, 4)} ${percent(c, 4)}`, alpha);
+            return withAlpha(`hwb(${fixed(a)} ${percent(b)} ${percent(c)}`, alpha);
         case "lab":
         case "lch":
         case "oklab":
         case "oklch":
-            return withAlpha(`${colorSpace}(${four}`, alpha);
+            return withAlpha(`${colorSpace}(${numbers}`, alpha);
         case "srgb-linear":
         case "display-p3":
         case "a98-rgb":
@@ -224,24 +224,24 @@ function writeColor(
         case "rec2020":
         case "xyz-d65":
         case "xyz-d50":
-            return withAlpha(`color(${colorSpace} ${four}`, alpha);
+            return withAlpha(`color(${colorSpace} ${numbers}`, alpha);
     }
 }
 
 function withAlpha(opened: string, alpha: number): string {
-    return alpha === 1 ? `${opened})` : `${opened} / ${fixed(alpha, colorDecimals)})`;
+    return alpha === 1 ? `${opened})` : `${opened} / ${fixed(alpha)})`;
 }
 
 function channel(component: ColorComponent): string {
     return component === "none" ? "none" : String(Math.round(component * 255));
 }
 
-function percent(component: ColorComponent, digits: number): string {
-    return component === "none" ? "none" : `${fixed(component, digits)}%`;
+function percent(component: ColorComponent): string {
+    return component === "none" ? "none" : `${fixed(component)}%`;
 }
 
-function fixed(component: ColorComponent, digits: number): string {
-    return component === "none" ? "none" : String(roundedTo(component, digits));
+function fixed(component: ColorComponent): string {
+    return component === "none" ? "none" : String(roundedTo(component, colorDecimals));
 }
 
 function hexOf(hex: string, alpha: number): string {
