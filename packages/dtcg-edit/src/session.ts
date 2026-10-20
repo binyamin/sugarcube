@@ -57,10 +57,18 @@ export function createSession(tokens: DesignTokens): Session {
         changes() {
             return current.diff(opened, { moved: movesIn(unsaved.steps) });
         },
-        markSaved() {
-            opened = current;
-            unsaved = { steps: [] };
-            openedIds = ids;
+        markSaved(saved) {
+            const count = saved ? leadingSteps(saved, unsaved) : unsaved.steps.length;
+            if (count === 0) return;
+            const kept = unsaved.steps.slice(0, count);
+            if (count === unsaved.steps.length) {
+                opened = current;
+                openedIds = ids;
+            } else {
+                opened = applyStepsThatFit(opened, kept).tokens;
+                openedIds = followed(openedIds, movesIn(kept), opened, counter, ids);
+            }
+            unsaved = { steps: unsaved.steps.slice(count) };
             changed();
         },
         discard() {
@@ -141,6 +149,11 @@ function followed(
         set(id, path);
     }
     return { byId, byPath };
+}
+
+function leadingSteps(saved: Edits, unsaved: Edits): number {
+    const leading = saved.steps.every((step, index) => unsaved.steps[index] === step);
+    return leading ? saved.steps.length : 0;
 }
 
 function movesIn(steps: readonly EditStep[]): Move[] {

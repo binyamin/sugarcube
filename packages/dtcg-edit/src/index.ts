@@ -551,8 +551,17 @@ export interface Session {
      * Records that the unsaved edits were saved: the current version becomes
      * {@link Session.opened}. Undo still works; undoing past a save makes unsaved edits that
      * revert it.
+     *
+     * Given the edits a save sent, as {@link Session.unsaved} was when it began, only those count
+     * as saved: anything done while the save was on its way stays unsaved, measured from them.
+     * Nothing counts as saved when the session no longer holds them, such as after a discard.
+     *
+     * @example
+     * const sent = session.unsaved;
+     * await save(sent);
+     * session.markSaved(sent);
      */
-    markSaved(): void;
+    markSaved(saved?: Edits): void;
     /** Goes back to {@link Session.opened} and drops the unsaved edits. The undo history starts again. */
     discard(): void;
     /**

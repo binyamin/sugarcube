@@ -1,16 +1,16 @@
 import { type Edits, isEdits } from "@sugarcube-sh/dtcg-edit";
 
-export type PRRequest = {
+export type SaveRequest = {
     title: string;
     description: string;
     entry: string;
     edits: Edits;
 };
 
-type Checked = { request: PRRequest } | { error: string };
+type Checked = { request: SaveRequest } | { error: string };
 
 export function checkRequest(body: unknown): Checked {
-    const raw = body as Partial<Record<keyof PRRequest, unknown>> | null;
+    const raw = body as Partial<Record<keyof SaveRequest, unknown>> | null;
     if (
         !raw ||
         typeof raw.title !== "string" ||

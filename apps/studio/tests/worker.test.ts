@@ -211,10 +211,20 @@ describe("a save", () => {
         const response = await submit(save(darkTextTo("{color.neutral.100}")));
 
         expect(await response.json()).toEqual({
-            number: 7,
-            url: "https://github.com/owner/demo/pull/7",
+            pullRequest: { number: 7, url: "https://github.com/owner/demo/pull/7" },
             files: BUILT,
         });
+    });
+
+    it("names the branch by its commit, so two saves in one second don't take the same name", async () => {
+        const gh = onGitHub(BUILT);
+
+        await submit(save(darkTextTo("{color.neutral.100}")));
+
+        const ref = gh.posted.find((post) => post.path.endsWith("/git/refs"))?.body as {
+            ref: string;
+        };
+        expect(ref.ref).toMatch(/^refs\/heads\/studio-\d{14}-commit1$/);
     });
 
     it("deletes a file an edit deletes", async () => {

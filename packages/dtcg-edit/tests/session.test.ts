@@ -128,6 +128,51 @@ describe("createSession", () => {
         expect(session.tokens).toBe(saved);
     });
 
+    it("marks only the edits that were saved, keeping one done while they were saving", () => {
+        const session = createSession(demo);
+        session.do(setValue(session.tokens, "color.brand.500", red));
+        const sent = session.unsaved;
+        const saved = session.tokens;
+        session.do(setDescription(session.tokens, "color.brand.500", "The anchor."));
+        const later = session.unsaved.steps[1];
+
+        session.markSaved(sent);
+
+        expect(session.opened.toMemory().files).toEqual(saved.toMemory().files);
+        expect(session.unsaved.steps).toEqual([later]);
+        expect(session.changes().map(({ kind, path }) => [kind, path])).toEqual([
+            ["changed", "color.brand.500"],
+        ]);
+        session.discard();
+        expect(session.tokens.toMemory().files).toEqual(saved.toMemory().files);
+    });
+
+    it("marks nothing saved when the edits saved are no longer the ones it holds", () => {
+        const session = createSession(demo);
+        session.do(setValue(session.tokens, "color.brand.500", red));
+        const sent = session.unsaved;
+        session.discard();
+        session.do(setDescription(session.tokens, "color.brand.500", "The anchor."));
+        const held = session.unsaved;
+
+        session.markSaved(sent);
+
+        expect(session.unsaved).toBe(held);
+        expect(session.opened).toBe(demo);
+    });
+
+    it("keeps ids through a save of some of the edits", () => {
+        const session = createSession(demo);
+        session.do(rename(session.tokens, "color.brand.500", "550"));
+        const sent = session.unsaved;
+        session.do(rename(session.tokens, "color.brand.550", "555"));
+
+        session.markSaved(sent);
+        session.discard();
+
+        expect(session.pathOf("color.brand.500")).toBe("color.brand.550");
+    });
+
     it("tells listeners about every change until they stop listening", () => {
         const session = createSession(demo);
         const heard = vi.fn();

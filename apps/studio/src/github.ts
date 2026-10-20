@@ -1,9 +1,7 @@
 import { filePath, read } from "@sugarcube-sh/dtcg";
 import { type Conflict, changedFiles } from "@sugarcube-sh/dtcg-edit";
 import type { Env } from "./env";
-import type { PRRequest } from "./request";
-
-export type { PRRequest };
+import type { SaveRequest } from "./request";
 
 const GITHUB_API = "https://api.github.com";
 
@@ -129,8 +127,8 @@ async function githubPost(token: string, path: string, body: unknown): Promise<u
 
 type Files = Record<string, string>;
 
-export type Saved =
-    | { number: number; url: string; files: Files; conflicts?: undefined }
+export type SaveOutcome =
+    | { pullRequest: { number: number; url: string }; files: Files; conflicts?: undefined }
     | { conflicts: Conflict[]; files: Files };
 
 export class SaveRefused extends Error {
@@ -139,7 +137,7 @@ export class SaveRefused extends Error {
 
 const repositoryPath = (path: string) => path.split("/").map(encodeURIComponent).join("/");
 
-export async function createPR(env: Env, request: PRRequest): Promise<Saved> {
+export async function saveAsPullRequest(env: Env, request: SaveRequest): Promise<SaveOutcome> {
     const token = await getInstallationToken(env);
     const repo = env.GITHUB_REPO;
     const baseBranch = env.GITHUB_BASE_BRANCH;
@@ -194,7 +192,7 @@ export async function createPR(env: Env, request: PRRequest): Promise<Saved> {
 
     const now = new Date();
     const stamp = now.toISOString().replace(/[-:T]/g, "").slice(0, 14);
-    const branchName = `studio-${stamp}`;
+    const branchName = `studio-${stamp}-${commit.sha.slice(0, 7)}`;
     await githubPost(token, `/repos/${repo}/git/refs`, {
         ref: `refs/heads/${branchName}`,
         sha: commit.sha,
@@ -207,5 +205,5 @@ export async function createPR(env: Env, request: PRRequest): Promise<Saved> {
         base: baseBranch,
     })) as { number: number; html_url: string };
 
-    return { number: pr.number, url: pr.html_url, files };
+    return { pullRequest: { number: pr.number, url: pr.html_url }, files };
 }

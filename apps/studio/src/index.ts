@@ -1,5 +1,5 @@
 import type { Env } from "./env";
-import { SaveRefused, createPR } from "./github";
+import { SaveRefused, saveAsPullRequest } from "./github";
 import { checkRequest } from "./request";
 
 const CORS_HEADERS = {
@@ -21,14 +21,14 @@ export default {
         const url = new URL(request.url);
 
         if (url.pathname === "/submit-pr") {
-            return handleSubmitPR(request, env);
+            return handleSave(request, env);
         }
 
         return json({ error: "Not found" }, 404);
     },
 } satisfies ExportedHandler<Env>;
 
-async function handleSubmitPR(request: Request, env: Env): Promise<Response> {
+async function handleSave(request: Request, env: Env): Promise<Response> {
     let body: unknown;
     try {
         body = await request.json();
@@ -40,7 +40,7 @@ async function handleSubmitPR(request: Request, env: Env): Promise<Response> {
     if ("error" in checked) return json({ error: checked.error }, 400);
 
     try {
-        const saved = await createPR(env, checked.request);
+        const saved = await saveAsPullRequest(env, checked.request);
         return json(saved, saved.conflicts ? 409 : 201);
     } catch (err) {
         if (err instanceof SaveRefused) return json({ error: err.message }, 422);

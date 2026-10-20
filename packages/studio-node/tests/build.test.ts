@@ -8,10 +8,12 @@ import { filesAt } from "./demo";
 describe("buildStudio", () => {
     let outDir: string;
     let built: StudioBuild;
+    let entry: string;
 
     beforeAll(async () => {
         outDir = mkdtempSync(join(tmpdir(), "studio-build-"));
         const files = await filesAt();
+        entry = files.now().config.resolver;
         built = await buildStudio({ files, outDir, saveUrl: "https://example.test/submit-pr" });
     }, 60_000);
 
@@ -36,12 +38,12 @@ describe("buildStudio", () => {
         expect(meta.backend).toBe("static");
     });
 
-    it("bakes the save address into the handshake", () => {
+    it("bakes where saves go into the handshake, with the resolver's path in the project", () => {
         const meta = JSON.parse(
             readFileSync(join(built.hubDir, "sugarcube-studio", "__connection.json"), "utf8"),
         );
         expect(meta.configs["sugarcube:studio"]).toEqual({
-            saveUrl: "https://example.test/submit-pr",
+            saveTo: { url: "https://example.test/submit-pr", entry },
         });
     });
 

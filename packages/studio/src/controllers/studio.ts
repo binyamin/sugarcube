@@ -14,7 +14,7 @@ import {
     createSession,
     keepYours,
 } from "@sugarcube-sh/dtcg-edit";
-import type { SaveOutcome, SentAdapter, StudioMessage } from "../protocol";
+import type { SaveOutcome, SentAdapter, StudioMessage, StudioSave } from "../protocol";
 import type { BuildAdapter, BuildProblem, BuildOutput } from "./adapter";
 
 export interface StudioState {
@@ -46,7 +46,7 @@ export interface Studio {
 export function createStudio(
     first: StudioMessage,
     adapterFor: (sent: SentAdapter) => BuildAdapter,
-    saveEdits?: (edits: Edits) => Promise<SaveOutcome>,
+    saveEdits?: StudioSave,
 ): Studio {
     let message = first;
     let adapter = adapterFor(first.adapter);
@@ -81,11 +81,19 @@ export function createStudio(
         publish(built(state.showing.input));
     }
 
+    function takeIn(files: StudioMessage["files"]): boolean {
+        const fresh = session.opened.rereadAll(files);
+        if (fresh === session.opened) return false;
+        settled(session.rebase(fresh));
+        return true;
+    }
+
     const save = saveEdits
         ? async () => {
               const sent = session.unsaved;
-              const saved = await saveEdits(sent);
-              if (!saved.conflicts && session.unsaved === sent) session.markSaved();
+              const saved = await saveEdits(sent, session.changes());
+              if (!saved.conflicts) session.markSaved(sent);
+              if (saved.files) takeIn(saved.files);
               return saved;
           }
         : undefined;
@@ -144,9 +152,7 @@ export function createStudio(
                 settled(session.rebase(read(next, adapter)));
                 return;
             }
-            const fresh = session.opened.rereadAll(next.files);
-            if (fresh !== session.opened) settled(session.rebase(fresh));
-            else if (!sameJson(next.adapter.problems, previous.adapter.problems))
+            if (!takeIn(next.files) && !sameJson(next.adapter.problems, previous.adapter.problems))
                 publish(built(state.showing.input));
         },
     };

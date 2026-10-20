@@ -176,6 +176,25 @@ export function changeLines(changes: readonly Change[]): ChangeLine[] {
     });
 }
 
+export function changeText(line: ChangeLine): string {
+    const theme = line.inPermutations ? ` (${line.inPermutations})` : "";
+    if (line.kind === "renamed" || line.kind === "group-renamed") {
+        return `\`${line.from}\` renamed to \`${line.path}\`${theme}`;
+    }
+    const what = line.path ? `\`${line.path}\`` : "Top level";
+    return `${what} ${doneWord[line.kind]}${theme}`;
+}
+
+export const doneWord: Record<Exclude<ChangeLine["kind"], "renamed" | "group-renamed">, string> = {
+    "added": "added",
+    "removed": "removed",
+    "changed": "changed",
+    "group-added": "added",
+    "group-removed": "removed",
+    "group-changed": "changed",
+    "top-level-changed": "changed",
+};
+
 function partialLabel(permutations: Permutations | undefined): string | undefined {
     const label = permutations?.label;
     return label === "everywhere" || label === "nowhere" ? undefined : label;
