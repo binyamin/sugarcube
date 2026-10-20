@@ -6,9 +6,14 @@ import {
     fieldFor,
     fieldFrom,
     hasField,
+    hasParts,
     moved,
+    parsedJson,
+    partsOf,
     referable,
     says,
+    withAdded,
+    withRemoved,
     without,
     writtenFor,
 } from "../../src/controllers/value-field";
@@ -86,18 +91,7 @@ describe("fieldFor", () => {
             ["dimension", { $ref: "#/size/step/0/$value" }],
             ["fontWeight", "Bold"],
             ["cubicBezier", [0.4, 0, 0.2]],
-            ["strokeStyle", { dashArray: [{ value: 2, unit: "px" }], lineCap: "round" }],
             ["color", { colorSpace: "srgb", components: [1, 0, 0] }],
-            [
-                "shadow",
-                {
-                    color: "{color.neutral.900}",
-                    offsetX: { value: 0, unit: "px" },
-                    offsetY: { value: 1, unit: "px" },
-                    blur: { value: 2, unit: "px" },
-                    spread: { value: 0, unit: "px" },
-                },
-            ],
         ];
 
         for (const [type, written] of fallbacks) {
@@ -322,5 +316,187 @@ describe("moved and without", () => {
         expect(moved(["a", "b", "c"], 2, 0)).toEqual(["c", "a", "b"]);
         expect(moved(["a", "b", "c"], 0, 1)).toEqual(["b", "a", "c"]);
         expect(without(["a", "b", "c"], 1)).toEqual(["a", "c"]);
+    });
+});
+
+const px = (value: number) => ({ value, unit: "px" });
+const layer = { color: "#0000001a", offsetX: px(0), offsetY: px(1), blur: px(2), spread: px(0) };
+
+describe("composite fields", () => {
+    it("shows a border as its parts, in the spec's order, each with where it is", () => {
+        expect(fieldFor("border", { style: "solid", color: "{color.ink}", width: px(1) })).toEqual({
+            kind: "parts",
+            parts: [
+                { name: "color", at: ["color"], type: "color", written: "{color.ink}" },
+                { name: "width", at: ["width"], type: "dimension", written: px(1) },
+                { name: "style", at: ["style"], type: "strokeStyle", written: "solid" },
+            ],
+        });
+    });
+
+    it("shows a part the value doesn't write, empty", () => {
+        const field = fieldFor("transition", {
+            duration: { value: 200, unit: "ms" },
+            delay: { value: 0, unit: "ms" },
+        });
+
+        expect(field.kind === "parts" && field.parts.at(-1)).toEqual({
+            name: "timingFunction",
+            at: ["timingFunction"],
+            type: "cubicBezier",
+            written: undefined,
+        });
+    });
+
+    it("shows a single shadow as a list of one, written where the value is", () => {
+        const field = fieldFor("shadow", layer);
+
+        expect(field).toMatchObject({ kind: "list", type: "shadow", single: true });
+        expect(field.kind === "list" && field.items.map(({ at, shown }) => [at, shown])).toEqual([
+            [[], "parts"],
+        ]);
+    });
+
+    it("shows each item of a list at its index, as parts, a reference, or JSON", () => {
+        const field = fieldFor("shadow", [layer, "{shadow.sm}", { ...layer, glow: true }]);
+
+        expect(field).toMatchObject({ kind: "list", type: "shadow", single: false });
+        expect(field.kind === "list" && field.items.map(({ at, shown }) => [at, shown])).toEqual([
+            [[0], "parts"],
+            [[1], "reference"],
+            [[2], "json"],
+        ]);
+    });
+
+    it("gives a list item's parts, with where each is inside the item", () => {
+        const field = fieldFor("gradient", [{ color: "#000000", position: 0 }]);
+        const [stop] = field.kind === "list" ? field.items : [];
+
+        expect(field).toMatchObject({ kind: "list", type: "gradient" });
+        expect(stop?.shown === "parts" && stop.parts).toEqual([
+            { name: "color", at: ["color"], type: "color", written: "#000000" },
+            { name: "position", at: ["position"], type: "number", written: 0 },
+        ]);
+    });
+
+    it("shows a stroke style's dashes, each at its place in the dash array", () => {
+        expect(
+            fieldFor("strokeStyle", { dashArray: [px(4), "{size.dash}"], lineCap: "round" }),
+        ).toEqual({
+            kind: "dashes",
+            dashes: [
+                { at: ["dashArray", 0], type: "dimension", written: px(4) },
+                { at: ["dashArray", 1], type: "dimension", written: "{size.dash}" },
+            ],
+            lineCap: "round",
+        });
+    });
+
+    it("tells the fields drawn part by part from the rest", () => {
+        expect(hasParts(fieldFor("border", { color: "#000000" }))).toBe(true);
+        expect(hasParts(fieldFor("shadow", layer))).toBe(true);
+        expect(hasParts(fieldFor("strokeStyle", { dashArray: [px(4)], lineCap: "round" }))).toBe(
+            true,
+        );
+        expect(hasParts(fieldFor("strokeStyle", "solid"))).toBe(false);
+        expect(hasParts(fieldFor("border", "{border.thin}"))).toBe(false);
+    });
+
+    it("falls back to JSON for a composite it can't show exactly", () => {
+        const odd: [TokenType, JsonValue][] = [
+            ["border", { color: "#000000", width: px(1), style: "solid", radius: px(4) }],
+            ["border", "solid"],
+            ["shadow", []],
+            ["shadow", 4],
+            ["gradient", { color: "#000000", position: 0 }],
+            ["typography", [1, 2]],
+            ["strokeStyle", { dashArray: [px(4)], lineCap: "round", gap: px(2) }],
+            ["strokeStyle", { dashArray: px(4), lineCap: "round" }],
+        ];
+
+        for (const [type, written] of odd) {
+            expect(fieldFor(type, written)).toEqual({ kind: "json", value: written });
+        }
+    });
+
+    it("writes back exactly what it was shown", () => {
+        const shown: [TokenType, JsonValue][] = [
+            ["border", { color: "{color.ink}", width: px(1), style: "solid" }],
+            ["shadow", layer],
+            ["shadow", [layer, "{shadow.sm}"]],
+            ["strokeStyle", { dashArray: [px(4)], lineCap: "butt" }],
+        ];
+
+        for (const [type, written] of shown) {
+            expect(writtenFor(fieldFor(type, written))).toEqual(written);
+        }
+    });
+});
+
+describe("partsOf", () => {
+    it("gives a shadow layer's parts, its optional inset among them", () => {
+        expect(
+            partsOf("shadow", { ...layer, inset: true })?.map(({ name, type }) => [name, type]),
+        ).toEqual([
+            ["color", "color"],
+            ["offsetX", "dimension"],
+            ["offsetY", "dimension"],
+            ["blur", "dimension"],
+            ["spread", "dimension"],
+            ["inset", "boolean"],
+        ]);
+    });
+
+    it("gives nothing for a value it can't show exactly", () => {
+        expect(partsOf("shadow", { ...layer, glow: true })).toBeUndefined();
+        expect(partsOf("gradient", "{gradient.stop}")).toBeUndefined();
+    });
+});
+
+describe("withAdded and withRemoved", () => {
+    const list = (written: JsonValue) => {
+        const field = fieldFor("shadow", written);
+        if (field.kind !== "list") throw new Error(field.kind);
+        return field;
+    };
+    const dashes = (written: JsonValue) => {
+        const field = fieldFor("strokeStyle", written);
+        if (field.kind !== "dashes") throw new Error(field.kind);
+        return field;
+    };
+
+    it("adds a copy of the last item, making a single shadow a list", () => {
+        expect(withAdded(list(layer))).toEqual([layer, layer]);
+        expect(withAdded(list([layer, "{shadow.sm}"]))).toEqual([
+            layer,
+            "{shadow.sm}",
+            "{shadow.sm}",
+        ]);
+        expect(withAdded(dashes({ dashArray: [px(4)], lineCap: "round" }))).toEqual({
+            dashArray: [px(4), px(4)],
+            lineCap: "round",
+        });
+    });
+
+    it("takes one out, keeping a list a list", () => {
+        expect(withRemoved(list([layer, "{shadow.sm}"]), 0)).toEqual(["{shadow.sm}"]);
+        expect(withRemoved(dashes({ dashArray: [px(4), px(8)], lineCap: "butt" }), 1)).toEqual({
+            dashArray: [px(4)],
+            lineCap: "butt",
+        });
+    });
+});
+
+describe("parsedJson", () => {
+    it("gives the value when the text is JSON", () => {
+        expect(parsedJson('"{color.neutral.100}"')).toEqual({ value: "{color.neutral.100}" });
+        expect(parsedJson('{ "value": 2, "unit": "rem" }')).toEqual({
+            value: { value: 2, unit: "rem" },
+        });
+    });
+
+    it("gives nothing when the text isn't JSON yet", () => {
+        expect(parsedJson("{color.neutral.100}")).toBeUndefined();
+        expect(parsedJson("")).toBeUndefined();
     });
 });

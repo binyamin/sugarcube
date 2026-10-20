@@ -1,22 +1,27 @@
-import { useState } from "react";
-import { parsedJson } from "../controllers/token-page";
 import type { JsonValue } from "@sugarcube-sh/dtcg";
+import { changes, parsedJson } from "../controllers/value-field";
 import { JsonInput } from "./JsonInput";
+import { useDraft } from "./use-draft";
 
 export function JsonField({
-    shown,
+    written,
     label,
     onWrite,
 }: {
-    shown: string;
+    written: JsonValue | undefined;
     label: string;
     onWrite(value: JsonValue): void;
 }) {
-    const [text, setText] = useState(shown);
+    const shown = written === undefined ? "" : JSON.stringify(written);
+    const [text, setText] = useDraft(shown, shown, (kept) => {
+        const parsed = parsedJson(kept);
+        return parsed !== undefined && !changes({ kind: "json", value: parsed.value }, written);
+    });
 
     const write = () => {
         const parsed = parsedJson(text);
-        if (parsed && JSON.stringify(parsed.value) !== shown) onWrite(parsed.value);
+        if (parsed && changes({ kind: "json", value: parsed.value }, written))
+            onWrite(parsed.value);
     };
 
     return (

@@ -1,6 +1,6 @@
 import type { JsonValue } from "@sugarcube-sh/dtcg";
 import type { InputHTMLAttributes } from "react";
-import { parsedJson } from "../controllers/token-page";
+import { parsedJson } from "../controllers/value-field";
 
 export function JsonInput({
     text,

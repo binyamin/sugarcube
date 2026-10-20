@@ -1,6 +1,6 @@
-import type { JsonValue, TokenType } from "@sugarcube-sh/dtcg";
+import type { JsonPath, JsonValue, TokenType } from "@sugarcube-sh/dtcg";
 import { dimensionUnits, durationUnits, strokeStyleKeywords } from "@sugarcube-sh/dtcg/values";
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo } from "react";
 import {
     type Draft,
     type Field,
@@ -10,6 +10,7 @@ import {
     fieldFor,
     fieldFrom,
     hasField,
+    hasParts,
     moved,
     referable,
     says,
@@ -18,7 +19,10 @@ import {
     writtenFor,
 } from "../controllers/value-field";
 import { useStudioState } from "../providers/studio-context";
+import { Choice } from "./Choice";
+import { CompositeInput } from "./CompositeInput";
 import { JsonField } from "./JsonField";
+import { useDraft, useItemKeys } from "./use-draft";
 
 export function TypedField({
     type,
@@ -31,7 +35,7 @@ export function TypedField({
     written: JsonValue | undefined;
     label: string;
     path: string;
-    onWrite(value: JsonValue): void;
+    onWrite(value: JsonValue, part?: JsonPath): void;
 }) {
     const field = written === undefined ? undefined : fieldFor(type, written);
     const shown = written === undefined ? "" : JSON.stringify(written);
@@ -45,7 +49,7 @@ export function TypedField({
     };
 
     if (type === undefined || field?.kind === "json") {
-        return <JsonField key={shown} shown={shown} label={label} onWrite={onWrite} />;
+        return <JsonField written={written} label={label} onWrite={onWrite} />;
     }
 
     return (
@@ -78,6 +82,8 @@ export function TypedField({
                     referred={field?.kind === "reference" ? field.path : undefined}
                     onPath={(to) => write({ kind: "reference", path: to })}
                 />
+            ) : field && hasParts(field) ? (
+                <CompositeInput field={field} label={label} path={path} onWrite={onWrite} />
             ) : hasField(type) ? (
                 <ValueInput
                     type={type}
@@ -86,7 +92,7 @@ export function TypedField({
                     write={write}
                 />
             ) : (
-                <JsonField shown="" label={label} onWrite={onWrite} />
+                <JsonField written={undefined} label={label} onWrite={onWrite} />
             )}
         </>
     );
@@ -278,38 +284,6 @@ function NumberBox({
     );
 }
 
-function Choice<C extends string>({
-    label,
-    chosen,
-    choices,
-    names,
-    onChoose,
-}: {
-    label: string;
-    chosen: string;
-    choices: readonly C[];
-    names?: Partial<Record<C, string>>;
-    onChoose(choice: C): void;
-}) {
-    return (
-        <select
-            aria-label={label}
-            value={chosen}
-            onChange={(event) => {
-                const choice = choices.find((each) => each === event.target.value);
-                if (choice !== undefined) onChoose(choice);
-            }}
-        >
-            {chosen === "" && <option value="">Choose</option>}
-            {choices.map((each) => (
-                <option key={each} value={each}>
-                    {names?.[each] ?? each}
-                </option>
-            ))}
-        </select>
-    );
-}
-
 function FontList({
     label,
     fonts,
@@ -319,17 +293,16 @@ function FontList({
     fonts: readonly string[];
     onFonts(fonts: readonly string[]): void;
 }) {
-    const [keys, setKeys] = useState(() => fonts.map(newKey));
-    if (keys.length !== fonts.length) setKeys(fonts.map(newKey));
+    const items = useItemKeys(fonts.length);
     const reorder = (from: number, to: number) => {
-        setKeys(moved(keys, from, to));
+        items.moved(from, to);
         onFonts(moved(fonts, from, to));
     };
 
     return (
         <ol aria-label={label}>
             {fonts.map((name, index) => (
-                <li key={keys[index]}>
+                <li key={items.keys[index]}>
                     <input
                         aria-label={`${label}, font ${index + 1}`}
                         value={name}
@@ -357,7 +330,7 @@ function FontList({
                         type="button"
                         disabled={fonts.length === 1}
                         onClick={() => {
-                            setKeys(without(keys, index));
+                            items.removed(index);
                             onFonts(without(fonts, index));
                         }}
                     >
@@ -369,7 +342,7 @@ function FontList({
                 <button
                     type="button"
                     onClick={() => {
-                        setKeys([...keys, newKey()]);
+                        items.added();
                         onFonts([...fonts, ""]);
                     }}
                 >
@@ -378,25 +351,4 @@ function FontList({
             </li>
         </ol>
     );
-}
-
-let lastKey = 0;
-
-function newKey(): number {
-    lastKey += 1;
-    return lastKey;
-}
-
-function useDraft<D>(
-    fresh: D,
-    shown: string,
-    keeps: (draft: D) => boolean = () => false,
-): [D, (next: D) => void] {
-    const [draft, setDraft] = useState(fresh);
-    const [was, setWas] = useState(shown);
-    if (was !== shown) {
-        setWas(shown);
-        if (!keeps(draft)) setDraft(fresh);
-    }
-    return [draft, setDraft];
 }

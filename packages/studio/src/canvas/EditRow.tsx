@@ -27,8 +27,8 @@ export function EditRow({
                     written={row.value}
                     label={label ?? path}
                     path={path}
-                    onWrite={(next) =>
-                        edit.run(setValue(studio.state.tokens, path, next, row.where))
+                    onWrite={(next, part) =>
+                        edit.run(setValue(studio.state.tokens, path, next, { ...row.where, part }))
                     }
                 />
                 {edit.view}

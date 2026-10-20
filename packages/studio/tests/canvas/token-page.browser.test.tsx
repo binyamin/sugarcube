@@ -22,6 +22,28 @@ const files = {
     }),
     "base.json": JSON.stringify({
         space: { $type: "dimension", s: { $value: { value: 4, unit: "px" } } },
+        shadow: {
+            $type: "shadow",
+            sm: {
+                $value: {
+                    color: "#00000033",
+                    offsetX: { value: 0, unit: "px" },
+                    offsetY: { value: 1, unit: "px" },
+                    blur: { value: 2, unit: "px" },
+                    spread: { value: 0, unit: "px" },
+                },
+            },
+        },
+        border: {
+            $type: "border",
+            card: {
+                $value: {
+                    color: "#000000",
+                    width: { value: 1, unit: "px" },
+                    style: { dashArray: [{ value: 4, unit: "px" }], lineCap: "round" },
+                },
+            },
+        },
     }),
     "dark.json": JSON.stringify({
         space: { $type: "dimension", m: { $value: { value: 8, unit: "px" } } },
@@ -88,6 +110,42 @@ describe("a new token", () => {
         expect(studio.state.showing.token("space.l")?.authored?.value).toEqual({
             value: 12,
             unit: "px",
+        });
+    });
+});
+
+describe("a composite", () => {
+    it("writes only the part you change", async () => {
+        const { studio, Page } = studioPage("shadow.sm");
+        const screen = await render(<Page />);
+
+        await screen.getByRole("spinbutton", { name: "base, layer 1, blur, amount" }).fill("8");
+
+        const written = JSON.parse(studio.state.tokens.text("base.json") ?? "{}").shadow.sm.$value;
+        expect(written).toEqual({
+            color: "#00000033",
+            offsetX: { value: 0, unit: "px" },
+            offsetY: { value: 1, unit: "px" },
+            blur: { value: 8, unit: "px" },
+            spread: { value: 0, unit: "px" },
+        });
+    });
+
+    it("reaches a part inside a part, and adds a layer as a copy of the last", async () => {
+        const { studio, Page } = studioPage("border.card");
+        const screen = await render(<Page />);
+
+        await screen.getByRole("spinbutton", { name: "base, style, dash 1, amount" }).fill("6");
+        await screen.getByRole("button", { name: "Add dash" }).click();
+
+        const style = JSON.parse(studio.state.tokens.text("base.json") ?? "{}").border.card.$value
+            .style;
+        expect(style).toEqual({
+            dashArray: [
+                { value: 6, unit: "px" },
+                { value: 6, unit: "px" },
+            ],
+            lineCap: "round",
         });
     });
 });

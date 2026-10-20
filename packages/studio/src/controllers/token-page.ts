@@ -114,14 +114,6 @@ export function newToken(
     return type === group?.type ? { $value: value } : { $type: type, $value: value };
 }
 
-export function parsedJson(text: string): { value: JsonValue } | undefined {
-    try {
-        return { value: JSON.parse(text) };
-    } catch {
-        return undefined;
-    }
-}
-
 function labelOf({ sources, readIn }: PlaceInPermutations): string | undefined {
     if (sources.some((source) => source.context)) return readIn.label;
     return sources[0]?.sets[0]?.name;
