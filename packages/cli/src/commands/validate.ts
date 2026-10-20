@@ -51,5 +51,5 @@ async function builtFromPaths(paths: string[]): Promise<Built> {
     const [file, ...others] = files;
     if (file === undefined) throw new CLIError(ERROR_MESSAGES.VALIDATE_NO_TOKEN_FILES());
     if (others.length > 0) throw new CLIError(ERROR_MESSAGES.VALIDATE_NO_RESOLVER(files));
-    return buildFiles({ [file]: await readFile(file, "utf-8") }, process.cwd());
+    return buildFiles({ [file]: await readFile(file, "utf-8") }, file);
 }
