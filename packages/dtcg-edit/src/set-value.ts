@@ -1,6 +1,7 @@
-import type { DesignTokens, Token, JsonValue } from "@sugarcube-sh/dtcg";
-import { isJsonObject } from "@sugarcube-sh/dtcg/values";
-import type { FileOp, OpResult, ValueOptions } from "./index.js";
+import type { DesignTokens, JsonPath, Token, JsonValue } from "@sugarcube-sh/dtcg";
+import { isJsonObject, readReference } from "@sugarcube-sh/dtcg/values";
+import { refused } from "./error-messages.js";
+import type { FileOp, OpResult, Refusal, ValueOptions } from "./index.js";
 import { asked, copiesOf, describedPlace, placement } from "./placement.js";
 import { type Member, writtenIn } from "./file-text.js";
 
@@ -19,6 +20,11 @@ import { type Member, writtenIn } from "./file-text.js";
  * With `at`, a place from `tokens.writtenAt(path)`, the value written at that place changes
  * instead, whichever contexts read it.
  *
+ * With `part`, only that part of the value changes, such as a shadow's `["color"]`, and every
+ * other part stays as the file writes it. A part takes a value or a reference, as the spec allows:
+ * "Sub-values may be explicit values (e.g. `color` values) or references to other design tokens
+ * that have the sub-value's type" (Format 9).
+ *
  * The value is written exactly as given, keeping the file's own spelling; use `toDTCGValue`
  * from `@sugarcube-sh/dtcg` to write a value taken from the model. A value the read finds wrong,
  * such as a reference to a token not made yet, is still written, and the read reports it.
@@ -26,13 +32,15 @@ import { type Member, writtenIn } from "./file-text.js";
  * Refused, with the reason: a token that doesn't exist, one a generator makes, one a group
  * inherits through `$extends`, an override for two contexts at once, a context with no whole
  * file of its own, an override a file read later would hide, a shared value when every
- * context writes its own, or a place `at` where the token isn't written.
+ * context writes its own, a place `at` where the token isn't written, a `part` behind a reference
+ * to another token, or a `part` the value has nowhere to put.
  *
  * @example
  * setValue(tokens, "color.danger", "{color.red.600}")
  * setValue(tokens, "color.danger", "{color.red.400}", { input: { mode: "dark" } })
  * const dark = tokens.writtenAt("color.danger").find(({ span }) => span.file === "dark.json");
  * if (dark) setValue(tokens, "color.danger", "{color.red.400}", { at: dark.span });
+ * setValue(tokens, "shadow.raised", "{color.neutral.900}", { part: [1, "color"] })
  */
 export function setValue(
     tokens: DesignTokens,
@@ -50,18 +58,24 @@ function setValueIn(
     options: ValueOptions,
     place?: string,
 ): OpResult {
-    if (options.part !== undefined) throw new Error("not implemented yet");
     const placed = placement(tokens, path, options, place);
     if ("choose" in placed) {
         return asked(placed.choose, (file) => setValueIn(tokens, path, value, options, file));
     }
     if ("refused" in placed) return placed;
+    const part = options.part ?? [];
     if ("at" in placed) {
         const { at, alsoAffects } = placed;
-        return { ops: written(tokens, at, "$value", value), alsoAffects, moved: [] };
+        const whole = isJsonObject(at.written) ? at.written.$value : undefined;
+        const checked = withPart(path, whole, part, value);
+        if ("refused" in checked) return checked;
+        return { ops: written(tokens, at, ["$value", ...part], value), alsoAffects, moved: [] };
     }
     const { token, into, alsoAffects } = placed;
-    const override = { ...ownProperties(token), $value: value };
+    const own = ownProperties(token);
+    const made = withPart(path, own.$value, part, value);
+    if ("refused" in made) return made;
+    const override = { ...own, $value: made.value };
     const op: FileOp = {
         kind: "add",
         file: into,
@@ -69,6 +83,29 @@ function setValueIn(
         value: override,
     };
     return { ops: [op], alsoAffects, moved: [] };
+}
+
+function withPart(
+    path: string,
+    whole: JsonValue | undefined,
+    part: JsonPath,
+    value: JsonValue,
+    from = 0,
+): { value: JsonValue } | { refused: Refusal } {
+    if (from === part.length) return { value };
+    if (readReference(whole)) return refused({ kind: "part-in-reference", path, part });
+    const step = part[from];
+    if (Array.isArray(whole) && typeof step === "number" && step >= 0 && step < whole.length) {
+        const made = withPart(path, whole[step], part, value, from + 1);
+        if ("refused" in made) return made;
+        return { value: whole.map((each, index) => (index === step ? made.value : each)) };
+    }
+    if (isJsonObject(whole) && typeof step === "string") {
+        const made = withPart(path, whole[step], part, value, from + 1);
+        if ("refused" in made) return made;
+        return { value: { ...whole, [step]: made.value } };
+    }
+    return refused({ kind: "no-such-part", path, part });
 }
 
 function ownProperties(token: Token): Record<string, JsonValue> {
@@ -104,7 +141,9 @@ function setDescriptionIn(
     const copies = copiesOf(tokens, path);
     if ("refused" in copies) return copies;
     if (copies.of === "token") {
-        const ops = copies.places.flatMap((at) => written(tokens, at, "$description", description));
+        const ops = copies.places.flatMap((at) =>
+            written(tokens, at, ["$description"], description),
+        );
         return { ops, alsoAffects: copies.alsoAffects, moved: [] };
     }
     const described = describedPlace(tokens, path, copies.places, place);
@@ -112,13 +151,18 @@ function setDescriptionIn(
         return asked(described.choose, (file) => setDescriptionIn(tokens, path, description, file));
     }
     if ("refused" in described) return described;
-    const ops = written(tokens, described.at, "$description", description);
+    const ops = written(tokens, described.at, ["$description"], description);
     return { ops, alsoAffects: described.alsoAffects, moved: [] };
 }
 
-function written(tokens: DesignTokens, at: Member, key: string, value: JsonValue | null): FileOp[] {
+function written(
+    tokens: DesignTokens,
+    at: Member,
+    inside: JsonPath,
+    value: JsonValue | null,
+): FileOp[] {
     const { file } = at.span;
-    const jsonPath = [...at.jsonPath, key];
+    const jsonPath = [...at.jsonPath, ...inside];
     const was = writtenIn(tokens, file, jsonPath);
     if (value === null) return was === undefined ? [] : [{ kind: "remove", file, jsonPath, was }];
     return was === undefined

@@ -56,6 +56,9 @@ const refusalReasons: {
         `no file every permutation reads writes \`${path}\`, only contexts do; change it for one context`,
     "not-written-there": ({ path, at }) =>
         `\`${path}\` isn't written at that place in \`${at.file}\`; take the place from \`writtenAt\``,
+    "part-in-reference": ({ path, part }) =>
+        `\`${path}\` refers to another token on the way to \`${part.join(".")}\`, so that part isn't written there`,
+    "no-such-part": ({ path, part }) => `\`${path}\` has no part \`${part.join(".")}\``,
     "gone-elsewhere": ({ path, file }) =>
         `${path === undefined ? "what your edit changes" : `\`${path}\``} in \`${file}\` was removed or renamed since, so yours can't be written over it`,
 };

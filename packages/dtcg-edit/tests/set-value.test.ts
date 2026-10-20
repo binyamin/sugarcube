@@ -1047,3 +1047,148 @@ describe("setDescription", () => {
         });
     });
 });
+
+describe("setValue, a part", () => {
+    const smColor = ["shadow", "sm", "$value", "color"];
+
+    it("changes one part of the shared value, leaving the others as written", () => {
+        const result = setValue(demo, "shadow.sm", "{color.neutral.900}", { part: ["color"] });
+
+        expect(opsOf(result)).toEqual([
+            {
+                kind: "set",
+                file: "shadow.json",
+                jsonPath: smColor,
+                value: "{color.neutral.900}",
+                was: at(demo, "shadow.json", smColor),
+            },
+        ]);
+        const after = committed(demo, result);
+        expect(at(after, "shadow.json", ["shadow", "sm", "$value", "blur"])).toEqual(
+            at(demo, "shadow.json", ["shadow", "sm", "$value", "blur"]),
+        );
+    });
+
+    it("changes a part of one layer of a list", () => {
+        const second = ["shadow", "raised", "$value", 1, "offsetY"];
+
+        const result = setValue(
+            demo,
+            "shadow.raised",
+            { value: 10, unit: "px" },
+            {
+                part: [1, "offsetY"],
+            },
+        );
+
+        expect(opsOf(result)).toEqual([
+            {
+                kind: "set",
+                file: "shadow.json",
+                jsonPath: second,
+                value: { value: 10, unit: "px" },
+                was: at(demo, "shadow.json", second),
+            },
+        ]);
+    });
+
+    it("adds a part the value doesn't write yet", () => {
+        expect(opsOf(setValue(demo, "shadow.sm", true, { part: ["inset"] }))).toEqual([
+            {
+                kind: "add",
+                file: "shadow.json",
+                jsonPath: ["shadow", "sm", "$value", "inset"],
+                value: true,
+            },
+        ]);
+    });
+
+    it("changes the part at the place given", () => {
+        const dark = demo.writtenAt("shadow.raised").find(({ span }) => span.file === "dark.json")!;
+        const color = ["shadow", "raised", "$value", 0, "color"];
+
+        expect(
+            opsOf(
+                setValue(demo, "shadow.raised", "{color.neutral.50}", {
+                    at: dark.span,
+                    part: [0, "color"],
+                }),
+            ),
+        ).toEqual([
+            {
+                kind: "set",
+                file: "dark.json",
+                jsonPath: color,
+                value: "{color.neutral.50}",
+                was: at(demo, "dark.json", color),
+            },
+        ]);
+    });
+
+    it("writes a new override as the value in force there, with the part changed", () => {
+        const result = setValue(demo, "shadow.sm", "{color.neutral.50}", {
+            input: { mode: "dark" },
+            part: ["color"],
+        });
+
+        const after = committed(demo, result);
+        expect(at(after, "dark.json", ["shadow", "sm", "$value"])).toEqual({
+            ...(at(demo, "shadow.json", ["shadow", "sm", "$value"]) as object),
+            color: "{color.neutral.50}",
+        });
+    });
+
+    it("writes a part the type doesn't have, and the read reports it", () => {
+        const after = committed(demo, setValue(demo, "shadow.sm", "red", { part: ["colour"] }));
+
+        expect(at(after, "shadow.json", ["shadow", "sm", "$value", "colour"])).toBe("red");
+        expect(after.diagnosticsFor("shadow.sm").length).toBeGreaterThan(0);
+    });
+
+    it("refuses a part of a value that is a reference", () => {
+        const files = {
+            "tokens.resolver.json": resolver([{ $ref: "./base.json" }]),
+            "base.json": JSON.stringify({
+                shadow: {
+                    $type: "shadow",
+                    sm: {
+                        $value: {
+                            color: "#000000",
+                            offsetX: { value: 0, unit: "px" },
+                            offsetY: { value: 1, unit: "px" },
+                            blur: { value: 2, unit: "px" },
+                            spread: { value: 0, unit: "px" },
+                        },
+                    },
+                    alias: { $value: "{shadow.sm}" },
+                    layers: { $value: ["{shadow.sm}"] },
+                },
+            }),
+        };
+        const tokens = opened(files);
+
+        expect(setValue(tokens, "shadow.alias", "#ffffff", { part: ["color"] })).toMatchObject({
+            refused: { kind: "part-in-reference", path: "shadow.alias", part: ["color"] },
+        });
+        expect(setValue(tokens, "shadow.layers", "#ffffff", { part: [0, "color"] })).toMatchObject({
+            refused: { kind: "part-in-reference", path: "shadow.layers", part: [0, "color"] },
+        });
+    });
+
+    it("refuses a part the value can't hold", () => {
+        for (const part of [[5, "color"], [2], ["color", "colorSpace", "x"], ["offsetX", 0]]) {
+            expect(setValue(demo, "shadow.raised", 1, { part })).toMatchObject({
+                refused: { kind: "no-such-part", path: "shadow.raised", part },
+            });
+        }
+        expect(setValue(demo, "shadow.sm", 1, { part: [0] })).toMatchObject({
+            refused: { kind: "no-such-part" },
+        });
+    });
+
+    it("words each refusal", () => {
+        const refusal = setValue(demo, "shadow.raised", 1, { part: [5, "color"] }).refused;
+
+        expect(refusal?.reason).toBe("`shadow.raised` has no part `5.color`");
+    });
+});

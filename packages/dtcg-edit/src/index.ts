@@ -142,6 +142,10 @@ export type OpResult =
  * - `gone-elsewhere`: a {@link Clash} can't be settled by keeping yours: what your step changes,
  *   the token or group at `path` in `file`, was removed or renamed since. In a file, a rename
  *   and a removal look the same, so yours isn't written over something else.
+ * - `part-in-reference`: on the way to `part`, the value refers to another token, so that part
+ *   isn't written there to change.
+ * - `no-such-part`: the value written has nowhere to put `part`: a step goes into a value that
+ *   isn't an object or a list, or past the end of a list.
  */
 export type Refusal = { reason: string } & (
     | { kind: "not-found"; path: string }
@@ -163,6 +167,8 @@ export type Refusal = { reason: string } & (
     | { kind: "no-shared-value"; path: string }
     | { kind: "not-written-there"; path: string; at: Pick<Span, "file" | "offset" | "length"> }
     | { kind: "gone-elsewhere"; path?: string; file: string }
+    | { kind: "part-in-reference"; path: string; part: JsonPath }
+    | { kind: "no-such-part"; path: string; part: JsonPath }
 );
 
 /** Where an edit goes. */
@@ -208,7 +214,12 @@ export { overridable } from "./overridable.js";
  * the value it changes.
  */
 export type ValueOptions = ((Where & { at?: undefined }) | ValueAt) & {
-    /** A part of a composite value to change on its own, such as `["color"]` of a shadow. */
+    /**
+     * A part of the value to change on its own, such as `["color"]` of a shadow or
+     * `[1, "color"]` of its second layer, leaving every other part as written. A member the value
+     * doesn't write yet, such as a shadow's `inset`, is added. A new override is the value in
+     * force for that context with the part changed.
+     */
     part?: JsonPath;
 };
 
