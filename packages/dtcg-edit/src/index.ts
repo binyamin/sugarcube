@@ -145,7 +145,7 @@ export type OpResult =
  * - `part-in-reference`: on the way to `part`, the value refers to another token, so that part
  *   isn't written there to change.
  * - `no-such-part`: the value written has nowhere to put `part`: a step goes into a value that
- *   isn't an object or a list, or past the end of a list.
+ *   isn't an object or a list, or into a list at anything but the index of an item in it.
  */
 export type Refusal = { reason: string } & (
     | { kind: "not-found"; path: string }

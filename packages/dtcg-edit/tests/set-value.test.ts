@@ -1176,7 +1176,13 @@ describe("setValue, a part", () => {
     });
 
     it("refuses a part the value can't hold", () => {
-        for (const part of [[5, "color"], [2], ["color", "colorSpace", "x"], ["offsetX", 0]]) {
+        for (const part of [
+            [5, "color"],
+            [1.5],
+            [2],
+            ["color", "colorSpace", "x"],
+            ["offsetX", 0],
+        ]) {
             expect(setValue(demo, "shadow.raised", 1, { part })).toMatchObject({
                 refused: { kind: "no-such-part", path: "shadow.raised", part },
             });

@@ -32,8 +32,8 @@ import { type Member, writtenIn } from "./file-text.js";
  * Refused, with the reason: a token that doesn't exist, one a generator makes, one a group
  * inherits through `$extends`, an override for two contexts at once, a context with no whole
  * file of its own, an override a file read later would hide, a shared value when every
- * context writes its own, a place `at` where the token isn't written, a `part` behind a reference
- * to another token, or a `part` the value has nowhere to put.
+ * context writes its own, a place `at` where the token isn't written, a `part` with a reference
+ * to another token on the way to it, or a `part` the value has nowhere to put.
  *
  * @example
  * setValue(tokens, "color.danger", "{color.red.600}")
@@ -95,7 +95,13 @@ function withPart(
     if (from === part.length) return { value };
     if (readReference(whole)) return refused({ kind: "part-in-reference", path, part });
     const step = part[from];
-    if (Array.isArray(whole) && typeof step === "number" && step >= 0 && step < whole.length) {
+    if (
+        Array.isArray(whole) &&
+        typeof step === "number" &&
+        Number.isInteger(step) &&
+        step >= 0 &&
+        step < whole.length
+    ) {
         const made = withPart(path, whole[step], part, value, from + 1);
         if ("refused" in made) return made;
         return { value: whole.map((each, index) => (index === step ? made.value : each)) };

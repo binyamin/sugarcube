@@ -53,6 +53,40 @@ describe("rebase", () => {
         expect(session.tokens.permutation().token("color.brand.500")?.authored?.value).toEqual(red);
     });
 
+    it("keeps your part and theirs when you each changed a different part of one value", () => {
+        const session = createSession(demo);
+        session.do(
+            setValue(session.tokens, "shadow.sm", "{color.neutral.900}", { part: ["color"] }),
+        );
+        const blur = ["shadow", "sm", "$value", "blur"];
+        const fresh = changed(demo, [["shadow.json", blur, { value: 8, unit: "px" }]]);
+
+        expect(session.rebase(fresh)).toEqual([]);
+        expect(at(session.tokens, "shadow.json", ["shadow", "sm", "$value", "color"])).toBe(
+            "{color.neutral.900}",
+        );
+        expect(at(session.tokens, "shadow.json", blur)).toEqual({ value: 8, unit: "px" });
+    });
+
+    it("hands back a clash over the whole token when you both changed one part", () => {
+        const session = createSession(demo);
+        session.do(
+            setValue(session.tokens, "shadow.sm", "{color.neutral.900}", { part: ["color"] }),
+        );
+        const color = ["shadow", "sm", "$value", "color"];
+        const fresh = changed(demo, [["shadow.json", color, "{color.neutral.800}"]]);
+
+        const [part] = partsOf(session.rebase(fresh));
+
+        expect(part).toMatchObject({
+            file: "shadow.json",
+            jsonPath: ["shadow", "sm"],
+            path: "shadow.sm",
+            yours: { $value: { color: "{color.neutral.900}" } },
+            theirs: { $value: { color: "{color.neutral.800}" } },
+        });
+    });
+
     it("hands back one clash when you both changed a token, and shows theirs", () => {
         const session = createSession(demo);
         session.do(setValue(session.tokens, "color.brand.500", red));
