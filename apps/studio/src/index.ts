@@ -1,4 +1,3 @@
-import { WriteOpFailed } from "@sugarcube-sh/studio/write-ops";
 import type { Env } from "./env";
 import { SaveRefused, createPR } from "./github";
 import { checkRequest } from "./request";
@@ -41,15 +40,9 @@ async function handleSubmitPR(request: Request, env: Env): Promise<Response> {
     if ("error" in checked) return json({ error: checked.error }, 400);
 
     try {
-        const result = await createPR(env, checked.request);
-        return json(result, 201);
+        const saved = await createPR(env, checked.request);
+        return json(saved, saved.conflicts ? 409 : 201);
     } catch (err) {
-        if (err instanceof WriteOpFailed) {
-            return json(
-                { error: "The repository moved under this save", detail: err.message },
-                409,
-            );
-        }
         if (err instanceof SaveRefused) return json({ error: err.message }, 422);
         console.error("PR creation failed:", err);
         const message = err instanceof Error ? err.message : "Unknown error";

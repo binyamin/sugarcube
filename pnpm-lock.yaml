@@ -41,9 +41,12 @@ importers:
 
   apps/studio:
     dependencies:
-      '@sugarcube-sh/studio':
+      '@sugarcube-sh/dtcg':
         specifier: workspace:*
-        version: link:../../packages/studio
+        version: link:../../packages/dtcg
+      '@sugarcube-sh/dtcg-edit':
+        specifier: workspace:*
+        version: link:../../packages/dtcg-edit
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^5.20260907.1
@@ -333,9 +336,6 @@ importers:
       devframe:
         specifier: ^1.0.0
         version: 1.0.0(cac@7.0.0)(srvx@1.0.5)
-      jsonc-parser:
-        specifier: ^3.3.1
-        version: 3.3.1
       radix-ui:
         specifier: ^1.6.7
         version: 1.6.7(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

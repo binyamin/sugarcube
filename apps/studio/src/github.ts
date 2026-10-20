@@ -1,4 +1,5 @@
-import { applyWriteOps } from "@sugarcube-sh/studio/write-ops";
+import { filePath, read } from "@sugarcube-sh/dtcg";
+import { type Conflict, changedFiles } from "@sugarcube-sh/dtcg-edit";
 import type { Env } from "./env";
 import type { PRRequest } from "./request";
 
@@ -105,6 +106,14 @@ async function githubGet(token: string, path: string): Promise<unknown> {
     return res.json();
 }
 
+async function githubText(token: string, path: string): Promise<string> {
+    const res = await fetch(`${GITHUB_API}${path}`, {
+        headers: { ...githubHeaders(token), Accept: "application/vnd.github.raw+json" },
+    });
+    if (!res.ok) throw new Error(`GitHub GET ${path} failed (${res.status})`);
+    return res.text();
+}
+
 async function githubPost(token: string, path: string, body: unknown): Promise<unknown> {
     const res = await fetch(`${GITHUB_API}${path}`, {
         method: "POST",
@@ -118,22 +127,19 @@ async function githubPost(token: string, path: string, body: unknown): Promise<u
     return res.json();
 }
 
-export type PRResult = {
-    number: number;
-    url: string;
-};
+type Files = Record<string, string>;
+
+export type Saved =
+    | { number: number; url: string; files: Files; conflicts?: undefined }
+    | { conflicts: Conflict[]; files: Files };
 
 export class SaveRefused extends Error {
     override name = "SaveRefused";
 }
 
-function decodeContent(content: string): string {
-    const binary = atob(content.replace(/\n/g, ""));
-    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-    return new TextDecoder().decode(bytes);
-}
+const repositoryPath = (path: string) => path.split("/").map(encodeURIComponent).join("/");
 
-export async function createPR(env: Env, request: PRRequest): Promise<PRResult> {
+export async function createPR(env: Env, request: PRRequest): Promise<Saved> {
     const token = await getInstallationToken(env);
     const repo = env.GITHUB_REPO;
     const baseBranch = env.GITHUB_BASE_BRANCH;
@@ -148,30 +154,32 @@ export async function createPR(env: Env, request: PRRequest): Promise<PRResult> 
     };
     const baseTreeSHA = baseCommit.tree.sha;
 
-    const read = await Promise.all(
-        request.files.map(
-            (file) =>
-                githubGet(token, `/repos/${repo}/contents/${file.path}?ref=${baseSHA}`) as Promise<{
-                    content?: string;
-                    encoding?: string;
-                }>,
-        ),
-    );
+    const tokens = await read(request.entry, {
+        readText: (path) =>
+            githubText(token, `/repos/${repo}/contents/${repositoryPath(path)}?ref=${baseSHA}`),
+    });
+    const { files } = tokens.toMemory();
+    if (Object.keys(files).length === 0) {
+        throw new SaveRefused(`${request.entry} is not in ${repo} on ${baseBranch}.`);
+    }
 
-    const tree = request.files.map((file, index) => {
-        const existing = read[index];
-        if (existing?.encoding !== "base64" || !existing.content) {
-            throw new SaveRefused(
-                `${file.path} is too large for GitHub to hand over; Studio cannot save to it here.`,
-            );
-        }
-        return {
-            path: file.path,
+    const changes = changedFiles(tokens, request.edits);
+    if (changes.conflicts) return { conflicts: changes.conflicts, files };
+
+    const tree = [
+        ...Object.entries(changes.written).map(([file, content]) => ({
+            path: filePath(request.entry, file),
             mode: "100644",
             type: "blob",
-            content: applyWriteOps(decodeContent(existing.content), file.ops, file.path),
-        };
-    });
+            content,
+        })),
+        ...changes.deleted.map((file) => ({
+            path: filePath(request.entry, file),
+            mode: "100644",
+            type: "blob",
+            sha: null,
+        })),
+    ];
 
     const created = (await githubPost(token, `/repos/${repo}/git/trees`, {
         base_tree: baseTreeSHA,
@@ -199,5 +207,5 @@ export async function createPR(env: Env, request: PRRequest): Promise<PRResult> 
         base: baseBranch,
     })) as { number: number; html_url: string };
 
-    return { number: pr.number, url: pr.html_url };
+    return { number: pr.number, url: pr.html_url, files };
 }
